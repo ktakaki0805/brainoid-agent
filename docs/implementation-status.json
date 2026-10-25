@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "tickets": {
+    "BA-FND-01": {
+      "status": "todo"
+    },
+    "BA-FND-02": {
+      "status": "todo"
+    },
+    "BA-FND-03": {
+      "status": "todo"
+    },
+    "BA-FND-04": {
+      "status": "todo"
+    },
+    "BA-FND-05": {
+      "status": "todo"
+    },
+    "BA-FND-06": {
+      "status": "todo"
+    },
+    "BA-FND-07": {
+      "status": "todo"
+    },
+    "BA-FND-08": {
+      "status": "todo"
+    },
+    "BA-IAM-01": {
+      "status": "todo"
+    },
+    "BA-IAM-02": {
+      "status": "todo"
+    },
+    "BA-IAM-03": {
+      "status": "todo"
+    },
+    "BA-IAM-04": {
+      "status": "todo"
+    },
+    "BA-IAM-05": {
+      "status": "todo"
+    },
+    "BA-IAM-06": {
+      "status": "todo"
+    },
+    "BA-IAM-07": {
+      "status": "todo"
+    },
+    "BA-IAM-08": {
+      "status": "todo"
+    },
+    "BA-IAM-09": {
+      "status": "todo"
+    },
+    "BA-IAM-10": {
+      "status": "todo"
+    },
+    "BA-RUN-01": {
+      "status": "todo"
+    },
+    "BA-RUN-02": {
+      "status": "todo"
+    },
+    "BA-RUN-03": {
+      "status": "todo"
+    },
+    "BA-RUN-04": {
+      "status": "todo"
+    },
+    "BA-RUN-05": {
+      "status": "todo"
+    },
+    "BA-RUN-06": {
+      "status": "todo"
+    },
+    "BA-RUN-07": {
+      "status": "todo"
+    },
+    "BA-RUN-08": {
+      "status": "todo"
+    },
+    "BA-MEM-01": {
+      "status": "todo"
+    },
+    "BA-MEM-02": {
+      "status": "todo"
+    },
+    "BA-MEM-03": {
+      "status": "todo"
+    },
+    "BA-MEM-04": {
+      "status": "todo"
+    },
+    "BA-MEM-05": {
+      "status": "todo"
+    },
+    "BA-MEM-06": {
+      "status": "todo"
+    },
+    "BA-MEM-07": {
+      "status": "todo"
+    },
+    "BA-MEM-08": {
+      "status": "todo"
+    },
+    "BA-MEM-09": {
+      "status": "todo"
+    },
+    "BA-APP-01": {
+      "status": "todo"
+    },
+    "BA-APP-02": {
+      "status": "todo"
+    },
+    "BA-APP-03": {
+      "status": "todo"
+    },
+    "BA-APP-04": {
+      "status": "todo"
+    },
+    "BA-APP-05": {
+      "status": "todo"
+    },
+    "BA-APP-06": {
+      "status": "todo"
+    },
+    "BA-CAL-01": {
+      "status": "todo"
+    },
+    "BA-CAL-02": {
+      "status": "todo"
+    },
+    "BA-CAL-03": {
+      "status": "todo"
+    },
+    "BA-CAL-04": {
+      "status": "todo"
+    },
+    "BA-CAL-05": {
+      "status": "todo"
+    },
+    "BA-DEV-01": {
+      "status": "todo"
+    },
+    "BA-DEV-02": {
+      "status": "todo"
+    },
+    "BA-DEV-03": {
+      "status": "todo"
+    },
+    "BA-DEV-04": {
+      "status": "todo"
+    },
+    "BA-DEV-05": {
+      "status": "todo"
+    },
+    "BA-DEV-06": {
+      "status": "todo"
+    },
+    "BA-DEV-07": {
+      "status": "todo"
+    },
+    "BA-DEV-08": {
+      "status": "todo"
+    },
+    "BA-DEV-09": {
+      "status": "todo"
+    },
+    "BA-DEV-10": {
+      "status": "todo"
+    },
+    "BA-UI-01": {
+      "status": "todo"
+    },
+    "BA-UI-02": {
+      "status": "todo"
+    },
+    "BA-UI-03": {
+      "status": "todo"
+    },
+    "BA-UI-04": {
+      "status": "todo"
+    },
+    "BA-UI-05": {
+      "status": "todo"
+    },
+    "BA-UI-06": {
+      "status": "todo"
+    },
+    "BA-UI-07": {
+      "status": "todo"
+    },
+    "BA-UI-08": {
+      "status": "todo"
+    },
+    "BA-UI-09": {
+      "status": "todo"
+    },
+    "BA-UI-10": {
+      "status": "todo"
+    },
+    "BA-UI-11": {
+      "status": "todo"
+    },
+    "BA-UI-12": {
+      "status": "todo"
+    },
+    "BA-UI-13": {
+      "status": "todo"
+    },
+    "BA-VOICE-01": {
+      "status": "todo"
+    },
+    "BA-VOICE-02": {
+      "status": "todo"
+    },
+    "BA-VOICE-03": {
+      "status": "todo"
+    },
+    "BA-VOICE-04": {
+      "status": "todo"
+    },
+    "BA-VOICE-05": {
+      "status": "todo"
+    },
+    "BA-OPS-01": {
+      "status": "todo"
+    },
+    "BA-OPS-02": {
+      "status": "todo"
+    },
+    "BA-OPS-03": {
+      "status": "todo"
+    },
+    "BA-OPS-04": {
+      "status": "todo"
+    },
+    "BA-OPS-05": {
+      "status": "todo"
+    },
+    "BA-OPS-06": {
+      "status": "todo"
+    },
+    "BA-OPS-07": {
+      "status": "todo"
+    },
+    "BA-OPS-08": {
+      "status": "todo"
+    },
+    "BA-OPS-09": {
+      "status": "todo"
+    },
+    "BA-OPS-10": {
+      "status": "todo"
+    },
+    "BA-OPS-11": {
+      "status": "todo"
+    },
+    "BA-QA-01": {
+      "status": "todo"
+    },
+    "BA-QA-02": {
+      "status": "todo"
+    },
+    "BA-QA-03": {
+      "status": "todo"
+    },
+    "BA-QA-04": {
+      "status": "todo"
+    },
+    "BA-QA-05": {
+      "status": "todo"
+    },
+    "BA-QA-06": {
+      "status": "todo"
+    },
+    "BA-GOV-01": {
+      "status": "todo"
+    },
+    "BA-GOV-02": {
+      "status": "todo"
+    },
+    "BA-GOV-03": {
+      "status": "todo"
+    },
+    "BA-GOV-04": {
+      "status": "todo"
+    },
+    "BA-GOV-05": {
+      "status": "todo"
+    }
+  }
+}

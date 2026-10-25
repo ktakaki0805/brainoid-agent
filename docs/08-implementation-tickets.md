@@ -4,13 +4,15 @@
 | --- | --- |
 | 文書版 | 0.2.0 |
 | 更新日 | 2026-10-25（日本時間） |
-| 状態 | 開発着手用の計画。全チケット未着手、外部Issue未登録 |
+| 状態 | 開発着手用の計画。現在の実装状況は[進捗台帳](implementation-status.json)を参照。外部Issue未登録 |
 | プロジェクト名 | Brainoid Agent（確定） |
 | 責任ロール | 技術責任者が依存・PR境界を管理し、各担当とプロダクト責任者がレビュー |
 | 対象 | 既存のMVP全機能、端末・クラウドの構築、検証、OSS公開準備 |
 | 関連文書 | [要件](01-requirements.md)、[基本設計](02-architecture.md)、[データ・権限](03-data-and-authorization.md)、[API](04-interfaces.md)、[開発・テスト](05-development-and-testing.md)、[運用](06-deployment-and-operations.md) |
 
 既存設計を **96件の実装チケット**に分割した。各チケットを原則1PRとして、機能・契約・必要な検証・関連文書を同じ変更単位で扱う。IDはこの文書内の識別子であり、GitHub等のIssue番号ではない。予定パスは、これから作る実装リポジトリの配置を示す。
+
+各詳細節の「状態」と受入条件のチェック欄は計画作成時点の記録。現在の実装状況は[進捗台帳](implementation-status.json)、実施した検証・レビュー・修正・コミットは[作業ログ](implementation-log.md)を正本とする。ローカルの実装完了とPRのmerge・配備は区別する。Codexでは `$implement-ticket`（次の1件）または `$implement-ticket BA-FND-01`（ID指定）で[実装Skill](../.agents/skills/implement-ticket/SKILL.md)を利用できる。
 
 ## 1. 1PRの境界と共通の完了条件
 

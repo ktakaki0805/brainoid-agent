@@ -25,6 +25,7 @@
 | [06 構築・リリース・運用手順](docs/06-deployment-and-operations.md) | GCP構築、配備、復旧、端末更新、監視、費用、公開前確認 | インフラ、運用、リリース担当 |
 | [07 公式参考資料](docs/07-references.md) | 製品仕様・制約を確認する一次資料 | 全員 |
 | [08 実装チケット](docs/08-implementation-tickets.md) | 1PR単位の変更範囲・受入条件・検証・依存関係 | 開発者、レビュアー、プロダクト責任者 |
+| [実装進捗](docs/implementation-status.json)・[作業ログ](docs/implementation-log.md) | チケットごとの実装状況、検証・レビュー・修正・コミットの記録 | 開発者、レビュアー |
 | [検証記録](VALIDATION.md) | 文書・契約ファイルに行った検証と、その対象範囲 | レビュアー |
 | [CONTRIBUTING](CONTRIBUTING.md) | 参加方法、Issue・PR、文書更新、レビュー | 貢献者、メンテナ |
 | [SECURITY](SECURITY.md) | 脆弱性報告、対応範囲、対応方針 | 利用者、報告者、メンテナ |

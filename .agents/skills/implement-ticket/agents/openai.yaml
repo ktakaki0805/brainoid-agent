@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainoid チケット実装"
+  short_description: "実装チケット1件を独立レビュー・修正・コミット・進捗記録まで進める"
+  default_prompt: "Use $implement-ticket to implement one ticket from docs/08-implementation-tickets.md, review and fix it with separate agent contexts, commit, and record progress."
