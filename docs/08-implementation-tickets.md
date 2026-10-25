@@ -14,6 +14,8 @@
 
 各詳細節の「状態」と受入条件のチェック欄は計画作成時点の記録。現在の実装状況は[進捗台帳](implementation-status.json)、実施した検証・レビュー・修正・コミットは[作業ログ](implementation-log.md)を正本とする。ローカルの実装完了とPRのmerge・配備は区別する。Codexでは `$implement-ticket`（次の1件）または `$implement-ticket BA-FND-01`（ID指定）で[実装Skill](../.agents/skills/implement-ticket/SKILL.md)を利用できる。
 
+全件完了まで続ける場合は `$implement-all-tickets` で[反復実装Skill](../.agents/skills/implement-all-tickets/SKILL.md)を利用する。1件ごとに実装・独立レビュー・コミット・記録を完了し、手動操作や続行確認を挟まず次へ進む。会話の圧縮は環境の自動圧縮に任せ、保存した進捗・作業ログから継続する。
+
 ## 1. 1PRの境界と共通の完了条件
 
 一つのチケットでは、利用者または呼出元から確認できる一つの目的を完了する。その目的に必要なAPI・repository・adapter・検証・文書更新は同じPRに含める。別の機能追加、無関係な整形、別のprovider対応を同時に持ち込まない。

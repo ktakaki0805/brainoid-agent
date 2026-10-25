@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainoid 全チケット実装"
+  short_description: "全チケットを1件ずつ実装・レビュー・記録し、自動圧縮に任せて継続する"
+  default_prompt: "Use $implement-all-tickets to complete all tickets in docs/08-implementation-tickets.md through $implement-ticket, relying on automatic context compaction and continuing after each completed ticket without manual compaction or per-ticket continuation prompts."
