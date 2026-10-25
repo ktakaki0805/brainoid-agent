@@ -178,6 +178,8 @@ ownerによる所属整理は当該テナントからの所属解除と、その
 
 membership/deviceの減権限・失効・owner移譲はDB外の制御bucketに認可変更台帳を先行記録し、DBに認可版を適用する。減権限は未完了の意図もdenyとして扱い、grantはDB適用確認済みのcommitted recordだけを有効にする。競合・未確定の主体はsuspendedとし、roll-forwardで整合させる。旧backupを復元した後に再ログインさせるだけでは旧権限が復活し得るため、最新台帳の再適用が終わるまでAPIを開かない。台帳は全復元可能backupより長く保持する初期30日案とする。
 
+BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主体ごとの連続版 slot・DB 適用確認後の committed marker を追記する。effect と確定後の status を分け、部分減権限後の active を表現する。未確定の grant は隔離復元で確定せず suspended に留める。台帳なしの初期 owner を許す通常導入時の互換モードは、復元時には使わない。各 API への接続は IAM-06/08、実復元 gate は OPS-07 で行う。
+
 ### 5.2 端末ペアリングと個人セッション
 
 未登録Piは一時pairing ID、短いuser code、十分な乱数のpoll secretを取得する。codeは画面に表示し、poll secretはPiサービスのみが保持する。初期期限5分、コード照合失敗5回で失効、作成・照合にrate limitを設ける。スマホのowner/adminがテナントと端末表示名・許可範囲を確認して承認し、Piはpoll secretを提示して一度だけ専用refresh credentialを取得する。

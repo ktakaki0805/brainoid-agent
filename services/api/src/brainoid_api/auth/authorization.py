@@ -2,9 +2,10 @@
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from brainoid_contracts import FirebaseUid, ResourceId, Scope, normalize_utc
+from brainoid_policy.control_ledger import ControlLedger, LedgerError, subject_key
 from brainoid_policy.evaluator import Evaluator
 from brainoid_policy.models import (
     DeviceState,
@@ -67,8 +68,46 @@ class TransactionPolicyState:
     Canonical resource tombstones must set deleted before purge (later MEM/IAM flows).
     """
 
-    def __init__(self, transaction: Transaction) -> None:
+    def __init__(
+        self,
+        transaction: Transaction,
+        *,
+        ledger: ControlLedger | None = None,
+        allow_untracked_bootstrap: bool = False,
+    ) -> None:
         self._transaction = transaction
+        self._ledger = ledger
+        self._allow_untracked = allow_untracked_bootstrap
+
+    def _fence[T: Membership | DeviceState](self, state: T | None) -> T | None:
+        if state is None or self._ledger is None:
+            return state
+        kind = "membership" if isinstance(state, Membership) else "device"
+        identity = state.user_id if isinstance(state, Membership) else state.id
+        try:
+            entry = self._ledger.latest(subject_key(state.tenant_id, kind, identity))
+        except LedgerError:
+            raise PolicyDenied() from None
+        if entry is None and self._allow_untracked:
+            return state
+        if (
+            entry is not None
+            and entry.state == "committed"
+            and entry.change.authorization_version == state.authorization_version
+        ):
+            target = entry.change.target.model_dump(mode="json", exclude={"kind"})
+            if kind == "device":
+                target["id"] = target.pop("device_id")
+            actual = state.model_dump(mode="json")
+            # Set-like device scope/ID lists have no semantic order.
+            if all(
+                set(actual[key]) == set(value)
+                if isinstance(value, list)
+                else actual.get(key) == value
+                for key, value in target.items()
+            ):
+                return state
+        return cast(T, state.model_copy(update={"status": "suspended"}))
 
     def _parse[T: Record](self, model: type[T], document: Document | None) -> T | None:
         if document is None:
@@ -88,11 +127,13 @@ class TransactionPolicyState:
         documents = self._transaction.find(f"tenants/{tenant_id}/memberships", "user_id", user_id)
         if len(documents) > 1:
             raise PolicyDenied()
-        return self._parse(Membership, documents[0] if documents else None)
+        return self._fence(self._parse(Membership, documents[0] if documents else None))
 
     def device(self, tenant_id: ResourceId, device_id: ResourceId) -> DeviceState | None:
-        return self._parse(
-            DeviceState, self._transaction.get(f"tenants/{tenant_id}/devices/{device_id}")
+        return self._fence(
+            self._parse(
+                DeviceState, self._transaction.get(f"tenants/{tenant_id}/devices/{device_id}")
+            )
         )
 
     def session(self, tenant_id: ResourceId, session_id: ResourceId) -> SessionState | None:
@@ -121,6 +162,15 @@ class TransactionPolicyState:
 
 
 def transaction_policy(
-    transaction: Transaction, *, now: Callable[[], datetime] = lambda: datetime.now(UTC)
+    transaction: Transaction,
+    *,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ledger: ControlLedger | None = None,
+    allow_untracked_bootstrap: bool = False,
 ) -> Evaluator:
-    return Evaluator(TransactionPolicyState(transaction), now=now)
+    return Evaluator(
+        TransactionPolicyState(
+            transaction, ledger=ledger, allow_untracked_bootstrap=allow_untracked_bootstrap
+        ),
+        now=now,
+    )

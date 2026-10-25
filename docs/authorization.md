@@ -22,6 +22,8 @@ operation scopeは `conversation`、`memory.read`、`memory.write`、`notes`、`
 
 `management` はコンテンツgrantを返さない。adminの自己変更、owner付与、既存owner変更、owner移譲、tenant削除を拒否する。ownerからのglobal Firebase account操作も常に拒否し、アカウント削除は本人再認証の別経路に限定する。genericなrole変更/所属解除ではownerを対象にできない。owner移譲は別operationとし、BA-IAM-06の実mutationは最後のowner維持、再認証・監査・台帳手順を別途満たす。`management` の成功だけではこれらの手順を完了した意味にはならない。
 
+BA-IAM-05は `transaction_policy(..., ledger=...)` による[独立認可台帳の fence](control-ledger.md)を提供する。pending または DB と台帳の版・目標権限が不一致なら suspended とする。既存 API への注入は IAM-06/08 で行い、mutation だけを台帳へ接続して認可読取を未接続のままにしない。台帳を指定しない従来経路は復元安全性を提供しない。
+
 別tenant、他人private、失効した所属、存在しないresourceは本文やIDを含まない同一の `resource_not_found` へ変換する。可視resourceに対する編集権不足と管理操作の拒否は `operation_forbidden` である。API側の `policy_call` が既存の固定エラーへ変換し、policy例外に対象や本文を格納しない。
 
 ## 検索・出力・worker
