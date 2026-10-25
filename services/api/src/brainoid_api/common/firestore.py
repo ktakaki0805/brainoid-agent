@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import cast
 
 from google.api_core.exceptions import Aborted, GoogleAPICallError, RetryError
-from google.cloud.firestore_v1 import Client
+from google.cloud.firestore_v1 import Client, FieldFilter
 from google.cloud.firestore_v1.transaction import Transaction as SDKTransaction
 from google.cloud.firestore_v1.transaction import transactional
 
@@ -20,6 +20,13 @@ class _Transaction:
     def get(self, path: str) -> Document | None:
         snapshot = self._client.document(path).get(transaction=self._transaction)
         return snapshot.to_dict()
+
+    def find(self, collection: str, field: str, value: str) -> list[Document]:
+        query = self._client.collection(collection).where(filter=FieldFilter(field, "==", value))
+        return [
+            snapshot.to_dict() or {}
+            for snapshot in query.limit(2).stream(transaction=self._transaction)
+        ]
 
     def create(self, path: str, document: Document) -> None:
         self._transaction.create(self._client.document(path), document)

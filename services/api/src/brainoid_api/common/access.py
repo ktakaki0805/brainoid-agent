@@ -13,7 +13,7 @@ from brainoid_contracts import (
     Visibility,
     normalize_utc,
 )
-from pydantic import BaseModel, ConfigDict, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from brainoid_api.errors import APIError, ErrorCode
 
@@ -45,6 +45,7 @@ class AuthorizedScope(BaseModel):
     context: TenantContext
     scope: Scope
     owner_user_id: FirebaseUid | None
+    authorization_stamp: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
     @model_validator(mode="after")
     def private_owner_required(self) -> Self:
@@ -61,6 +62,9 @@ class AuthorizedScope(BaseModel):
 
     def binding(self) -> str:
         data = self.model_dump(mode="json")
+        if self.authorization_stamp is None:
+            # Preserve existing FND-08 bindings for callers without the IAM-02 stamp.
+            del data["authorization_stamp"]
         # A frozenset's serialization order is not stable across processes.
         data["context"]["actor"]["allowed_scopes"] = sorted(self.context.actor.allowed_scopes)
         session = data["context"]["actor"].get("private_session")

@@ -223,7 +223,7 @@ GitHub上でのActions有効化、fork実行の承認方針、必須checkとbran
 
 ## 6. モックとfixture
 
-BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合はBA-IAM-02の責務である。
+BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合は [共通認可](authorization.md) の責務である。BA-IAM-02は現在のmembership/device/sessionと正本resourceをtransaction内で再検査し、表形式unitと実Firestore emulatorで検証する。
 
 BA-FND-07の [AgentCoreのportとfake](agent-core-contracts.md) はprovider非依存のPython型、論理時計、モデル・記憶・tool・音声のscripted fakeを提供する。`tests/test_agent_core.py` は差し替えたfakeで通常完了・tool要求・usage・取消・timeout・途中停止と呼出し履歴を検証する。権限外候補は故障fixtureとしてのみ再現し、認可や会話ループの実装・検証は後続チケットで行う。
 

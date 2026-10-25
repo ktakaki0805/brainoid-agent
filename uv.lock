@@ -10,6 +10,7 @@ members = [
     "brainoid-contracts",
     "brainoid-device",
     "brainoid-memory",
+    "brainoid-policy",
     "brainoid-tools",
     "brainoid-worker",
 ]
@@ -144,6 +145,7 @@ dependencies = [
     { name = "brainoid-agent-core" },
     { name = "brainoid-contracts" },
     { name = "brainoid-memory" },
+    { name = "brainoid-policy" },
     { name = "brainoid-tools" },
     { name = "fastapi" },
     { name = "firebase-admin" },
@@ -157,6 +159,7 @@ requires-dist = [
     { name = "brainoid-agent-core", editable = "packages/agent_core" },
     { name = "brainoid-contracts", editable = "packages/contracts" },
     { name = "brainoid-memory", editable = "packages/memory" },
+    { name = "brainoid-policy", editable = "packages/policy" },
     { name = "brainoid-tools", editable = "packages/tools" },
     { name = "fastapi", specifier = "==0.162.0" },
     { name = "firebase-admin", specifier = "==7.7.0" },
@@ -185,6 +188,21 @@ source = { editable = "services/device" }
 name = "brainoid-memory"
 version = "0.1.0"
 source = { editable = "packages/memory" }
+
+[[package]]
+name = "brainoid-policy"
+version = "0.1.0"
+source = { editable = "packages/policy" }
+dependencies = [
+    { name = "brainoid-contracts" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "pydantic", specifier = "==2.14.1" },
+]
 
 [[package]]
 name = "brainoid-tools"

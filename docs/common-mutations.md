@@ -4,7 +4,7 @@ BA-FND-08（FR-004/007/008）のAPI内部共通処理を `services/api/src/brain
 
 ## 呼出し境界
 
-`AuthorizedScope` は `TenantContext`、対象の `Scope`、所有userを必須で受け取る。privateのownerは省略できない。この型の生成自体は認可ではない。`Idempotency.execute` の `authorize(transaction, replay)` callbackは毎回、現在のmembership、grant、操作権限、対象のscope・owner・削除状態を確認してこの型を返す。古いContextを返すだけのcallbackは契約違反である。
+`AuthorizedScope` は `TenantContext`、対象の `Scope`、所有userを必須で受け取る。privateのownerは省略できない。この型の生成自体は認可ではない。[BA-IAM-02の共通認可](authorization.md) は現在のtransactionから検査したgrantをこの型へ変換し、複合 `authorization_stamp` をbindingに加える。`Idempotency.execute` の `authorize(transaction, replay)` callbackは毎回、現在のmembership、grant、操作権限、対象のscope・owner・削除状態を確認してこの型を返す。古いContextを返すだけのcallbackは契約違反である。
 
 最初は `replay=None` で要求を認可し、保存済記録がある場合は、その `MutationResult` を渡して対象resource/operationを再認可する。これにより、初回に生成されたIDも再送時に現在の権限・削除状態で確認できる。削除の再送を許可する業務は、認可可能なoperationまたはtombstoneを別途保持する。拒否は `APIError` で伝え、記録の存在や内容を返さない。callbackは同じtransactionを使って認可データを読み、同時の権限変更もtransactionの競合対象とする。独立認可台帳を使う将来のIAMは、その台帳のfencing/deny手順も満たす必要がある。
 
@@ -36,6 +36,6 @@ cursor用の32バイト以上のランダム秘密鍵は呼出元が安全に注
 
 `mise run test` はキーの境界・24時間・body正規化・retry/rollback・ETag・scope/owner/actor/tenant/認可版・session交代/期限延長・cursor改ざん/失効を検証する。`mise run test-emulator` は[既存のdemo設定](05-development-and-testing.md#52-authfirestore-emulatorの起動と初期化)を明示的に読み込んで実行する。新しい試験も同じdiscoveryへ統合済みで、対象は検証済み `demo-brainoid` の固定loopbackのみ、SDKには匿名credentialを明示してADCを使わない。
 
-実emulatorでは、同時createの同結果への収束、同時のbody差替えの409、実commit後の応答だけを失う再送、現在DB認可の失効、T-012のcreator/admin版競合とmember拒否、失敗時の全write rollback、cursorの現在認可を試す。IAM callbackは合成fixture用の最小policyであり、後続IAMの実装完了を意味しない。
+実emulatorでは、同時createの同結果への収束、同時のbody差替えの409、実commit後の応答だけを失う再送、現在DB認可の失効、T-012のcreator/admin版競合とmember拒否、失敗時の全write rollback、cursorの現在認可を試す。この旧テストのIAM callbackは合成fixture用の最小policyである。BA-IAM-02は別の [実policy統合テスト](../tests/emulator/test_policy_integration.py) で現在状態readerと同じ再送/cursor境界を検証する。
 
 今回はroute/永続business schemaを変更しない追加処理である。将来接続するrouteはreceiptとbindingの形式を互換に保つ。運用開始後にhash形式・receiptを変更する際は、24時間保持中の記録を消して再実行を起こさず、旧形式を読める期間を確保する。切戻し時もcommit済み記録を削除しない。

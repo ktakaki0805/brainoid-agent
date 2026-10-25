@@ -59,6 +59,13 @@ class MemoryTransaction:
     def get(self, path: str) -> Document | None:
         return copy.deepcopy(self.data.get(path))
 
+    def find(self, collection: str, field: str, value: str) -> list[Document]:
+        return [
+            copy.deepcopy(document)
+            for path, document in self.data.items()
+            if path.rsplit("/", 1)[0] == collection and document.get(field) == value
+        ][:2]
+
     def create(self, path: str, document: Document) -> None:
         if path in self.data:
             raise AssertionError("Duplicate creation")
