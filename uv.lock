@@ -9,7 +9,9 @@ members = [
     "brainoid-api",
     "brainoid-contracts",
     "brainoid-device",
+    "brainoid-jobs",
     "brainoid-memory",
+    "brainoid-persistence",
     "brainoid-policy",
     "brainoid-tools",
     "brainoid-worker",
@@ -144,7 +146,9 @@ source = { editable = "services/api" }
 dependencies = [
     { name = "brainoid-agent-core" },
     { name = "brainoid-contracts" },
+    { name = "brainoid-jobs" },
     { name = "brainoid-memory" },
+    { name = "brainoid-persistence" },
     { name = "brainoid-policy" },
     { name = "brainoid-tools" },
     { name = "cryptography" },
@@ -161,7 +165,9 @@ dependencies = [
 requires-dist = [
     { name = "brainoid-agent-core", editable = "packages/agent_core" },
     { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-jobs", editable = "packages/jobs" },
     { name = "brainoid-memory", editable = "packages/memory" },
+    { name = "brainoid-persistence", editable = "packages/persistence" },
     { name = "brainoid-policy", editable = "packages/policy" },
     { name = "brainoid-tools", editable = "packages/tools" },
     { name = "cryptography", specifier = "==50.0.2" },
@@ -191,9 +197,41 @@ version = "0.1.0"
 source = { editable = "services/device" }
 
 [[package]]
+name = "brainoid-jobs"
+version = "0.1.0"
+source = { editable = "packages/jobs" }
+dependencies = [
+    { name = "brainoid-contracts" },
+    { name = "brainoid-policy" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-policy", editable = "packages/policy" },
+    { name = "pydantic", specifier = "==2.14.1" },
+]
+
+[[package]]
 name = "brainoid-memory"
 version = "0.1.0"
 source = { editable = "packages/memory" }
+
+[[package]]
+name = "brainoid-persistence"
+version = "0.1.0"
+source = { editable = "packages/persistence" }
+dependencies = [
+    { name = "brainoid-contracts" },
+    { name = "google-cloud-firestore" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "google-cloud-firestore", specifier = "==2.34.1" },
+]
 
 [[package]]
 name = "brainoid-policy"
@@ -221,15 +259,27 @@ version = "0.1.0"
 source = { editable = "services/worker" }
 dependencies = [
     { name = "brainoid-agent-core" },
+    { name = "brainoid-contracts" },
+    { name = "brainoid-jobs" },
     { name = "brainoid-memory" },
+    { name = "brainoid-persistence" },
     { name = "brainoid-tools" },
+    { name = "fastapi" },
+    { name = "google-auth", extra = ["requests"] },
+    { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "brainoid-agent-core", editable = "packages/agent_core" },
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-jobs", editable = "packages/jobs" },
     { name = "brainoid-memory", editable = "packages/memory" },
+    { name = "brainoid-persistence", editable = "packages/persistence" },
     { name = "brainoid-tools", editable = "packages/tools" },
+    { name = "fastapi", specifier = "==0.162.0" },
+    { name = "google-auth", extras = ["requests"], specifier = "==2.62.0" },
+    { name = "pydantic", specifier = "==2.14.1" },
 ]
 
 [[package]]
@@ -452,6 +502,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f5/b9/4b2528f30114b106e3c3a7298ba38d85e682fd1f83fe7c4a5b77c7677082/google_auth-2.62.0.tar.gz", hash = "sha256:0bef0ce54bdf9ce226c5d66e4264413bd918141c31bbe49fb52eac882f513d69", size = 398180, upload-time = "2026-10-12T19:20:48.328Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/a3/87fe9b7203ec2e56ea6a57c75e6d632eaf9487c7f7978cdad1d801bee0af/google_auth-2.62.0-py3-none-any.whl", hash = "sha256:4ff4319aeb4ad128409759d397a9fcafad126d0031d241cc0dd6b9a00b43e3f3", size = 267911, upload-time = "2026-10-12T19:20:46.355Z" },
+]
+
+[package.optional-dependencies]
+requests = [
+    { name = "requests" },
 ]
 
 [[package]]

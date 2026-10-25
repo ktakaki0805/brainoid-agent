@@ -22,6 +22,14 @@ class PolicyDenied(Exception):
         super().__init__(self.code)
 
 
+class PolicyUnavailable(PolicyDenied):
+    """Authority could not be read; this is not evidence of a revoked grant.
+
+    Inherit the existing content-free denial for HTTP adapter compatibility. Durable
+    workers must distinguish this subtype before handling confirmed PolicyDenied.
+    """
+
+
 @dataclass(frozen=True)
 class Principal:
     context: TenantContext

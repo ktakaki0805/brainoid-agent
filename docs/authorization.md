@@ -1,6 +1,6 @@
 # 現在状態による共通認可
 
-BA-IAM-02（FR-002/006/012）は [policy package](../packages/policy/src/brainoid_policy/evaluator.py) と [transaction adapter](../services/api/src/brainoid_api/auth/authorization.py) に、検索前・リソース取得/変更・worker・出力直前の共通認可を実装する。[認可モデル](03-data-and-authorization.md#5-認可モデル)と[共通の再送処理](common-mutations.md)を前提にする。HTTP業務route、SSE/WSSへの組込み、device token検証、session発行は後続チケットで接続する。
+BA-IAM-02（FR-002/006/012）は [policy package](../packages/policy/src/brainoid_policy/evaluator.py) と [共有transaction adapter](../packages/policy/src/brainoid_policy/transactions.py) に、検索前・リソース取得/変更・worker・出力直前の共通認可を実装する。[認可モデル](03-data-and-authorization.md#5-認可モデル)と[共通の再送処理](common-mutations.md)を前提にする。HTTP業務route、SSE/WSSへの組込み、device token検証、session発行は後続チケットで接続する。
 
 ## 信頼境界と呼出し
 
@@ -49,3 +49,7 @@ private sessionの絶対期限・idle期限は毎回現在時刻で検査する�
 追加の外部依存はない。policy memberは既存のcontractsと固定済みPydanticだけに依存し、Firebase/FastAPI/SDKをimportしない。内部APIの追加で既存HTTP契約の変更はない。導入時は既存device documentへoperation scopeと認可版を明示してから利用し、欠落時はfail closedになる。切戻し時は権限を緩和せず、policyへ接続した業務入口を停止する。独立認可台帳実装前に復元安全性を達成済みとは扱わない。
 
 Pi個人セッションの開始・終了・期限・利用活動の契約は[個人セッション](private-sessions.md)を参照する。SessionStateは開始時のmembership/device認可版・account stampを要求し、transaction adapterは現在のslot/accountも確認する。旧bindingの欠落を認可として扱わない。
+
+BA-RUN-01 の[永続job](jobs.md)は保存grantと独立台帳を必須にし、開始・外部checkpoint・最終commitで同じ現在状態readerを使う。APIの変換関数は従来importを維持し、workerからAPI内部を参照しない。
+
+台帳読取エラーは `PolicyUnavailable`（`PolicyDenied` の互換subtype）で区別する。APIの既存公開エラーは維持し、[job worker](jobs.md) は確定的な認可失効と扱わず、外部副作用・結果commitを止めて安全な再試行状態を保持する。

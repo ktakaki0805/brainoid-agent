@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "FastAPI startup, health checks and common error handling"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "brainoid-jobs",
+    "brainoid-persistence",
+
     "brainoid-agent-core",
     "brainoid-contracts",
     "brainoid-memory",
@@ -30,3 +33,5 @@ brainoid-memory = { workspace = true }
 brainoid-tools = { workspace = true }
 brainoid-contracts = { workspace = true }
 brainoid-policy = { workspace = true }
+brainoid-jobs = { workspace = true }
+brainoid-persistence = { workspace = true }

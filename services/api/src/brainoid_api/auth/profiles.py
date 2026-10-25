@@ -1,25 +1,14 @@
 """Read the authenticated user's persisted global profile, with no implicit provisioning."""
 
-from typing import Annotated, Literal, Protocol
+from typing import Protocol
 
-from brainoid_contracts import FirebaseUid, IanaTimezone, Version
+from brainoid_contracts import FirebaseUid
+from brainoid_contracts.accounts import UserProfile as UserProfile
 from google.api_core.exceptions import GoogleAPICallError, RetryError
 from google.cloud.firestore_v1 import Client, FieldFilter
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
 
 from brainoid_api.errors import APIError, ErrorCode
-
-
-class UserProfile(BaseModel):
-    """Public OpenAPI User projection; Firestore-only metadata never leaves this model."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
-
-    user_id: FirebaseUid
-    display_name: Annotated[str, Field(strict=True, min_length=1, max_length=200)]
-    timezone: IanaTimezone
-    status: Literal["active", "deleting"]
-    version: Version
 
 
 class ProfileReader(Protocol):

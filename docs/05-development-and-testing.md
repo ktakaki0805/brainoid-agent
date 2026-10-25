@@ -25,6 +25,8 @@
 | `services/api` | FastAPIのHTTP・SSE・WebSocket入口 | 身元確認、認可、要求検証、永続化、接続管理 |
 | `services/worker` | 非同期ジョブと定期処理 | 出典の現在状態・削除epochを再確認して処理する |
 | `services/device` | PiのPython常駐サービス | 音声、クラウド接続、SQLite、Home Assistant操作 |
+| `packages/jobs` | 永続job・outbox・lease・checkpoint | 同じtransactionで保存し、外部I/Oはworker handlerから行う |
+| `packages/persistence` | 構成済みFirestore transaction/page adapter | API/worker共通。credentialを暗黙に探索しない |
 | `packages/agent_core` | 会話実行とツール選択 | HTTP、Firebase SDK、Pi固有処理を持たない |
 | `packages/contracts` | ID・UTC時刻・timezone・version・scope・Contextの共通型 | 認可判断はIAM層に委ねる。[通信スキーマ対応表](contracts.md) |
 | `packages/memory` | 記憶の保存・検索・グラフ展開 | 認可済みcontextを必須にする |
@@ -32,7 +34,7 @@
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |
 
-表のディレクトリを作成済み。Pythonの7 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤とBA-IAM-01の[本人認証・プロフィール取得](authentication.md)は `services/api/src/brainoid_api` に配置し、membership認可・他の業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
+表のディレクトリを作成済み。Pythonの10 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤とBA-IAM-01の[本人認証・プロフィール取得](authentication.md)は `services/api/src/brainoid_api` に配置し、membership認可・他の業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
 
 技術リードは共通契約の変更を管理する。UI担当は画面と音声状態、API担当は認証・認可と永続化、Agent担当は記憶・推論・ツール、Device担当は実機・ローカル処理、Platform担当はGCP・CI・運用に責任を持つ。少人数チームでは兼任できるが、権限・削除・外部操作の変更は実装者以外がレビューする。
 
@@ -228,6 +230,8 @@ GitHub上でのActions有効化、fork実行の承認方針、必須checkとbran
 BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合は [共通認可](authorization.md) の責務である。BA-IAM-02は現在のmembership/device/sessionと正本resourceをtransaction内で再検査し、表形式unitと実Firestore emulatorで検証する。
 
 BA-FND-07の [AgentCoreのportとfake](agent-core-contracts.md) はprovider非依存のPython型、論理時計、モデル・記憶・tool・音声のscripted fakeを提供する。`tests/test_agent_core.py` は差し替えたfakeで通常完了・tool要求・usage・取消・timeout・途中停止と呼出し履歴を検証する。権限外候補は故障fixtureとしてのみ再現し、認可や会話ループの実装・検証は後続チケットで行う。
+
+BA-RUN-01 の[永続job試験](jobs.md)は固定時計・fake queueでenqueue前後、leaseとcheckpoint、現在認可を検査し、Firestore emulatorでは別processの再起動後回収と同時leaseを確認する。業務handlerと本番Tasks配備は後続チケットで接続する。
 
 BA-IAM-07 の[端末ペアリング試験](device-pairing.md)は fake clock で5分/60秒/15分の境界、5回失敗、専用 token と秘密再送を確認し、Firestore emulatorで同時交換・同時rotation・commit応答喪失を検証する。APIの端末provider/keyring/epochは同文書に従って明示し、合成鍵をstaging/productionへ持ち込まない。
 
