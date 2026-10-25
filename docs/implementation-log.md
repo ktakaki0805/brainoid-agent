@@ -1754,3 +1754,108 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.99秒、全9タスク成功、台帳done11/todo85。
 - 終了: 2026-10-25T20:24:51.669461+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-05-20261025t202523z
+
+- チケット: BA-IAM-05
+- 状態: done
+- 開始: 2026-10-25T20:25:23.943249+00:00
+- ブランチ / base commit: main / 963de1b6c8308ddfe5b60c9718a0cea185243793
+- 開始時の変更: なし
+- 選択: check成功（done11/todo85）、IDなしnextで依存順の次。IAM-04はIAM-05へ依存するため本件が先。依存IAM-02/FND-08実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam05_implementation`（独立context）。
+- 実装コミット: `1224d71b11318aace203ef8e173bce118f21aff6`
+
+### 受入条件と検証計画
+
+- operation ID/主体/認可版/deny-grant/確定状態を持つ独立台帳型とGCS adapter。
+- 先行deny→DB反映→確定を分離し、GCS書込をFirestore transaction内で行わない。DB確認のないgrantは有効化しない。
+- 台帳書込失敗を成功とせず同operationで安全retry。台帳成功後DB失敗でもdenyを維持、未確定grantを復活させない。
+- 競合/途中失敗をsuspendedと再適用候補にし、同記録の再適用は重複せず、本文/tokenを保存しない。
+- 書込前後の故障/競合とT028復活防止をfake/emulatorで検証。全check/testと必要なDB integration。
+- 会員/端末API接続はIAM-06/08、実backup復元OPS-07、実bucket/IAM構築OPS-02。外部前提なし。
+
+### 独立台帳の状態遷移案
+
+- GCSはimmutable operation object（payload固定）＋subject hash/version Nの単一slot（if_generation_match=0）＋同版committed marker。head CASは使わず条件付きcreateを使う方針。
+- 最新slotとexpected DB整数版+1を照合し、operation IDの別subject/payload再利用を拒否。pendingはsuspended。
+- grant: DBへsuspended/operation-version proof→読取確認→committed marker→DB active。deny slot確保後にDB失敗しても拒否fenceを維持。GCS操作はtransaction外。
+- 最新slotのみ復元再適用し、未確定grantはsuspended、確定denyはrevoked。同版payload/operation一致で冪等。通常bootstrapは既存DB版から初回変更、restore modeで台帳なし主体はsuspended。
+- guarded StateReaderを提供し、業務API接続はIAM06/08へ区別。
+- 親から旧grantのDB確認/marker/active化各境界へ次版denyが競合するケース、旧operation retry、normal retryとrestore再適用の差、未確定grant自動確定禁止、reservation/slot応答喪失と同version競合を重点検証として共有。
+
+### 部分減権限と復元の契約確認
+
+- 親がdenyを常時revokedに固定しない点を確認。実装担当はeffect deny/grantとtarget.status active/revokedを分離済みで、deny+active(member/縮小scopes)により部分減権限を表現する。
+- pendingは常にsuspended、committedでのみ縮小後active。restore reconcileは未確定grantをcommitせず、normal retryだけDB再確認後にcommit可能とする。
+- baseline違いの同時bootstrapで低版slotが後から作られる競合を防ぐため、主体ごとのimmutable anchorも追加する方針。
+
+### 初回台帳unitとSDK transport検証
+
+- 単体18件（fault matrix15/SDK transport3）成功、mypy73files成功。
+- SDK Blobはmockせず公式Client/AuthorizedSessionへrequests HTTP adapterを接続。multipart POSTのifGenerationMatch=0、実retryの503応答喪失→412→既存内容一致、download checksum/list/403を検証。
+- GCS全write前後/DB3段階前後の故障、同版並行slot、旧grant commit直後・activation前後への最新deny注入を追加。
+- google-cloud-storage3.17.1をAPI直接依存へuv追加（既存transitiveと同版、版更新なし）。次にFirestore emulator結合、文書、全mise検証を実施。
+
+### Emulator・全体check・setup検証
+
+- .env.emulator.exampleを明示loadしfixed loopback/demo-brainoidでemulator34件（既存30/追加4）成功19.043秒、停止完了。
+- mise check全体成功（mypy74files、format/lint/契約/client/docs/workflow/tickets）、約22秒。
+- setup初回sandbox user shim readonly失敗→通常権限再実行成功。前後uv.lock/pnpm-lock hash一致（prefix68b11658/99885be6）。通常mise test実行中。
+- docs/control-ledger.mdへ型/4object順序/normal retryと復元差/bootstrap/guard接続/保持・切戻しを記録。確定grantの復元と旧device credential再利用を区別し、資格情報の認可版束縛・必要な再発行はIAM07/08/OPS07責務と明示。
+
+### 実装完了と最終検証
+
+- `/root/iam05_implementation` が編集停止。製品15files、独立ledger型/GCS adapter/AuthzChanges/guarded reader、fault/SDK transport/emulator tests、fake、依存/docを変更。
+- operation/subject/payload固定、immutable anchor/連続version slot、DB確認後marker。pendingはsuspended、部分減権限後activeと完全失効を分離、旧grant/同版競合/次版deny割込を検証。
+- setup通常権限成功、全check成功mypy74、全test Python126/Skill18/Node38成功、実emulator34成功・停止済み。
+- 最後のDTO制約（scope allowlist/配列上限scope10・entity100・room100）追加後ruff format/check・mypy74・台帳18unit再成功。git diff --checkと新規9files空白/末尾改行成功。
+- setup前後lock hash不変。Storage3.17.1は既存推移依存の直接固定のみ、既存版更新なし。
+- 実bucket/IAM/backup復元/業務API・socket接続は後続。docs/control-ledger.mdにbootstrap互換の復元時禁止、guard/mutation同時接続、device資格情報版束縛/復元後再登録、保持/切戻しを記録。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam05_review_r1`（新規独立context）。base commit: `963de1b6c8308ddfe5b60c9718a0cea185243793`
+- 最新製品差分15files全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `a3fbe4627dc57f6af4ba36269855858670e171a2e3c0b49f210e4ce680ca2db0` |
+| `docs/authorization.md` | `a1bff0280579ea0f0ebb56251e7285eb1a862e09364bc477027325aa47eddaaf` |
+| `docs/control-ledger.md` | `d1c43b00991785467deb003fbfb472c19a85ed414b5cd3cad7e8d48bd1691208` |
+| `docs/toolchain.md` | `53e238fc4b2238e03f49a047946ed363223491ae3d36c60d6c4a41a483bbfbbe` |
+| `packages/policy/src/brainoid_policy/control_ledger.py` | `d0dfb5acabd5c61420ed8b1fadbc014c3895c1ea88c38e5d1860deca82352835` |
+| `services/api/pyproject.toml` | `df295bc29a71c3986bb43966f2195cb843f845744acb9897bd7d36312408d0ab` |
+| `services/api/src/brainoid_api/adapters/__init__.py` | `43faf9ae0763dc69221f2a2050a3d4e168ee1cffda8c1564a5b37b2435b02933` |
+| `services/api/src/brainoid_api/adapters/gcs_authz_ledger.py` | `2262ce1264f07cff5b2d12d9e4b50ccdc4cda8c50143551043729dc5b4f7d41e` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `d4c38f8b231cef72c0df0d3729b6116980906a2a4623cca683236260c614b82b` |
+| `services/api/src/brainoid_api/repositories/authz_changes.py` | `387c5fb300fc4711a66a9fb308782d265ffee4b8bf6b68eef2e49b6b3917d415` |
+| `tests/emulator/test_authz_ledger_integration.py` | `0d93c41928441dcbd55aa32d41b15dc1515399a5a88206cf041dba0ea4425f5f` |
+| `tests/fakes/authz_ledger.py` | `1d415956b36955f018e8e84349dfa1e8fd2c61362de4fd372ddc461f897f4c3d` |
+| `tests/test_authz_ledger.py` | `4214b340b28b58b8582aa26eca985f0b1e64cedf402dd868bf6b0ae13ff020e7` |
+| `tests/test_gcs_authz_ledger.py` | `b26b0f67c3e2dfbe8a57fda826c3f261a3ca89aa11d3a7b483b2e98e2fc329c8` |
+| `uv.lock` | `68b11658dd4a00766b6df3736921b7bfbae39637fd9aacfccdc124eda833ca7a` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam05_review_r1` が開始時15files hash/base/main一致を確認し、基盤/adapter/repository/guardと仕様を精査。
+- immutable slotとguardで旧grant activation後も次版denyを拒否する設計、restoreとnormal retry分離を確認中。必須指摘は現時点でなし。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam05_review_r1`: approve。レビュー1回、必須/任意指摘なし。main/base、開始・終了時の15files SHA一致、製品/index/記録の変更なし。
+- operation/subject/payload束縛、anchor/連続版slot、先行deny/DB確認後確定、旧grantと次版denyの競合、部分減権限、同operation retryを確認。GCS書込はtransaction外。
+- restoreは最新台帳のみ反映しpendingを確定せず、DB先行版/台帳欠落は停止。同適用済み状態の再実行は書込なし。allowlist DTOの秘密非保持、SDK generation=0/応答喪失後412照合を確認。
+- 直接検証: 台帳/SDK transport18件、mise check全9タスク（mypy74）、git diff --check成功。提供証跡: setup、全test Python126/Skill18/Node38、emulator34成功。
+- guard/mutation同時接続、bootstrap互換の復元時禁止、device credential再登録の後続境界を確認。実bucket/IAM/backup復元/業務API接続は対象外。未解決必須条件なし。
+
+### 完了結果 (2026-10-25T20:44:05.967952+00:00)
+
+- BA-IAM-05: 独立GCS認可台帳、先行deny/DB確認後確定、安全retry/restore再適用、guardを実装。部分減権限と完全失効を区別し、途中失敗や旧grant競合時は停止する。
+- setup/check9/test126+18+38/emulator34成功。独立レビュー1回approve、未解決必須指摘なし。レビュー担当もcheck9/台帳18件を直接成功確認。
+- 実装コミット: `1224d71b11318aace203ef8e173bce118f21aff6`（feat(authz): BA-IAM-05 add independent authorization ledger）。
+- 承認済み15ファイルのみmainへstage、cached diff/--check/index hash、commit後対象・内容・worktree一致を確認。hook変更なし。
+- 実bucket/IAM・実復元・会員/端末API接続は後続チケット対象。今回未実施、必須残課題なし。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.90秒、全9タスク成功、台帳done12/todo84。
+- 終了: 2026-10-25T20:44:38.433488+00:00。台帳・ログのみを記録コミット。
