@@ -7,6 +7,7 @@
 ```text
 あなたはチケット {ticket_id} の実装・修正担当です。
 作業ディレクトリ: {absolute_worktree}
+作業ブランチ: main（ブランチの作成・切り替えは行わない）
 開始時のbase commit: {base_commit}
 既存変更と触れない範囲: {existing_changes}
 
@@ -31,6 +32,7 @@ commit、push、台帳・作業ログの更新、別エージェントへの委�
 ```text
 あなたはチケット {ticket_id} の独立レビュー担当です。
 作業ディレクトリ: {absolute_worktree}
+作業ブランチ: main（ブランチの作成・切り替えは行わない）
 base commit: {base_commit}
 今回の差分の取得方法・対象パス（未追跡ファイルを含む）: {review_scope}
 除外する既存変更: {existing_changes}

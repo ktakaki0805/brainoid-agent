@@ -18,6 +18,8 @@
 
 状態は `todo → in_progress → in_review → done` と遷移し、修正時は `in_review → in_progress` に戻る。途中で中断するときは `blocked` と原因・再開条件を記録し、解消後に `in_progress` へ戻す。`todo` 以外では、タイムゾーン付きISO 8601の `updated_at` を更新する。作業開始時に `branch` と `base_commit` も記録する。
 
+`implement-ticket` はローカルの `main` で作業し、台帳の `branch` には `main` を記録する。実装・完了記録・中断記録のコミットはいずれも `main` に直接作成する。
+
 `done` では以下を必須とする。
 
 - `implementation_commit`: 実装コミットの完全なハッシュ。複数ある場合は最後のハッシュを入れ、ログにすべて記録する。

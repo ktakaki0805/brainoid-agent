@@ -5,7 +5,7 @@ description: Brainoid Agent の docs/08-implementation-tickets.md から1件を�
 
 # 実装チケットを1件完了する
 
-1回の呼出しで扱うのは1チケット。ID省略時は依存グラフのトポロジカル順で次の1件を選ぶ。実装、独立レビュー、修正、ローカルコミット、作業ログの記録まで進める。
+1回の呼出しで扱うのは1チケット。ID省略時は依存グラフのトポロジカル順で次の1件を選ぶ。実装、独立レビュー、修正、ローカルの `main` へのコミット、作業ログの記録まで進める。
 
 ## 正本と準備
 
@@ -16,7 +16,7 @@ description: Brainoid Agent の docs/08-implementation-tickets.md から1件を�
 - 検証・レビュー・コミットの証跡: `docs/implementation-log.md`。更新前に同ファイルの記録規約を読む。
 - チケットの関連要件・設計・schemaは対象部分を読む。未確定の外部設定を推測で確定しない。
 
-`git status --short`、現在のブランチ、`HEAD`、staged/unstaged差分を確認する。既存変更の所有者と対象範囲を区別し、混在する場合は作業ブランチやworktreeを使う。既存変更を消去・stash・取り込みして解決しない。main上なら短命な作業ブランチを作る。開始時のbase commitと既存変更を控える。
+`git status --short`、現在のブランチ、`HEAD`、staged/unstaged差分を確認する。実装とコミットは `main` で行い、このSkill用の作業ブランチを作らない。別ブランチにいる場合は既存変更・未取り込みコミットを確認し、無関係な変更を持ち込まずに `git switch main` で切り替える。`main` が別worktreeで使用中なら、そのworktreeの状態を確認してそこで作業する。切り替えや変更の分離が安全にできない場合は、原因と再開条件を報告する。既存変更を消去・stash・勝手にmergeして解決しない。開始時の `main` のbase commitと既存変更を控える。
 
 前回の実装コミット後に台帳・ログの記録だけが中断している場合は、その記録を先に完了する。保存済みの検証・レビュー証跡と実装コミットの内容が一致するか確認する。証跡が不足していれば必要な検証と新しい独立レビューを行い、過去の承認や回数を推測で補わない。追加修正がなければ新しい実装コミットを重ねない。
 
@@ -58,7 +58,7 @@ python3 .agents/skills/implement-ticket/scripts/ticket_plan.py check
 - 同一worktreeでは書き手は実装担当1名だけ。レビュー中は実装の変更を止め、レビュー担当は製品コード・index・台帳を変更しない。
 - 独立したエージェントを起動できなければ、その制約を報告して `blocked` を記録する。単一コンテキスト内の役割演技を独立レビューと扱わない。
 
-実装担当へ渡す前に、対象だけを `in_progress` にして `branch`、`base_commit`、`updated_at` を記録する。ユーザーが依頼したこのフローのローカルコミットは実行範囲に含む。push、PR作成・merge、実環境の変更は別途依頼されている場合だけ行う。
+実装担当へ渡す前に、対象だけを `in_progress` にして `branch: "main"`、`base_commit`、`updated_at` を記録する。ユーザーが依頼したこのフローの `main` へのローカルコミットは実行範囲に含む。push、PR作成・merge、実環境の変更は別途依頼されている場合だけ行う。
 
 ## 実装 → レビュー → 修正
 
@@ -73,7 +73,7 @@ python3 .agents/skills/implement-ticket/scripts/ticket_plan.py check
 
 ## コミットして記録する
 
-実装と記録は同じチケットの2コミットにする。実装コミットの実際のハッシュを後続のログに残し、自己参照やamendによるハッシュ変更を避ける。
+実装と記録は同じチケットの2コミットにし、どちらも `main` に直接コミットする。中断理由だけの記録コミットも同じ扱いとする。各コミット直前に `git branch --show-current` が `main` であることを確認する。違っていればコミットせず、準備手順に戻って状態を確認する。実装コミットの実際のハッシュを後続のログに残し、自己参照やamendによるハッシュ変更を避ける。
 
 1. 最新差分がレビュー対象と一致すること、必要な検証が成功したことを確認する。台帳・作業ログを除く対象ファイルを明示してstageし、`git diff --cached` と `git diff --cached --check` で無関係な変更が入っていないことを確認する。既存staged変更を一緒にcommitしない。
 2. 実装・テスト・関連文書を Conventional Commits でcommitする。形式は `type(scope): BA-XXX-NN 変更内容`。種類は実態に合わせて `feat`、`fix`、`build`、`chore`、`test`、`docs`、`refactor` 等を選ぶ。例: `build(workspace): BA-FND-01 pin toolchains and dependencies`。
