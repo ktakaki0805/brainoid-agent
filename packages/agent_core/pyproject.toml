@@ -3,9 +3,15 @@ name = "brainoid-agent-core"
 version = "0.1.0"
 description = "Shared agent execution package"
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+    "brainoid-contracts",
+    "pydantic==2.14.1",
+]
 classifiers = ["Private :: Do Not Upload"]
 
 [build-system]
 requires = ["uv_build==0.12.19"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+brainoid-contracts = { workspace = true }

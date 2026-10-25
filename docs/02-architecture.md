@@ -124,10 +124,13 @@ Cloud Tasksからworkerへは専用サービスアカウントのOIDCで認証�
 | MemoryStore | 記憶の検索・保存・訂正・忘却 | TenantContextと閲覧scopeを必須引数とし、出典・versionを返す |
 | ToolExecutor | 許可済みのツール実行 | schema検証、ポリシー、確認、冪等性、監査、結果照合を担う |
 | SpeechProvider | 音声→文字、文字→音声 | locale・format・取消・バッファ破棄を扱い、会話推論とは分離する |
+| Clock | UTC時刻、単調時計、待機 | 期限と経過時間を実時刻から分離し、fakeで決定的に再現する |
 | DeviceTransport | コマンド・状態・イベント配送 | device_id、protocol_version、session_generation、expiryを検証する |
 | PolicyEvaluator | 誰が何を参照・実行できるか | LLMとは独立してdenyを決め、各処理で現在の権限を照合する |
 
 coreにはFirebase SDK、FastAPI Request、Home Assistantの生の認証情報を渡さない。業務用の型とadapterだけに依存させ、モデル・外部API・時計を差し替えたテストを可能にする。
+
+BA-FND-07でModelProvider、MemoryStore、ToolExecutor、SpeechProvider、ClockのPython契約とテスト用fakeを提供した。公開入口、共通イベント、取消・期限・結果不明の扱いは [AgentCoreのportとfake](agent-core-contracts.md) を参照。実providerと会話ループは後続チケットで実装する。
 
 ## 5. 主要フロー
 

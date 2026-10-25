@@ -125,6 +125,16 @@ dev = [
 name = "brainoid-agent-core"
 version = "0.1.0"
 source = { editable = "packages/agent_core" }
+dependencies = [
+    { name = "brainoid-contracts" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "pydantic", specifier = "==2.14.1" },
+]
 
 [[package]]
 name = "brainoid-api"

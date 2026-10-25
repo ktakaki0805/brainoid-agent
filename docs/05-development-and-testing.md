@@ -225,6 +225,8 @@ GitHub上でのActions有効化、fork実行の承認方針、必須checkとbran
 
 BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合はBA-IAM-02の責務である。
 
+BA-FND-07の [AgentCoreのportとfake](agent-core-contracts.md) はprovider非依存のPython型、論理時計、モデル・記憶・tool・音声のscripted fakeを提供する。`tests/test_agent_core.py` は差し替えたfakeで通常完了・tool要求・usage・取消・timeout・途中停止と呼出し履歴を検証する。権限外候補は故障fixtureとしてのみ再現し、認可や会話ループの実装・検証は後続チケットで行う。
+
 fakeは本番adapterと同じinterfaceを実装する。LLMの自由回答を固定文字列に置き換えるだけでなく、ツール要求、遅延、タイムアウト、壊れた引数、途中停止を制御可能にする。モデルの非決定性に依存しないテストで、アプリケーションの認可と状態遷移を検証する。
 
 | 対象 | fakeで再現する条件 |
