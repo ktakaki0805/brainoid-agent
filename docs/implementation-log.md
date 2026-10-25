@@ -1638,3 +1638,119 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.94秒、全9タスク成功、台帳done10/todo86。
 - 終了: 2026-10-25T20:06:43.704095+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-03-20261025t200710z
+
+- チケット: BA-IAM-03
+- 状態: done
+- 開始: 2026-10-25T20:07:10.148434+00:00
+- ブランチ / base commit: main / e30cd3e0767397ca7a3d6831e6571000674662f0
+- 開始時の変更: なし
+- 選択: check成功（done10/todo86）、IDなしnextで依存順の次。依存IAM-02/FND-08実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam03_implementation`（独立context）。
+- 実装コミット: `097b694329c4abc3a2990b278cf9e3ae7f918ece`
+
+### 受入条件と検証計画
+
+- テナント/本人owner/初期agentを同一transaction保存。再送でtenant/agent重複せず、途中失敗でownerなしtenantを残さない。
+- 本人所属一覧/個別取得/管理者設定更新、tenant選択ごとの現在membership照合。作成/更新に冪等性とversionを適用。
+- 2tenant fixtureで作成/一覧/設定更新/応答喪失再送、T001 URL差替え越境拒否を検証。全mise setup/check/testと適切なemulator統合。
+- 会話実行への人格反映RUN-03、招待IAM-04/role変更IAM-06は後続。追加外部前提なし。
+
+### Bootstrap・一覧・設定更新の境界案
+
+- tenantを偽装せずAuthorizedUserScope/execute_userをcommonへ最小追加し、user hash配下のuser/operation/keyで安定した作成台帳を使う。24h/body/receiptは既存共通処理を再利用予定。
+- 初回は認証identity時刻と現在users状態を同transactionで確認、replayはreceipt対象tenantの現在membership/ownerを確認。未作成profileは作成前提にせず暗黙provisionしない、GET meは引続き404。
+- 初期agent値はBrainoid/persona空/allowed_tools空を文書・コードで正本化する方針。
+- 一覧は本人UID限定membership collection-groupからpathを確認し、各tenantの現在policyを同transactionで照合、現在membership stamp集合にcursorを束縛。opaque UIDは安全なhash document IDを使用。
+- 設定更新はpolicy management actionと既存冪等/ETagを使用。cursor鍵は明示設定を追加予定。親からsecretのrepr/validation/log非漏洩、revision間共有、production固定/自動fallbackなし、demo固定値はテスト専用の制約を共有。
+
+### 初版型検査とHTTP検証
+
+- mypy実装64files成功。新規HTTP12tests初回でfixture不足と既存422契約の期待値不一致を検出し修正、再実行中。
+- 既存compare_and_writeを再利用しrequire_tenant_pathへ自tenant rootだけ追加許可（len>=2）。別tenant PATCH404とcommon直接越境拒否の回帰を実施予定。
+- fixture tenantへ公開投影に必要なid/timezoneを追加。user scopeはprofile未作成許容/deleting拒否、replay時role変更・失効拒否を検証する。
+
+### 初回emulatorと追加境界検証
+
+- 実emulator初回30件中29成功。rollback試験が既存fixture agent2件を0件と期待したテスト不備を修正し再実行予定。並行同key収束/body409/update412/commit応答喪失/HTTP T001は成功。
+- HTTP単体12件成功後、期限・曖昧membership等を追加し15件へ拡張中。mypy66files成功。
+- setupはsandbox user shim書込失敗後に通常権限で成功、uv/pnpm lock hash不変。
+- Firestore collection-group memberships.user_id index定義、docs/tenants.md、OpenAPI説明/create201ETag、生成clientを追加。既存tenantのid/timezone明示補完が必要な移行前提を文書化。
+
+### 全体検証と最終HTTP拒否確認
+
+- mise check成功、通常test Python108/Skill18/Node38成功、emulator30成功。
+- 最後にtenant route自身のmissing/device bearer401 assertionを追加したため、check/emulatorを最終再実行中。製品実装は完了、検証後に編集停止確定を待つ。
+- docs/tenants.mdへ初期agent正本/profile404維持/global user台帳purge責任/current snapshot返却/membership集合cursor/index要配備・staging未検証を記録。新規7files末尾空白/改行検査成功。
+
+### 実装完了と最終検証
+
+- `/root/iam03_implementation` が編集停止。製品30files、/v1/tenants GET/POSTと/{tenant_id} GET/PATCH、user単位冪等bootstrap、現在membership/profile検査、owner/admin更新、所属集合cursor、設定/索引/fixture/doc/schema/clientを変更。
+- tenant/owner/初期agent/台帳を同一transactionへ保存。初期agentはBrainoid/空persona/空allowed_tools/version・prompt_version1。未作成profileは暗黙作成せずGET me404を維持。
+- 最終setup成功（sandbox shim書込失敗後通常権限再実行）、uv/pnpm lock hash不変。check全9成功、mypy66files。
+- test Python108/Skill18/Node38成功、最終emulator30成功（実並行create/body409/update412/全write rollback/commit応答喪失/T001/opaque UID/失効/cursor）。diff --checkと新規7files末尾空白/改行成功。
+- 途中失敗: fixture既存agent件数、tenant公開field不足、422期待値、新必須鍵のemulator test設定。全修正/再検証済み。実行logは `/tmp/ba-iam03-{setup,check,test,emulator}.log`。
+- Firebase環境へCURSOR_SIGNING_KEY明示注入が必要。本番配備/staging index検証は未実施、BA-OPS-02の配備事項と区別。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam03_review_r1`（新規独立context）。base commit: `e30cd3e0767397ca7a3d6831e6571000674662f0`
+- 最新製品差分30files全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.emulator.example` | `70bf5c9cafd8dc1b9d134205a533208483658f27ff513c4087a790d145123b7f` |
+| `docs/03-data-and-authorization.md` | `107b1283b5366a5fe970b4b6683d8877d33054fd3e7ffb614be493db5a209496` |
+| `docs/04-interfaces.md` | `8a927a960b5348ab8841001e194074987d6be5893084afc39106ec80cf45eb2e` |
+| `docs/05-development-and-testing.md` | `ca0de7567784518e485acd6a7722b8b808e91fe14217d664c036a904e7e4057f` |
+| `docs/common-mutations.md` | `979f1cbfa74375bd4caa97525168d3e989cc69a2ea0d3750e8ad43f36f4e005a` |
+| `docs/tenants.md` | `a719109e7ea29e03d9ddab55598087bd9af8c1327f022eef417f6c2ed52e3e93` |
+| `firebase.json` | `dc600ef9bcf599b91136438f1bc21bf132ef971aa5f595ba9f43990f48f4b005` |
+| `firestore.indexes.json` | `33e3a7176aae011a1c23bedd81475037411a4448048a773e4cce347ce128b7bf` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `84d5a041454cdb082c768f33c78e12e1c66b20136b3a845c867b78c01936705f` |
+| `packages/api-client/src/generated/sdk.gen.js` | `32b1fef0132d4ad7330feb49f2eee8baf707eb09bd364ec335dd267963589133` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `dfd512464d8d2bb50ed87a403d37a5aa5292d6912152174be42c51da462b51f5` |
+| `packages/policy/src/brainoid_policy/models.py` | `149adaf341e4d14ea2b88767cb797bf3bdd38642e33859ec3aabb1bcbfccf344` |
+| `services/api/src/brainoid_api/app.py` | `9c7dcb11853841cedcf5ac1dad6a63cca0c942c83592c5b572166ad138a97e17` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `fb8af74ee5d978f81b7c9f9b56cee0b2decea7fd0350757b4844a257240275a8` |
+| `services/api/src/brainoid_api/common/access.py` | `369afe8032542fc57d5e98a070a260b43e2841a1420f73655c971fc32eda2606` |
+| `services/api/src/brainoid_api/common/firestore.py` | `f8c6b61199ee8d746361927fa9f15d5718027aa623a49ccc9ca41eda0d90f844` |
+| `services/api/src/brainoid_api/common/idempotency.py` | `7272d5c9b733fdf49ed227e975d9fcdef3899b5dab4849ec290fba563ccaf325` |
+| `services/api/src/brainoid_api/common/pagination.py` | `62d120d2ad37940322110b7696101249c1bd1396ad5792507a79076205ecfe28` |
+| `services/api/src/brainoid_api/common/transactions.py` | `5be779093c09827d24f8f4865a5b1a9ba1596da138a6eb54ce2cad5ae3996fcb` |
+| `services/api/src/brainoid_api/repositories/__init__.py` | `f2ff7192b12f781e370742dc57da2917bf1d610570918ca31cd970258b7af016` |
+| `services/api/src/brainoid_api/repositories/tenants.py` | `114a2f55ef0eeec1eea1290729762eca38f5a0a30ad95bc804da09e7fc2ca569` |
+| `services/api/src/brainoid_api/routes/tenants.py` | `c2fdd65381f8ff2a93fb848b479f9d01a93d9c679eb6b47af38ce7c0d85dd8a2` |
+| `services/api/src/brainoid_api/settings.py` | `21b69ef333c56859ad74e9faa842afde097011f7b4d96ebada696c63e3353ed0` |
+| `specs/openapi.yaml` | `93f0fda31ad2f93b67a23b933154a68a203aa0040711fc18240ade723d6418ef` |
+| `tests/emulator/test_tenants_integration.py` | `42ada75c7e533a7aa57a74622da8eb82c3fc2104da035293e9cc95fe5b73d949` |
+| `tests/fixtures/tenants/demo.json` | `893b3bcfc9a1892d692684d505d5bf989b7e12a059012b9cd648a07b75aaa615` |
+| `tests/test_api_foundation.py` | `628ac21a1571d160b59ba50685ac69b291812f8211febc359308fde3423ad161` |
+| `tests/test_common_mutations.py` | `409e0955899fe54fde7a2ab469ac9aed56952fd2408acab615914357b6916d46` |
+| `tests/test_demo_emulator.py` | `0b5db5755318d0521651e68d4f846e150306339d68aa2b1451117a2352257fc2` |
+| `tests/test_tenants.py` | `1740af6efe429d256225ca4172c18e3a66ac4239efaf8c50c185046a70239499` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam03_review_r1` が30files hash一致、作業規約/DoD/T001/IAM03/tenant仕様と全製品差分・新規全文・周辺policyを確認。現時点で必須指摘なし。
+- 独立check/unit・contract/emulatorを実行中。review log `/tmp/ba-iam03-review-r1-*`。同時emulator起動・製品編集なし。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam03_review_r1`: approve。確認済みレビュー1回、必須/任意指摘なし。対象30filesの開始/終了hash、main/base一致を確認。
+- user単位作成台帳/4書込原子性/並行作成/body競合/rollback/応答喪失、現在account・membership・role、opaqueUID/user-device分離、owner/admin設定更新/版・snapshot・ETag、所属集合cursorを確認。
+- 直接: check9（mypy66）/test Python108+Skill18+Node38/emulator30/追加境界probe/diff --checkすべて成功。追加probeは非正規membership path、tenant policy変更、削除中tenantのget/update/create replay/listを検証。
+- scope binding互換、secret秘匿、startup/schema/client/index/doc整合を確認。setup/lock不変は提供結果と既存log確認。
+- review log `/tmp/ba-iam03-review-r1-{check,test,emulator}.log`。本番索引/stagingは未実施、ticketのemulator完了範囲とOPS02配備事項を区別。未解決必須条件なし。
+
+### 完了結果 (2026-10-25T20:24:25.973567+00:00)
+
+- BA-IAM-03: /v1/tenantsの作成/一覧/取得/設定更新、user単位bootstrap冪等性、tenant/owner/agent/台帳の原子保存、現在所属・cursor・version/ETagを実装。
+- setup/check9/test108+18+38/emulator30成功。独立レビュー1回approve、未解決必須指摘なし。reviewerもcheck/test/emulatorと追加境界probeを直接成功確認。
+- 実装コミット: `097b694329c4abc3a2990b278cf9e3ae7f918ece`（feat(tenants): BA-IAM-03 add atomic bootstrap and tenant settings）。
+- 承認済み30ファイルのみmainへstage、cached diff/--check/index hash、commit後対象・内容・worktree一致を確認。hook変更なし。
+- Firebase環境へ明示cursor鍵とmembership collection-group indexが必要。配備/staging確認はOPS02対象、今回は未実施。profileは暗黙作成しない。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.99秒、全9タスク成功、台帳done11/todo85。
+- 終了: 2026-10-25T20:24:51.669461+00:00。台帳・ログのみを記録コミット。
