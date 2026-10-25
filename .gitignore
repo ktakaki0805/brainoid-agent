@@ -3,6 +3,15 @@
 __pycache__/
 *.py[cod]
 node_modules/
+.pnpm-store/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+*.tsbuildinfo
+.coverage
+htmlcov/
 
 # Local environment and mise overrides
 .env
@@ -12,3 +21,29 @@ mise.local.toml
 mise.*.local.toml
 .mise.local.toml
 .mise.*.local.toml
+
+# Local credentials and private keys (safe examples use .example instead)
+.aws/
+.config/gcloud/
+secrets/
+credentials*.json
+service-account*.json
+service_account*.json
+*-firebase-adminsdk-*.json
+application_default_credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+
+# Terraform local state may contain credentials
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json

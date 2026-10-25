@@ -2,11 +2,11 @@
 
 文書版0.2.0、更新日2026-10-26。管理責任はメンテナです。この文書は、設計段階からアプリ実装・OSS公開へ進むための貢献手順を定義します。
 
-現在の成果物は文書と通信スキーマです。製品コード、CI、公開Issue窓口はまだありません。以下のIssue・PR運用は、OPEN-001で公開リポジトリを確定した後に適用します。初回実装の手順は[開発・テストガイド](docs/05-development-and-testing.md)を参照してください。
+現在の成果物は文書・通信スキーマと、uv/pnpm workspace・固定依存・format/lint/型検査です。アプリ機能、CI、公開Issue窓口はまだありません。以下のIssue・PR運用は、OPEN-001で公開リポジトリを確定した後に適用します。初回実装の手順は[開発・テストガイド](docs/05-development-and-testing.md)を参照してください。
 
 開発ツールはmiseで管理します。[セットアップ手順](docs/toolchain.md)に従って `mise trust`、`mise install`、`mise run setup` を実行し、変更後は `mise run check` と `mise run test` で確認してください。ツール版と共有タスクの正本は [mise.toml](mise.toml) です。
 
-Python依存はuvのプロジェクト管理を使います。開発用依存は `uv add --dev`・`uv remove --dev` で管理し、変更した [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) を同じコミットに含めます。共有タスクとCIはlockfileを変更せずに検証する `--locked` を使います。
+Python依存はuvのプロジェクト管理を使います。共通の開発用依存はルートの `uv add --dev`・`uv remove --dev`、実行依存は `uv add --package <member> <package>`・`uv remove --package <member> <package>` で管理し、変更した [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) を同じコミットに含めます。共有タスクと今後のCIはlockfileを変更せずに検証する `--locked` を使います。Node依存はpnpmでmemberごとに管理し、共通devツールはルートへ置き、`pnpm-lock.yaml` を同じコミットに含めます。通常の導入は `--frozen-lockfile` を使います。詳細は[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
 
 ## 1. 変更の始め方
 

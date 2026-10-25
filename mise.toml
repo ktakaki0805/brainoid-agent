@@ -14,17 +14,47 @@ UV_PYTHON_DOWNLOADS = "never"
 UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
 
 [tasks.setup]
-description = "Sync the uv project environment from the lockfile"
-run = "uv sync --locked"
+description = "Validate the toolchain and install all workspace members from fixed locks"
+depends = ["check:toolchain"]
+run = ["uv sync --all-packages --locked", "pnpm install --frozen-lockfile"]
+
+[tasks."check:toolchain"]
+description = "Check actual tool versions and manifest pins before installing dependencies"
+run = "python -B scripts/check_toolchain.py"
+
+[tasks.format]
+description = "Format Python and TypeScript workspace sources and configuration"
+depends = ["check:toolchain"]
+run = ["uv run --all-packages --locked --offline ruff format .", "pnpm run format"]
+
+[tasks."check:format"]
+description = "Check workspace formatting without changing files"
+depends = ["check:toolchain"]
+run = ["uv run --all-packages --locked --offline ruff format --check .", "pnpm run format:check"]
+
+[tasks."check:lint"]
+description = "Lint Python and TypeScript workspace sources"
+depends = ["check:toolchain"]
+run = ["uv run --all-packages --locked --offline ruff check .", "pnpm run lint"]
+
+[tasks."check:types"]
+description = "Type-check Python and every TypeScript workspace member"
+depends = ["check:toolchain"]
+run = ["uv run --all-packages --locked --offline mypy", "pnpm run typecheck"]
 
 [tasks."check:tickets"]
 description = "Validate implementation ticket status and dependencies"
-run = "uv run --locked --offline python -B .agents/skills/implement-ticket/scripts/ticket_plan.py check"
+depends = ["check:toolchain"]
+run = "uv run --all-packages --locked --offline python -B .agents/skills/implement-ticket/scripts/ticket_plan.py check"
 
 [tasks.check]
 description = "Run all available project checks"
-depends = ["check:tickets"]
+depends = ["check:tickets", "check:format", "check:lint", "check:types"]
 
 [tasks.test]
-description = "Run the existing ticket planner unit tests"
-run = "uv run --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'"
+description = "Run foundation and existing ticket planner tests without external APIs"
+depends = ["check:toolchain"]
+run = [
+  "uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_*.py'",
+  "uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'",
+]

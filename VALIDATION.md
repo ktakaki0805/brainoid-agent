@@ -41,7 +41,7 @@ mise run check
 mise run test
 ~~~
 
-現在の `check` はチケットのID・依存関係・進捗台帳・完了記録、`test` はチケット管理の単体テストを対象とします。文書リンク・要件対応・契約ファイルの自動検証は含みません。
+現在の `check` はtoolchain、workspaceのformat/lint・Python/TypeScript型検査とチケットのID・依存関係・進捗台帳・完了記録、`test` は開発基盤の受入テストとチケット管理の単体テストを対象とします。文書リンク・要件対応・契約ファイルの自動検証は含みません。
 
 ## 3. 文書間で整合させた重要事項
 
@@ -106,3 +106,25 @@ Mermaid図は編集可能なソースとして同梱しています。外部レ�
 文書検証スクリプトと専用タスクを削除し、`uv remove --dev pyyaml --offline` で依存宣言・lockfile・仮想環境からPyYAMLを削除しました。`mise run setup`、`uv lock --check --offline`、4タスクの定義検証、`mise run check`、`mise run test` が成功し、96件のチケット台帳と単体テスト18件を確認しました。`docs` ディレクトリからの `check:tickets` 実行も成功しました。
 
 現在の仮想環境にPyYAMLが存在しないことを確認しました。文書リンク・契約の自動検証は未提供で、導入予定は4節のとおりです。
+
+
+## 8. BA-FND-01 workspace基盤の検証（2026-10-26）
+
+Linux x86_64とmiseの既存固定版を使用した。`/tmp` の新規checkoutへソースをコピーし、`.venv`・`node_modules`・uv cache・pnpm storeが存在しない状態から、`mise run setup`、`mise run format`、`mise run check`、`mise run test` がすべて成功した。toolchain本体は導入済みの固定版を再利用した。
+
+| 検証 | 結果 |
+| --- | --- |
+| 空の依存環境へのsetup | 全Python memberとNode memberをlockから導入。PyPI/npmへのダウンロードを実行 |
+| format・lint・型 | Ruff対象9ファイル、Biome対象15ファイル、mypy strict対象9ファイル、TypeScript全4 memberが成功 |
+| 基盤の受入テスト | 5件成功。誤ったNode版と不足toolを拒否し、checkout外からPython packageをimport、Nodeの公開exportsを解決して内部subpathを拒否、秘密ファイルのignoreを確認 |
+| 既存チケット管理 | 96件の台帳検証と単体テスト18件が成功 |
+| lockの固定 | setup/format/check/test前後と負例確認後にuv.lock・pnpm-lock.yamlのSHA-256が一致 |
+| 古いPython lock | rootのproject版だけを変え、`uv sync --all-packages --locked --offline` がlock更新必要の明示エラーで拒否（exit 1） |
+| 古いNode lock | mobileのReact依存宣言だけを変え、`pnpm install --frozen-lockfile --offline` がOUTDATED_LOCKFILEで拒否（exit 1） |
+| 未対応toolchainのsetup | コピーのmise設定だけを未導入Node版へ変え、setupが依存導入前に説明付きで停止 |
+
+検証には `MISE_TRUSTED_CONFIG_PATHS` を対象コピーへ、`UV_CACHE_DIR` と `pnpm_config_store_dir` を専用の空ディレクトリへ設定した。通常権限ではDNS制限により初回ダウンロードに失敗したため、許可されたネットワーク接続で再実行した。クラウド資源・秘密値は使っていない。
+
+古いPython lockの最初の負例は、空からsetupしたcacheに解決用registry metadataがないためoffline解決エラーになった。この結果をlock固定の証明には数えず、`uv add` 時のmetadata cacheを使って上表の明示的な `--locked` 拒否とhash不変を確認した。各負例の変更は使い捨てコピー内だけで行い復元した。
+
+macOS・WSL2・Pi、toolchain本体の初回ダウンロード、API/画面機能、ネイティブbuild、契約validator、CI、クラウド・実機検証は未実施で、それぞれ後続チケットまたは対応環境で確認する。

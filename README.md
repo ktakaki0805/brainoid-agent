@@ -8,7 +8,7 @@
 | 作成日 | 2026-10-25（日本時間） |
 | 状態 | チームレビュー用の設計ベースライン案 |
 | プロダクト名 | Brainoid Agent（正式名称として確定）。公開リポジトリ・配布先は未確定 |
-| 実装状態 | このパッケージは文書と通信スキーマを含む。アプリ本体・GCP環境・製品テスト・CIの実装は含まない |
+| 実装状態 | 文書・通信スキーマと、uv/pnpm workspace・固定依存・format/lint/型検査を提供。アプリ機能・GCP環境・製品テスト・CIは未実装 |
 | 文書管理責任 | 技術責任者。要件はプロダクト責任者、運用は運用責任者と共同管理 |
 
 ## 1. 最初に読むもの
@@ -91,9 +91,9 @@ mise run check
 mise run test
 ~~~
 
-`setup` は `uv sync --locked` で [pyproject.toml](pyproject.toml)・[uv.lock](uv.lock) に基づく依存を `.venv` へ同期します。Python依存の追加・削除は `uv add`・`uv remove`、スクリプトの実行は `uv run` を使います。詳しくは[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
+`setup` はtoolchainを検査してから、`uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` でPython/Nodeのworkspace依存を固定lockから導入します。Python依存の追加・削除は `uv add`・`uv remove`、スクリプトの実行は `uv run` を使います。詳しくは[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
 
-`check` は実装チケットのID・依存関係・進捗台帳・完了記録を点検します。`test` は既存のチケット管理スクリプトの単体テストを実行します。文書リンク・OpenAPI・JSON Schemaの自動検証は、[実装チケット](docs/08-implementation-tickets.md)のBA-FND-04・06で専用ツールを導入します。アプリの起動、GCPへのデプロイ、実機性能、製品のセキュリティ適合を検証するものではありません。
+`mise run format` はworkspaceソースを整形します。`check` はtoolchain、format、lint、Python/TypeScriptの型、実装チケットのID・依存関係・進捗台帳・完了記録を点検します。`test` はtoolchain拒否・package解決・秘密ファイル除外と、既存のチケット管理スクリプトの単体テストを実行します。文書リンク・OpenAPI・JSON Schemaの自動検証は、[実装チケット](docs/08-implementation-tickets.md)のBA-FND-04・06で専用ツールを導入します。アプリの起動、GCPへのデプロイ、実機性能、製品のセキュリティ適合を検証するものではありません。
 
 アプリを動かすためのセットアップは、[開発ガイド](docs/05-development-and-testing.md)にある初回実装タスクを完了した後に有効になります。存在しないリポジトリURLや起動コマンドをクイックスタートとして案内しない方針です。
 

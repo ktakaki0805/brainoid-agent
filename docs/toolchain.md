@@ -1,10 +1,10 @@
 # miseによる開発環境
 
-更新日: 2026-10-26。ツールのバージョンの正本はルートの [mise.toml](../mise.toml)、Python依存の正本は [pyproject.toml](../pyproject.toml)・[uv.lock](../uv.lock) とする。現在はチケット管理スクリプトの検証環境を提供する。アプリ用workspace・依存・CIはBA-FND-01以降で追加する。
+更新日: 2026-10-26。ツール版の正本は [mise.toml](../mise.toml)、Python依存は [pyproject.toml](../pyproject.toml) と [uv.lock](../uv.lock)、Node依存は各 `package.json`・[pnpm-workspace.yaml](../pnpm-workspace.yaml) と [pnpm-lock.yaml](../pnpm-lock.yaml) とする。BA-FND-01でworkspace・依存固定・format/lint/型検査まで提供した。API起動・画面・CIは後続チケットで実装する。
 
 ## 1. miseの導入
 
-Gitと、`mise.toml` の `min_version` 以上のmiseを用意する。以下はLinux・macOS向けの手順で、動作確認環境はLinux x86_64。Windowsで同じ手順を使う場合はWSL2内で実行する。macOS・WSL2・Piでの実行は未検証。
+Gitと `mise.toml` の `min_version` 以上のmiseを用意する。Linux・macOS向けの手順で、確認済み環境はLinux x86_64。WindowsはWSL2を使う。macOS・WSL2・Piの実行は未検証。
 
 miseが未導入の場合は[公式インストール手順](https://mise.jdx.dev/getting-started.html)に従う。公式インストーラーを使う例:
 
@@ -14,80 +14,101 @@ export PATH="$HOME/.local/bin:$PATH"
 mise --version
 ~~~
 
-以降の `mise run` と `mise exec` はシェルの有効化なしで使える。対話シェルで `uv` や `node` を直接使う場合は、利用するシェルの設定ファイルに次の対応する1行を追加し、シェルを開き直す。
-
-~~~bash
-# Bash: ~/.bashrc
-eval "$(~/.local/bin/mise activate bash)"
-# Zsh: ~/.zshrc
-eval "$(~/.local/bin/mise activate zsh)"
-~~~
-
-別の方法でmiseを導入した場合は、実際の実行ファイルのパスに読み替える。
+`mise run` と `mise exec` はシェルの有効化なしで使える。対話シェルで `uv`・`node` 等を直接使う場合は、Bashなら `eval "$(~/.local/bin/mise activate bash)"`、Zshなら `eval "$(~/.local/bin/mise activate zsh)"` をシェル設定へ追加する。別の方法で導入した場合はmiseの実際のパスに読み替える。
 
 ## 2. 初回セットアップと検証
 
-このリポジトリのルートで `mise.toml` のツール・環境変数・タスクを確認し、次を実行する。
+リポジトリのルートで設定内容を確認して実行する。`mise.toml` の変更後も再度trustが必要になることがある。
 
 ~~~bash
 mise trust
 mise install
 mise run setup
+mise run format
 mise run check
 mise run test
 ~~~
 
-`mise install` は指定版のPython・Node.js・uv・pnpmを導入する。`setup` は `uv sync --locked` を実行し、uvが `.venv` を作成してlockfileどおりに依存を同期する。現在のチケット管理スクリプトはPython標準ライブラリだけを使い、外部パッケージへの依存はない。ツールや今後追加する依存の初回ダウンロードにはネットワーク接続が必要。[uvのプロジェクト管理](https://docs.astral.sh/uv/guides/projects/)
+`mise install` は指定版のPython・Node・uv・pnpmを導入する。`setup` は最初に `scripts/check_toolchain.py` で実行中の4ツールと設定の完全な版を照合する。不一致・不足時は必要版と復旧コマンドを表示して、依存導入前に停止する。その後 `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
 
-`check` と `test` は `uv run --locked --offline` を通して実行する。uvはlockfileとの整合と環境の同期を確認し、必要ならローカルキャッシュから依存を導入する。ネットワークからの取得が必要な場合は失敗するため、先に `mise run setup` を実行する。`--locked` により、古いlockfileを検証時に黙って更新しない。miseのツール自動インストールも無効なので、ツール不足時は `mise install` を実行する。[lockと同期の仕様](https://docs.astral.sh/uv/concepts/projects/sync/)
+`check` はtoolchain、整形、lint、Python/TypeScript型、チケット管理を検査する。`format` はソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run` で実行する。キャッシュ・依存不足時は先にsetupを行う。API/画面の起動と契約validatorはまだ提供しない。
 
-miseは `UV_PYTHON` で固定版Pythonのパスをuvへ渡す。`.venv` の作成・同期・コマンド実行時の有効化はuvが担当する。従来のmise設定で作った `.venv` も、`mise run setup` でuvの管理へ移行できる。
+uvが `.venv` を作成・同期する。miseは `UV_PYTHON` で固定Pythonのパスを渡し、uvのPython自動ダウンロードとmiseタスクの自動ツール導入は無効にする。IDEにも `.venv` を指定する。
 
 ~~~bash
 mise ls --current
 mise tasks ls
-mise exec -- uv run --locked --offline python --version
-mise exec -- uv run --locked --offline python -c 'import sys; print(sys.executable)'
+mise exec -- uv run --all-packages --locked --offline python --version
+mise exec -- uv run --all-packages --locked --offline python -c 'import sys; print(sys.executable)'
 mise exec -- node --version
 mise exec -- uv --version
 mise exec -- pnpm --version
 ~~~
 
-`uv run` 内のPythonがリポジトリ内の `.venv` を指すことを確認する。IDEでもこの環境をPython interpreterに指定する。スクリプトは `uv run python ...`、miseのシェルを有効化していない場合は `mise exec -- uv run python ...` で実行する。単独の `mise exec -- python` はmiseが導入したPythonを使うため、プロジェクトの依存を使うコマンドには `uv run` を付ける。
+通常の実行も `uv run --all-packages ...` を使う。サービス単独の依存だけが必要な場合は `uv run --package brainoid-api ...` のように指定する。単独の `mise exec -- python` にはworkspace依存は入らない。[uvのworkspaceと同期](https://docs.astral.sh/uv/concepts/projects/workspaces/)、[lockの仕様](https://docs.astral.sh/uv/concepts/projects/sync/)
 
-## 3. 管理するもの
+## 3. workspaceと境界
 
-| 対象 | 正本・役割 |
+| 領域 | 定義・入口 |
 | --- | --- |
-| Python・Node.js | `mise.toml` の完全なバージョン指定。検証スクリプトと今後のAPI・UI開発に使う |
-| uv・pnpm | `mise.toml` で固定するパッケージマネージャー。Pythonの導入元はmiseに統一する |
-| Python依存・仮想環境 | `pyproject.toml` で依存と対応Python範囲を宣言し、`uv.lock` で解決済みの版を固定。`.venv` はuvが管理する |
-| 開発用依存 | 必要なツールを `uv add --dev` で追加する。ルートは開発用の非パッケージプロジェクト（`tool.uv.package = false`）とする |
-| 開発コマンド | `mise.toml` のタスク。現在の一覧と予定は[開発ガイド](05-development-and-testing.md#5-提供する開発コマンド)を参照 |
-| ローカル専用ファイル | `.venv`、`node_modules`、`.env`、`mise.local.toml` 等は [.gitignore](../.gitignore) で除外。共有するツール版や検証コマンドは `mise.toml` へ記録する |
+| Pythonルート | 非パッケージの開発用project。共通dev依存だけを持つ |
+| `services/api`・`worker`・`device` | uv member。`src/brainoid_api`・`brainoid_worker`・`brainoid_device` |
+| `packages/agent_core`・`memory`・`tools` | uv member。`src/brainoid_agent_core`・`brainoid_memory`・`brainoid_tools` の公開API |
+| `apps/mobile`・`display` | 非公開pnpm member。`src/index.ts`。UI機能はBA-UI-01以降 |
+| `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。client生成はBA-FND-04 |
+| `infra/gcp` | Terraform用の領域。Python/Nodeのmemberではなく、配備定義はBA-OPS-01以降 |
+| `scripts`・`tests` | toolchain検査と基盤の受入テスト |
 
-Java・Android SDK・Xcode・Capacitor・Docker・Terraform・Google Cloud CLI・Firebase CLIは、各コンポーネントの実装時に対応版と導入方法を追加する。miseで管理できるCLIは `mise.toml` へ追加し、OS・IDE・Docker daemon等の前提はこの文書へ記録する。現在のチケット検証には不要。
+サービス間の内部importは置かず、共通実装は共有packageへ移す。Pythonは各memberの `dependencies` と `tool.uv.sources` の `workspace = true`、Nodeは `workspace:*` を使う。Pythonの公開名からimportし、別memberの `src` への相対パス・`sys.path` 変更・TypeScriptのpaths aliasでpackage境界を迂回しない。Pythonはuvが依存隔離を強制しないため、他memberの未宣言依存・内部moduleを使っていないこともレビューする。
+
+Pythonの `brainoid-*`、Nodeの `@brainoid-internal/*` はローカル開発用識別子で、公開レジストリの所有権やOPEN-001の配布IDを確定しない。Pythonは `Private :: Do Not Upload`、Nodeは `private: true` とし、Nodeの `UNLICENSED` は公開許諾をまだ宣言しないことを示す。リポジトリの最終ライセンスはOPEN-004・BA-GOV-02で別途判断する。
+
+秘密値の `.env`、鍵拡張子、既知のcredentialファイル名、`secrets/`、Terraform state等は `.gitignore` で除外する。任意名のJSON内容を自動判別するものではないので、ローカルの秘密ファイルは `secrets/` 配下に置く。`.env.example` は共有可能なfake値だけにする。`.venv`、`node_modules`、cache、build成果物は追跡しない。
 
 ## 4. Python依存の追加・削除・更新
 
-miseを有効化したシェルで、通常のuvコマンドを使う。未有効化の場合は各コマンドの前に `mise exec --` を付ける。
+以下はルートで、miseを有効化したシェルから実行する。未有効化なら `mise exec --` を前置する。
 
 | 操作 | コマンド例 |
 | --- | --- |
-| 開発用依存の追加 | `uv add --dev <package>` |
-| 開発用依存の削除 | `uv remove --dev <package>` |
-| 宣言を手で変更した後のlock更新 | `uv lock` |
-| 追加済みパッケージの更新 | `uv lock --upgrade-package <package>` |
-| lockfileから環境を同期 | `uv sync --locked` |
-| スクリプトの実行 | `uv run python .agents/skills/implement-ticket/scripts/ticket_plan.py check` |
+| 共通dev依存の追加・削除 | `uv add --dev <package>` / `uv remove --dev <package>` |
+| member実行依存の追加・削除 | `uv add --package brainoid-api <package>` / `uv remove --package brainoid-api <package>` |
+| member間の依存追加 | `uv add --package brainoid-api brainoid-memory`（workspaceとして解決されることを確認） |
+| 意図した依存更新 | `uv lock --upgrade-package <package>` |
+| 全member同期 | `uv sync --all-packages --locked` |
+| Node共通dev依存 | `pnpm add -Dw --save-exact <package>` / `pnpm remove -Dw <package>` |
+| Node実行依存 | `pnpm --filter @brainoid-internal/mobile add --save-exact <package>` |
+| Node共有依存 | `pnpm --filter @brainoid-internal/mobile add '@brainoid-internal/ui@workspace:*'` |
 
-`uv add`・`uv remove` は依存宣言・lockfile・環境を更新する。変更した `pyproject.toml` と `uv.lock` を同じコミットに含め、`.venv` はGitへ入れない。`uv lock` だけで更新した場合は `mise run setup` で環境を同期して検証する。後続のアプリ実装もこのプロジェクトを基にuv workspaceへ拡張する。
+Pythonの追加・削除はuvコマンドで行う。変更したmanifestとlockを同じコミットに含め、setup/check/testを実行する。lock更新のために通常setupの固定オプションを外さない。Python build backendは各memberで `uv_build` を完全固定し、同版のuvに内蔵されたbackendを使う。[uv build backend](https://docs.astral.sh/uv/concepts/build-backend/)
 
 ## 5. ツールの更新方法
 
-1. 対象ツールの互換性を確認し、`mise.toml` の完全なバージョンを更新する。`latest` やmajorのみの指定は使わない。
-2. `mise install` を実行する。Pythonの対応範囲を変える場合は `pyproject.toml` の `requires-python` と `uv.lock` も更新する。
-3. `mise run setup`、`mise run check`、`mise run test` を実行する。uvがmiseの指定Pythonを使って環境を同期する。
-4. ツール版、検証結果、対応OS・コンポーネントへの影響を変更に記録する。CIを導入する際も同じ `mise.toml` とタスクを使う。
+1. 公式情報で対応Python/Node・peer依存・ライセンス・保守状況を確認し、miseの完全版を更新する。
+2. `mise install` を実行する。Python対応範囲を変更する場合は全memberの `requires-python` とlockを更新する。uv変更時は各memberのbuild backendも確認する。
+3. Node/pnpm変更時はルート `package.json` の `engines`・`packageManager` と `pnpm-workspace.yaml` の `nodeVersion` を同期する。`check:toolchain` が不一致を検出する。
+4. 新規環境でsetup/format/check/testを実行し、通常導入でlockが変化しないことを確認する。
 
-Node.jsとpnpmの互換性、Pythonとライブラリの対応をセットで確認する。アプリ・モバイル・実機の対応確認は各実装チケットの受入条件に従う。今回の設定追加だけではBA-FND-01全体の完了とはしない。
+pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、実際のPATH上のNodeは独立したtoolchain検査で照合する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。今回の依存にはinstall lifecycle scriptが不要なので `allowBuilds: {}` とし、新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)
+
+Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CLIとネイティブCapacitor buildは、それぞれの実装チケットで対応版と導入方法を追加する。今回のNode依存固定だけではiOS・Android・Pi実機の対応を保証しない。
+
+## 6. 採用依存と確認根拠
+
+2026-10-26に公式PyPI/npm metadataの `Requires-Python`、`engines`、peer依存、licenseとリリース情報を確認した。下表の直接依存は開発基盤の初期採用値で、自動的に最新版へ追従しない。解決された推移依存・integrity/hashは両lockを正本とし、配布物全体のライセンス台帳はBA-GOV-02で整備する。
+
+| 直接依存・採用版 | 用途・配置 | 互換性とライセンス（公式資料） |
+| --- | --- | --- |
+| Ruff 0.17.2 | ルートdev。Python format/lint | Python >=3.7、MIT。[PyPI](https://pypi.org/project/ruff/0.17.2/) |
+| mypy 2.4.0 | ルートdev。Python strict型検査 | Python >=3.10、MIT。[PyPI](https://pypi.org/project/mypy/2.4.0/) |
+| uv_build 0.12.19 | 各Python memberのbuild backend | 固定uvの内蔵backendと同版、MIT OR Apache-2.0。[PyPI](https://pypi.org/project/uv-build/0.12.19/) |
+| FastAPI 0.162.0・Pydantic 2.14.1 | API memberの実行依存 | Python >=3.10、MIT。HTTP入口・型付きvalidation用。[FastAPI](https://pypi.org/project/fastapi/0.162.0/)、[Pydantic](https://pypi.org/project/pydantic/2.14.1/) |
+| Uvicorn 0.54.0 | API memberのASGI実行依存 | Python >=3.10、BSD-3-Clause。setupではサーバーを起動しない。[PyPI](https://pypi.org/project/uvicorn/0.54.0/) |
+| TypeScript 7.0.2 | ルートdev。全Node memberのstrict型検査 | Node >=16.20.0、Apache-2.0。[npm](https://www.npmjs.com/package/typescript/v/7.0.2) |
+| Biome 2.6.3 | ルートdev。TypeScript/JSON format/lint | Node >=14.21.3、MIT OR Apache-2.0。[npm](https://www.npmjs.com/package/@biomejs/biome/v/2.6.3) |
+| Vite 8.3.5 | ルートdev。後続UI用buildツール | Node ^20.19.0 または >=22.12.0、MIT。[npm](https://www.npmjs.com/package/vite/v/8.3.5)、[公式ガイド](https://vite.dev/guide/) |
+| React・React DOM 19.3.1 | 両appの実行依存、UIのReact peer | React DOMのpeer ^19.3.1に一致、MIT。[React](https://www.npmjs.com/package/react/v/19.3.1)、[React DOM](https://www.npmjs.com/package/react-dom/v/19.3.1) |
+| @types/react・@types/react-dom 19.3.0 | ルートdev。Reactの型 | React 19系、相互peer ^19.3.0に一致、MIT。[React型](https://www.npmjs.com/package/@types/react/v/19.3.0)、[DOM型](https://www.npmjs.com/package/@types/react-dom/v/19.3.0) |
+| @capacitor/core 8.5.3 | mobileの実行依存 | Node engine制約の宣言なし。今回のNodeでimport確認、MIT。native platform/CLIは後続。[npm](https://www.npmjs.com/package/@capacitor/core/v/8.5.3) |
+
+公式metadata上、Python側の上表の開発ツール・API依存は2026年9〜10月にもリリースされている。Node側も各公式配布元の採用版を固定し、現在のtoolchainで型検査とimportを実行する。これらは通常のローカルコード実行権限を持ち、setupではダウンロード・環境作成を行う。クラウドIAM・認証情報・外部サービスへの実行権限は追加しない。アプリの配布に含まれる依存と、開発時だけ使う依存を上表の配置で区別する。

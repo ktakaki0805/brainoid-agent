@@ -1,0 +1,25 @@
+{
+  "name": "brainoid-agent-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.28.2",
+  "engines": {
+    "node": "24.21.0",
+    "pnpm": "11.28.2"
+  },
+  "scripts": {
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "typecheck": "pnpm -r --if-present run typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
+}

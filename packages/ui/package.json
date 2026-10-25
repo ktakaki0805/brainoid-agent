@@ -1,0 +1,19 @@
+{
+  "name": "@brainoid-internal/ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "react": "19.3.1"
+  },
+  "peerDependencies": {
+    "react": "19.3.1"
+  }
+}

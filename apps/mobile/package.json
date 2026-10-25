@@ -1,0 +1,17 @@
+{
+  "name": "@brainoid-internal/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@brainoid-internal/api-client": "workspace:*",
+    "@brainoid-internal/ui": "workspace:*",
+    "@capacitor/core": "8.5.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}
