@@ -47,7 +47,13 @@
       "review_rounds": 1
     },
     "BA-FND-06": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "dde471f26cab289fa41ab07442fd163208db1ae6",
+      "updated_at": "2026-10-25T18:51:18.682203+00:00",
+      "log_anchor": "ba-fnd-06-20261025t183645z",
+      "implementation_commit": "85289113a46fb882de9b600115ed3c5125f54c50",
+      "review_rounds": 1
     },
     "BA-FND-07": {
       "status": "todo"

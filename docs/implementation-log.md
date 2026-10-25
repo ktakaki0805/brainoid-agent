@@ -1072,3 +1072,80 @@ BA-FND-01 独立レビュー第1回
 
 - 親の記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.79秒。契約/生成/互換性/format/lint/Python23ソースとTS型/台帳（done5/todo91）が成功。
 - 終了: 2026-10-25T18:36:23.118678+00:00。台帳・ログだけを記録コミット。
+
+## ba-fnd-06-20261025t183645z
+
+- チケット: BA-FND-06
+- 状態: done
+- 開始: 2026-10-25T18:36:45.462775+00:00
+- ブランチ / base commit: main / dde471f26cab289fa41ab07442fd163208db1ae6
+- 開始時の変更: なし
+- 選択: check成功（done5/todo91）、IDなしnextで依存順の次。依存FND-01/04は現履歴に存在。
+- 親担当: /root、実装担当: `/root/fnd06_implementation`（独立コンテキスト）。
+- 実装コミット: 85289113a46fb882de9b600115ed3c5125f54c50
+
+### 受入条件と検証計画
+
+- ローカル/CIで同じformat/lint/型/契約/生成差分/check:ticketsを実行し、工程と再現手順が分かるworkflowを作る。
+- 既存Markdownリンク検証ツールを固定し、壊れた相対リンク/見出しリンクを失敗検出。独自validatorを新作しない。
+- forkでも最小read権限、deploy credentialや本番secretを渡さずクラウド書込/有料providerを呼ばない。lockに基づく導入。
+- 型エラー/生成差分/壊れたリンクを入れた試験PR相当のローカル負例と修正後成功を確認。
+- 外部前提の実リポジトリworkflow設定権限・branch保護はBA-GOV-01で扱う。今回はSkillのローカル作業範囲でworkflowファイルとPR相当検証を行い、外部設定/実GitHub実行の実施済みとはしない。
+
+### CI・リンク検証ツールの選定と初回確認
+
+- 公式metadata/licenseでcheckout v7.0.1（3d3c42e5aac5ba805825da76410c181273ba90b1）、mise-action v5.2.3（82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e）、lychee0.24.2、actionlint1.7.12を確認。workflowはpull_request/push main、read-only、full history、credential非永続化、cache無効の設定。actionlint成功。
+- lychee globがnode_modulesまで走査する初回失敗を確認。Git trackedとignore除外のuntracked Markdownだけを薄いshellで既存CLIへ渡す方式へ修正中。独自リンクvalidatorは作らない。
+
+### 全体check・導入とリンク負例の途中結果
+
+- 実装担当のmise checkは全9タスク成功（actionlint、文書1,154リンク/233 uniqueを含む）。mise setup成功、uv.lock/pnpm-lock.yamlの前後SHA-256一致。
+- 新規PRリンクテストで未追跡hidden文書/日本語見出し/ignore対象node_modules/外部URL除外、壊れた相対リンク・cross/self見出しと復旧を実測成功。
+- 型/生成/スキーマ/linkを一時的に壊す試験PR相当の個別task失敗→復元→成功を実行中。これは実装担当の検証であり、外部GitHub run/設定を実施済みとはしない。
+
+### 実装担当の最終検証
+
+- setup成功/uv・pnpm lock SHA前後一致、check全9タスク成功（文書1,154リンク/233unique/error0）、testはPython36/Skill18/Node38全成功。
+- 試験PR相当の負例: Python型/TS型/生成物差分/不正OpenAPIはexit1、相対リンク/見出し欠落はexit123で検出。各復元後exit0。ログ `/tmp/ba-fnd-06-negative-results/`。
+- git diff --check、新規text末尾空白/改行、shell構文、負例一時ファイル除去を確認。OpenAPI/生成物の一時変更は完全復元。実装担当は編集停止。
+- 実GitHub run/repo設定/branch保護は未実施として明記。署名build/deployとemulatorは今回変更対象外。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/fnd06_review_r1`（新規独立context）。base commit: `dde471f26cab289fa41ab07442fd163208db1ae6`
+- 最新製品差分全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.github/workflows/check.yml` | `4c20b421c22e4707b1dde956fcfef8bbf1ed86d282bf241a40549b0c6fcd9ca7` |
+| `CONTRIBUTING.md` | `54e6b2cac73797029ca37826201b7b35c0ea96ee25e2a42488b5609b4259ddcc` |
+| `README.md` | `dd86eec26525806219d35368e2248693d8408738166b55cb647e4985dacbdcf7` |
+| `docs/05-development-and-testing.md` | `042de6401351c9571fd2bb89b5e1fcc5550328c5fad12af4615d7e2a87793543` |
+| `docs/06-deployment-and-operations.md` | `fe25cab1edb8d94d382d6d4eb27f626e967e06325d90f1df1fa5a30379eed7ac` |
+| `docs/toolchain.md` | `2829918dcaee2c7f3b2db5a188a420b4d089bc76829fd7d57c49430a183a2f71` |
+| `mise.toml` | `92183e542b0cac453081a92547a94c80564a1447a419a0623fe1ba6a3d20bfe3` |
+| `scripts/check_markdown_links` | `d21bcd1db76aedc73944482a174df5ad183b423d89664e443ba9e7eb84c48f47` |
+| `tests/test_pr_checks.mjs` | `e91660eeb64a05aa3b09bb459368c68ceaa915d234baa14c1a1a7b2a66955780` |
+
+### 独立レビュー ラウンド1 途中検証
+
+- `/root/fnd06_review_r1` がmise check9タスクexit0（lychee1,154/233/error0）を直接確認。
+- 新規リンク回帰テストはsandboxの既知Node子process制約で失敗し、同一コマンドをrequire_escalatedで1/1成功。相対/cross/self見出し欠落と復旧を確認。
+- 固定SHAの公式action.ymlからcache/persist_github_token/persist-credentials/fetch-depth入力を確認。必須指摘なしとの中間報告、最終snapshot照合待ち。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/fnd06_review_r1`: approve。確認済みレビュー1回、ローカル実装範囲の必須/任意指摘なし。終了時9ファイルhash一致。
+- 共通setup/check/test、locked/frozen、既存lycheeによるpath/heading検証、生成差分、read-only workflow、credential/token非永続化、cache無効、secret/OIDC/deployなしを直接確認。固定Action入力も公式定義と一致。
+- 直接check9タスク・リンク回帰1件・diff --check成功。setup/lock不変/全test36+18+38は提供結果、型/生成/schema/link負例は提供スクリプトと診断logを直接確認。
+- 実GitHub run/Actions有効化/fork承認/branch保護は未実施。チケットと開発ガイドに従いBA-GOV-01外部事項と区別した承認。
+
+### 完了結果 (2026-10-25T18:51:18.682203+00:00)
+
+- BA-FND-06: read-only PR workflowと既存Markdownリンク検証を共通mise taskへ統合。試験PR相当の型/生成/schema/link負例と復旧、全体検証が成功。独立レビュー1回approve、未解決必須指摘なし。
+- 実装コミット: `85289113a46fb882de9b600115ed3c5125f54c50`（ci(checks): BA-FND-06 validate pull requests and Markdown links）。
+- 承認済み9ファイルのみをmainへstage、cached diff/--checkと全index hash一致を確認。commit後の対象/内容/作業ツリーも一致、hook変更なし。
+- setup/check9タスク/test36+18+38成功。外部GitHub実行/設定は未実施・BA-GOV-01へ区別し、ローカル実装の完了とする。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.82秒、全9タスク成功、台帳done6/todo90。
+- 終了: 2026-10-25T18:52:05.472744+00:00。台帳・ログのみを記録コミット。
