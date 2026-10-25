@@ -2562,3 +2562,304 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.90秒、全9タスク成功、台帳done17/todo79。
 - 終了: 2026-10-25T22:45:32.258460+00:00。台帳・ログのみを記録コミット。
+
+## ba-run-01-20261025t224557z
+
+- チケット: BA-RUN-01
+- 状態: done
+- 開始: 2026-10-25T22:45:57.646349+00:00
+- ブランチ / base commit: main / 71d2038cd5f989078cc1f90be409630c452f175f
+- 開始時の変更: なし
+- 選択: check成功（done17/todo79）、IDなしnextの依存順。依存FND05/08/IAM02実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/run01_implementation`（独立context）。
+- 実装コミット: eb2b51fe0bca571ada1b78fb4d014eb85be54c3f
+
+### 受入条件と検証計画
+
+- 業務更新と同transactionでpending job保存、決定的ID配送、enqueue前後障害・再起動から回収。
+- 単一有効lease、単調generation/期限/試行上限、古worker結果のcommit拒否。
+- worker入口の呼出主体・tenant・対象版/current権限/deletion再検査、喪失済みsourceは副作用前obsoleteと追跡可能な理由。外部呼出しはDB transaction外。
+- fake queue/fixed clockの障害注入とFirestore emulator競合・再起動結合、全setup/check/test。
+- Cloud Run/Tasks実資源OPS03、業務handler本体RUN04/APP04/MEM08は対象外。外部前提なし。
+
+### 初期設計と依存境界
+
+- `/root/run01_implementation`: Transaction portをcontracts、Firestore adapterを共有persistence、TransactionPolicyState/account stampをpolicyへ抽出し、API側互換shimで例外契約を維持する方針。worker→API内部依存を避け、既存全テストで回帰確認する。
+- 正本job保存grantとglobal account stampを副作用開始前/結果commit時に再検査。ledger必須・untracked bootstrapは明示限定。
+- Task名はjob ID＋永続dispatch generation。同じenqueue試行は同じ名、ack喪失/Task tombstone残留では回収世代を進める。外部呼出しの重複安全性とlease fencingは別の境界としてhandler契約に記録する。
+
+### 共有抽出・永続モデル実装中
+
+- 実装担当がcontracts.Transaction、persistence.FirestoreTransactions、policy.transactions/accounts、jobs/workerを実装中。回収scanは100件上限のdocument-ID cursorで全件transaction読取を避ける方針。
+- 既存固定Firestore/Pydanticの新member直接依存を予定。Tasks/OIDC公式資料確認済み、adapter/local導線の後unit→全check/test→emulator予定。
+- 初回編集コマンドはmise未trustで失敗し変更なし、`/usr/bin/python3`による再実行成功。
+
+### 外部呼出し・source更新の境界
+
+- 親の途中確認で同一lease/keyのeffect競合と、source版更新＋job同tx保存のbindingを共有。実装担当は既存startedでOutcomeUnknown、新規markerを作成したtxだけinvokeへ修正。
+- 既存sourceはWRITE grant＋version+1 replacementを受けるadd_for_updateを追加予定。他認可metadataの変更を拒否しsource更新と新版grant/jobを同tx保存する。新規child/runの親子bindingは後続repositoryの責務を文書化。
+- queue/HTTP/OIDC/local adapter実装済み。lock更新はworkspace 2packageのみ追加、google-auth/fastapi等は既存固定版の直接依存宣言。
+
+### 初回setupと検証修正
+
+- `mise run setup`成功（locked全workspace/frozen pnpm）、新規外部distributionなし。新unit13件はControlLedger fixtureのprepareをbeginと誤記したためsetup失敗、mypy13診断（同誤記/FakeClock.advance単位/API private _Transaction互換export等）を修正中。
+- 親の途中確認: page末尾不正job IDから返るcursorをResourceId検証すると次頁へ進めない点、FastAPI既定422がbodyをechoする点を共有。実装担当はcursorをopaque安全segmentへ変更し、worker HTTPは4KiB上限＋固定400/413に変更。
+- source更新はadd_pendingのsource_replacementオプションとしてWRITE/版+1/認可metadata不変を検査し同tx保存する方式へ整理。
+
+### 新unit成功・emulator開始
+
+- 新unit13件、mypy116files成功。全emulator開始。unit fixtureのdiscovery経路依存を避けるためtests/fakes/jobs.pyへ最小handlerを分離し、emulator fixtureを独立化。
+- emulator実行中に関連fixtureを修正したため、初回結果と別に最終編集版で全件再実行するよう親から指示。新結合5件は実プロセス再起動/並列lease/source新版同tx/削除とcommit/Task名残留とcursor。
+
+### 初回emulator・checkの失敗と修正
+
+- 初回emulatorは既存65件成功、新module import失敗1（計66件、87.1秒）で非ゼロ。全emulator停止。修正版2回目実行中。
+- 全test途中結果: Python206/Skill18成功、Node実行中。checkのdocs/format/lint等成功、mypyが共有test fixtureをfakes.jobsとtests.fakes.jobsの二重moduleとして検知し失敗。fixtureをemulatorから独立化後、最終全check/test/emulatorを再実行する。
+- docs/jobs.mdにcomposition例、cursor一巡reset、renew責任、outcome_unknown/reconciler責任、exactly-once非保証を記載済み。
+
+### 2回目emulatorと最終版再検証
+
+- 2回目emulatorは69件成功、別process再起動の子process共有fixture import失敗1（70件84.7秒）、全停止。fixture独立化に加え子processのemulator側handler明示importへ修正。
+- 前回全testはPython206/Skill18/Node39成功、mypy116files成功。編集を停止し、最終版の全check/test/emulatorを再実行中。
+
+### 最終check/test成功
+
+- 編集停止後の `mise run check`: 全9タスク成功、mypy116files、docs1304links/0error。
+- 同 `mise run test`: Python206/Skill18/Node39全成功。`git diff --check`成功。jobs/policy/coreにHTTP/SDK importなし、workerにAPI importなしを確認。
+- 最終emulator70件は進行中、完了と停止確認を待つ。
+
+### 最終emulator・分離worker検証成功
+
+- 最終emulator70件85.769秒成功。Auth/Firestore/hub/logging停止確認、通常権限ssで8080/9099/4400/4500/9150 listenerなし（sandbox netlink拒否後）。
+- 別venv `/tmp/ba-run-01-worker.KKW4Mh` で `uv sync --package brainoid-worker --locked --offline --no-dev`、API未インストールでJobs/workerHTTP/Tasks/OIDC/persistence import成功。root .venv維持。
+- 編集停止、diff --check成功。独立レビューへ進む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run01_review_r1`（新規独立context）、base commit: `71d2038cd5f989078cc1f90be409630c452f175f`。
+- 製品34files全差分/新規全文、親台帳/logのみ除外。既存無関係変更なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `ca2574f6aefd98dc5868a8d34570511634da80fd69f61df083552addb610cd2d` |
+| `docs/authorization.md` | `df0da4425176278f5549f4601090043ee5db6645426e0c675f1fce9096379e03` |
+| `docs/jobs.md` | `8eed72fec7ab9a4d11a74d933a1bcd72ba0f1545a656e08a10e8356cb4c3affc` |
+| `docs/toolchain.md` | `09266c6fc8b6966b7ef635d58dba0ebd3cf328d6a77057e1fc49460316a5863b` |
+| `packages/contracts/src/brainoid_contracts/accounts.py` | `ba58eb6882237073a63f35a638c46f2eb19a7bd1d8149bbb6798e1daadc04c2e` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `44e0d356a3fb8395a85f3d07f25d88779faa496946e5e47dee469b6c62184104` |
+| `packages/jobs/pyproject.toml` | `e21e9f4edf76f39268d0d6c07e606b4d32d70314df0e275d3a2bd5867320bf3f` |
+| `packages/jobs/src/brainoid_jobs/__init__.py` | `8b1313731943a76cb73e735f6feb2c6a67250b2e573f8ba7fcbae4b8b852a254` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `be19e966b523dc94639b6ad84bd795aa992f2432d0f7789859aaed6c551275d2` |
+| `packages/jobs/src/brainoid_jobs/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `c97cef53ddf31bda11aa724171e2e97a0eae12fb1a60c1590f10f7202344657d` |
+| `packages/persistence/pyproject.toml` | `17d7dbb188a8991e60f7312672348b8ce87dbcf2f069a431b46b1c2c3e68d13e` |
+| `packages/persistence/src/brainoid_persistence/__init__.py` | `2bfcf27c49fb2a0887cd50054ea64f94f44f383b7a44afe8054490871b836c45` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `1e647d9b65b7a62f29be6908ed02fac1290f9ef1bb1d81a1fe46e40c7573a30a` |
+| `packages/persistence/src/brainoid_persistence/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/policy/src/brainoid_policy/accounts.py` | `e469b81742ae8e480205164dcb38fddc206a78eb7bc8ed584a03b2ebf0186b60` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `b390106a330a789773e3f9a8b31276f1448d077ba24da885cb20430f1ff6e473` |
+| `pyproject.toml` | `9d95c4652af1e8d0f78035ecdc4544c40388b38754c2d38c0bb868e50db4858d` |
+| `services/api/pyproject.toml` | `f5e32200731e4e5574c3f984bcc8f88cd94a1a26410ccd31398651850db3eef7` |
+| `services/api/src/brainoid_api/auth/account_state.py` | `fb94ee4a6662e46f8699a89490402ef347aef5b666014098bf7e54f34718db89` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `58406f96a794bcc9bccedbf7b58f93efa22435eb836a89102bff314f8c5d6ea5` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `d51dd67a5e834a02cf2de8a18c46b8e387588e2f47221fe5fe424b3c2300e081` |
+| `services/api/src/brainoid_api/common/firestore.py` | `d1e1b54e21586659513bdc8fd703330ff6ba6adc37f8a868d171e0f8e323dffb` |
+| `services/api/src/brainoid_api/common/transactions.py` | `c2be976dfb7961630b95917deffd2c609f9a68f95e9248cf110a13e2c4601f2c` |
+| `services/worker/pyproject.toml` | `2ac92403873d63116faba8438b731f9ba56ff739b467522ca9b9ee603dde428c` |
+| `services/worker/src/brainoid_worker/app.py` | `11f4a073371ac95fee0bfee112c78192ff712aee1ce6074c82b9aa7e0d994390` |
+| `services/worker/src/brainoid_worker/cloud_tasks.py` | `1af8623b8712b1d3e23b9bdba46ea78001b973cc31388930ebc0e70404588c82` |
+| `services/worker/src/brainoid_worker/dispatcher.py` | `42d6557ba78f814a1aca0a546fee866d5456a519889091427037bf6ee5c316f0` |
+| `services/worker/src/brainoid_worker/entry.py` | `f4b9daafb4ef5d245a3967c0c622ea9f79f28454e8d4c59dabe32ea2ee71e124` |
+| `services/worker/src/brainoid_worker/local.py` | `f3788ac1b3bbd12850cff60c2b8da1d073e302d4651154dd796a62322ff61c56` |
+| `tests/emulator/test_job_recovery.py` | `294752ed4b5cf2530514e706dc2c6bb483783fc3219b50a5fa94605f045b8b71` |
+| `tests/test_foundation.py` | `bc7b746559f7172f6d4f7b984af44b348af73d5fa564d666d17c8f85f671efb2` |
+| `tests/test_jobs.py` | `1971d9b577ded84f81d281925d28f7b107035e43dcbf905d31263ea4900967f1` |
+| `uv.lock` | `90a666733cb9946fa99adcd5bc911caf51638ced92e6deeed54e7aa0c5d08816` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/run01_review_r1` がmain/HEAD=base/34files集合/全SHA一致を開始時確認。正本要件・設計を直接読み、再配送/lease/checkpoint/共通認可抽出を確認中。現時点の確定指摘なし。
+
+### 独立レビュー ラウンド1 故障注入結果
+
+- レビュー担当がControlLedger.latestの一時LedgerErrorでjobがattempts=0のままobsolete/authorization_changedとなり、台帳復旧後もrecoverで再配送されないケースを再現。共通readerがPolicyDeniedへ変換するため、一時I/O障害と実際の権限変更を区別する必要がある。最終判定待ち。
+- レビュー担当直接検証: job13件＋policy/common/import22件は成功。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run01_review_r1`: request_changes。必須R1-01/P1、任意なし。開始/終了main/base/34files全SHA一致、index/製品/記録の変更なし。
+- R1-01: packages/jobs/src/brainoid_jobs/repository.py:196 と packages/policy/src/brainoid_policy/transactions.py:54。一時LedgerErrorがPolicyDeniedへ変換されobsolete/authorization_changedに永久終了。acquire/effect前/commit前の3境界で再現、attempts0/1/1、provider0、復旧後再配送0。
+- 修正要求: 台帳読取不能と実際の拒否を区別し、読取不能時は副作用/結果確定を止め同jobを再試行可能に保つ。worker包括例外で終端化しない。3境界一時失敗→復旧、実失効/deletionはobsolete維持、開始済み副作用再実行しない回帰を追加。
+- 直接検証job13/policy-common-import22、3境界故障注入、diff --check。全test/emulator70/分離workerは提供証跡のみ。ほか受入条件/共有抽出に必須指摘なし。元実装担当へ修正を返す。
+
+### R1-01 修正方針
+
+- 実装担当がPolicyDenied互換のPolicyUnavailableでLedgerErrorを区別し、jobs専用AuthorizationUnavailableへ変換する方針。API公開404契約を維持。
+- workerはhandler_error/obsoleteにせず、同lease世代を条件にjob制御metadataのみ再待機へ戻し、認可不能で中断した試行予算を戻して503。未解決started checkpointはoutcome_unknownを維持し自動再呼出し不可。境界回帰を追加中。
+
+### R1-01 unit回帰成功
+
+- 修正後job単体18件/mypy116files成功。acquire503/API旧404互換、実行中5境界（effect前/commit前/completed後/一般handler例外/明示retry例外）の復旧・max_attempts=1、結果保存障害outcome_unknown、破損台帳復旧/旧lease defer拒否を追加。
+- loop内hook closureのRuff B023 10件はhelperへ整理して解消。編集停止後の全check/test/emulator71件を実行する。
+
+### R1-01 全check/test成功・emulator確認中
+
+- 最終編集停止版check全9（mypy116/docs1305links0error）、test Python210/Skill18/Node39、diff --check成功。
+- emulator71件実行途中にF1件、詳細未出力のため結果と原因待ち。追加1件で台帳障害5境界を検証する。
+
+### R1-01 emulator既存競合テスト失敗
+
+- 71件87.581秒、追加job障害回復を含む70件成功。既存test_different_concurrent_rotation_requests_revoke_familyが [TEMPORARILY_UNAVAILABLE, DeviceCredentials] となり、期待AUTHENTICATION_REQUIREDと不一致1件。全emulator停止。
+- 製品/既存testを変更せず同一最終版で全emulator再実行。親からIAM08既知のSDK最大5回競合503事例を共有し、原因根拠と最終family失効の確認、必要なら同body/key bounded retryによる最小テスト安定化を許可（失効期待を弱めない）。
+
+### R1-01 最終検証成功
+
+- 編集停止版check9/mypy116、全test Python210/Skill18/Node39成功。同一版emulator再実行71件92.597秒成功、全停止と5ports listenerなし、diff --check成功。
+- 既存rotationはTEMPORARILY_UNAVAILABLEを直接返す業務分岐なし。SDK retry最大5回Aborted等はadapterで503へ変換され、emulator traceにはlock timeoutあり。ただし初回の例外chainは未保存で、その503を特定Abortedと断定しない。同版再実行はAUTHENTICATION_REQUIRED/旧token拒否/family revokedを含め全成功、期待変更なし。
+- R1-01修正は11files、依存/lock変更なし。編集停止。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/run01_review_r2`（新規独立context）、base commit: `71d2038cd5f989078cc1f90be409630c452f175f`。
+- 最新製品35files全体、親台帳/logのみ除外。r1必須指摘への修正を含み差分全体を確認する。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `ca2574f6aefd98dc5868a8d34570511634da80fd69f61df083552addb610cd2d` |
+| `docs/authorization.md` | `e805486eadde0996db2d0947c931e287e309f7cb5baa0a56d1db334a7dc02c67` |
+| `docs/jobs.md` | `05b1174015eee8544bb9d78d5ba355499d50e0dd2f6d69b8233408b7501ec2f9` |
+| `docs/toolchain.md` | `09266c6fc8b6966b7ef635d58dba0ebd3cf328d6a77057e1fc49460316a5863b` |
+| `packages/contracts/src/brainoid_contracts/accounts.py` | `ba58eb6882237073a63f35a638c46f2eb19a7bd1d8149bbb6798e1daadc04c2e` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `44e0d356a3fb8395a85f3d07f25d88779faa496946e5e47dee469b6c62184104` |
+| `packages/jobs/pyproject.toml` | `e21e9f4edf76f39268d0d6c07e606b4d32d70314df0e275d3a2bd5867320bf3f` |
+| `packages/jobs/src/brainoid_jobs/__init__.py` | `bf6879fad7a88580ebf298a1bea58dc3ed683b01ab267edc38db794cccf73fef` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `92812af4f941e290f653f4bde7edfad86a04f1e1fb0e24d26676e89cf6a87da0` |
+| `packages/jobs/src/brainoid_jobs/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `0f49beee700f7fa5f13f8d8408594c36746494d4a3262c1a3e4c4bba87fb249a` |
+| `packages/persistence/pyproject.toml` | `17d7dbb188a8991e60f7312672348b8ce87dbcf2f069a431b46b1c2c3e68d13e` |
+| `packages/persistence/src/brainoid_persistence/__init__.py` | `2bfcf27c49fb2a0887cd50054ea64f94f44f383b7a44afe8054490871b836c45` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `1e647d9b65b7a62f29be6908ed02fac1290f9ef1bb1d81a1fe46e40c7573a30a` |
+| `packages/persistence/src/brainoid_persistence/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/policy/src/brainoid_policy/accounts.py` | `e469b81742ae8e480205164dcb38fddc206a78eb7bc8ed584a03b2ebf0186b60` |
+| `packages/policy/src/brainoid_policy/scopes.py` | `237737b3d5a79555425ec96a595ab02c1d3b6cca30afd292e27e0ce6e9cd2453` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `e7c667a53f43b6e97a03b5551d67e8202355cb0e74c713e25018a78e6eddb60b` |
+| `pyproject.toml` | `9d95c4652af1e8d0f78035ecdc4544c40388b38754c2d38c0bb868e50db4858d` |
+| `services/api/pyproject.toml` | `f5e32200731e4e5574c3f984bcc8f88cd94a1a26410ccd31398651850db3eef7` |
+| `services/api/src/brainoid_api/auth/account_state.py` | `fb94ee4a6662e46f8699a89490402ef347aef5b666014098bf7e54f34718db89` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `58406f96a794bcc9bccedbf7b58f93efa22435eb836a89102bff314f8c5d6ea5` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `d51dd67a5e834a02cf2de8a18c46b8e387588e2f47221fe5fe424b3c2300e081` |
+| `services/api/src/brainoid_api/common/firestore.py` | `d1e1b54e21586659513bdc8fd703330ff6ba6adc37f8a868d171e0f8e323dffb` |
+| `services/api/src/brainoid_api/common/transactions.py` | `c2be976dfb7961630b95917deffd2c609f9a68f95e9248cf110a13e2c4601f2c` |
+| `services/worker/pyproject.toml` | `2ac92403873d63116faba8438b731f9ba56ff739b467522ca9b9ee603dde428c` |
+| `services/worker/src/brainoid_worker/app.py` | `095cf6c49d6c4f0c91a8ea0929025e8367a2a6b189566cd03c6263a68038ea99` |
+| `services/worker/src/brainoid_worker/cloud_tasks.py` | `1af8623b8712b1d3e23b9bdba46ea78001b973cc31388930ebc0e70404588c82` |
+| `services/worker/src/brainoid_worker/dispatcher.py` | `42d6557ba78f814a1aca0a546fee866d5456a519889091427037bf6ee5c316f0` |
+| `services/worker/src/brainoid_worker/entry.py` | `3d0b18adc55ff8e2a9d0fb9515746f8ecb8266654bbdc23cb7c80e4bda48ace7` |
+| `services/worker/src/brainoid_worker/local.py` | `f3788ac1b3bbd12850cff60c2b8da1d073e302d4651154dd796a62322ff61c56` |
+| `tests/emulator/test_job_recovery.py` | `81f77b42e73fbff5778ed48ae6eca74e84ecfc04215a0b898f10caa70ca3c26f` |
+| `tests/test_foundation.py` | `bc7b746559f7172f6d4f7b984af44b348af73d5fa564d666d17c8f85f671efb2` |
+| `tests/test_jobs.py` | `3aa97ded44efaad927205cf2ba20ec1d5c299ea50549eda56223caa7495e838a` |
+| `uv.lock` | `90a666733cb9946fa99adcd5bc911caf51638ced92e6deeed54e7aa0c5d08816` |
+
+### 独立レビュー ラウンド2 途中確認
+
+- `/root/run01_review_r2`: 開始main/base/35files全SHA一致、全差分・関連要件を確認し、job18件を直接実行して成功。R1-01の例外区別/回復/旧lease拒否の解消を確認。
+- 追加候補としてFirestore PersistenceUnavailableが包括例外処理でhandler_error終端化する可能性を故障注入検証中。最終判定前、製品編集停止を維持。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/run01_review_r2`: request_changes。R1-01台帳障害固有は解消、追加必須R2-01/P1のみ、任意なし。最新全35files・周辺を確認、開始/終了main/base/集合/全SHA一致、製品/index/記録変更なし。
+- R2-01: services/worker/src/brainoid_worker/entry.py:98の包括例外がPersistenceUnavailableもfailed/handler_errorにしHTTP204 ACK。一過性DB障害でacquire直後check/副作用なしcommit前/completed後commit前の全てattempts1/結果なし/復旧後配送0。最後は外部1回/completed保持のまま永久終了。
+- 再現: `/tmp/ba-run-01-r2-persistence-repro.py`、結果`/tmp/ba-run-01-r2-persistence-repro.txt`。`PYTHONPATH=. uv run --all-packages --locked --offline python -B /tmp/ba-run-01-r2-persistence-repro.py`（共通mise/cache環境）で再現。初回PYTHONPATH不足import失敗は実行方法修正後再現。
+- 修正要求: 認識済み一時DB障害を恒久handler失敗と区別、503と同job回復を維持。DB読取/start marker/checkpoint結果/最終commitの失敗・応答喪失、失敗記録中DB障害、旧lease拒否を検証。成功済み状態を上書きせずcompleted再利用、未確定startedを再実行しない。
+- 直接job18/policy-common-foundation24/diff --check成功、全check-test/emulator71は提供証跡。既存rotationの途中失敗は同版全件再実行成功・変換処理実質維持から追加必須なし、原因確定とはしない。元実装担当へ修正を返す。
+
+### R2-01 修正方針
+
+- 実装担当が3経路を再現。公開PersistenceUnavailableを恒久handler例外より先に分離し、R1のdeferをreason付き基盤障害処理へ共通化する。
+- 制御txが読めれば正本status/checkpoint/generationを照合しcompleted再利用/succeeded・failed非上書き/started結果不明を維持。制御記録も不可用なら503＋既存lease保持、復旧後TTL回収/試行上限に従う限界を文書化。lease取得応答喪失で世代不明なら他worker leaseを推測変更しない。
+
+### R2-01 製品修正・単体初回
+
+- PersistenceUnavailable/AuthorizationUnavailableを外側で捕捉し、reason付きdefer_unavailableで正本再読・再待機/terminal維持/unknown停止を判断。DB callbackや失敗保存中の一時障害も503。
+- 単体に16の障害/応答喪失境界と制御記録不可用を追加。mypy116成功。単体21件初回はsubTest共通handler履歴が残るfixture2失敗、ケースごとのfixture独立化を修正中。
+
+### R2-01 単体成功・最終全検証へ
+
+- job単体21件成功。16境界の前後故障/応答喪失、制御記録もDB不可用3ケース、恒久handler失敗204/failedを確認。DB全期間不可用時に予算返却を原子的保証できない限界をdocs/jobs.mdへ追記。
+- emulatorにSDK batch_get_documentsのServiceUnavailableとactual commit前/後10ケース追加。mypyのSDK未型付けconstructor2診断は既存同様の局所ignoreで修正。
+- 製品編集停止、最終全check/test/emulator73件を実行する。
+
+### R2-01 最終check/test成功
+
+- 編集停止版check9/mypy116/docs1305links0error、全test Python213/Skill18/Node39、diff --check成功。emulator73件は実行中。
+- 既知DB/認可障害は包括Exception前に再送経路、失敗保存中例外も外側へ伝播しHTTP503。dispatcher queue障害はpending維持、認証失敗は取得前でjob変更なし。provider固有一時障害はhandlerのRetryableError/effect契約で扱う。
+
+### R2-01 最終emulator成功
+
+- 最終編集停止版emulator73件86.895秒成功（今回一回で全件成功）、全停止log/5ports listenerなし、diff --check成功。check9/test213+18+39と合わせ最終検証全成功。
+- r2からの修正は7files（jobs models/repository、persistence例外契約docstring、worker entry、unit/emulator jobs、docs/jobs.md）。依存/lock変更なし、製品編集停止。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/run01_review_r3`（新規独立context）、base commit: `71d2038cd5f989078cc1f90be409630c452f175f`。
+- 最新製品35files全差分/新規全文、親台帳/logのみ除外。R1-01/R2-01の修正を含む最新全体を確認する。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `ca2574f6aefd98dc5868a8d34570511634da80fd69f61df083552addb610cd2d` |
+| `docs/authorization.md` | `e805486eadde0996db2d0947c931e287e309f7cb5baa0a56d1db334a7dc02c67` |
+| `docs/jobs.md` | `b9833133505f517029e7260d1cff1b70087dcbef57ca7a443dbd4bb2c570bc5b` |
+| `docs/toolchain.md` | `09266c6fc8b6966b7ef635d58dba0ebd3cf328d6a77057e1fc49460316a5863b` |
+| `packages/contracts/src/brainoid_contracts/accounts.py` | `ba58eb6882237073a63f35a638c46f2eb19a7bd1d8149bbb6798e1daadc04c2e` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `44e0d356a3fb8395a85f3d07f25d88779faa496946e5e47dee469b6c62184104` |
+| `packages/jobs/pyproject.toml` | `e21e9f4edf76f39268d0d6c07e606b4d32d70314df0e275d3a2bd5867320bf3f` |
+| `packages/jobs/src/brainoid_jobs/__init__.py` | `bf6879fad7a88580ebf298a1bea58dc3ed683b01ab267edc38db794cccf73fef` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `55b3db4de9491d759f83efa32af089957e04453cf12d6b3d180b4982bf249eb0` |
+| `packages/jobs/src/brainoid_jobs/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `7abe93407f9f9cfedcfd06ad51db507e953d348007dd5c5a63a044ecf525755d` |
+| `packages/persistence/pyproject.toml` | `17d7dbb188a8991e60f7312672348b8ce87dbcf2f069a431b46b1c2c3e68d13e` |
+| `packages/persistence/src/brainoid_persistence/__init__.py` | `2bfcf27c49fb2a0887cd50054ea64f94f44f383b7a44afe8054490871b836c45` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `850de73b29edb42cce04cc1e54877b252b4f5966947628a01b6c96aafc2cfd3d` |
+| `packages/persistence/src/brainoid_persistence/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/policy/src/brainoid_policy/accounts.py` | `e469b81742ae8e480205164dcb38fddc206a78eb7bc8ed584a03b2ebf0186b60` |
+| `packages/policy/src/brainoid_policy/scopes.py` | `237737b3d5a79555425ec96a595ab02c1d3b6cca30afd292e27e0ce6e9cd2453` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `e7c667a53f43b6e97a03b5551d67e8202355cb0e74c713e25018a78e6eddb60b` |
+| `pyproject.toml` | `9d95c4652af1e8d0f78035ecdc4544c40388b38754c2d38c0bb868e50db4858d` |
+| `services/api/pyproject.toml` | `f5e32200731e4e5574c3f984bcc8f88cd94a1a26410ccd31398651850db3eef7` |
+| `services/api/src/brainoid_api/auth/account_state.py` | `fb94ee4a6662e46f8699a89490402ef347aef5b666014098bf7e54f34718db89` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `58406f96a794bcc9bccedbf7b58f93efa22435eb836a89102bff314f8c5d6ea5` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `d51dd67a5e834a02cf2de8a18c46b8e387588e2f47221fe5fe424b3c2300e081` |
+| `services/api/src/brainoid_api/common/firestore.py` | `d1e1b54e21586659513bdc8fd703330ff6ba6adc37f8a868d171e0f8e323dffb` |
+| `services/api/src/brainoid_api/common/transactions.py` | `c2be976dfb7961630b95917deffd2c609f9a68f95e9248cf110a13e2c4601f2c` |
+| `services/worker/pyproject.toml` | `2ac92403873d63116faba8438b731f9ba56ff739b467522ca9b9ee603dde428c` |
+| `services/worker/src/brainoid_worker/app.py` | `095cf6c49d6c4f0c91a8ea0929025e8367a2a6b189566cd03c6263a68038ea99` |
+| `services/worker/src/brainoid_worker/cloud_tasks.py` | `1af8623b8712b1d3e23b9bdba46ea78001b973cc31388930ebc0e70404588c82` |
+| `services/worker/src/brainoid_worker/dispatcher.py` | `42d6557ba78f814a1aca0a546fee866d5456a519889091427037bf6ee5c316f0` |
+| `services/worker/src/brainoid_worker/entry.py` | `4a22ca661cd848c3696c1a6cada6bdae8c1e6e94d0566a894f702871d4f3afe0` |
+| `services/worker/src/brainoid_worker/local.py` | `f3788ac1b3bbd12850cff60c2b8da1d073e302d4651154dd796a62322ff61c56` |
+| `tests/emulator/test_job_recovery.py` | `28905a92dd94e87b02016bfe7a721558a9a07ede6dced2b422d7a8917f40c6a8` |
+| `tests/test_foundation.py` | `bc7b746559f7172f6d4f7b984af44b348af73d5fa564d666d17c8f85f671efb2` |
+| `tests/test_jobs.py` | `ba1dc8d54d4c67fe155fa23bbc6219f98271d44f10647bf982b1a5ca608566ce` |
+| `uv.lock` | `90a666733cb9946fa99adcd5bc911caf51638ced92e6deeed54e7aa0c5d08816` |
+
+### 独立レビュー ラウンド3 途中確認
+
+- `/root/run01_review_r3`: 初回hashコマンドはmise trust未指定で実行されず、環境修正後main/base/35files集合/全SHA一致を確認。repository/worker/dispatcher/HTTP/Tasksと共有policy/persistence差分を確認済み。
+- R2の失敗記録を含む外側catch→同世代defer、terminal/completed/started正本判別の実装を確認し、テスト/周辺認可と直接検証を継続。
+
+### 独立レビュー ラウンド3 最終判定
+
+- `/root/run01_review_r3`: approve。必須/任意なし、R1-01/R2-01とも解消。全35files最新差分・周辺・正本要件確認、開始/終了main/base/対象集合/全SHA一致、index空・製品/記録変更なし。
+- 同tx業務/outbox、決定的配送名、回収、現在認可/source版、旧lease fencing、試行上限/理由、tx外I/Oを確認。DB制御記録不可用/取得応答不明のTTL回収・試行予算制約もテストと整合。
+- 直接job21/policy-common-foundation24/diff --check成功。R2旧3境界独立probeは全てpending/persistence_unavailable/attempts0→回収1→succeeded、provider合計1。emulator73/全check-test/worker単独は提供証跡、emulatorテスト全文確認済み。
+- 独立レビュー3回、未解決必須条件ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み35filesの作業内容/index blob/commit blob全SHA一致、main/base/対象集合/cached diff --checkを確認。
+- 実装コミット: `eb2b51fe0bca571ada1b78fb4d014eb85be54c3f`。独立レビュー3回、R1-01/R2-01解消・最終approve、未解決必須なし。
+- 受入: 同txoutbox/新版source、enqueue前後障害・永続再起動回収、単一lease/旧世代fencing、認可/source/account/deletion再確認、台帳/DB一時障害・応答喪失回復をfake/emulatorで確認。実Cloud資源/業務handler/結果照合reconcilerは後続。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.92秒、全9タスク成功、台帳done18/todo78。
+- 終了: 2026-10-25T23:33:47.853953+00:00。台帳・ログのみを記録コミット。
