@@ -253,3 +253,99 @@ BA-FND-01 独立レビュー第1回
 - 実装と記録はローカルmainで管理。外部PR・配備は本実行の範囲外。
 
 - 終了: 2026-10-25T16:13:57+00:00。残る必須条件なし。台帳・ログの2ファイルだけを完了記録コミットへ含める。
+
+## ba-fnd-02-20261025t164333z
+
+- チケット: BA-FND-02
+- 状態: done
+- 開始: 2026-10-25T16:43:33.779521+00:00
+- ブランチ / base commit: main / b8a1aa86f8d3193ad5b0d1ed2fcc7d577834cf52
+- 開始時の変更: なし
+- 選択: ticket_plan.py check は96件中1件done、nextがBA-FND-02を選択。依存BA-FND-01の実装・記録コミットは現在の履歴に存在。
+- 親担当: /root
+- 実装コミット: 2b194d9d50ea1d0a2a41a60f21900e51966709e5
+
+### 受入条件と検証計画
+
+- 設定不足・矛盾、productionへのfake認証・emulator混入を正負例で確認（T-027）。
+- 注入した依存先異常でreadinessだけが失敗することを確認。
+- 例外応答の共通code/request_id/retryableとログの対応、認証header・本文・秘密値の非出力を確認。
+- mise run check、mise run testを実行。本人認証・業務API・監視基盤は対象外。
+- 環境準備: mise設定は内容確認済み。MISE_TRUSTED_CONFIG_PATHSでこの作業ディレクトリのみを信頼して実行する。
+
+### 実装開始・環境確認
+
+- 実装担当: `/root/fnd02_implementation`（独立コンテキスト、実装と検証のみ委譲）。
+- 初回 `python3 ticket_plan.py check/next` はmise設定未trustで失敗。設定内容確認後、システムPythonで再実行しcheck/nextともexit 0。
+- 親の `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise run check` はuv既定cacheがread-onlyでexit 2。製品コードの検査前に停止。既存の書込可能cache `/tmp/ba-fnd-01-uv-cache` を指定して再実行するよう実装担当へ伝達。
+- 再開状態は指定の `.git/implement-all-tickets-state.json` に保存済み。
+
+### 実装途中の環境・依存結果
+
+- 実装担当から受領: settings/app/health/errors/__main__ と安全な .env.example を作成。
+- Starlette TestClient が要求する `httpx2==2.16.0` を `uv add --dev` で追加。httpcore2/truststoreは推移依存、API実行依存の追加なし。
+- 初回httpx取得はsandbox DNS制約とcache不足で失敗。実際に必要なhttpx2の取得を権限拡張で実行し解消したとの報告。依存追加後の固定lockによるcheck/test結果は受領時に別途記録する。
+
+### 途中検証（実装担当から受領）
+
+- 新規API受入テスト15件: 権限拡張環境で成功（0.357秒、外部API利用なし）。sandbox内はTestClientのanyio cross-thread通知で停止し、独立した `start_blocking_portal().call(lambda:42)` でも再現。停止した試行は中断し成功扱いにしない。
+- mypy: 成功。Ruff初回: テストのimport順、loop capture、Depends defaultの3点を検出。修正後の全体check/testを待つ。
+
+### 実装担当の全体テスト結果
+
+- `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run test`: exit 0（実装担当、require_escalated）。tests配下18件（API15件＋基盤3件）1.207秒、チケット管理18件0.065秒。
+- 同環境の `mise run check`: Python format/lint、mypy、台帳検証が成功。Node側の最終結果は続報で記録する。
+
+### 全体検証と実起動の結果
+
+- 実装担当の `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit 0、21.82秒。Ruff format/lint、mypy、Biome format/lint、TypeScript 4 member、96件の台帳検証が成功。初回Ruff指摘は解消。
+- 実装担当の `mise run dev-api` localhost smoke: live/readyとも200、X-Request-IDあり、SIGINTでapi_started/api_stoppedを確認。Authorization/queryに渡したfixture秘密値のプロセスログ非出力も成功。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 実装担当は編集停止済み。状態をin_reviewへ変更。
+- base commit: `b8a1aa86f8d3193ad5b0d1ed2fcc7d577834cf52`
+- 対象: 変更・未追跡ファイルの全件から親が管理する台帳・作業ログを除外。既存の無関係変更なし。
+- レビュー担当: `/root/fnd02_review_r1`（新規独立コンテキスト）。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.example` | `431532325a5705aa6c7d0a36f1a1462f1924a75b7fe9c1612d7ba8e26899c1ba` |
+| `CONTRIBUTING.md` | `ae5893d5456cf0ebee8af86a69c795287d5005a1adc178171faa45bd5aa22582` |
+| `README.md` | `db717cf62fa15c07ba8ef85b32c5000012e399af4df4fe9f1ba5bd79a52f22ec` |
+| `docs/04-interfaces.md` | `9d24f24aa3025c554b209d7697bf8288990fef5078b5846b5dfc5df96443c13a` |
+| `docs/05-development-and-testing.md` | `5b9803fd614a13128561fd6fc3a23fde821526883af8f0b2708b98d5af4c218a` |
+| `docs/06-deployment-and-operations.md` | `feb23703115d077dd15312ffe0bf1751dfec72e0f3db18fddb1538ad13515f53` |
+| `docs/toolchain.md` | `ab71e3a525b64db3aeadd85c37b8a44e1b7e6b99a846b086a778fd6ad67e4d13` |
+| `mise.toml` | `cd7f36d7fb9d49d628a589b25d9ca9117b6bfff1e193128ed638457ba801b258` |
+| `pyproject.toml` | `aac01c4b788c86b48d8cb29c6e5be781b6bea3e729e121a0b89ad5a942e7fe62` |
+| `services/api/pyproject.toml` | `f8af9f5b5b30c68e604e640736634c8eb4abad39a9150396703803c883a407d9` |
+| `services/api/src/brainoid_api/__init__.py` | `0a904cf173236c7670e2aea824b13ffccbd4f27e1380caf4cd3ed3acdf0b9ea6` |
+| `services/api/src/brainoid_api/__main__.py` | `5bff3a4192f61db7b12da3e11ec448ed83e5899b7547ed673d983854e5333e23` |
+| `services/api/src/brainoid_api/app.py` | `ccbeb7220d96139f7870474825f383bf5a11f84d7e07fe55104ef9137bc91036` |
+| `services/api/src/brainoid_api/errors.py` | `11a963387daf5442cd052517cb48157da4ae0048472c238585281d30929571d6` |
+| `services/api/src/brainoid_api/health.py` | `a2bd34e19b65b55a59f33a7881b53eb44a940b1b80f2e6316127fc37fb0b290d` |
+| `services/api/src/brainoid_api/settings.py` | `bf0493af4a6e7840f9f4da5cdc4ddc8c91344e75943182a8305366e5666c9766` |
+| `specs/openapi.yaml` | `a05a143bf58b1996fc3a5cf25458242d879cd2679b34f916d913153da5f6576b` |
+| `tests/test_api_foundation.py` | `27e7ad01d7096d5512e9b17702f63e77c0c34a594eff7b167164e3eddb324f14` |
+| `uv.lock` | `1b5c13872b5bd1a26ccc37abdcc63cda298c211bab48b4bdd280a92977a54ebf` |
+
+### 独立レビュー ラウンド1 結果
+
+- 担当: `/root/fnd02_review_r1`。判定: approve、要修正指摘0件、確認済みレビュー回数1。
+- 受入条件: 必須設定・環境間整合の起動時検証、productionのfake認証/emulator拒否、注入依存のreadiness反映とliveness分離を直接コード・関連契約で確認。
+- レビュー担当が独立実行した同一イベントループ内ASGI検証: 設定拒否17ケース、依存の正常/false/例外/timeout/復旧、並行422要求8件を含む16応答のUUID相関、終了処理、秘密非出力が成功。
+- 提供された全体check/test・実起動smokeの結果と区別して上記独立検証を実行。レビュー開始・終了時とも19ファイルのSHA-256一致を確認。
+- 修正ラウンドなし。未解決の要修正指摘は0件。
+
+### 完了結果 (2026-10-25T16:59:43.069308+00:00)
+
+- BA-FND-02の3受入条件と必要検証が成功。独立レビュー1回、approve、要修正指摘・任意改善とも0件。
+- 実装コミット: `2b194d9d50ea1d0a2a41a60f21900e51966709e5`（feat(api): BA-FND-02 add validated startup health and errors）。
+- stage前にmain・既存index差分なしを確認。承認済み19ファイルだけをstageし、git diff --cachedと--check、全blobのSHA-256一致を確認。commit後の19パスと内容もレビュー対象に一致、hook等による変更なし。
+- 設定、health、共通エラー、起動終了、fixture秘密非出力をAPI15テストと独立ASGI検証で確認。回帰を含むtestは18+18件、全体checkは成功。
+- 実クラウド・emulator接続、認証・業務API・監視は本チケット対象外。標準readinessは起動完了のみを示し、実adapterでのprobe登録は後続チケット。必須未完了事項なし。
+- 完了記録前に台帳・ログを含めたmise run checkを再実行する。
+
+- 親の完了記録前検証: `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` はexit 0（21.74秒）。Python13ソース・TS4 member・format/lint・台帳96件（done 2/todo 94）すべて成功。
+- 終了: 2026-10-25T17:00:15.654894+00:00。台帳・ログ2ファイルのみを記録コミットする。
