@@ -1149,3 +1149,98 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.82秒、全9タスク成功、台帳done6/todo90。
 - 終了: 2026-10-25T18:52:05.472744+00:00。台帳・ログのみを記録コミット。
+
+## ba-fnd-07-20261025t185245z
+
+- チケット: BA-FND-07
+- 状態: done
+- 開始: 2026-10-25T18:52:45.732332+00:00
+- ブランチ / base commit: main / 27b8721f82245b4493740ecd3b33f69bc5916805
+- 開始時の変更: なし
+- 選択: check成功（done6/todo90）、IDなしnextで依存順の次。依存FND-03実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/fnd07_implementation`（独立context）。
+- 実装コミット: `47e1c899295fe2ac6d9e4e0d537ef37d56c9151e`
+
+### 受入条件と検証計画
+
+- ModelProvider/MemoryStore/ToolExecutor/SpeechProvider/ClockのPython入出力型、差分/tool要求/usage/timeout/取消の共通イベントを定義。
+- FastAPI/Firebase/Pi固有moduleなしでcore型をimportでき、provider固有型を公開しない。
+- fakeは乱数/実時刻に依存せず履歴・遅延・不正引数・途中停止・権限外候補・結果不明を再現。差替契約テストで通常完了/tool要求/取消/timeoutを観測。
+- mise check/testと必要なcore依存分離検証。実Google adapter/会話loop/ローカルLLMは対象外。外部前提なし。
+
+### Core境界の設計方針
+
+- src/brainoid_agent_coreのtypes/portsへprovider-freeのPydantic DTO/Protocol、tests/fakesへscript replay/論理時計/model-memory-tools-speech fakeを追加する方針。
+- 共通終端completed/failed/cancelled/timed_out、生成差分/tool候補/usage、MemoryStore search/remember/revise/forgetを型定義。権限外候補は意図的な破損adapter fixtureであり認可判断の実装とはしない。
+- 依存は既存brainoid-contractsと既存版pydanticをuvで追加予定、新規外部packageは不要。
+
+### 初回のCore契約検証
+
+- 対象unittest17件成功（0.148秒）、mypy36ソース成功。隔離subprocessでFastAPI/Firebase/Google/Pi moduleのimportを禁止したCore importも成功。
+- Ruff初回でPython3.13 AsyncGenerator既定引数/unused import等9件を検出し修正済み。全体checkで再確認予定。
+- 共通契約文書、遅延中取消、結果不明の永続ID必須を補完後、全check/testと最小依存環境のlocked導入を実施する。
+
+### 全体テストと依存分離の検証
+
+- 実装担当の `mise run test`: Python55（既存36+追加19）/Skill18/Node38、全件成功。
+- `uv sync --package brainoid-agent-core --no-dev --locked --offline` を `/tmp/ba-fnd-07-core-env.1MyE3R` へ実施。7packageだけでcore import成功、FastAPI/Firebase/Google/Pi/API/device未導入を確認。
+- 全check初回は追加境界テストの異種dict推論でmypy1件失敗。型注釈修正後、対象19件とmypy36files成功、残りcheck再実行中。
+- 新規を含む19製品変更ファイルの末尾空白・最終改行検査成功。
+
+### 実装完了と最終検証
+
+- `/root/fnd07_implementation` が編集停止。5Protocol/共通DTO、決定的fake・19契約test・設計文書、19製品ファイル。
+- `mise run check`: 全9タスクexit0/21.92秒、mypy36source成功。
+- `mise run test`: Python55/Skill18/Node38すべて成功（既知制限のためrequire_escalated）。型注釈の最終修正後、対象19testを再実行し0.202秒で成功。
+- 最小7packageのlocked/offline導入とSDK/frameworkの未導入、隔離import成功。git diff --checkと新規を含む19ファイルの空白/最終改行成功。
+- 既存iana-timezone警告あり。実GenAI adapter/会話loop/実認可/実provider・emulator・実機は本チケット対象外。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/fnd07_review_r1`（新規独立context）。base commit: `27b8721f82245b4493740ecd3b33f69bc5916805`
+- 最新製品差分全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/02-architecture.md` | `df0f79c26cf207e41086edfaea8937a9bb3bb4a89cea779dac302084993ef519` |
+| `docs/05-development-and-testing.md` | `0eeac013ba17da823cd80d571da567541ccb239fcaaa0af537e6977f66a925f5` |
+| `docs/agent-core-contracts.md` | `3a33034ba3e75a07c970c44a71888b58d2307785b7de0c4b2521dcb77a859f82` |
+| `packages/agent_core/pyproject.toml` | `9d1373e7c6f5555941b1223c80f4e6e3f53741cbfe52e3e3bb01574726df19c7` |
+| `packages/agent_core/src/brainoid_agent_core/__init__.py` | `af32ac03b65a7bc5a89d211e87e3f45285f14279c10ce370fe5c44fab0205fce` |
+| `packages/agent_core/src/brainoid_agent_core/ports/__init__.py` | `14fef21a8e7bc1e6ff4fcf998e9a69ef43f3402a5f1dd0e9526d8fcbb2b5b7d5` |
+| `packages/agent_core/src/brainoid_agent_core/types/__init__.py` | `35aa28429a932ce12a40cbbc9367f2c072a676bec60f07741884af9349ed55ff` |
+| `packages/agent_core/src/brainoid_agent_core/types/common.py` | `c9f6b3cb646d7040835520392aea2403e13c3209dc6752d2163a030a0f1719d5` |
+| `packages/agent_core/src/brainoid_agent_core/types/memory.py` | `9ea02d6458c07d083a4b4f1d4e677c13a15bfa9d9c319dc289e87575454cee5c` |
+| `packages/agent_core/src/brainoid_agent_core/types/model.py` | `5e7e94d342b8773b64f93e962ec1f828e4420bbeaaf7b2611f64ecd215e066f7` |
+| `packages/agent_core/src/brainoid_agent_core/types/speech.py` | `e858c9029f9f5ffa420a42e829a969bfa0cdc95de3edb65de5c40fe6fc5ff996` |
+| `packages/agent_core/src/brainoid_agent_core/types/tools.py` | `6d82e866348a4a90d9d8380700b2b83e1efafd54767b1a21191e42b2af655bc6` |
+| `tests/fakes/__init__.py` | `917623138eafa0be4a0d393a97b2b9bbe9b956ff298315b9aaaadd224d5feffe` |
+| `tests/fakes/memory_speech_tools.py` | `a48653144d1791d67e835e01563df5181d2b4cd2cc56314dc9a5332beba1299f` |
+| `tests/fakes/model.py` | `c287597e1a4cd808b2b75ff9b3d5132f34ce1ec809224dee8fdb088c99159034` |
+| `tests/fakes/runtime.py` | `35b21660f72c04502c14c3e41ec686aa9f853b82a9f57d00fd98bef8c68b05ee` |
+| `tests/fakes/scenarios.py` | `8f08805a2438215eb16f46dd81f06d822f016a6a2af8fad42e00c745c008d546` |
+| `tests/test_agent_core.py` | `c123bea49e967addd36e8a7b4887fcce13b15932b92c64542dcbd442ea89456a` |
+| `uv.lock` | `75e3da7b7f2be42cc7769f0a83923fe2048822b5c78ee31b52023808ea3855b7` |
+
+### 独立レビュー ラウンド1 途中検証
+
+- `/root/fnd07_review_r1` が開始時19ファイルのhash一致、作業規約/チケット原文/設計/全portとfakeを確認。
+- 対象19テストを直接再実行し19/19成功（0.122秒）。`uv build --package brainoid-agent-core --wheel --offline` を/tmp出力で成功、wheelにpy.typedと全port/typesが含まれることを確認。
+- リポジトリ外/tmpからmypyでModelProviderがAnyではなく型付きAPIとして認識されることを確認。認可/削除/副作用の必須指摘なしとの中間報告、終了時hash照合待ち。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/fnd07_review_r1`: approve。確認済みレビュー1回、必須/任意指摘なし。開始/終了時19ファイルhash全件一致。
+- 5ports/既存共通型/SDK非依存/差分・tool・usage・終端/決定的fake/契約テストを確認。Contextの形と認可、忘却受付と削除完了、結果不明の永続IDを区別。
+- 直接検証: 対象19test成功0.122秒、offline wheel/py.typed、外部mypy、最小7依存envのimport/SDK未導入、tracked diff --check。
+- 全check9タスク/test55+18+38/新規を含む空白検査は提供成功結果を確認。実provider・会話loopは対象外。未解決必須条件なし。
+
+### 完了結果 (2026-10-25T19:07:22.501863+00:00)
+
+- BA-FND-07: provider非依存の5portsと共通DTO、論理時計と再現可能なfake、型付き境界の契約テストを実装。全check9タスクとtest55+18+38成功、独立レビュー1回approve、未解決必須指摘なし。
+- 実装コミット: `47e1c899295fe2ac6d9e4e0d537ef37d56c9151e`（feat(core): BA-FND-07 define ports and deterministic fakes）。
+- 承認済み19ファイルのみをmainへstage、cached diff/--check、index hash一致を確認。commit後も対象・内容・worktree一致、hook変更なし。
+- Core単独7依存でのimport、wheelのpy.typedとリポジトリ外mypyを確認。実provider/会話loop/実認可は後続対象。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.88秒、全9タスク成功、台帳done7/todo89。
+- 終了: 2026-10-25T19:07:48.511628+00:00。台帳・ログのみを記録コミット。
