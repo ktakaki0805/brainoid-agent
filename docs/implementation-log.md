@@ -980,3 +980,95 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前check: `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` はexit0/21.87秒。契約/生成差分/互換性/format/lint/型/台帳（done4/todo92）が成功。既知iana-timezone警告はPython実在検証との分担として文書化済み。
 - 終了: 2026-10-25T18:18:44.904172+00:00。台帳・ログだけを記録コミット。
+
+## ba-fnd-05-20261025t181928z
+
+- チケット: BA-FND-05
+- 状態: done
+- 開始: 2026-10-25T18:19:28.559384+00:00
+- ブランチ / base commit: main / 5ba134b03848d18281fcd268f17d85186b53495c
+- 開始時の変更: なし
+- 選択: check成功（done4/todo92）、IDなしnextで依存順の次。依存FND-01実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/fnd05_implementation`（独立コンテキスト）。
+- 実装コミット: fee4f9f5db60edd3ac7c23bf29a783de41807f3d
+
+### 受入条件と検証計画
+
+- Auth/Firestore emulator起動・終了・初期化を再現可能にする。2テナント/owner-admin-member/private-shared/登録-失効Piの固定fixtureを用意。
+- seed再実行で増殖せずID・時刻が再現可能。local専用projectとfake providerに限定。
+- production接続先では書込前にseed拒否。実ユーザー本文/tokenをfixtureへ含めない。
+- seed二重実行と初期化を実emulatorで確認し、索引/制限の差異はstagingの後続検証と文書化。
+- mise run check/testと必要なemulator結合テスト。実認可・本番索引検証は対象外。追加外部前提なし。
+
+### 開始時の設計・環境確認
+
+- 実装担当はSDK/ADCを使わずlocal REST接続を採用する方針。APP_ENV=local-emulator、専用demo project、fake model、loopback固定portを副作用前に検証。固定ID/時刻のupsertと明示reset、実emulator integration用mise taskを用意する。
+- Java/Firebase CLI未導入、sandbox内DNS失敗を確認。公式metadata確認・固定版取得は権限拡張で行い、実クラウドには接続しない。
+
+### ツール導入・local境界・fixture
+
+- Java Temurin21.0.13+9を導入、Firebase CLI15.34.1をpnpm固定（公式metadataでNode24互換/MIT確認）。Auth/Firestoreに不要なRE2/protobuf lifecycleはallowBuilds:falseを明示しfrozen install成功。
+- RESTはPython標準http.clientで数値loopbackへ直結。redirect/proxy/SDK/ADCは使わない。全commandで既存load_settingsと専用project/host検証を先行し設定の暗黙補完をしない。
+- 固定fixture案: Auth6名・Firestore30文書。2tenantに各owner/admin/member、private/shared会話/ノート、登録/失効Piを含む。実emulator回帰を作成中。
+
+### 実emulatorの検証結果
+
+- firebase-tools15.34.1 / Firestore emulator1.22.0 / Temurin21.0.13+9で結合検証3件成功。
+- 二重seed後のAuth6件・Firestore32文書（最終fixture）の全field/ID/アプリ時刻一致、nested文書を含むresetと再seed、production APP_ENV/projectでseed/resetを拒否しDB不変、匿名Firestore直接read403を実測。
+- 初回の比較は空arrayのREST正規化差で失敗。REST値をdecodeしfixture原文の独立期待値と比較する形へ修正して成功。失敗試行を成功扱いにしない。
+- 全体check/testと手動Ctrl-C→再起動空状態を追加確認中。
+
+### 実装担当の最終検証
+
+- 全体mise check成功、mise test成功（Python36/Skill18/Node37）。実emulator3件成功、setup成功。環境は既定の信頼path/UV cacheを使用。
+- dev-emulator→seed→Ctrl-C（clean shutdown/exit130）→再起動でAuth全件と全fixture collectionが空→Ctrl-C後、全5portが閉鎖したことを確認。
+- proxy/本文fixture負例を含むfocused4件成功、ruff/mypy成功。git diff --checkと全新規text末尾空白検査成功。
+- pnpm既存package版の削除/更新0、CLI追加で544 package版追加。lockの大きな変動は依存追加・並び替え。
+- 実装担当は編集停止。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 新規担当 `/root/fnd05_review_r1`。base commit: `5ba134b03848d18281fcd268f17d85186b53495c`
+- 最新製品差分全体、台帳・ログのみ除外。既存無関係変更なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.emulator.example` | `bd7ef5ca9ff2e570fea4553041d08f78525d167a4b9ac37ed8979fc8d188f427` |
+| `.gitignore` | `7b204a99f7cf57c4f43952d4e6b0564b5c8c61beeb6c9e288b65807425d74c9f` |
+| `biome.json` | `8c1e101f85795bc51b280a4adee127ac6e7b2ccb2812c620b83669dec37c90a0` |
+| `docs/05-development-and-testing.md` | `358f740be2732e2ac6848731144f9db0714d323284e9de7d9a1a7af740f0b569` |
+| `docs/toolchain.md` | `ea3f618701d9d3669eb0b3b111c433d07ed34c4419ed568d16663bd0fad02f36` |
+| `firebase.json` | `e983ceddfc4f200cfb7cb56e97754b6747b6806deea7351e01b10b739793ca69` |
+| `firestore.rules` | `bc31d5e0e4a2346349ae6e077369b77d3f6d603dede7357bd103abbae7ea841c` |
+| `mise.toml` | `62db272e9177f4c36c10f8316b61ca8a10afdabc097e4945386b7c577fb0cb1f` |
+| `package.json` | `428debdacb7e99627c3c79fa7841471bd3206bc4941ac4ab63bdfaba36f07a1e` |
+| `pnpm-lock.yaml` | `99885be64c29a05106f3c98bd0eb07e1323dcb00a900b7a7a3671733b2e1c39f` |
+| `pnpm-workspace.yaml` | `d142b113886aa9ad36621445c92acfd342726b0fa5fb797ac36278295e7658f6` |
+| `pyproject.toml` | `b43d9df9b2934f6c8be7a6963b771ccbde771d75999512c9aeeff0149f8ff1c0` |
+| `scripts/__init__.py` | `c65252ecef3bdc181a4a64dd496f535d2c090603793e1a0a51835825dfbf4e0a` |
+| `scripts/demo_emulator.py` | `f8953e0263116895b63f97bef1d4cc60e82d04f347d209a4a33b6660fd96f456` |
+| `scripts/dev_emulator` | `beb0d5d4f9d45881d50f9d1c0640ebbc94f508d136ffead167b5b457bec0115f` |
+| `scripts/seed_demo` | `992ff41998c13ff1001d6974893a5557bd9621dc858858ee9c1b719c23b75f7c` |
+| `tests/emulator/test_seed.py` | `83ca71189713e5f84a8b4f500ce1109a9e518565c3034b642928297992930f2d` |
+| `tests/fixtures/tenants/README.md` | `70db498ffa662426aad44f029469626467a704ef01941b4d89cc4411f8a241c2` |
+| `tests/fixtures/tenants/demo.json` | `d9a9a73e81f6f7c1127e1c186131cdb962c63b591d4f79e200947473f065ad2c` |
+| `tests/test_demo_emulator.py` | `6a093ac91747516cd8bbb2baf325cc111c8fe983650397d27329332154826f25` |
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/fnd05_review_r1`: approve、必須指摘/必須未検証なし。確認済みレビュー1回。開始/終了の20ファイルhash一致。
+- 直接実行: mise check、mise test（Python36/Skill18/Node37）、mise test-emulator（3件、自動停止/終了後5port listenerなし）、focused4件、diff --checkがすべて成功。
+- 受入確認: 固定2tenantと役割/scope/Pi状態、Auth6UID/Firestore32文書の架空データ、書込前local境界、proxy/redirect不使用、例外本文非出力、二重seed/reset/再seedとproduction拒否時DB不変が適合。
+- setup/手動Ctrl-C exit130/再起動空状態は実装担当提供結果を確認し、独立再実行とは区別。
+- 任意O1/Low: docs/05-development-and-testing.md:170のwebsocket9150はfirebase.jsonで明示固定しておらずCLIの既定値（競合時は別port探索）。seed/reset/受入には影響せず、今回の承認を妨げないため既定値表現の改善は未対応として記録。
+
+### 完了結果 (2026-10-25T18:35:26.084218+00:00)
+
+- BA-FND-05: local Auth/Firestore emulator、固定2tenant fixture、冪等seed/resetと接続先拒否を実装。受入検証・独立レビュー1回approve、未解決必須指摘なし。
+- 実装コミット: `fee4f9f5db60edd3ac7c23bf29a783de41807f3d`（feat(dev): BA-FND-05 add local Firebase emulators and tenant fixtures）。
+- main/index空を確認し承認済み20ファイルだけをstage。git diff --cached/--checkと全index SHA一致、commit後の20パス/内容と作業ツリーも一致。hook変更なし。
+- setup/check/test（36+18+37）と実emulator3件が成功。手動停止・再起動空状態・終了後port閉鎖も確認。
+- 任意O1（websocket既定port表記）だけ未対応として記録。本番索引/制限/IAM/実認可は後続対象、必須未完了なし。
+
+- 親の記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.79秒。契約/生成/互換性/format/lint/Python23ソースとTS型/台帳（done5/todo91）が成功。
+- 終了: 2026-10-25T18:36:23.118678+00:00。台帳・ログだけを記録コミット。
