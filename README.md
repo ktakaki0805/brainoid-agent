@@ -8,7 +8,7 @@
 | 作成日 | 2026-10-25（日本時間） |
 | 状態 | チームレビュー用の設計ベースライン案 |
 | プロダクト名 | Brainoid Agent（正式名称として確定）。公開リポジトリ・配布先は未確定 |
-| 実装状態 | 文書・通信スキーマ、workspace検証環境とAPIの起動・health・共通エラー・基盤テストを提供。業務機能・GCP環境・CIは未実装 |
+| 実装状態 | 文書・通信スキーマ、workspace検証環境、API基盤・テストとPR検証workflowを提供。業務機能・GCP環境は未実装 |
 | 文書管理責任 | 技術責任者。要件はプロダクト責任者、運用は運用責任者と共同管理 |
 
 ## 1. 最初に読むもの
@@ -93,7 +93,7 @@ mise run test
 
 `setup` は `mise install` で固定版の開発ツールを揃えてから、`uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` でPython/Nodeのworkspace依存を固定lockから導入します。Python依存の追加・削除は `uv add`・`uv remove`、スクリプトの実行は `uv run` を使います。詳しくは[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
 
-`mise run format` はworkspaceソースを整形します。`check` はformat、lint、Python/TypeScriptの型、実装チケットのID・依存関係・進捗台帳・完了記録を点検します。`test` はAPIの設定・起動終了・health・共通エラー・秘密非出力、package解決・秘密ファイル除外と、既存のチケット管理スクリプトの単体テストを実行します。文書リンク・OpenAPI・JSON Schemaの自動検証は、[実装チケット](docs/08-implementation-tickets.md)のBA-FND-04・06で専用ツールを導入します。GCPへのデプロイ、実機性能、製品全体のセキュリティ適合を検証するものではありません。
+`mise run format` はworkspaceソースを整形します。`check` はformat、lint、Python/TypeScriptの型、チケット台帳、OpenAPI・JSON Schema、client生成差分・互換性、文書の相対リンク・見出しとworkflowを点検します。`test` はAPI基盤、共通型、package境界・秘密ファイル除外、チケット管理、契約・リンク負例とfake transportを検証します。[PR検証workflow](.github/workflows/check.yml) も同じsetup/check/testを実行する定義です。GitHubでの有効化とbranch保護はBA-GOV-01で設定します。失敗の再現方法は[開発ガイド](docs/05-development-and-testing.md#53-pr検証と失敗の再現)を参照してください。GCPへのデプロイ、実機性能、製品全体のセキュリティ適合を検証するものではありません。
 
 API基盤は[開発ガイドの起動手順](docs/05-development-and-testing.md#51-api基盤の起動)に従い、安全な設定例をexportして `mise run dev-api` で起動できます。現在提供するのはhealthと共通エラーで、本人認証・業務API・UIは後続チケットで実装します。
 

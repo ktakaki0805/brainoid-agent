@@ -2,13 +2,13 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 状態 | 設計ベースライン案。workspace検証とAPIの起動・health・共通エラー・基盤テストを提供。業務機能・CIは未実装 |
+| 状態 | 設計ベースライン案。workspace検証、API基盤・テストとPR検証workflowを提供。業務機能は未実装 |
 | 版 | 0.2.0 |
 | 更新日 | 2026-10-26（日本時間） |
 | 責任者 | 技術リード。実装担当者が変更と同じPRで更新する |
 | 対象 | スマホ、Pi、API、Worker、インフラの開発者とレビュー担当者 |
 
-このガイドは、同じ契約と検証条件でチーム開発を始めるための実装方針を定める。現時点では設計文書・仕様ファイル、workspace開発・検証環境とAPI基盤を提供する。5節で提供済みのコマンドと今後実装するコマンドを区別する。UI・業務機能やCIは後続チケットで提供する。
+このガイドは、同じ契約と検証条件でチーム開発を始めるための実装方針を定める。現時点では設計文書・仕様ファイル、workspace開発・検証環境、API基盤とPR検証workflowを提供する。5節で提供済みのコマンドと今後実装するコマンドを区別する。UI・業務機能は後続チケットで提供する。
 
 関連文書: [要件定義](01-requirements.md)、[基本設計](02-architecture.md)、[データ・権限](03-data-and-authorization.md)、[インターフェース](04-interfaces.md)、[運用手順](06-deployment-and-operations.md)、[開発参加](../CONTRIBUTING.md)。
 
@@ -114,10 +114,11 @@ BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・�
 | `mise run format` | workspaceのPython/TypeScript/対象JSONをRuff・Biomeで整形 |
 | `mise run check:format` / `check:lint` / `check:types` | 書換えなしの整形・lint・Python/TypeScript型検査 |
 | `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
+| `mise run check:docs` / `check:workflow` | Markdownの相対リンク・見出しをオフライン検証、Actions構文・式を検証 |
 | `mise run check:contracts` / `check:client` / `check:compatibility` | OpenAPI/JSON Schema検証、生成差分、固定基準版とのHTTP契約互換性を検証 |
 | `mise run generate-client` | 固定OpenAPIからTypeScript HTTP clientを再生成 |
-| `mise run check` | format・lint・型・チケット・契約・生成差分・互換性を検証 |
-| `mise run test` | API基盤・共通型・package境界・秘密除外・チケット管理、契約負例と生成clientのfake transportテストを実行 |
+| `mise run check` | format・lint・型・チケット・契約・生成差分・互換性・文書リンク・workflowを検証 |
+| `mise run test` | API基盤・共通型・package境界・秘密除外・チケット管理、契約・文書リンク負例と生成clientのfake transportテストを実行 |
 | `mise run dev-api` | export済みの設定を検証し、localhost:8000でAPIのhealthを起動。Ctrl-Cで依存を終了 |
 | `mise run dev-emulator` | 明示した専用local設定でAuth/Firestoreを起動。Ctrl-Cで両方終了 |
 | `mise run seed-demo` | 固定fixtureをupsert。既存のfixture IDを再利用し、アプリの時刻も固定 |
@@ -126,7 +127,7 @@ BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・�
 
 現在のPython検証タスクは `uv run --all-packages --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 
-OpenAPI・JSON Schema検証とclient生成・互換性比較はBA-FND-04で提供する。[通信契約の手順](contracts.md#httpクライアントと契約検証)を参照する。文書リンクの自動検証はBA-FND-06で既存ツールを導入するまでレビューで確認する。
+OpenAPI・JSON Schema検証とclient生成・互換性比較はBA-FND-04で提供する。[通信契約の手順](contracts.md#httpクライアントと契約検証)を参照する。BA-FND-06の文書リンク検査は既存のlycheeを使用し、チケットの意味上の整合は引き続き `check:tickets` が担当する。
 
 Ruff・mypyは `tests`・Python member・`scripts`、Biome・TypeScriptはNode memberと設定JSONを検査する。既存のチケット管理Skillは既存テストで回帰確認し、このチケットで一括整形・型移行しない。以下は後続チケットで実装・拡張するmiseタスクの契約である。check・testも、現在は上表の範囲だけを実行する。
 
@@ -186,6 +187,39 @@ mise run seed-demo
 ログはterminalとGit除外済みの `firebase-debug.log` / `firestore-debug.log` に出る。fixtureには実ユーザー・秘密値・tokenを入れない。Firestore Rulesはclientの直接接続を拒否し、seedだけがemulator専用の固定 `owner` 資格値を使う。API/workerのserver側認可はRulesとは別にBA-IAM-02以降で検証する。
 
 emulatorは複合索引の要否、全transaction挙動、document/transaction等の本番制限を再現しない。索引・同時更新・上限・IAMはBA-OPS-02等のstaging検証に残す。今回のローカル成功を本番索引や役割ごとの実認可の合格扱いにしない。[Firestore emulatorとproductionの差](https://firebase.google.com/docs/emulator-suite/connect_firestore#how_the_cloud_firestore_emulator_differs_from_production)、[起動・停止の公式仕様](https://firebase.google.com/docs/emulator-suite/install_and_configure)
+
+### 5.3 PR検証と失敗の再現
+
+[check.yml](../.github/workflows/check.yml) は `pull_request` とmainへの `push` で、Ubuntu 24.04の `check` jobを実行する。変更パスによる省略はしない。ローカルでも同じ順序で `mise run setup`、`mise run check`、`mise run test` を使う。setupは固定ツールとlockfileから導入し、check/testはインストール済み依存を利用する。契約互換性の固定基準commitを読むため、CIはGit履歴を取得する。shallow cloneでは [openapi-baseline.ref](../specs/openapi-baseline.ref) のcommitも取得してから検証する。
+
+CIログはsetup/check/testのstepと、`[check:docs]` 等のタスク名、失敗したファイル・診断を表示し、非ゼロ終了でjobを失敗させる。checkは独立タスクを並列実行するため、最初の失敗で他の実行を中断する場合がある。該当する個別コマンドで修正を確認し、最後にcheck/test全体を通す。
+
+| 失敗したタスク | 再実行と対処 |
+| --- | --- |
+| `setup` | `mise run setup`。ネットワーク・固定版の入手可否を確認。manifestの意図した変更なら対応lockを更新する。locked/frozen指定を外して回避しない |
+| `check:format` / `check:lint` | `mise run check:format` / `mise run check:lint`。整形は `mise run format`、lintは診断箇所を修正 |
+| `check:types` | `mise run check:types`。Python・TypeScriptの型診断を修正 |
+| `check:contracts` / `check:compatibility` | 同名の `mise run` タスク。validator診断を修正し、破壊的変更は契約の移行方針を確認 |
+| `check:client` | `mise run generate-client`、差分レビュー、`mise run check:client`。固定生成器の出力をcommitへ含める |
+| `check:docs` | `mise run check:docs`。表示された文書・行・リンク先を修正。Git管理対象と未追跡の `.md` を含め、Gitのignore対象・依存物は除く。削除済み入力は飛ばすが、その文書へのリンクは失敗する |
+| `check:workflow` | `mise run check:workflow`。固定actionlintでYAML・Actions式・job参照を修正。任意導入のShellCheck/Pyflakesは無効にして環境差を避ける |
+| `check:tickets` / `test` | 同名の `mise run` タスク。既存validatorまたは失敗テストの診断を確認する |
+
+リンクのパース・見出しID解決はlycheeに任せる。同一文書と別文書の見出し、日本語見出しを検査し、HTTP等の外部リンクは `--offline` で接続せず除外する。外部サイトの存続はこの検査の対象外。リンク負例の回帰は [test_pr_checks.mjs](../tests/test_pr_checks.mjs) が未追跡の一時文書を作成し、相対パス欠落、別文書と同一文書の見出し欠落を失敗させ、修正後の成功と後片付けまで確認する。
+
+試験PR相当のローカル確認では、下表の変更を一件ずつ入れて該当タスクの非ゼロ終了を確認し、その変更だけを取り消して同じタスクの成功を確認する。作業中の別変更を `git restore` 等で消さない。
+
+| 負例 | 変更と確認コマンド |
+| --- | --- |
+| Python型 | `services/api/src/brainoid_api/ci_type_probe.py` に `ci_type_probe: str = 1` を置き `mise run check:types`。確認後はその一時ファイルを削除 |
+| TypeScript型 | `apps/mobile/src/ci_type_probe.ts` に `export const ciTypeProbe: string = 1;` を置き `mise run check:types`。確認後はその一時ファイルを削除 |
+| 生成差分 | `packages/api-client/src/generated/index.js` へ一時コメントを追加して `mise run check:client`。コメントだけを取り消す |
+| 相対リンク | `docs/ci-link-probe.md` に `[probe](missing-ci-target.md)` を置き `mise run check:docs`。確認後はその一時ファイルを削除 |
+| 見出しリンク | 同じ一時文書に `[probe](05-development-and-testing.md#missing-ci-heading)` を置き `mise run check:docs`。確認後はその一時ファイルを削除 |
+
+workflowのtoken権限は `contents: read` のみ。forkでも実行する `pull_request` を使い、checkout後にcredentialを残さず、tool導入用tokenも後続stepへ永続化しない。deploy credential、repository secret、OIDC権限、environmentは設定しない。cacheの読書きも無効。setupの公式ツール・依存取得を除き、通常のcheck/testはfakeとローカルファイルを使い、cloudの書込・有料provider・emulator起動・署名build・deployを呼ばない。
+
+GitHub上でのActions有効化、fork実行の承認方針、必須checkとbranch保護はBA-GOV-01で実repoへ設定する外部前提。ローカルの合格は実GitHub上の実行や保護設定の完了を意味しない。署名build・deployはBA-OPS-05・09・10で追加する。
 
 ## 6. モックとfixture
 

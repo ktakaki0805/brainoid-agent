@@ -2,11 +2,11 @@
 
 文書版0.2.0、更新日2026-10-26。管理責任はメンテナです。この文書は、設計段階からアプリ実装・OSS公開へ進むための貢献手順を定義します。
 
-現在の成果物は文書・通信スキーマ、workspace検証環境とAPIの起動・health・共通エラー・基盤テストです。業務機能、CI、公開Issue窓口はまだありません。以下のIssue・PR運用は、OPEN-001で公開リポジトリを確定した後に適用します。初回実装の手順は[開発・テストガイド](docs/05-development-and-testing.md)を参照してください。
+現在の成果物は文書・通信スキーマ、workspace検証環境、APIの起動・health・共通エラー・基盤テストとPR検証workflowです。業務機能、公開Issue窓口はまだありません。以下のIssue・PR運用は、OPEN-001で公開リポジトリを確定した後に適用します。初回実装の手順は[開発・テストガイド](docs/05-development-and-testing.md)を参照してください。
 
 開発ツールはmiseで管理します。[セットアップ手順](docs/toolchain.md)に従って `mise trust`、`mise install`、`mise run setup` を実行し、変更後は `mise run check` と `mise run test` で確認してください。ツール版と共有タスクの正本は [mise.toml](mise.toml) です。
 
-Python依存はuvのプロジェクト管理を使います。共通の開発用依存はルートの `uv add --dev`・`uv remove --dev`、実行依存は `uv add --package <member> <package>`・`uv remove --package <member> <package>` で管理し、変更した [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) を同じコミットに含めます。共有タスクと今後のCIはlockfileを変更せずに検証する `--locked` を使います。Node依存はpnpmでmemberごとに管理し、共通devツールはルートへ置き、`pnpm-lock.yaml` を同じコミットに含めます。通常の導入は `--frozen-lockfile` を使います。詳細は[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
+Python依存はuvのプロジェクト管理を使います。共通の開発用依存はルートの `uv add --dev`・`uv remove --dev`、実行依存は `uv add --package <member> <package>`・`uv remove --package <member> <package>` で管理し、変更した [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) を同じコミットに含めます。共有タスクとCIはlockfileを変更せずに検証する `--locked` を使います。Node依存はpnpmでmemberごとに管理し、共通devツールはルートへ置き、`pnpm-lock.yaml` を同じコミットに含めます。通常の導入は `--frozen-lockfile` を使います。詳細は[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
 
 ## 1. 変更の始め方
 
@@ -45,7 +45,9 @@ PRには以下を記載してください。
 
 完了条件は[開発ガイド](docs/05-development-and-testing.md)のDefinition of Doneに従います。少なくとも、要件との対応、必要な検証、スキーマ・文書の整合、秘密情報の非混入、影響範囲に応じた移行・復旧手順を確認します。
 
-CIの具体的なジョブは初回実装で用意します。CIが未実装の段階では、実施した手動検証と実行環境をPRに記録し、未実装の自動検証を通過済みとして扱いません。
+[PR検証workflow](.github/workflows/check.yml) の `check` jobは、PR（forkを含む）とmainへのpushで `mise run setup`、`mise run check`、`mise run test` を実行します。GitHub側でActionsを有効にする設定と、このjobを必須にするbranch保護はBA-GOV-01で設定します。workflow定義・ローカル検証を、GitHub上で実行済みという意味では扱いません。
+
+失敗時はログの `[check:types]` などのタスク名を見て、同じコミットで `mise run check:types` のように再実行します。`check:docs` は文書の相対パスと見出しをオフラインで検査し、`check:tickets` は既存のチケット検証を使います。生成差分は `mise run generate-client` 後に内容を確認し、生成物を同じコミットへ含めます。工程別の復旧方法と負例の再現は[PR検証の手順](docs/05-development-and-testing.md#53-pr検証と失敗の再現)を参照してください。実施した環境・結果と未実施の検証をPRに記録します。
 
 ## 4. 設計とスキーマの変更
 

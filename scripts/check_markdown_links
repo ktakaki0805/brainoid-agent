@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Git selects repository documents; lychee owns Markdown parsing and link validation.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+# Include new documents and hidden .agents/.github directories, but not dependencies.
+# Skip deleted input files; links to missing targets still fail lychee validation.
+git ls-files -z --cached --others --exclude-standard -- '*.md' |
+  xargs -0 lychee --offline --include-fragments=anchor-only --no-progress \
+    --root-dir "$PWD" --skip-missing --

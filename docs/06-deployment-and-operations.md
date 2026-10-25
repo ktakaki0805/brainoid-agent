@@ -8,7 +8,7 @@
 | 責任者 | Platform担当。Device担当・Security担当・リリース責任者と共同管理 |
 | 対象 | 公式ホスティング運営者と、OSSを自分のGCP環境へ導入する開発者 |
 
-本書は、初回構築から更新・復旧までの手順と合格条件を定める。Terraform、CI、Pi installerはこれから実装する。実際のproject ID、URL、連絡先、署名鍵、artifact digestは環境ごとの運用台帳で管理し、この文書へ秘密値を記入しない。
+本書は、初回構築から更新・復旧までの手順と合格条件を定める。[PR検証workflow](../.github/workflows/check.yml) は提供済み。Terraform、署名build・deployのCI、Pi installerはこれから実装する。実際のproject ID、URL、連絡先、署名鍵、artifact digestは環境ごとの運用台帳で管理し、この文書へ秘密値を記入しない。
 
 関連文書: [要件定義](01-requirements.md)、[基本設計](02-architecture.md)、[データ・権限](03-data-and-authorization.md)、[インターフェース](04-interfaces.md)、[開発・テスト](05-development-and-testing.md)、[SECURITY](../SECURITY.md)。
 

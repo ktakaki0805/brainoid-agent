@@ -1,6 +1,6 @@
 # miseによる開発環境
 
-更新日: 2026-10-26。ツール版の正本は [mise.toml](../mise.toml)、Python依存は [pyproject.toml](../pyproject.toml) と [uv.lock](../uv.lock)、Node依存は各 `package.json`・[pnpm-workspace.yaml](../pnpm-workspace.yaml) と [pnpm-lock.yaml](../pnpm-lock.yaml) とする。workspace・固定依存・検証環境とAPI起動・health・共通エラーを提供する。業務API・画面・CIは後続チケットで実装する。
+更新日: 2026-10-26。ツール版の正本は [mise.toml](../mise.toml)、Python依存は [pyproject.toml](../pyproject.toml) と [uv.lock](../uv.lock)、Node依存は各 `package.json`・[pnpm-workspace.yaml](../pnpm-workspace.yaml) と [pnpm-lock.yaml](../pnpm-lock.yaml) とする。workspace・固定依存・検証環境、API基盤とPR検証workflowを提供する。業務API・画面は後続チケットで実装する。
 
 ## 1. miseの導入
 
@@ -29,9 +29,9 @@ mise run check
 mise run test
 ~~~
 
-`setup` は最初に `mise install` で指定版のPython・Node・uv・pnpm・Java・oasdiffを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
+`setup` は最初に `mise install` で指定版のPython・Node・uv・pnpm・Java・oasdiff・lychee・actionlintを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
 
-`check` は整形、lint、Python/TypeScript型、チケット管理、契約validator、生成差分、HTTP契約の互換性を検査する。`format` は手書きソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run/exec` で実行する。キャッシュ・依存不足時は先にsetupを行う。API起動は [dev-apiの手順](05-development-and-testing.md#51-api基盤の起動)、clientは [契約検証の手順](contracts.md#httpクライアントと契約検証)を参照する。画面の起動はまだ提供しない。
+`check` は整形、lint、Python/TypeScript型、チケット管理、契約validator、生成差分、HTTP契約の互換性、文書リンクとworkflowを検査する。`format` は手書きソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run/exec` で実行する。キャッシュ・依存不足時は先にsetupを行う。API起動は [dev-apiの手順](05-development-and-testing.md#51-api基盤の起動)、clientは [契約検証の手順](contracts.md#httpクライアントと契約検証)、CIは [PR検証の手順](05-development-and-testing.md#53-pr検証と失敗の再現)を参照する。画面の起動はまだ提供しない。
 
 uvが `.venv` を作成・同期する。miseは `UV_PYTHON` で固定Pythonのパスを渡し、uvのPython自動ダウンロードとmiseタスクの自動ツール導入は無効にする。固定ツールの導入は `setup` 内の明示的な `mise install` が担当する。IDEにも `.venv` を指定する。
 
@@ -147,3 +147,14 @@ BA-FND-05では2026-10-26に公式配布元で次の版・互換性・ライセ�
 Firebase CLIに同梱された[emulator metadata](https://github.com/firebase/firebase-tools/blob/v15.34.1/src/emulator/downloadableEmulatorInfo.json)がFirestore JARの版とchecksumを固定する。JARは初回の明示的な `dev-emulator` / `test-emulator` で公式配布元から取得し、Gitやアプリ配布物に含めない。Auth/Firestore以外のサービス・デプロイ・Firebase loginはこのタスクから呼ばない。CLIの本来のcloud操作機能は開発依存に含まれるが、今回の実行経路は固定demo projectのloopback起動に限定する。Java/CLI/JARは開発専用で、mobileやPiの配布依存へは追加しない。
 
 固定CLIで使わないHosting用RE2のnative installとprotobufjsのinstall noticeは、pnpmの `allowBuilds: false` で明示的に実行を拒否する。通常のfrozen installで承認待ちにせず、Auth/Firestoreの起動・seed・resetを実測する。実行手順は[開発ガイド5.2節](05-development-and-testing.md#52-authfirestore-emulatorの起動と初期化)。通常のcheck/testにJAR取得やlocalhost server起動を隠さない。
+
+BA-FND-06では2026-10-26に公式release metadata・source・licenseで次の版を確認した。ツールはmiseのGitHub backendでLinux x64/arm64・macOS x64/arm64の公式archive名とSHA256を固定する。実測した環境はLinux x64。Node・Python packageの追加はない。
+
+| 採用依存・版 | 用途・互換性・ライセンス |
+| --- | --- |
+| lychee 0.24.2 | Markdownの相対パス・見出し検証。開発専用のstandalone binary、MIT OR Apache-2.0。継続保守され、オフライン検査と日本語見出しを利用。[release](https://github.com/lycheeverse/lychee/releases/tag/lychee-v0.24.2)、[CLI・license](https://github.com/lycheeverse/lychee/blob/lychee-v0.24.2/README.md) |
+| actionlint 1.7.12 | Actions構文・式の検証。開発専用のstandalone binary、MIT。ShellCheck/Pyflakes連携は無効にして、ローカルとCIの追加ツール有無に依存させない。[release](https://github.com/rhysd/actionlint/releases/tag/v1.7.12)、[usage](https://github.com/rhysd/actionlint/blob/v1.7.12/docs/usage.md)、[license](https://github.com/rhysd/actionlint/blob/v1.7.12/LICENSE.txt) |
+| actions/checkout 7.0.1 | workflow内だけで使用。Node 24 runtime、MIT。完全commit SHAへ固定し、互換性比較に必要な全履歴を取得、credential永続化を無効化。[source・license](https://github.com/actions/checkout/tree/v7.0.1)、[inputs](https://github.com/actions/checkout/blob/v7.0.1/action.yml) |
+| jdx/mise-action 5.2.3 | workflow内だけで使用。Node 24 runtime、MIT。完全commit SHAへ固定し、mise本体もworkflowの完全版で固定。cacheとtoken永続化は無効。[source・license](https://github.com/jdx/mise-action/tree/v5.2.3)、[inputs](https://github.com/jdx/mise-action/blob/v5.2.3/action.yml) |
+
+両ActionsはUbuntu 24.04のGitHub hosted runnerで動かす定義とし、self-hosted runnerは使わない。checkoutとツール導入に必要な自動tokenは `contents: read` だけに限定する。mise・lychee・actionlintは開発環境のファイルを読む権限を使い、アプリ配布物へ含めない。lycheeは `--offline` でネットワーク要求を禁止し、文書中の外部リンクへ接続しない。通常テスト・検証にクラウドIAM・secret・有料providerの権限は追加しない。更新時はこの確認と[PR検証の負例](05-development-and-testing.md#53-pr検証と失敗の再現)を再実行する。

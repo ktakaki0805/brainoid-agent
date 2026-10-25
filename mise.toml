@@ -16,6 +16,24 @@ linux-arm64 = { asset_pattern = "oasdiff_1.34.1_linux_arm64.tar.gz", checksum = 
 macos-x64 = { asset_pattern = "oasdiff_1.34.1_darwin_all.tar.gz", checksum = "sha256:64948ba30c5555d3d15b95a7f3eda22fa83c15cf37fd4dad1720c0deb0a07cb5" }
 macos-arm64 = { asset_pattern = "oasdiff_1.34.1_darwin_all.tar.gz", checksum = "sha256:64948ba30c5555d3d15b95a7f3eda22fa83c15cf37fd4dad1720c0deb0a07cb5" }
 
+[tools."github:lycheeverse/lychee"]
+version = "lychee-v0.24.2"
+
+[tools."github:lycheeverse/lychee".platforms]
+linux-x64 = { asset_pattern = "lychee-x86_64-unknown-linux-musl.tar.gz", checksum = "sha256:73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5" }
+linux-arm64 = { asset_pattern = "lychee-aarch64-unknown-linux-musl.tar.gz", checksum = "sha256:5d0b0e3aeab240f41920c633a6eaf97599be6eedda034b36e858ede7dba5e535" }
+macos-x64 = { asset_pattern = "lychee-x86_64-apple-darwin.tar.gz", checksum = "sha256:887503a9cff667d322b8d0892b40bf49976eb9507af8483220a3706cdad55978" }
+macos-arm64 = { asset_pattern = "lychee-aarch64-apple-darwin.tar.gz", checksum = "sha256:c9d3740ea2d891854d37116c9fba840f37b6e7c89d330e7db84ac333631c4977" }
+
+[tools."github:rhysd/actionlint"]
+version = "1.7.12"
+
+[tools."github:rhysd/actionlint".platforms]
+linux-x64 = { asset_pattern = "actionlint_1.7.12_linux_amd64.tar.gz", checksum = "sha256:8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8" }
+linux-arm64 = { asset_pattern = "actionlint_1.7.12_linux_arm64.tar.gz", checksum = "sha256:325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6" }
+macos-x64 = { asset_pattern = "actionlint_1.7.12_darwin_amd64.tar.gz", checksum = "sha256:5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644" }
+macos-arm64 = { asset_pattern = "actionlint_1.7.12_darwin_arm64.tar.gz", checksum = "sha256:aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f" }
+
 [settings]
 task.run_auto_install = false
 
@@ -53,7 +71,15 @@ run = "uv run --all-packages --locked --offline python -B .agents/skills/impleme
 
 [tasks.check]
 description = "Run all available project checks"
-depends = ["check:tickets", "check:format", "check:lint", "check:types", "check:contracts", "check:client", "check:compatibility"]
+depends = ["check:tickets", "check:format", "check:lint", "check:types", "check:contracts", "check:client", "check:compatibility", "check:docs", "check:workflow"]
+
+[tasks."check:docs"]
+description = "Check local Markdown paths and heading fragments without network access"
+run = "scripts/check_markdown_links"
+
+[tasks."check:workflow"]
+description = "Validate GitHub Actions syntax and expressions with pinned actionlint"
+run = "actionlint -shellcheck= -pyflakes="
 
 [tasks."check:contracts"]
 description = "Validate OpenAPI 3.1 and JSON Schema 2020-12 contracts"
@@ -72,11 +98,11 @@ description = "Reject breaking OpenAPI changes against the pinned Git baseline"
 run = "scripts/check_contract_compatibility"
 
 [tasks.test]
-description = "Run API, workspace foundation and ticket planner tests without external APIs"
+description = "Run API, contract, document-link and workspace regression tests without external APIs"
 run = [
   "uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_*.py'",
   "uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'",
-  "node --test tests/test_api_contracts.mjs",
+  "node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs",
 ]
 
 [tasks.dev-api]
