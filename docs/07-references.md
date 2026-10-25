@@ -1,6 +1,6 @@
 # 公式参考資料と仕様の確認先
 
-文書版0.2.0、更新日2026-10-25。管理責任は技術責任者です。各設計書に記載した外部サービスの仕様と、実装開始・公開前に再確認する一次資料をまとめています。
+文書版0.2.0、更新日2026-10-26。管理責任は技術責任者です。各設計書に記載した外部サービスの仕様と、実装開始・公開前に再確認する一次資料をまとめています。
 
 このプロジェクトの機能範囲、数値目標、保持期間、探索予算、role設計はプロジェクト側の設計案です。外部サービスの既定値や保証値を表していません。採用時には、公式資料、実際の利用プラン・リージョン・SDK、stagingでの挙動を併せて確認します。
 
@@ -61,6 +61,9 @@ Home Assistant側のentity・service・報告状態は実装対象のバージ�
 
 | 資料 | 設計に使う内容 |
 | --- | --- |
+| [miseのセットアップ](https://mise.jdx.dev/getting-started.html) | 開発ツールの導入、設定の信頼、シェル有効化 |
+| [miseのPython環境](https://mise.jdx.dev/lang/python.html) | プロジェクトのvenv作成・有効化 |
+| [miseのタスク定義](https://mise.jdx.dev/tasks/toml-tasks.html) | 開発コマンドの共通入口、依存タスク、作業ディレクトリ |
 | [OpenAPI 3.1.1 specification](https://spec.openapis.org/oas/v3.1.1.html) | HTTP APIのスキーマ記述 |
 | [JSON Schema draft 2020-12](https://json-schema.org/draft/2020-12) | イベント・コマンド・ツールの構造記述 |
 | [Apache License 2.0標準本文](https://www.apache.org/licenses/LICENSE-2.0.txt) | 同梱LICENSEの出典。最終採用はOPEN-004 |

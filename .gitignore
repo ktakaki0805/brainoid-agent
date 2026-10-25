@@ -1,0 +1,14 @@
+# Local dependencies and Python bytecode
+.venv/
+__pycache__/
+*.py[cod]
+node_modules/
+
+# Local environment and mise overrides
+.env
+.env.*
+!.env.example
+mise.local.toml
+mise.*.local.toml
+.mise.local.toml
+.mise.*.local.toml

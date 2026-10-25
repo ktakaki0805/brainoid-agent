@@ -1,6 +1,6 @@
 # 文書と契約ファイルの検証記録
 
-対象版0.2.0、確認日2026-10-25。対象はこの文書パッケージです。アプリ本体、GCPの構築、実機性能の合格記録ではありません。
+対象版0.2.0、最終確認日2026-10-26。対象はこの文書パッケージです。アプリ本体、GCPの構築、実機性能の合格記録ではありません。
 
 ## 1. 含まれる設計
 
@@ -29,11 +29,15 @@
 - FR-001〜015の全15機能要件が実装チケットへ対応し、各チケットに受入条件があることを確認。
 - 実装チケット内の見出しリンクとテストIDが、定義済みの見出し・検証計画を参照することを確認。
 
-再実行方法:
+再実行方法（miseの導入は[セットアップ手順](docs/toolchain.md)を参照）:
 
 ~~~bash
-python3 -m pip install -r scripts/requirements-docs.txt
-python3 scripts/validate_docs.py --json
+mise trust
+mise install
+mise run setup
+mise run check:docs -- --json
+mise run check:tickets
+mise run test
 ~~~
 
 スクリプトの終了コード0とstatus=PASSは、上記の構造検証の結果を表します。スキーマを満たす入力が、利用者の権限や業務条件まで満たすことを保証するものではありません。
@@ -63,3 +67,19 @@ python3 scripts/validate_docs.py --json
 製品の認証・認可・状態遷移・外部API呼出し、Firestoreの実索引、Cloud Runの実接続、料金、音声品質、Pi更新と復旧はまだ実行していません。T-001〜038は検証計画であり、実行済みの合格数ではありません。
 
 Mermaid図は編集可能なソースとして同梱しています。外部レンダラーによる画像化と、全外部URLの自動死活監視はこの静的検証の対象外です。重要なサービス制約には公式資料へのリンクを付け、採用版・地域・提供条件は実装開始と公開前に確認します。
+
+## 5. miseセットアップの検証（2026-10-26）
+
+Linux x86_64、mise 2026.9.13と [mise.toml](mise.toml) の固定ツール版で確認しました。
+
+| 検証 | 結果 |
+| --- | --- |
+| `mise install` | 指定した4ツールを解決。実行環境ではすべて導入済み |
+| `mise run setup` | 新規の `.venv` を固定版Pythonから作成し、指定版PyYAMLを導入。再実行も成功 |
+| `mise tasks validate` | 5タスクの定義が正常 |
+| `mise run check` | 文書・契約検証PASS。96チケットの依存関係と進捗台帳が正常 |
+| `mise run test` | チケット管理スクリプトの単体テスト18件が成功 |
+| `mise -C docs run check:docs -- --json` | サブディレクトリからの実行と引数転送が成功し、JSONのstatus=PASS |
+| `mise exec` での版・実行パス確認 | Python・Node.js・uv・pnpmが指定版と一致。Pythonはプロジェクトの `.venv` を使用 |
+
+ツール本体を未導入の環境でのダウンロード、macOS・WSL2・Piでの動作、アプリ用workspace・CI・製品テストは未検証です。

@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 | --- | --- |
 | 文書版 | 0.2.0 |
-| 更新日 | 2026-10-25（日本時間） |
+| 更新日 | 2026-10-26（日本時間） |
 | 状態 | 開発着手用の計画。現在の実装状況は[進捗台帳](implementation-status.json)を参照。外部Issue未登録 |
 | プロジェクト名 | Brainoid Agent（確定） |
 | 責任ロール | 技術責任者が依存・PR境界を管理し、各担当とプロダクト責任者がレビュー |
@@ -210,14 +210,16 @@ IDの並びは分野別であり、実装の直列順序ではない。詳細に
 **主な変更範囲**
 
 - apps、services、packages、infraの予定構造をworkspaceとして定義する。
-- Python/Nodeとpackage managerの対応版を確認して固定し、formatter・型検査を設定する。
-- make setupはlockfileからの導入とtoolchain検査だけを行い、秘密値やクラウド変更を必要としない。
+- 既存のmise設定を基にPython/Nodeとpackage managerのアプリ対応を確認し、formatter・型検査を設定する。
+- `mise run setup` をworkspaceのlockfileからの導入とtoolchain検査へ拡張し、秘密値やクラウド変更を必要としない。
+
+miseによるツール固定・文書検証用setup/check/testは提供済み。[開発ツールのセットアップ](toolchain.md)を基に拡張する。このチケットはworkspace・アプリ依存lock・formatter・型検査の受入条件まで満たして完了とする。
 
 **成果物・変更先（予定）**
 
 - `pyproject.toml・uv.lock`
 - `package.json・pnpm-workspace.yaml・pnpm-lock.yaml`
-- `Makefileのsetup/check入口`
+- `mise.tomlのsetup/checkタスク`
 - `docs/toolchain.md`
 
 **受入条件**
@@ -357,7 +359,7 @@ Pythonと生成クライアントがID・時刻・更新版を同じ意味で扱
 - `scripts/validate_contracts`
 - `scripts/generate_api_client`
 - `packages/api-client`
-- `Makefileのgenerate-client/check`
+- `mise.tomlのgenerate-client/checkタスク`
 
 **受入条件**
 
@@ -403,7 +405,7 @@ Pythonと生成クライアントがID・時刻・更新版を同じ意味で扱
 - `firebase.json`
 - `tests/fixtures/tenants`
 - `scripts/seed_demo`
-- `Makefileのdev-emulator/seed-demo`
+- `mise.tomlのdev-emulator/seed-demoタスク`
 
 **受入条件**
 
@@ -447,7 +449,7 @@ PRを取り込む前に、整形・型・通信契約の破損を一貫して検
 **成果物・変更先（予定）**
 
 - `.github/workflows/check.yml`
-- `Makefileのcheck/test入口`
+- `mise.tomlのcheck/testタスク`
 - `CONTRIBUTING.mdの検証手順`
 
 **受入条件**

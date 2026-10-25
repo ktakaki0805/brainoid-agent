@@ -1,0 +1,34 @@
+min_version = "2026.9.13"
+
+[tools]
+python = "3.13.15"
+node = "24.21.0"
+uv = "0.12.19"
+pnpm = "11.28.2"
+
+[settings]
+task.run_auto_install = false
+
+[env]
+UV_PYTHON_DOWNLOADS = "never"
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.setup]
+description = "Install documentation dependencies into the project virtualenv"
+run = 'uv pip install --python "$VIRTUAL_ENV" -r scripts/requirements-docs.txt'
+
+[tasks."check:docs"]
+description = "Validate documentation links and API/schema contracts"
+run = "python scripts/validate_docs.py"
+
+[tasks."check:tickets"]
+description = "Validate implementation ticket status and dependencies"
+run = "python -B .agents/skills/implement-ticket/scripts/ticket_plan.py check"
+
+[tasks.check]
+description = "Run all available documentation and ticket checks"
+depends = ["check:docs", "check:tickets"]
+
+[tasks.test]
+description = "Run the existing ticket planner unit tests"
+run = "python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'"

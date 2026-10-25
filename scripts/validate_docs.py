@@ -18,7 +18,8 @@ try:
     import yaml
 except ImportError:
     raise SystemExit(
-        "PyYAML is required. Run: python3 -m pip install -r scripts/requirements-docs.txt"
+        "PyYAML is required. Run 'mise run setup' at the repository root, "
+        "then 'mise run check:docs'."
     )
 
 

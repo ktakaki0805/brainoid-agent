@@ -2,13 +2,13 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 状態 | 初版の設計ベースライン案。アプリ、Makefile、CI、テストコードは未実装 |
+| 状態 | 初版の設計ベースライン案。miseによる文書・チケット検証環境を提供。アプリ、CI、製品テストは未実装 |
 | 版 | 0.2.0 |
-| 更新日 | 2026-10-25（日本時間） |
+| 更新日 | 2026-10-26（日本時間） |
 | 責任者 | 技術リード。実装担当者が変更と同じPRで更新する |
 | 対象 | スマホ、Pi、API、Worker、インフラの開発者とレビュー担当者 |
 
-このガイドは、同じ契約と検証条件でチーム開発を始めるための実装方針を定める。現時点で利用できる成果物は設計文書と仕様ファイルであり、以下の起動コマンドやCIは初回実装で提供する契約である。既存の実行環境があることを前提にしない。
+このガイドは、同じ契約と検証条件でチーム開発を始めるための実装方針を定める。現時点で利用できる成果物は設計文書・仕様ファイルとmiseによる検証環境である。5節で提供済みのコマンドと今後実装するコマンドを区別する。アプリの起動コマンドやCIは初回実装で提供する契約である。
 
 関連文書: [要件定義](01-requirements.md)、[基本設計](02-architecture.md)、[データ・権限](03-data-and-authorization.md)、[インターフェース](04-interfaces.md)、[運用手順](06-deployment-and-operations.md)、[開発参加](../CONTRIBUTING.md)。
 
@@ -31,7 +31,7 @@
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |
 
-表のパスは作成予定である。今回同梱する `docs`、`specs`、文書検証用ファイル以外の存在を保証しない。
+表のパスは作成予定である。現在の `docs`、`specs`、`scripts`、チケット管理Skill、mise設定を基に、各実装チケットで追加する。
 
 技術リードは共通契約の変更を管理する。UI担当は画面と音声状態、API担当は認証・認可と永続化、Agent担当は記憶・推論・ツール、Device担当は実機・ローカル処理、Platform担当はGCP・CI・運用に責任を持つ。少人数チームでは兼任できるが、権限・削除・外部操作の変更は実装者以外がレビューする。
 
@@ -54,9 +54,11 @@
 
 ## 3. 開発環境と依存の固定
 
-Python、Node.js、パッケージマネージャー、Java、Android SDK、Xcode、Capacitor、Terraform、Google Cloud CLI、Firebase CLIは、B-01で対応関係を確認してバージョンを固定する。最新版への自動追従は行わず、採用minor・patchと確認日を `toolchain.md` に記録する。iOSビルドの環境と実機署名手順はMobile担当が提供する。
+開発ツールとコマンドはmiseで管理する。Python、Node.js、uv、pnpmは [mise.toml](../mise.toml) で完全なバージョンを固定し、[toolchain.md](toolchain.md) に初回セットアップ、対応環境、更新方法を記録する。最新版への自動追従は行わない。
 
-Pythonはuvとlockfile、JavaScript/TypeScriptはpnpmとlockfileを初期案とする。バージョンの正本はworkspace設定・lockfile・CIイメージである。ドキュメントでは同じ一覧を手作業で複製せず、更新方法と対応環境へのリンクを保つ。Dockerイメージ、GitHub Actions、Pi配布物は再現可能な参照へ固定する。
+文書検証の依存は [requirements-docs.txt](../scripts/requirements-docs.txt) で固定し、`mise run setup` で `.venv` へ導入する。アプリのPython依存はuvとlockfile、JavaScript/TypeScript依存はpnpmとlockfileでB-01から管理する。ツール版の正本はmise設定、パッケージ依存の正本はworkspace設定・lockfileとし、CIもこれらに合わせる。ドキュメントでは同じバージョン一覧を手作業で複製しない。
+
+Java、Android SDK、Xcode、Capacitor、Docker、Terraform、Google Cloud CLI、Firebase CLIは、各コンポーネントの実装時に対応関係を確認してバージョンと導入方法を追加する。iOSビルドの環境と実機署名手順はMobile担当が提供する。Dockerイメージ、GitHub Actions、Pi配布物は再現可能な参照へ固定する。
 
 開発環境を3段階に分ける。
 
@@ -88,21 +90,31 @@ Firestore emulatorは本番の全制限や複合索引を再現しないため�
 
 ## 5. 提供する開発コマンド
 
-以下はB-01〜B-03で実装するMake targetの契約であり、現時点では実行できない。
+開発コマンドの入口は `mise run <task>` とする。現在、次のタスクを [mise.toml](../mise.toml) で提供している。初回は[セットアップ手順](toolchain.md)を実行する。
+
+| 提供済みコマンド | 現在の振る舞い |
+| --- | --- |
+| `mise run setup` | `.venv` に固定版の文書検証依存を導入 |
+| `mise run check:docs` | 文書の相対リンク、実装チケット、OpenAPI・JSON Schemaの構造・参照を検証。`-- --json` でJSON出力 |
+| `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
+| `mise run check` | `check:docs` と `check:tickets` を実行 |
+| `mise run test` | チケット管理スクリプトの既存の単体テストを実行 |
+
+以下はB-01以降で実装・拡張するmiseタスクの契約である。setup・check・testも、現在は上表の範囲だけを実行する。
 
 | 予定コマンド | 実装する振る舞い |
 | --- | --- |
-| `make setup` | 対応toolchainを検査し、lockfileから依存を導入。クラウド資源を変更しない |
-| `make dev` | fakeを既定としてAPI・worker・UIを起動。終了時に子processを停止 |
-| `make dev-emulator` | emulatorを明示して起動。専用fixture以外に接続しない |
-| `make seed-demo` | 2テナントの架空データをlocal専用環境へ投入。prodなら拒否 |
-| `make generate-client` | OpenAPIからTypeScript clientを再生成 |
-| `make check` | format、lint、型検査、schema検証、生成差分確認 |
-| `make test` | 外部APIに接続せずunit・contract・local integrationを実行 |
-| `make test-staging` | 明示したstagingで外部API・索引・IAM確認を実行。件数上限と後片付けを伴う |
-| `make test-device` | 対応Piとテスト用Home Assistantへの実機試験を開始 |
+| `mise run setup` | 対応toolchainを検査し、workspaceのlockfileから依存を導入。クラウド資源を変更しない |
+| `mise run dev` | fakeを既定としてAPI・worker・UIを起動。終了時に子processを停止 |
+| `mise run dev-emulator` | emulatorを明示して起動。専用fixture以外に接続しない |
+| `mise run seed-demo` | 2テナントの架空データをlocal専用環境へ投入。prodなら拒否 |
+| `mise run generate-client` | OpenAPIからTypeScript clientを再生成 |
+| `mise run check` | format、lint、型検査、schema検証、生成差分確認 |
+| `mise run test` | 外部APIに接続せずunit・contract・local integrationを実行 |
+| `mise run test-staging` | 明示したstagingで外部API・索引・IAM確認を実行。件数上限と後片付けを伴う |
+| `mise run test-device` | 対応Piとテスト用Home Assistantへの実機試験を開始 |
 
-各targetには前提・終了コード・出力先を定義する。インストールや課金を伴う処理を通常のテストに隠さない。初期実装が完了した時点で、この節を実在するコマンドへの利用ガイドに更新する。
+各タスクには前提・終了コード・出力先を定義する。インストールや課金を伴う処理を通常のテストに隠さない。タスクを追加・拡張した時点で、この節の提供済み範囲を更新する。
 
 ## 6. モックとfixture
 
