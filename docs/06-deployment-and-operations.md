@@ -61,7 +61,7 @@ CIはGitHub OIDCからGCPの短命credentialを取得する。信頼条件をrep
 3. **IAM・API・Secretを用意する。** 必要APIを有効化し、runtime/invoker/deploy identityを作成する。Secretの値は手動または専用フローで投入し、Terraform plan・state・CI logへ平文を残さない。
 4. **保存先を作る。** Firestore、必要索引、client access制限、daily backup、削除台帳bucketと配布bucket、lifecycle policyを設定する。公開前の空DBで権限と削除を検証する。
 5. **配送先を作る。** private Workerを配備し、Tasks queue、最大dispatch/並列数、retry範囲、Schedulerの1分周期の期限確認を設定する。停止中jobの回収条件も設定する。
-6. **APIを配備する。** 認証・認可、許可origin、request上限、stream timeout、instance上限を設定する。`/health`相当の生存確認と、DB接続などのreadinessを分ける。
+6. **APIを配備する。** 認証・認可、許可origin、request上限、stream timeout、instance上限を設定する。生存確認は `GET /health/live`、依存先確認は `GET /health/ready` とする。BA-FND-02はhealthのみ提供し、DB等の実adapterとprobeは後続チケットで登録する。ready=200だけでは未実装の外部接続を確認したことにならない。起動コマンド・設定は[開発ガイド](05-development-and-testing.md#51-api基盤の起動)を参照する。
 7. **外部連携を設定する。** Firebaseログイン、Calendar OAuth、FCM/APNs、モデル・音声、Home Assistantテスト環境を結合する。許可scopeとテスト用アカウントを照合する。
 8. **検証用tenantとPiを登録する。** 別tenant、private/shared、失効端末のfixtureを使い、スマホからPiまでの縦断シナリオを実行する。
 9. **監視と復旧を実証する。** alertが担当者へ届くこと、backupから隔離復元できること、削除台帳の再適用、API/Piのrollbackを確認する。

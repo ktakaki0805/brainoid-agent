@@ -7,6 +7,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "httpx2==2.16.0",
     "mypy==2.4.0",
     "ruff==0.17.2",
 ]

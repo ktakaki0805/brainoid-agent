@@ -2,7 +2,7 @@
 
 文書版0.2.0、更新日2026-10-26。管理責任はメンテナです。この文書は、設計段階からアプリ実装・OSS公開へ進むための貢献手順を定義します。
 
-現在の成果物は文書・通信スキーマと、uv/pnpm workspace・固定依存・format/lint/型検査です。アプリ機能、CI、公開Issue窓口はまだありません。以下のIssue・PR運用は、OPEN-001で公開リポジトリを確定した後に適用します。初回実装の手順は[開発・テストガイド](docs/05-development-and-testing.md)を参照してください。
+現在の成果物は文書・通信スキーマ、workspace検証環境とAPIの起動・health・共通エラー・基盤テストです。業務機能、CI、公開Issue窓口はまだありません。以下のIssue・PR運用は、OPEN-001で公開リポジトリを確定した後に適用します。初回実装の手順は[開発・テストガイド](docs/05-development-and-testing.md)を参照してください。
 
 開発ツールはmiseで管理します。[セットアップ手順](docs/toolchain.md)に従って `mise trust`、`mise install`、`mise run setup` を実行し、変更後は `mise run check` と `mise run test` で確認してください。ツール版と共有タスクの正本は [mise.toml](mise.toml) です。
 

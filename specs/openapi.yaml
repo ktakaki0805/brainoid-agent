@@ -2,11 +2,77 @@ openapi: 3.1.0
 info:
   title: Brainoid Agent API contract
   version: 0.2.0
-  description: 2026-10-25 開発着手用設計案。アプリの実装を含まない。サーバーはscope/権限/クロスフィールド制約を検証する。
+  description: 開発着手用設計案。BA-FND-02でhealthと共通エラーのみ実装済み。業務APIは未実装。サーバーはscope/権限/クロスフィールド制約を検証する。
 servers:
 - url: /v1
   description: 実装先APIの相対base path
 paths:
+  /health/live:
+    servers:
+    - url: /
+      description: healthは業務APIの/v1外に配置
+    get:
+      operationId: getLiveness
+      summary: APIプロセスの生存確認
+      description: 認証・依存先への接続を行わず応答する。依存先の確認はreadinessを使う。
+      security: []
+      responses:
+        '200':
+          description: プロセスがHTTP要求に応答できる
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+              description: サーバー発行の要求ID。呼出元の値は採用しない。
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+  /health/ready:
+    servers:
+    - url: /
+    get:
+      operationId: getReadiness
+      summary: 起動完了と注入された依存先の可用性確認
+      description: 現時点の標準構成には外部adapterがない。組込時にprobeを登録し、false・例外・設定時間内の応答なしを503にする。依存先の詳細は公開しない。
+      security: []
+      responses:
+        '200':
+          description: 起動済みで登録された全probeが正常
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ready
+        '503':
+          description: 起動未完了または依存先を利用できない。retryableはtrue。
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+              description: error.request_idと同じ要求ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /users/me:
     get:
       operationId: getCurrentUser

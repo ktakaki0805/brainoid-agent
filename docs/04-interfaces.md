@@ -2,9 +2,9 @@
 
 | 項目 | 値 |
 | --- | --- |
-| 状態 | 開発着手用の設計ベースライン案。API・端末サービスは未実装 |
+| 状態 | 開発着手用の設計ベースライン案。APIの起動・health・共通エラーを提供。業務API・端末サービスは未実装 |
 | 文書版 | 0.2.0 |
-| 更新日 | 2026-10-25（日本時間） |
+| 更新日 | 2026-10-26（日本時間） |
 | 責任者ロール | API担当。スマホ・Pi・AgentCore担当が共同レビュー |
 | 関連 | [基本設計](02-architecture.md)、[データ・権限](03-data-and-authorization.md)、[開発・テスト](05-development-and-testing.md) |
 
@@ -47,7 +47,7 @@ HTTPはOpenAPI 3.1、各JSON SchemaはDraft 2020-12を採用する設計案で�
 | 冪等キー | 更新系は `Idempotency-Key` 必須、16〜128文字。tenant/actor/operation/keyごとに24時間保持 |
 | 同じキーの再送 | 同じ正規化bodyなら同じresource/operation/result。異なるbodyは409 |
 | read型POST | `memories:search` は共通headerを受けるが副作用台帳は不要 |
-| 追跡 | サーバー発行request IDを返し、traceへ接続。本文・tokenはログから除外 |
+| 追跡 | 全HTTP応答の `X-Request-ID` にサーバー発行UUIDを返す。エラー本文の `request_id` と一致し、呼出元の同名headerは採用しない。本文・tokenはログから除外 |
 
 期限切れの冪等キーを使った新しい操作を、古い操作と同一だと仮定しない。端末コマンドのdedupは別途7日保持し、実行期限は30秒とする初期案である。provider側で結果が不明な場合は再送より先に状態を照合する。
 
@@ -70,14 +70,27 @@ HTTPはOpenAPI 3.1、各JSON SchemaはDraft 2020-12を採用する設計案で�
 | 401 | `authentication_required` / `token_expired` | 1回更新し、失敗したら再認証 |
 | 403 | `operation_forbidden` / `reauth_required` | 機能権限の不足。自動再送しない |
 | 404 | `resource_not_found` | 他tenant/他人privateの存在も隠す |
+| 405 | `method_not_allowed` | パスで許可されたHTTP methodを使う |
 | 409 | `idempotency_conflict` / `already_executing` / `pairing_pending` | 状態・入力を確認。pairingのみ期限内の間隔付きpoll |
 | 410 | `resource_expired` / `event_history_expired` | 状態を再取得。古い操作を新規実行へ変換しない |
 | 412 / 428 | `version_conflict` / `version_required` | 再取得・差分確認後に更新 |
 | 413 | `payload_too_large` | 音声/本文を短くする |
 | 429 | `quota_exceeded` / `rate_limited` | Retry-Afterに従う。上限を利用者に表示 |
 | 503 | `temporarily_unavailable` / `control_ledger_unavailable` | 同じ冪等キーでbackoff。受付未完了を明示 |
+| 500 | `internal_error` | 未分類の失敗。retryable=falseとして自動再送を避ける |
 
 エラーの詳細に別ユーザーのID、provider token、内部promptを含めない。クライアントはerror.codeで分岐し、自然文のmessage文字列に依存しない。
+
+BA-FND-02では要求検証・HTTP例外・未処理例外をこの形式へ統一する。messageは固定の公開文言で、validationの入力値や例外detailを返さない。未処理例外はHTTP 500、readinessの依存異常は503を返す。既にstreamのheaderを送信した後の失敗は共通JSONへ差し替えず接続を中断し、同じrequest IDで `internal_error` を記録する。
+
+### 2.4 ヘルス確認
+
+| パス | 成功 | 失敗と意味 |
+| --- | --- | --- |
+| `GET /health/live` | 200 `{"status":"ok"}` | HTTP要求に応答できるかを確認。依存先を呼ばない |
+| `GET /health/ready` | 200 `{"status":"ready"}` | 起動未完了、登録probeのfalse・例外・timeoutは共通エラー503。code=`temporarily_unavailable`、retryable=true |
+
+healthは `/v1` の外に置き、認証情報を要求しない。依存先の名前・接続先・失敗詳細は返さず、全応答を `Cache-Control: no-store` とする。現時点の標準構成はhealthのみで外部依存probeを持たないため、readyは起動完了だけを意味する。Firestore等のadapterを実装するチケットで、そのlifespanとprobeを登録する。
 
 ## 3. HTTP機能グループ
 

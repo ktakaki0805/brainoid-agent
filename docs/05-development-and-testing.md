@@ -2,13 +2,13 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 状態 | 設計ベースライン案。mise・uv/pnpm workspace・固定依存・format/lint/型検査を提供。アプリ機能、CI、製品テストは未実装 |
+| 状態 | 設計ベースライン案。workspace検証とAPIの起動・health・共通エラー・基盤テストを提供。業務機能・CIは未実装 |
 | 版 | 0.2.0 |
 | 更新日 | 2026-10-26（日本時間） |
 | 責任者 | 技術リード。実装担当者が変更と同じPRで更新する |
 | 対象 | スマホ、Pi、API、Worker、インフラの開発者とレビュー担当者 |
 
-このガイドは、同じ契約と検証条件でチーム開発を始めるための実装方針を定める。現時点で利用できる成果物は設計文書・仕様ファイルとmiseによるworkspace開発・検証環境である。5節で提供済みのコマンドと今後実装するコマンドを区別する。アプリの起動コマンドやCIは初回実装で提供する契約である。
+このガイドは、同じ契約と検証条件でチーム開発を始めるための実装方針を定める。現時点では設計文書・仕様ファイル、workspace開発・検証環境とAPI基盤を提供する。5節で提供済みのコマンドと今後実装するコマンドを区別する。UI・業務機能やCIは後続チケットで提供する。
 
 関連文書: [要件定義](01-requirements.md)、[基本設計](02-architecture.md)、[データ・権限](03-data-and-authorization.md)、[インターフェース](04-interfaces.md)、[運用手順](06-deployment-and-operations.md)、[開発参加](../CONTRIBUTING.md)。
 
@@ -31,7 +31,7 @@
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |
 
-表のディレクトリを作成済み。Pythonの6 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。アプリ・API機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
+表のディレクトリを作成済み。Pythonの6 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤は `services/api/src/brainoid_api` に配置し、本人認証・業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
 
 技術リードは共通契約の変更を管理する。UI担当は画面と音声状態、API担当は認証・認可と永続化、Agent担当は記憶・推論・ツール、Device担当は実機・ローカル処理、Platform担当はGCP・CI・運用に責任を持つ。少人数チームでは兼任できるが、権限・削除・外部操作の変更は実装者以外がレビューする。
 
@@ -88,6 +88,21 @@ Firestore emulatorは本番の全制限や複合索引を再現しないため�
 
 ログに音声本体、会話本文、記憶本文、OAuth token、Authorization header、ペアリング秘密値を出さない。デバッグのために内容が必要な場合は架空fixtureを使い、productionのログレベルを上げて代用しない。
 
+BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・秘密参照等は各機能チケットで追加する。`.env` の自動読込みやSDKからのproject推定は行わない。
+
+| 設定 | 必須・制約 |
+| --- | --- |
+| `APP_ENV` | 必須。`local-fake` / `local-emulator` / `staging` / `production` |
+| `AUTH_PROVIDER` | 必須。local-fakeは `fake`、それ以外は `firebase` |
+| `MODEL_PROVIDER` | 必須。localは `fake`、staging/productionは `vertex` |
+| `GCP_PROJECT_ID` | 必須。小文字英字開始の6〜30文字。localは `demo-` prefix。`GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` があれば一致必須 |
+| `GCP_REGION` / `FIRESTORE_DATABASE_ID` / `MODEL_ID` | 全環境で明示必須。空文字・空白・URLは不可。fakeでも例の固定値を設定し、別project/model/regionへ補完しない |
+| `FIRESTORE_EMULATOR_HOST` / `FIREBASE_AUTH_EMULATOR_HOST` | local-emulatorでは両方必須、credential・scheme・pathなしの `host:port`。他環境では空文字を含め存在自体を拒否 |
+| `LOG_LEVEL` | 既定 `INFO`。`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL`。APIアプリログに適用 |
+| `READINESS_TIMEOUT_SECONDS` | 既定2秒。0より大きく30以下の有限数。全probeの確認に対する共通期限 |
+
+設定検証はFastAPI lifespanの開始時、依存の初期化より先に行う。失敗時は起動を中止し、入力値や例外traceを含まない `api_startup_failed` を記録する。`load_settings()` は診断用に不正な設定名を含む `ConfigurationError` を返すが、値を出さない。APIの通常ログは `request_completed`、`request_id`、HTTP status、固定のerror codeのみとし、URL/query・header・body・例外本文を渡さない。Uvicornのaccess logは提供する起動コマンドで無効にする。独自の起動方法やproxyのaccess logにも同じ除外方針を適用する。
+
 ## 5. 提供する開発コマンド
 
 開発コマンドの入口は `mise run <task>` とする。現在、次のタスクを [mise.toml](../mise.toml) で提供している。初回は[セットアップ手順](toolchain.md)を実行する。
@@ -99,7 +114,8 @@ Firestore emulatorは本番の全制限や複合索引を再現しないため�
 | `mise run check:format` / `check:lint` / `check:types` | 書換えなしの整形・lint・Python/TypeScript型検査 |
 | `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
 | `mise run check` | format・lint・型・チケットを検証 |
-| `mise run test` | 基盤のpackage解決・秘密ファイル除外と既存チケット管理テストを実行 |
+| `mise run test` | APIの設定・起動終了・health・共通エラー・秘密非出力、package解決・秘密ファイル除外と既存チケット管理テストを実行 |
+| `mise run dev-api` | export済みの設定を検証し、localhost:8000でAPIのhealthを起動。Ctrl-Cで依存を終了 |
 
 現在のPython検証タスクは `uv run --all-packages --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 
@@ -119,6 +135,23 @@ Ruff・mypyは `tests`・Python member、Biome・TypeScriptはNode memberと設�
 | `mise run test-device` | 対応Piとテスト用Home Assistantへの実機試験を開始 |
 
 各タスクには前提・終了コード・出力先を定義する。インストールや課金を伴う処理を通常のテストに隠さない。タスクを追加・拡張した時点で、この節の提供済み範囲を更新する。
+
+### 5.1 API基盤の起動
+
+setup後、リポジトリのルートで安全な設定例を明示的にexportする。実値を入れたファイルはGitへ追加しない。
+
+~~~bash
+set -a
+. ./.env.example
+set +a
+mise run dev-api
+~~~
+
+別terminalから `curl -i http://127.0.0.1:8000/health/live` と `curl -i http://127.0.0.1:8000/health/ready` を確認する。起動失敗は非ゼロ終了、通常停止はCtrl-Cを使う。ログはstderrへ出力する。現在は本人認証・業務API・クラウド接続・fake業務adapterを持たず、ready=200は起動済みであることだけを示す。local-emulator等の設定検証も接続テストの代わりにはならない。
+
+`brainoid_api.app.create_app(settings_loader=..., dependency_lifespan=...)` で設定loaderと依存のasync context managerを注入できる。context managerは検証済み `Settings` を受け取り、起動した依存の `ReadinessProbe.is_ready()` 一覧をyieldし、終了時にリソースを解放する。実adapter追加時にこの境界へ登録する。HTTP handlerは `Depends(get_settings)` で起動時の同じ設定を受け取る。probe異常・例外・timeoutはreadinessの503へ変換し、livenessには伝播しない。[FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/)
+
+BA-FND-02のテストは `tests/test_api_foundation.py`。T-027のproduction/stagingでのfake・emulator拒否、必須設定、矛盾、起動終了、probe異常・復旧・timeout、共通エラー、成功・失敗両方のログ非出力を外部APIなしで検証する。sandboxでAnyIOのthread通知が制限される環境ではTestClientが停止するため、通常のローカル実行環境で `mise run test` を行う。
 
 ## 6. モックとfixture
 

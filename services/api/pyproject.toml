@@ -1,7 +1,7 @@
 [project]
 name = "brainoid-api"
 version = "0.1.0"
-description = "HTTP API package; application starts in BA-FND-02"
+description = "FastAPI startup, health checks and common error handling"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "brainoid-agent-core",

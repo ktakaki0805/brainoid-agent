@@ -46,8 +46,12 @@ description = "Run all available project checks"
 depends = ["check:tickets", "check:format", "check:lint", "check:types"]
 
 [tasks.test]
-description = "Run foundation and existing ticket planner tests without external APIs"
+description = "Run API, workspace foundation and ticket planner tests without external APIs"
 run = [
   "uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_*.py'",
   "uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'",
 ]
+
+[tasks.dev-api]
+description = "Run the API health endpoints on localhost:8000 with explicitly exported settings"
+run = "uv run --all-packages --locked --offline python -m brainoid_api"

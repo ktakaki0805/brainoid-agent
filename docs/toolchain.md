@@ -1,6 +1,6 @@
 # miseによる開発環境
 
-更新日: 2026-10-26。ツール版の正本は [mise.toml](../mise.toml)、Python依存は [pyproject.toml](../pyproject.toml) と [uv.lock](../uv.lock)、Node依存は各 `package.json`・[pnpm-workspace.yaml](../pnpm-workspace.yaml) と [pnpm-lock.yaml](../pnpm-lock.yaml) とする。BA-FND-01でworkspace・依存固定・format/lint/型検査まで提供した。API起動・画面・CIは後続チケットで実装する。
+更新日: 2026-10-26。ツール版の正本は [mise.toml](../mise.toml)、Python依存は [pyproject.toml](../pyproject.toml) と [uv.lock](../uv.lock)、Node依存は各 `package.json`・[pnpm-workspace.yaml](../pnpm-workspace.yaml) と [pnpm-lock.yaml](../pnpm-lock.yaml) とする。workspace・固定依存・検証環境とAPI起動・health・共通エラーを提供する。業務API・画面・CIは後続チケットで実装する。
 
 ## 1. miseの導入
 
@@ -31,7 +31,7 @@ mise run test
 
 `setup` は最初に `mise install` で指定版のPython・Node・uv・pnpmを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
 
-`check` は整形、lint、Python/TypeScript型、チケット管理を検査する。`format` はソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run` で実行する。キャッシュ・依存不足時は先にsetupを行う。API/画面の起動と契約validatorはまだ提供しない。
+`check` は整形、lint、Python/TypeScript型、チケット管理を検査する。`format` はソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run` で実行する。キャッシュ・依存不足時は先にsetupを行う。API起動は [dev-apiの手順](05-development-and-testing.md#51-api基盤の起動)を参照する。画面の起動と契約validatorはまだ提供しない。
 
 uvが `.venv` を作成・同期する。miseは `UV_PYTHON` で固定Pythonのパスを渡し、uvのPython自動ダウンロードとmiseタスクの自動ツール導入は無効にする。固定ツールの導入は `setup` 内の明示的な `mise install` が担当する。IDEにも `.venv` を指定する。
 
@@ -57,7 +57,7 @@ mise exec -- pnpm --version
 | `apps/mobile`・`display` | 非公開pnpm member。`src/index.ts`。UI機能はBA-UI-01以降 |
 | `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。client生成はBA-FND-04 |
 | `infra/gcp` | Terraform用の領域。Python/Nodeのmemberではなく、配備定義はBA-OPS-01以降 |
-| `tests` | package解決・秘密ファイル除外の受入テスト |
+| `tests` | package解決・秘密ファイル除外、API起動・health・エラーの受入テスト |
 
 サービス間の内部importは置かず、共通実装は共有packageへ移す。Pythonは各memberの `dependencies` と `tool.uv.sources` の `workspace = true`、Nodeは `workspace:*` を使う。Pythonの公開名からimportし、別memberの `src` への相対パス・`sys.path` 変更・TypeScriptのpaths aliasでpackage境界を迂回しない。Pythonはuvが依存隔離を強制しないため、他memberの未宣言依存・内部moduleを使っていないこともレビューする。
 
@@ -101,6 +101,7 @@ Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CL
 | --- | --- | --- |
 | Ruff 0.17.2 | ルートdev。Python format/lint | Python >=3.7、MIT。[PyPI](https://pypi.org/project/ruff/0.17.2/) |
 | mypy 2.4.0 | ルートdev。Python strict型検査 | Python >=3.10、MIT。[PyPI](https://pypi.org/project/mypy/2.4.0/) |
+| HTTPX2 2.16.0 | ルートdev。Starlette TestClientによるAPI・lifespan検証 | Python >=3.11、BSD-3-Clause。Pydanticが保守するstable版。[PyPI](https://pypi.org/project/httpx2/2.16.0/)、[公式source](https://github.com/pydantic/httpx2) |
 | uv_build 0.12.19 | 各Python memberのbuild backend | 固定uvの内蔵backendと同版、MIT OR Apache-2.0。[PyPI](https://pypi.org/project/uv-build/0.12.19/) |
 | FastAPI 0.162.0・Pydantic 2.14.1 | API memberの実行依存 | Python >=3.10、MIT。HTTP入口・型付きvalidation用。[FastAPI](https://pypi.org/project/fastapi/0.162.0/)、[Pydantic](https://pypi.org/project/pydantic/2.14.1/) |
 | Uvicorn 0.54.0 | API memberのASGI実行依存 | Python >=3.10、BSD-3-Clause。setupではサーバーを起動しない。[PyPI](https://pypi.org/project/uvicorn/0.54.0/) |
@@ -112,3 +113,5 @@ Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CL
 | @capacitor/core 8.5.3 | mobileの実行依存 | Node engine制約の宣言なし。今回のNodeでimport確認、MIT。native platform/CLIは後続。[npm](https://www.npmjs.com/package/@capacitor/core/v/8.5.3) |
 
 公式metadata上、Python側の上表の開発ツール・API依存は2026年9〜10月にもリリースされている。Node側も各公式配布元の採用版を固定し、現在のtoolchainで型検査とimportを実行する。これらは通常のローカルコード実行権限を持ち、setupではダウンロード・環境作成を行う。クラウドIAM・認証情報・外部サービスへの実行権限は追加しない。アプリの配布に含まれる依存と、開発時だけ使う依存を上表の配置で区別する。
+
+BA-FND-02で追加したHTTPX2はテスト専用で、APIの実行依存へは追加しない。lockには推移依存のHTTPcore2（BSD-3-Clause）とtruststore（MIT）も追加される。2026-10-26に導入したdistribution metadataでPython要件・保守元・ライセンスを確認した。TestClientはアプリ内ASGI transportを使い、通常テストに外部HTTP接続やクラウド権限を追加しない。
