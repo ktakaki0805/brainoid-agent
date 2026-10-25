@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Brainoid Agent API contract
   version: 0.2.0
-  description: 開発着手用設計案。BA-FND-02でhealthと共通エラーのみ実装済み。業務APIは未実装。サーバーはscope/権限/クロスフィールド制約を検証する。
+  description: 開発着手用設計案。BA-FND-02のhealth・共通エラー、BA-IAM-01の本人認証・users/meを実装済み。他の業務APIは未実装。サーバーはscope/権限/クロスフィールド制約を検証する。
 servers:
 - url: /v1
   description: 実装先APIの相対base path
@@ -77,12 +77,12 @@ paths:
     get:
       operationId: getCurrentUser
       summary: 本人プロフィール
-      description: 本人プロフィール
+      description: 検証済みFirebase UIDに一致する保存済みの本人プロフィール。未作成は404、削除中は403。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 保存済みの本人プロフィール
           content:
             application/json:
               schema:

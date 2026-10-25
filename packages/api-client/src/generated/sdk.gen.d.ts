@@ -28,7 +28,7 @@ export declare const getReadiness: <ThrowOnError extends boolean = false>(option
 /**
  * 本人プロフィール
  *
- * 本人プロフィール
+ * 検証済みFirebase UIDに一致する保存済みの本人プロフィール。未作成は404、削除中は403。
  */
 export declare const getCurrentUser: <ThrowOnError extends boolean = false>(options?: Options<GetCurrentUserData, ThrowOnError>) => RequestResult<GetCurrentUserResponses, GetCurrentUserErrors, ThrowOnError>;
 /**

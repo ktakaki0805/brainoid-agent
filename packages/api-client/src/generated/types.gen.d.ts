@@ -782,7 +782,7 @@ export type GetCurrentUserErrors = {
 export type GetCurrentUserError = GetCurrentUserErrors[keyof GetCurrentUserErrors];
 export type GetCurrentUserResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 保存済みの本人プロフィール
      */
     200: User;
 };

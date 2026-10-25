@@ -5,8 +5,10 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from fastapi import FastAPI
 
+from brainoid_api.auth.runtime import authentication_lifespan
 from brainoid_api.errors import RequestContextMiddleware, install_error_handlers, logger
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
+from brainoid_api.routes.users import router as users_router
 from brainoid_api.settings import Settings, load_settings
 
 DependencyLifespan = Callable[[Settings], AbstractAsyncContextManager[Sequence[ReadinessProbe]]]
@@ -14,7 +16,7 @@ DependencyLifespan = Callable[[Settings], AbstractAsyncContextManager[Sequence[R
 
 @asynccontextmanager
 async def no_dependencies(settings: Settings) -> AsyncIterator[Sequence[ReadinessProbe]]:
-    # This foundation serves health only. Real adapters are added by their own tickets.
+    # Additional business dependency lifetimes are added by their own tickets.
     yield ()
 
 
@@ -31,7 +33,11 @@ def create_app(
         try:
             runtime.settings = settings_loader()
             logger.setLevel(runtime.settings.log_level)
-            async with dependency_lifespan(runtime.settings) as probes:
+            async with (
+                authentication_lifespan(runtime.settings) as auth_services,
+                dependency_lifespan(runtime.settings) as probes,
+            ):
+                app.state.auth_services = auth_services
                 runtime.probes = tuple(probes)
                 runtime.started = True
                 logger.info('{"event":"api_started"}')
@@ -50,6 +56,7 @@ def create_app(
             runtime.started = False
             runtime.settings = None
             runtime.probes = ()
+            app.state.auth_services = None
             logger.info('{"event":"api_stopped"}')
 
     app = FastAPI(
@@ -62,7 +69,9 @@ def create_app(
         redirect_slashes=False,
     )
     app.state.runtime = RuntimeState()
+    app.state.auth_services = None
     app.add_middleware(RequestContextMiddleware)
     install_error_handlers(app)
     app.include_router(router)
+    app.include_router(users_router, prefix="/v1")
     return app

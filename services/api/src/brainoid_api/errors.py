@@ -20,6 +20,7 @@ class ErrorCode(StrEnum):
     INVALID_REQUEST = "invalid_request"
     VALIDATION_FAILED = "validation_failed"
     AUTHENTICATION_REQUIRED = "authentication_required"
+    REAUTH_REQUIRED = "reauth_required"
     OPERATION_FORBIDDEN = "operation_forbidden"
     RESOURCE_NOT_FOUND = "resource_not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
@@ -46,6 +47,7 @@ ERRORS = {
     ErrorCode.VALIDATION_FAILED: ErrorDefinition(422, "Request validation failed."),
     ErrorCode.AUTHENTICATION_REQUIRED: ErrorDefinition(401, "Authentication required."),
     ErrorCode.OPERATION_FORBIDDEN: ErrorDefinition(403, "Operation forbidden."),
+    ErrorCode.REAUTH_REQUIRED: ErrorDefinition(403, "Recent authentication required."),
     ErrorCode.RESOURCE_NOT_FOUND: ErrorDefinition(404, "Resource not found."),
     ErrorCode.METHOD_NOT_ALLOWED: ErrorDefinition(405, "Method not allowed."),
     ErrorCode.CONFLICT: ErrorDefinition(409, "Request conflicts with the current state."),

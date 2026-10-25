@@ -1,0 +1,86 @@
+"""App-owned SDK lifetimes and request dependencies; blocking I/O runs in worker threads."""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from typing import Annotated, cast
+from uuid import uuid4
+
+import firebase_admin  # type: ignore[import-untyped]
+from fastapi import Depends, Request
+from google.auth.credentials import AnonymousCredentials
+from google.cloud.firestore_v1 import Client
+from starlette.concurrency import run_in_threadpool
+
+from brainoid_api.auth.context import AuthenticatedIdentity
+from brainoid_api.auth.firebase_identity import (
+    FirebaseIdentityVerifier,
+    IdentityVerifier,
+    validate_sdk_environment,
+)
+from brainoid_api.auth.profiles import FirestoreProfiles, ProfileReader
+from brainoid_api.errors import APIError, ErrorCode
+from brainoid_api.settings import Settings
+
+
+@dataclass(frozen=True)
+class AuthServices:
+    verifier: IdentityVerifier | None = None
+    profiles: ProfileReader | None = None
+
+
+@asynccontextmanager
+async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServices]:
+    validate_sdk_environment(settings)
+    if settings.app_env == "local-fake":
+        # Health and non-auth fake development remain available; no dummy bearer is accepted.
+        yield AuthServices()
+        return
+    app = firebase_admin.initialize_app(
+        options={"projectId": settings.gcp_project_id, "httpTimeout": 10},
+        name="brainoid-api-" + str(uuid4()),
+    )
+    client: Client | None = None
+    try:
+        credential = (
+            AnonymousCredentials()  # type: ignore[no-untyped-call]
+            if settings.app_env == "local-emulator"
+            else await run_in_threadpool(app.credential.get_credential)
+        )
+        client = Client(
+            project=settings.gcp_project_id,
+            database=settings.firestore_database_id,
+            credentials=credential,
+        )
+        yield AuthServices(FirebaseIdentityVerifier(app, settings), FirestoreProfiles(client))
+    finally:
+        try:
+            if client is not None:
+                await run_in_threadpool(client.close)
+        finally:
+            await run_in_threadpool(firebase_admin.delete_app, app)
+
+
+def get_auth_services(request: Request) -> AuthServices:
+    services = cast(AuthServices | None, request.app.state.auth_services)
+    if services is None:
+        raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+    return services
+
+
+async def authenticated_identity(
+    request: Request, services: Annotated[AuthServices, Depends(get_auth_services)]
+) -> AuthenticatedIdentity:
+    headers = request.headers.getlist("authorization")
+    if len(headers) != 1 or services.verifier is None:
+        raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+    scheme, separator, token = headers[0].partition(" ")
+    if (
+        scheme.lower() != "bearer"
+        or not separator
+        or not token
+        or len(token) > 16384
+        or any(character.isspace() for character in token)
+    ):
+        raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+    return await run_in_threadpool(services.verifier.verify, token)

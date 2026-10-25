@@ -53,6 +53,8 @@ BA-FND-03のPython共通型とOpenAPI/JSON Schemaの対応、日時の保存プ�
 
 BA-FND-08の提供済みAPI内部helper、現在認可callback、Firestore transaction、再送用receiptの制約とcursor鍵の扱いは[共通処理の利用契約](common-mutations.md)を参照する。業務routeへの接続は各機能チケットで行う。
 
+BA-IAM-01の `GET /v1/users/me`、Firebase本人認証、直近再認証、未認可のtenant選択値の境界は[本人認証の利用契約](authentication.md)を参照する。membership認可はBA-IAM-02で追加する。
+
 期限切れの冪等キーを使った新しい操作を、古い操作と同一だと仮定しない。端末コマンドのdedupは別途7日保持し、実行期限は30秒とする初期案である。provider側で結果が不明な場合は再送より先に状態を照合する。
 
 ### 2.3 共通エラー

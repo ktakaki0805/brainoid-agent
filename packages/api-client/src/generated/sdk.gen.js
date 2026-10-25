@@ -15,7 +15,7 @@ export const getReadiness = (options) => (options?.client ?? client).get({ url: 
 /**
  * 本人プロフィール
  *
- * 本人プロフィール
+ * 検証済みFirebase UIDに一致する保存済みの本人プロフィール。未作成は404、削除中は403。
  */
 export const getCurrentUser = (options) => (options?.client ?? client).get({
     security: [{

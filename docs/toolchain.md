@@ -108,6 +108,7 @@ Java・Firebase CLIはBA-FND-05で下記の通り導入する。Android SDK・Xc
 | FastAPI 0.162.0・Pydantic 2.14.1 | API memberの実行依存。Pydanticはcontractsでも使用 | Python >=3.10、MIT。HTTP入口・型付きvalidation用。contracts追加による実行権限の増加なし。[FastAPI](https://pypi.org/project/fastapi/0.162.0/)、[Pydantic](https://pypi.org/project/pydantic/2.14.1/) |
 | Uvicorn 0.54.0 | API memberのASGI実行依存 | Python >=3.10、BSD-3-Clause。setupではサーバーを起動しない。[PyPI](https://pypi.org/project/uvicorn/0.54.0/) |
 | google-cloud-firestore 2.34.1 | API memberの実行依存。冪等記録と業務writeの原子的transaction | Python >=3.10（3.13対応）、Apache-2.0、Google保守のProduction/Stable SDK。[PyPI](https://pypi.org/project/google-cloud-firestore/2.34.1/)、[現行source](https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-firestore) |
+| firebase-admin 7.7.0 | API memberの実行依存。Firebase ID token署名・project・失効・ユーザー状態の検証 | Python >=3.9（3.13対応）、Apache-2.0、Firebase保守のProduction/Stable SDK。2026-09-23リリース。[PyPI](https://pypi.org/project/firebase-admin/7.7.0/)、[固定source](https://github.com/firebase/firebase-admin-python/tree/v7.7.0) |
 | TypeScript 7.0.2 | ルートdev。全Node memberのstrict型検査 | Node >=16.20.0、Apache-2.0。[npm](https://www.npmjs.com/package/typescript/v/7.0.2) |
 | Biome 2.6.3 | ルートdev。TypeScript/JSON format/lint | Node >=14.21.3、MIT OR Apache-2.0。[npm](https://www.npmjs.com/package/@biomejs/biome/v/2.6.3) |
 | Vite 8.3.5 | ルートdev。後続UI用buildツール | Node ^20.19.0 または >=22.12.0、MIT。[npm](https://www.npmjs.com/package/vite/v/8.3.5)、[公式ガイド](https://vite.dev/guide/) |
@@ -120,6 +121,8 @@ Java・Firebase CLIはBA-FND-05で下記の通り導入する。Android SDK・Xc
 BA-FND-02で追加したHTTPX2はテスト専用で、APIの実行依存へは追加しない。lockには推移依存のHTTPcore2（BSD-3-Clause）とtruststore（MIT）も追加される。2026-10-26に導入したdistribution metadataでPython要件・保守元・ライセンスを確認した。TestClientはアプリ内ASGI transportを使い、通常テストに外部HTTP接続やクラウド権限を追加しない。
 
 BA-FND-08で追加したFirestore SDKはAPIの配布依存となり、gRPC、google-auth、protobuf等の推移依存もuv.lockで固定する。2026-10-26に公式PyPIと導入済みdistribution metadataで版・Python要件・Apache-2.0を確認した。以前の単独repositoryはarchive済みで、保守先は表の `google-cloud-python` 配下へ移管されている。SDKは構成済みのDB clientを注入された場合にその接続先へ読み書きするが、導入だけでcloud IAM権限を付与しない。通常check/testでは接続せず、明示的なemulator testは固定loopbackへ限定する。credential、SDKのpayload debugログ、外部providerの実行を共通処理から有効にしない。配布時はSDKと推移依存のlicense表示も保持する。利用境界と検証は[共通処理](common-mutations.md)を参照する。
+
+BA-IAM-01のFirebase Admin SDKは `uv add --package brainoid-api firebase-admin==7.7.0` で導入し、推移依存もuv.lockへ固定する。2026-10-26に公式PyPIと導入済みsourceで互換性・ライセンス・token検証経路を確認した。API配布にHTTPX、PyJWT、CacheControl、Storage SDK等が加わるため、それぞれのlicense表示も保持する。Storage・Messaging等の機能は呼ばず、今回の実行経路はAuth token検証とユーザー照会のみ。cloud IAM権限を付与せず、新しいcredentialの作成や書込も行わない。通常テストは一時RSA鍵とネットワーク代替、emulatorテストは固定loopbackを使う。[本人認証の利用契約](authentication.md)に環境境界・追加ユーザー照会・未実施の本番確認を記録する。
 
 BA-FND-04では次の既存ツールを2026-10-26の公式docs・npm/PyPI metadata・release assetで確認し固定した。
 
