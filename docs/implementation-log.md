@@ -1525,3 +1525,116 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.95秒、全9タスク成功、台帳done9/todo87。
 - 終了: 2026-10-25T19:48:19.844326+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-02-20261025t194841z
+
+- チケット: BA-IAM-02
+- 状態: done
+- 開始: 2026-10-25T19:48:41.273053+00:00
+- ブランチ / base commit: main / 994f5a8874c1833f33d3aca585a0c5e2e145c346
+- 開始時の変更: なし
+- 選択: check成功（done9/todo87）、IDなしnextで依存順の次。依存IAM-01実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam02_implementation`（独立context）。
+- 実装コミット: `74d754ff06f425fb77eb1e5ff69e312ffeed9519`
+
+### 受入条件と検証計画
+
+- 現在membership/device、owner、visibility、display_policyからread/write/outputを判定。管理者権限と他人private閲覧権を分ける。
+- 他tenant/他人privateを存在も含めて返さず拒否。admin自己昇格/owner操作、未確認Piの記憶書込を拒否し、未確認Piはshared+shared_displayに限定。
+- 現在認可版を照合し、検索前/worker/表示直前で再利用できる認可済scopeを返す。LLM/graph由来roleは採用しない。
+- T-001/002/020/029/033/034を表形式fixtureで検証。mise check/testと適切なtenant isolation integration。
+- SSE/WSS逐次組込みはRUN-05/DEV-03、個人session発行はIAM-09。追加の外部前提なし。
+
+### 認可の境界設計
+
+- framework非依存brainoid_policyにcurrent-state reader Protocol/evaluator/scopes。Subjectは認証済user IDまたはdevice ID/generationと選択session IDを持ち、role入力を受け取らない。
+- authorize/search/output/worker再検査でtenant/membership/device/session/resource metadataを再読取。API adapterはtransaction内のread→policy→writeとFND08 AuthorizedScope変換を提供する方針。
+- role/tenant policy版/device/session/membership版・期限のstampを束縛し、古いstampを拒否。検索はshared/本人private別filter、Pi display条件を積にし、出力はactorと表示先双方を再検査。
+- workerは保存済initiator/source bindingを再検査しworker roleで拡権しない。管理operationを分離しprivate grantを返さず、tenant authorizerからglobal account操作は常に拒否。
+- 親からopaque UIDのslashをmembership/usersのpathへ連結しない点を共有。transaction内で安全な一意lookupと既存fixture互換を検証する。
+
+### 初版policyのunit検証
+
+- policy本体/transaction metadata adapter/表fixtureのunit10本を追加し成功。
+- 既存Transactionへequality find(limit2)を追加し、同一Firestore transactionでmembershipをuser_id検索。slash付きUIDと重複拒否を検査。
+- session期限値をstampから除外し現在時刻で検査。同session idle延長は正常再利用、失効/版/user/device変更を拒否。
+- current stateをcacheせず同じEvaluatorの再使用でも更新を読み取る。次に2tenant実emulator、FND08再送/cursor、worker/output再検査と全lint/typeを検証。
+
+### 認可版と複合stampの分離
+
+- 親が初版のContext.authorization_version=int(SHA256stamp,16)+1を確認し、DB認可版/ledger/tokenとの混同と非単調巨大整数の懸念を共有。
+- 実装担当はContextにDBのmembership/device版を保持し、複合stampをPrincipal.stampへ分離する方針に修正。
+- FND08 AuthorizedScopeへ任意authorization_stampを追加しIAM02変換時のみ設定、未指定時は従来binding形式を保持。tenant policy/device/member/sessionの変更検知と実DB認可版を区別する。
+
+### 初回全体検証とscope補完
+
+- mise setup初回sandboxはuser shims read-onlyで失敗し、通常権限の再実行で成功。mise check成功、mise test Python92/Skill18/Node38全成功、実emulator22件（既存17/IAM02追加5）成功。
+- Context認可版は実DB値、複合stampはAuthorizedScope任意fieldへ分離済み。外部SDK依存追加なし、既存SDKのtransaction equality findを利用。
+- 最終自己点検で、個人sessionのwire scope enumにshared markerがない点を確認。deviceのshared許可を保持し、operation scopeだけsessionとの積にする補正と回帰を追加中。補正後再検証が必要。
+
+### 実装完了と最終検証
+
+- `/root/iam02_implementation` が編集停止。packages/policy、API identity橋渡し/transaction metadata reader/error変換、transaction equality find、任意stamp、unit matrix/実emulator/demo device fixture/workspace/docを変更。
+- 補正後のmise setup/check/test/test-emulatorすべて成功。checkはmypy61filesと文書リンク等、test Python92/Skill18/Node38、実emulator22件。
+- setup前後lock SHA256不変、git diff --checkと新規10files空白/改行成功。setup初回sandbox shim書込失敗は通常権限再実行で解消。
+- T001/002/020/029/033/034、現在DB読み取り、権限/版/session変更後の旧scope・grant・再送・cursor拒否、worker出力、opaque UID/重複拒否、正常idle延長を検証。
+- docs/authorization.mdへ利用境界/後続条件を記録。業務route/SSE/WSS/device credential/session発行/独立台帳・削除repository接続は後続対象。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam02_review_r1`（新規独立context）。base commit: `994f5a8874c1833f33d3aca585a0c5e2e145c346`
+- 最新製品差分全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `721da553f6c7bbe73597114a70f68f7f4a401ea1c82bde3e9c705c9c83856e72` |
+| `docs/authorization.md` | `efeb1513ab91ef23c0a0e58cb339ca9421c0562dd8e862e728cc0d44ce613fed` |
+| `docs/common-mutations.md` | `8be1f0fb30e4e3b94df13966fa869c5d92b2217d30af632073e5bd0154808b1f` |
+| `packages/policy/pyproject.toml` | `3b9a80a11d25c6bc84d700621691058dd389da008612824a9b7db0148f41fd9e` |
+| `packages/policy/src/brainoid_policy/__init__.py` | `aed5d8af3e875e4219adcd5d7dbdc12bf8e160e400e497a61d2cc38158e0f3af` |
+| `packages/policy/src/brainoid_policy/evaluator.py` | `ec0de1ffe7da810f0624b8e15dd7924793370b803d8f5bef7c4d3cad3dc4d098` |
+| `packages/policy/src/brainoid_policy/models.py` | `7e656254cb2196b68e3413fdd0cce0295850a8e65f61253f0240a5920a12ff0f` |
+| `packages/policy/src/brainoid_policy/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/policy/src/brainoid_policy/scopes.py` | `5596d96030a6c0d6594727dcf30f65dffb964d2ae177a9e4439d591208e93d46` |
+| `pyproject.toml` | `3760de5eb0da88891d0771d253bddccef3dde1d006d55402ef9d0788383b5af5` |
+| `services/api/pyproject.toml` | `01d87b23011da8ff9f5d13628350e29475f7b595a3292251fec1698bc8ad527a` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `c4b58f42fbcd242211b46a894877ad81b58cd436323275d4cdb7086a9c299fa5` |
+| `services/api/src/brainoid_api/common/access.py` | `dd73cca19c2912294c423f93e6e2453218deb7ed9a9e40f8c207e9d5af0838fb` |
+| `services/api/src/brainoid_api/common/firestore.py` | `33a79a1439e147756d9692dab8f9a104312a7858d2c95ab7244a756aca7b6985` |
+| `services/api/src/brainoid_api/common/transactions.py` | `1c145a17be2fcefafd6ed0a61e168a3c9ca6eb591472624f7df646d81317a535` |
+| `tests/emulator/test_policy_integration.py` | `fe01d83bf5cbf354a99ee8a453910e1649b7a936fcab71802c6aa7ebcd2c73e3` |
+| `tests/fixtures/tenants/demo.json` | `409743bd63857835b68e17bd996338c7e42633682212e11dc8a18a440dd7824d` |
+| `tests/test_common_mutations.py` | `a7984487f9e484e03e84437711d67fe374852a754d3e80cbaf00f528144cf29c` |
+| `tests/test_foundation.py` | `932467e3a0bbb6ae520e994b0ee01daf24c3ea6315c1bfcf22eec8e7a846c231` |
+| `tests/test_policy.py` | `2c8cbc263831e9ba7efad414b6a4290b2c8b44c4de513db3f9ae124614a80476` |
+| `uv.lock` | `2afb77d692a0d5b0b79af3b159658645c07e62fef5db9c911c56f928cf2c4b1f` |
+
+### 独立レビュー ラウンド1 途中検証
+
+- `/root/iam02_review_r1` が21files hash/base/main一致、作業規約/認可表/チケット/DoDを直接確認。
+- mise check全成功（mypy61、schema/client/docs含む）、mise testのPython92/Skill18成功、Node継続中。
+- 現時点で必須指摘未確定。実emulatorとdevice allowlist、schema上scope/generationの適用境界、出力先/旧grant再検査を確認中。
+
+### 独立レビュー ラウンド1 emulatorと補足検証
+
+- `.env.emulator.example`を明示loadした独立emulator22件成功、正常shutdown確認。
+- 追加probe: entity allowlistの正例/縮小拒否、保存済searchから出力先省略拒否、admin降格後のwrite worker拒否が成功。
+- 終了時hashと全変更範囲を照合後に最終判定予定。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam02_review_r1`: approve、確認済みレビュー1回、必須/任意指摘なし。21filesの開始/終了hash、main/base、対象外差分なしを確認。
+- 現在状態認可/tenant隔離、owner/adminのprivate拒否、未確認Pi制約と正例、管理/LLM境界、検索filter/出力先/旧grant/worker/期限/削除、FND08互換/provider分離を確認。
+- 直接: mise check（mypy61含む）/test Python92+Skill18+Node38/emulator22（正常shutdown）/追加境界probe/diff --checkがすべて成功。
+- setup成功は提供結果。SSE/WSS/credential/session発行/独立台帳/削除repo接続は後続範囲。必須未検証事項なし。
+
+### 完了結果 (2026-10-25T20:06:17.476197+00:00)
+
+- BA-IAM-02: 現在状態によるtenant/private/read-write/output認可、検索filter/worker再検査、API transaction adapter、認可版とstamp分離を実装。
+- setup/check9タスク/test92+18+38/emulator22成功。独立レビュー1回approve、未解決必須指摘なし。reviewerもcheck/test/emulatorと追加境界probeを直接成功確認。
+- 実装コミット: `74d754ff06f425fb77eb1e5ff69e312ffeed9519`（feat(policy): BA-IAM-02 enforce tenant and output authorization）。
+- 承認済み21ファイルのみmainへstage、cached diff/--check/index hash一致、commit後の対象・内容・worktree一致を確認。hook変更なし。
+- SSE/WSS/業務route/device credential/session発行/独立ledger・削除repo接続は後続。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.94秒、全9タスク成功、台帳done10/todo86。
+- 終了: 2026-10-25T20:06:43.704095+00:00。台帳・ログのみを記録コミット。
