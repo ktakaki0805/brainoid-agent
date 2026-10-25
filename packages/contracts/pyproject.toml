@@ -1,0 +1,13 @@
+[project]
+name = "brainoid-contracts"
+version = "0.1.0"
+description = "Shared identifiers, time, scope and authorized context contracts"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "pydantic==2.14.1",
+]
+classifiers = ["Private :: Do Not Upload"]
+
+[build-system]
+requires = ["uv_build==0.12.19"]
+build-backend = "uv_build"

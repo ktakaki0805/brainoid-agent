@@ -16,6 +16,7 @@ class WorkspaceTests(unittest.TestCase):
             [
                 "import brainoid_api, brainoid_worker, brainoid_device",
                 "import brainoid_agent_core, brainoid_memory, brainoid_tools",
+                "from brainoid_contracts import FirebaseUid, ResourceId, Scope, TenantContext",
                 "from fastapi import FastAPI",
                 "from pydantic import BaseModel",
                 "import uvicorn",

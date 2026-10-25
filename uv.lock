@@ -7,6 +7,7 @@ members = [
     "brainoid-agent",
     "brainoid-agent-core",
     "brainoid-api",
+    "brainoid-contracts",
     "brainoid-device",
     "brainoid-memory",
     "brainoid-tools",
@@ -136,6 +137,17 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.14.1" },
     { name = "uvicorn", specifier = "==0.54.0" },
 ]
+
+[[package]]
+name = "brainoid-contracts"
+version = "0.1.0"
+source = { editable = "packages/contracts" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = "==2.14.1" }]
 
 [[package]]
 name = "brainoid-device"

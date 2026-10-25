@@ -405,6 +405,8 @@
             },
             "timezone": {
               "type": "string",
+              "format": "iana-timezone",
+              "minLength": 1,
               "maxLength": 80
             },
             "assignee_user_id": {
@@ -616,6 +618,8 @@
             },
             "timezone": {
               "type": "string",
+              "format": "iana-timezone",
+              "minLength": 1,
               "maxLength": 80
             },
             "delivery_target": {
@@ -770,6 +774,8 @@
                 },
                 "timezone": {
                   "type": "string",
+                  "format": "iana-timezone",
+                  "minLength": 1,
                   "maxLength": 80
                 },
                 "status": {
@@ -818,6 +824,8 @@
             },
             "timezone": {
               "type": "string",
+              "format": "iana-timezone",
+              "minLength": 1,
               "maxLength": 80
             },
             "expected_version": {
@@ -856,6 +864,7 @@
             },
             "calendar_id": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1024
             },
             "time_min": {
@@ -1127,6 +1136,7 @@
             },
             "calendar_id": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1024
             },
             "summary": {
@@ -1163,6 +1173,7 @@
             },
             "event_id": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1024
             },
             "provider_etag": {
@@ -1171,6 +1182,7 @@
             },
             "calendar_id": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1024
             },
             "summary": {
@@ -1209,10 +1221,12 @@
             },
             "calendar_id": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1024
             },
             "event_id": {
               "type": "string",
+              "minLength": 1,
               "maxLength": 1024
             },
             "provider_etag": {
@@ -1241,6 +1255,8 @@
             },
             "timezone": {
               "type": "string",
+              "format": "iana-timezone",
+              "minLength": 1,
               "maxLength": 80
             }
           },

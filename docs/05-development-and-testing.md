@@ -26,12 +26,13 @@
 | `services/worker` | 非同期ジョブと定期処理 | 出典の現在状態・削除epochを再確認して処理する |
 | `services/device` | PiのPython常駐サービス | 音声、クラウド接続、SQLite、Home Assistant操作 |
 | `packages/agent_core` | 会話実行とツール選択 | HTTP、Firebase SDK、Pi固有処理を持たない |
+| `packages/contracts` | ID・UTC時刻・timezone・version・scope・Contextの共通型 | 認可判断はIAM層に委ねる。[通信スキーマ対応表](contracts.md) |
 | `packages/memory` | 記憶の保存・検索・グラフ展開 | 認可済みcontextを必須にする |
 | `packages/tools` | ノート・タスク・Calendar・家電のツール | 入力検証、認可、確認、結果の正規化 |
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |
 
-表のディレクトリを作成済み。Pythonの6 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤は `services/api/src/brainoid_api` に配置し、本人認証・業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
+表のディレクトリを作成済み。Pythonの7 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤は `services/api/src/brainoid_api` に配置し、本人認証・業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
 
 技術リードは共通契約の変更を管理する。UI担当は画面と音声状態、API担当は認証・認可と永続化、Agent担当は記憶・推論・ツール、Device担当は実機・ローカル処理、Platform担当はGCP・CI・運用に責任を持つ。少人数チームでは兼任できるが、権限・削除・外部操作の変更は実装者以外がレビューする。
 
@@ -154,6 +155,8 @@ mise run dev-api
 BA-FND-02のテストは `tests/test_api_foundation.py`。T-027のproduction/stagingでのfake・emulator拒否、必須設定、矛盾、起動終了、probe異常・復旧・timeout、共通エラー、成功・失敗両方のログ非出力を外部APIなしで検証する。sandboxでAnyIOのthread通知が制限される環境ではTestClientが停止するため、通常のローカル実行環境で `mise run test` を行う。
 
 ## 6. モックとfixture
+
+BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合はBA-IAM-02の責務である。
 
 fakeは本番adapterと同じinterfaceを実装する。LLMの自由回答を固定文字列に置き換えるだけでなく、ツール要求、遅延、タイムアウト、壊れた引数、途中停止を制御可能にする。モデルの非決定性に依存しないテストで、アプリケーションの認可と状態遷移を検証する。
 

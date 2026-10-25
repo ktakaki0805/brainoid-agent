@@ -54,6 +54,7 @@ mise exec -- pnpm --version
 | Pythonルート | 非パッケージの開発用project。共通dev依存だけを持つ |
 | `services/api`・`worker`・`device` | uv member。`src/brainoid_api`・`brainoid_worker`・`brainoid_device` |
 | `packages/agent_core`・`memory`・`tools` | uv member。`src/brainoid_agent_core`・`brainoid_memory`・`brainoid_tools` の公開API |
+| `packages/contracts` | uv member。`src/brainoid_contracts` の共通型。PydanticはAPIと同じ固定版を使用 |
 | `apps/mobile`・`display` | 非公開pnpm member。`src/index.ts`。UI機能はBA-UI-01以降 |
 | `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。client生成はBA-FND-04 |
 | `infra/gcp` | Terraform用の領域。Python/Nodeのmemberではなく、配備定義はBA-OPS-01以降 |
@@ -103,7 +104,7 @@ Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CL
 | mypy 2.4.0 | ルートdev。Python strict型検査 | Python >=3.10、MIT。[PyPI](https://pypi.org/project/mypy/2.4.0/) |
 | HTTPX2 2.16.0 | ルートdev。Starlette TestClientによるAPI・lifespan検証 | Python >=3.11、BSD-3-Clause。Pydanticが保守するstable版。[PyPI](https://pypi.org/project/httpx2/2.16.0/)、[公式source](https://github.com/pydantic/httpx2) |
 | uv_build 0.12.19 | 各Python memberのbuild backend | 固定uvの内蔵backendと同版、MIT OR Apache-2.0。[PyPI](https://pypi.org/project/uv-build/0.12.19/) |
-| FastAPI 0.162.0・Pydantic 2.14.1 | API memberの実行依存 | Python >=3.10、MIT。HTTP入口・型付きvalidation用。[FastAPI](https://pypi.org/project/fastapi/0.162.0/)、[Pydantic](https://pypi.org/project/pydantic/2.14.1/) |
+| FastAPI 0.162.0・Pydantic 2.14.1 | API memberの実行依存。Pydanticはcontractsでも使用 | Python >=3.10、MIT。HTTP入口・型付きvalidation用。contracts追加による実行権限の増加なし。[FastAPI](https://pypi.org/project/fastapi/0.162.0/)、[Pydantic](https://pypi.org/project/pydantic/2.14.1/) |
 | Uvicorn 0.54.0 | API memberのASGI実行依存 | Python >=3.10、BSD-3-Clause。setupではサーバーを起動しない。[PyPI](https://pypi.org/project/uvicorn/0.54.0/) |
 | TypeScript 7.0.2 | ルートdev。全Node memberのstrict型検査 | Node >=16.20.0、Apache-2.0。[npm](https://www.npmjs.com/package/typescript/v/7.0.2) |
 | Biome 2.6.3 | ルートdev。TypeScript/JSON format/lint | Node >=14.21.3、MIT OR Apache-2.0。[npm](https://www.npmjs.com/package/@biomejs/biome/v/2.6.3) |
