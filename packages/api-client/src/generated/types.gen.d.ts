@@ -83,6 +83,10 @@ export type MembershipPage = {
 export type MembershipPatch = {
     role: 'owner' | 'admin' | 'member';
 };
+export type OwnerTransfer = {
+    target_user_id: FirebaseUid;
+    target_version: Version;
+};
 export type InvitationCreate = {
     role: 'admin' | 'member';
 };
@@ -890,6 +894,40 @@ export type UpdateTenantResponses = {
     200: Tenant;
 };
 export type UpdateTenantResponse = UpdateTenantResponses[keyof UpdateTenantResponses];
+export type RevokeMembershipByUidData = {
+    body?: never;
+    headers: {
+        /**
+         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         */
+        'Idempotency-Key': string;
+        /**
+         * 直前に取得したversionを引用符付きで指定。
+         */
+        'If-Match': string;
+    };
+    path: {
+        tenant_id: ResourceId;
+    };
+    query: {
+        user_id: FirebaseUid;
+    };
+    url: '/tenants/{tenant_id}/memberships';
+};
+export type RevokeMembershipByUidErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type RevokeMembershipByUidError = RevokeMembershipByUidErrors[keyof RevokeMembershipByUidErrors];
+export type RevokeMembershipByUidResponses = {
+    /**
+     * 成功
+     */
+    204: void;
+};
+export type RevokeMembershipByUidResponse = RevokeMembershipByUidResponses[keyof RevokeMembershipByUidResponses];
 export type ListMembershipsData = {
     body?: never;
     path: {
@@ -910,11 +948,45 @@ export type ListMembershipsErrors = {
 export type ListMembershipsError = ListMembershipsErrors[keyof ListMembershipsErrors];
 export type ListMembershipsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: MembershipPage;
 };
 export type ListMembershipsResponse = ListMembershipsResponses[keyof ListMembershipsResponses];
+export type UpdateMembershipByUidData = {
+    body: MembershipPatch;
+    headers: {
+        /**
+         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         */
+        'Idempotency-Key': string;
+        /**
+         * 直前に取得したversionを引用符付きで指定。
+         */
+        'If-Match': string;
+    };
+    path: {
+        tenant_id: ResourceId;
+    };
+    query: {
+        user_id: FirebaseUid;
+    };
+    url: '/tenants/{tenant_id}/memberships';
+};
+export type UpdateMembershipByUidErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type UpdateMembershipByUidError = UpdateMembershipByUidErrors[keyof UpdateMembershipByUidErrors];
+export type UpdateMembershipByUidResponses = {
+    /**
+     * 成功
+     */
+    200: Membership;
+};
+export type UpdateMembershipByUidResponse = UpdateMembershipByUidResponses[keyof UpdateMembershipByUidResponses];
 export type RevokeMembershipData = {
     body?: never;
     headers: {
@@ -943,7 +1015,7 @@ export type RevokeMembershipErrors = {
 export type RevokeMembershipError = RevokeMembershipErrors[keyof RevokeMembershipErrors];
 export type RevokeMembershipResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     204: void;
 };
@@ -976,11 +1048,43 @@ export type UpdateMembershipErrors = {
 export type UpdateMembershipError = UpdateMembershipErrors[keyof UpdateMembershipErrors];
 export type UpdateMembershipResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Membership;
 };
 export type UpdateMembershipResponse = UpdateMembershipResponses[keyof UpdateMembershipResponses];
+export type TransferOwnerData = {
+    body: OwnerTransfer;
+    headers: {
+        /**
+         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         */
+        'Idempotency-Key': string;
+        /**
+         * 直前に取得したversionを引用符付きで指定。
+         */
+        'If-Match': string;
+    };
+    path: {
+        tenant_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/memberships:transfer-owner';
+};
+export type TransferOwnerErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type TransferOwnerError = TransferOwnerErrors[keyof TransferOwnerErrors];
+export type TransferOwnerResponses = {
+    /**
+     * 移譲完了
+     */
+    200: Membership;
+};
+export type TransferOwnerResponse = TransferOwnerResponses[keyof TransferOwnerResponses];
 export type CreateInvitationData = {
     body: InvitationCreate;
     headers: {

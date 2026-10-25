@@ -97,7 +97,8 @@ class AuthzChanges:
 
     authorize must re-read actor, tenant, target, request version and business rules
     in its transaction, including on retry. DTO validation never authorizes changes.
-    Atomic owner transfer and endpoint integration belong to IAM-06/08.
+    IAM-06 Memberships supplies tenant reservations and multi-subject owner ordering.
+    Every future active-member mutation must join that reservation protocol.
     """
 
     def __init__(self, store: TransactionStore, ledger: ControlLedger) -> None:

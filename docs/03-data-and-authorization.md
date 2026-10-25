@@ -178,7 +178,7 @@ ownerによる所属整理は当該テナントからの所属解除と、その
 
 membership/deviceの減権限・失効・owner移譲はDB外の制御bucketに認可変更台帳を先行記録し、DBに認可版を適用する。減権限は未完了の意図もdenyとして扱い、grantはDB適用確認済みのcommitted recordだけを有効にする。競合・未確定の主体はsuspendedとし、roll-forwardで整合させる。旧backupを復元した後に再ログインさせるだけでは旧権限が復活し得るため、最新台帳の再適用が終わるまでAPIを開かない。台帳は全復元可能backupより長く保持する初期30日案とする。
 
-BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主体ごとの連続版 slot・DB 適用確認後の committed marker を追記する。effect と確定後の status を分け、部分減権限後の active を表現する。未確定の grant は隔離復元で確定せず suspended に留める。台帳なしの初期 owner を許す通常導入時の互換モードは、復元時には使わない。各 API への接続は IAM-06/08、実復元 gate は OPS-07 で行う。
+BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主体ごとの連続版 slot・DB 適用確認後の committed marker を追記する。effect と確定後の status を分け、部分減権限後の active を表現する。未確定の grant は隔離復元で確定せず suspended に留める。台帳なしの初期 owner を許す通常導入時の互換モードは、復元時には使わない。tenant/招待 API は IAM-04、[会員管理 API](memberships.md) は IAM-06 で接続済み。会員変更は先行 deny 前に tenant 予約を取得し、有効 owner を保持する。端末・worker/output など後続経路への接続は IAM-08 以降、実復元 gate は OPS-07 で行う。
 
 ### 5.2 端末ペアリングと個人セッション
 

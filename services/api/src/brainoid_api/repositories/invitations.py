@@ -209,6 +209,11 @@ class Invitations:
         uid: FirebaseUid,
         change: Change | None = None,
     ) -> int:
+        # A completed revoke must release its tenant reservation before a rejoin can
+        # advance the same subject. Otherwise its still-pending receipt is stranded.
+        tenant = tx.get(f"tenants/{tenant_id}")
+        if tenant is not None and tenant.get("membership_mutation") is not None:
+            raise APIError(ErrorCode.CONFLICT)
         doc = self._member(tx, tenant_id, uid)
         latest = self._ledger.latest(subject_key(tenant_id, "membership", uid))
         if change is not None and not isinstance(change.target, MemberTarget):

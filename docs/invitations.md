@@ -1,6 +1,6 @@
 # 期限付き招待と本人の参加
 
-BA-IAM-04 は FR-002 のコード招待を実装する。[repository](../services/api/src/brainoid_api/repositories/invitations.py)、[HTTP route](../services/api/src/brainoid_api/routes/invitations.py)、[OpenAPI](../specs/openapi.yaml) が対象。メール送信は行わず、コード共有 UI は BA-UI-11、role 変更・owner 移譲は BA-IAM-06 の範囲とする。
+BA-IAM-04 は FR-002 のコード招待を実装する。[repository](../services/api/src/brainoid_api/repositories/invitations.py)、[HTTP route](../services/api/src/brainoid_api/routes/invitations.py)、[OpenAPI](../specs/openapi.yaml) が対象。メール送信は行わず、コード共有 UI は BA-UI-11、role 変更・owner 移譲は BA-IAM-06 の[会員管理 API](memberships.md)で提供する。
 
 ## API とコード
 
@@ -32,7 +32,7 @@ BA-IAM-04 は FR-002 のコード招待を実装する。[repository](../service
 
 membership の deny（失効・減権限）の最初の DB 適用時、tenant の `invitation_epoch` を同じ transaction で1増やす。欠落時の初期値は0。招待は発行時の epoch を保存し、受諾・再送ごとに現在値と照合する。これにより、失効前に保持していた未使用の招待も利用できなくなる。受領者を指定しないコード方式のため、**一人の失効でも同じ tenant の既存招待すべてが無効になる**。管理者は必要な利用者へ新しいコードを発行する。
 
-同じ deny の operation/version/payload が DB に適用済みなら epoch を再増分しない。失効後の参加には、現在の DB と一致する最新の committed revoke、新 epoch で発行された未使用招待、新しい acceptance key/operation、DB 適用確認済み grant が必要。pending deny/grant、古い active DB、古い受諾 receipt では再参加できない。
+同じ deny の operation/version/payload が DB に適用済みなら epoch を再増分しない。失効後の参加には、現在の DB と一致する最新の committed revoke、新 epoch で発行された未使用招待、新しい acceptance key/operation、DB 適用確認済み grant が必要。pending deny/grant、古い active DB、古い受諾 receipt では再参加できない。[会員変更](memberships.md)の tenant 予約中も各 phase で409を返し、予約解放前の次版 grant を防ぐ。未 claim のコードは使用済みにせず、既存 claim は解放後に最新台帳・epochを再確認して再送する。
 
 隔離復元の `reapply` では、最新 operation/version が復元 DB と異なる membership を適用する際にも epoch を増やす。最新が grant でも、backup から失われた途中の deny を飛ばして古い招待を有効にしないためである。同じ操作の再適用では増分しない。これは通常の受諾 retry と別の保守経路で、復元中は全 writer を停止する。
 

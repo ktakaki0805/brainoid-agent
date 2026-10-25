@@ -249,12 +249,12 @@ paths:
     get:
       operationId: listMemberships
       summary: 会員一覧
-      description: 会員一覧
+      description: 現在のowner/adminのみ。会員ID・role・status・整数認可版だけを返す。cursorは現在の認可と一覧状態へ束縛する。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -272,16 +272,84 @@ paths:
         schema: *id001
       - *id003
       - *id004
-  /tenants/{tenant_id}/memberships/{user_id}:
     patch:
-      operationId: updateMembership
-      summary: 会員role更新
-      description: owner/adminのみ。owner付与/剥奪はownerのみ。最後のownerは削除不可。
+      operationId: updateMembershipByUid
+      summary: opaque UIDをqueryで指定する会員role更新
+      description: owner/adminのみ。owner付与/剥奪はownerのみ。本人ownerの降格は別の有効ownerが必要。Idempotency-Keyと対象のIf-Matchを固定して再送する。tenant予約から台帳確定まで直列化し、未確定変更を同じ要求で再開する。user_idを必須queryとして渡し、`.`・`..`・slashを含むFirebase opaque UIDをURL pathの正規化から保護する。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: user_id
+        in: query
+        required: true
+        schema: &id006
+          $ref: '#/components/schemas/FirebaseUid'
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipPatch'
+    delete:
+      operationId: revokeMembershipByUid
+      summary: opaque UIDをqueryで指定する会員失効
+      description: owner/adminと直近5分の再認証が必要。owner失効はownerのみ。本人退出はoperationsを使う。最後の有効ownerは失効不可。Idempotency-Keyと対象のIf-Matchを固定して再送する。本文やFirebase accountを削除する権限は与えず、このAPIは当該所属の失効だけを行う。user_idは必須queryで、`.`・`..`・slashを含むUIDをそのまま指定できる。
+      security:
+      - userBearer: []
+      responses:
+        '204':
+          description: 成功
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: user_id
+        in: query
+        required: true
+        schema: *id006
+      - *id002
+      - *id005
+  /tenants/{tenant_id}/memberships/{user_id}:
+    patch:
+      operationId: updateMembership
+      summary: 会員role更新
+      description: owner/adminのみ。owner付与/剥奪はownerのみ。本人ownerの降格は別の有効ownerが必要。Idempotency-Keyと対象のIf-Matchを固定して再送する。tenant予約から台帳確定まで直列化し、未確定変更を同じ要求で再開する。既存path互換API。`.`・`..`などURLで正規化されるUIDにはupdateMembershipByUidのquery経路を使う。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功
           content:
             application/json:
               schema:
@@ -305,8 +373,7 @@ paths:
       - name: user_id
         in: path
         required: true
-        schema: &id006
-          $ref: '#/components/schemas/FirebaseUid'
+        schema: *id006
       - *id002
       - *id005
       requestBody:
@@ -318,12 +385,12 @@ paths:
     delete:
       operationId: revokeMembership
       summary: 会員失効
-      description: owner/adminのみ。本人退出はoperationsを使う。最後のownerは失効不可。
+      description: owner/adminと直近5分の再認証が必要。owner失効はownerのみ。本人退出はoperationsを使う。最後の有効ownerは失効不可。Idempotency-Keyと対象のIf-Matchを固定して再送する。本文やFirebase accountを削除する権限は与えず、このAPIは当該所属の失効だけを行う。既存path互換API。任意opaque UIDにはrevokeMembershipByUidのquery経路を使う。
       security:
       - userBearer: []
       responses:
         '204':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
         default:
           description: 共通エラー
           content:
@@ -341,6 +408,44 @@ paths:
         schema: *id006
       - *id002
       - *id005
+  /tenants/{tenant_id}/memberships:transfer-owner:
+    post:
+      operationId: transferOwner
+      summary: 本人から別の会員へownerを移譲
+      description: 現在owner本人と直近5分の再認証が必要。If-Matchは本人の認可版、target_versionは対象の認可版。対象のowner grantを確定してから本人をmemberへ変更し、途中失敗でも有効ownerを保持する。Idempotency-Keyと同じ本文・If-Matchで再送する。成功時は対象のMembershipとETagを返す。
+      security:
+      - userBearer: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerTransfer'
+      responses:
+        '200':
+          description: 移譲完了
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 移譲先の引用符付き認可版
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tenants/{tenant_id}/invitations:
     post:
       operationId: createInvitation
@@ -3162,6 +3267,16 @@ components:
           - member
       required:
       - role
+      additionalProperties: false
+    OwnerTransfer:
+      type: object
+      properties:
+        target_user_id: *id006
+        target_version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - target_user_id
+      - target_version
       additionalProperties: false
     InvitationCreate:
       type: object

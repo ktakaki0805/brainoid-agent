@@ -351,8 +351,8 @@ class Evaluator:
     ) -> Principal:
         """Tenant-only prerequisites. Destructive services also require recent auth/audit.
 
-        Generic role/removal operations cannot modify owners. Owner transfer is a
-        separate atomic IAM-06 flow that must preserve at least one active owner.
+        Owner changes require an owner; IAM-06 additionally reserves the tenant and
+        preserves an effective owner before preparing any independent ledger intent.
         This method never grants access to any target member's private content.
         """
         principal = self.principal(tenant_id, subject)
@@ -375,7 +375,15 @@ class Evaluator:
             if target_user_id is None:
                 raise PolicyDenied(hidden=False)
             target = self._member(tenant_id, target_user_id)
-            if target.role == Role.OWNER or target.user_id == principal.user_id:
+            if target.role == Role.OWNER and principal.role != Role.OWNER:
+                raise PolicyDenied(hidden=False)
+            if target.user_id == principal.user_id and not (
+                action == ManagementAction.CHANGE_ROLE
+                and principal.role == Role.OWNER
+                and new_role in (Role.ADMIN, Role.MEMBER)
+            ):
+                raise PolicyDenied(hidden=False)
+            if action == ManagementAction.TRANSFER_OWNER and target.role == Role.OWNER:
                 raise PolicyDenied(hidden=False)
             if action == ManagementAction.CHANGE_ROLE:
                 if new_role is None or (new_role == Role.OWNER and principal.role != Role.OWNER):

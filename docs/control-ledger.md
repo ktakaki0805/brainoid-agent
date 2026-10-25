@@ -1,6 +1,6 @@
 # 独立認可台帳の利用契約
 
-BA-IAM-05 は、DB を巻き戻しても失効や減権限を失わないための内部基盤を提供する。[台帳型と状態遷移](../packages/policy/src/brainoid_policy/control_ledger.py)は SDK/FastAPI に依存せず、[GCS adapter](../services/api/src/brainoid_api/adapters/gcs_authz_ledger.py)へ構成済み bucket を注入する。[repository](../services/api/src/brainoid_api/repositories/authz_changes.py)が DB transaction と外部記録を分離する。BA-IAM-04 で[招待 API と既存 tenant API](invitations.md)へ接続済み。bucket 作成、資格情報の発行は行わない。
+BA-IAM-05 は、DB を巻き戻しても失効や減権限を失わないための内部基盤を提供する。[台帳型と状態遷移](../packages/policy/src/brainoid_policy/control_ledger.py)は SDK/FastAPI に依存せず、[GCS adapter](../services/api/src/brainoid_api/adapters/gcs_authz_ledger.py)へ構成済み bucket を注入する。[repository](../services/api/src/brainoid_api/repositories/authz_changes.py)が DB transaction と外部記録を分離する。BA-IAM-04 で[招待 API と既存 tenant API](invitations.md)、BA-IAM-06 で[会員管理 API](memberships.md)へ接続済み。bucket 作成、資格情報の発行は行わない。
 
 ## 1. 記録と順序
 
@@ -34,9 +34,9 @@ effect と最終 status は別である。admin→member や device scope 縮小
 
 `TransactionPolicyState` / `transaction_policy` の `ledger=` を設定すると、現在の台帳を読み、未確定、DB と異なる版、異なる role/scope/status を `suspended` として扱う。台帳障害・破損も拒否する。GCS が成功して DB が失敗し、DB 自体は古い `active` のままでも、この境界では先行 deny が有効である。GCS の書込を transaction callback から呼ばない。
 
-IAM-04 で現在の tenant API と招待 API に同じ ledger を注入済み。IAM-06/08 以降も認可を行うすべての read/write/worker/output 経路へ同じ ledger を注入する。`ledger=None` の従来経路を残したまま先行 deny 対応済みと扱わない。外部台帳と DB に分散 transaction はなく、認可読取と同時進行する変更は、後続処理の副作用・出力直前でも再評価する。長期の snapshot/cache を認可の根拠に使わない。
+IAM-04 で tenant/招待 API、IAM-06 で会員管理 API に同じ ledger を注入済み。IAM-08 以降も認可を行うすべての read/write/worker/output 経路へ同じ ledger を注入する。`ledger=None` の従来経路を残したまま先行 deny 対応済みと扱わない。外部台帳と DB に分散 transaction はなく、認可読取と同時進行する変更は、後続処理の副作用・出力直前でも再評価する。長期の snapshot/cache を認可の根拠に使わない。
 
-`authorize` は信頼された業務コードとして、同一 transaction から actor・tenant・対象版・現在の権限と業務条件を読み直す。role 変更の範囲、最後の owner、本人再認証、監査、複数主体の owner 移譲をこの単一主体基盤だけで満たしたと扱わない。招待の再受諾は IAM-04 でこの境界へ接続し、最新認可版から固定された新しい operation を作る。membership deny の初回 DB 適用は tenant の invitation_epoch も原子的に増やし、既存の未使用招待を無効化する。復元で異なる operation を適用する場合も epoch を増やし、同じ操作の retry/reapply は再増分しない。古い受諾の receipt や committed grant を再送しても、後続 deny の版を上書きできない。
+`authorize` は信頼された業務コードとして、同一 transaction から actor・tenant・対象版・現在の権限と業務条件を読み直す。role 変更の範囲、最後の owner、本人再認証、監査、複数主体の owner 移譲は[会員管理 repository](memberships.md)が tenant 予約と固定 receipt で保証する。この単一主体基盤だけで満たしたと扱わない。招待の再受諾は IAM-04 でこの境界へ接続し、最新認可版から固定された新しい operation を作る。membership deny の初回 DB 適用は tenant の invitation_epoch も原子的に増やし、既存の未使用招待を無効化する。復元で異なる operation を適用する場合も epoch を増やし、同じ操作の retry/reapply は再増分しない。古い受諾の receipt や committed grant を再送しても、後続 deny の版を上書きできない。
 
 初回 tenant/owner 作成（IAM-03）にはまだ台帳がない。通常稼働での導入時に限り、信頼された構成で `allow_untracked_bootstrap=True` を選べる。これは台帳が存在せず DB に authorization_operation_id/authorization_change もない主体にだけ現在の DB 権限を使う互換モードであり、追跡済み主体の台帳欠落や台帳障害を無視しない。初回の変更は DB の現在版を anchor に固定する。新規所属は存在しない状態の `expected_version=0` から始める。復元環境ではこの互換モードを使わず、既存の未記録 owner を安全とみなさない。
 

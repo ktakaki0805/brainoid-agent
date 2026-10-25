@@ -14,6 +14,10 @@ class Transaction(Protocol):
     """
 
     def get(self, path: str) -> Document | None: ...
+    def collection(self, path: str) -> list[tuple[str, Document]]:
+        """Read a canonical tenant collection in this transaction (including phantoms)."""
+        ...
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         """Equality read, capped at two matches, in this same transaction.
 

@@ -21,6 +21,12 @@ class _Transaction:
         snapshot = self._client.document(path).get(transaction=self._transaction)
         return snapshot.to_dict()
 
+    def collection(self, path: str) -> list[tuple[str, Document]]:
+        return [
+            (snapshot.reference.path, snapshot.to_dict() or {})
+            for snapshot in self._client.collection(path).stream(transaction=self._transaction)
+        ]
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         query = self._client.collection(collection).where(filter=FieldFilter(field, "==", value))
         return [

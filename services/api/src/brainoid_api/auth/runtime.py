@@ -28,6 +28,7 @@ from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.invitations import Invitations
+from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.tenants import Tenants
 from brainoid_api.settings import Settings
 
@@ -38,6 +39,7 @@ class AuthServices:
     profiles: ProfileReader | None = None
     tenants: Tenants | None = None
     invitations: Invitations | None = None
+    memberships: Memberships | None = None
 
 
 @asynccontextmanager
@@ -90,6 +92,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
                 ledger,
                 code_key=settings.cursor_signing_key.get_secret_value().encode(),
             ),
+            Memberships(store, tenants, ledger, cursors),
         )
     finally:
         try:

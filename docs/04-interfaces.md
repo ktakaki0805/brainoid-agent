@@ -100,6 +100,8 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 
 [テナントAPI](tenants.md) は user 単位の作成冪等性、現在 membership による選択、管理者の設定更新、現在権限へ束縛した所属一覧 cursor を提供する。作成/更新の再送は現在の Tenant と対応する ETag を返す。
 
+[会員管理API](memberships.md) は current ledger による会員一覧と、tenant 内で直列化した role 更新・所属失効・owner 移譲を提供する。role 更新・失効は `PATCH/DELETE /tenants/{t}/memberships?user_id={uid}` で任意の opaque UID を指定する。既存 UID path 経路も互換維持するが、dot segment 正規化を受ける UID には query 経路を使う。transfer の `If-Match` は本人の認可版、本文の `target_version` は移譲先の認可版。新 owner を確定してから旧 owner を member へ変更し、途中失敗は同一要求で再開する。
+
 ## 3. HTTP機能グループ
 
 下表のパスには `/v1` を前置する。`{t}` 等は説明用の省略で、完全な名称・全operationはOpenAPIを参照する。
@@ -108,7 +110,7 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 | --- | --- | --- |
 | 認証後の本人情報 | `GET /users/me` | 現在のプロフィール。認証自体はFirebase SDK |
 | テナント | `GET/POST /tenants`、`GET/PATCH /tenants/{t}` | 所属一覧/作成/設定 |
-| 会員・招待 | `/tenants/{t}/memberships`、`/invitations`、`POST /invitations:accept` | role変更、失効、コード招待。owner操作はownerのみ |
+| 会員・招待 | `/tenants/{t}/memberships`、`/invitations`、`POST /invitations:accept` | role変更、失効、コード招待。`POST /tenants/{t}/memberships:transfer-owner` は本人ownerから移譲 |
 | 共有人格 | `/tenants/{t}/agents`、`/agents/{a}` | 読取りと管理者による人格更新 |
 | 端末登録 | `/device-pairings`、`/tenants/{t}/device-pairings:confirm`、`/device-pairings/{p}:exchange` | 未登録Pi開始→スマホ確認→Pi資格情報受領 |
 | 端末管理 | `/tenants/{t}/devices`、`/devices/{d}`、`POST /device-tokens:refresh` | 許可範囲、失効、token更新 |

@@ -37,14 +37,34 @@ function expectExit(result, code) {
   assert.equal(result.status, code, `${result.stdout}\n${result.stderr}`);
 }
 
-test("all 84 business operations and two health operations have generated methods", () => {
+test("all 87 business operations and two health operations have generated methods", () => {
   const operations = Object.values(spec.paths)
     .flatMap((path) => Object.values(path))
     .filter((operation) => operation.operationId);
-  assert.equal(operations.length, 86);
+  assert.equal(operations.length, 89);
   for (const operation of operations) {
     // biome-ignore lint/performance/noDynamicNamespaceImportAccess: contract-wide export coverage.
     assert.equal(typeof sdk[operation.operationId], "function", operation.operationId);
+  }
+});
+
+test("membership SDK Requests preserve dot segments and opaque UID query characters", () => {
+  const tenant = "51cea16f-85c3-5b21-a3bf-5fe62e091124";
+  const probe = run("node", ["tests/fixtures/memberships/sdk_requests.mjs", tenant]);
+  expectExit(probe, 0);
+  const requests = JSON.parse(probe.stdout);
+  assert.deepEqual(
+    requests.filter((request) => request.method === "PATCH").map((request) => request.user_id),
+    [".", "..", "opaque / uid", "%2E", "u?/#+"],
+  );
+  assert.equal(requests.length, 10);
+  for (const request of requests) {
+    const url = new URL(request.url);
+    assert.equal(url.pathname, `/v1/tenants/${tenant}/memberships`);
+    assert.equal(url.searchParams.get("user_id"), request.user_id);
+    assert.equal(request.headers.authorization, "Bearer synthetic-owner-token");
+    assert.equal(request.headers["if-match"], request.method === "PATCH" ? '"1"' : '"2"');
+    assert.equal(request.body, request.method === "PATCH" ? '{"role":"admin"}' : "");
   }
 });
 
