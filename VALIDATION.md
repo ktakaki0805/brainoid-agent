@@ -68,9 +68,9 @@ mise run test
 
 Mermaid図は編集可能なソースとして同梱しています。外部レンダラーによる画像化と、全外部URLの自動死活監視はこの静的検証の対象外です。重要なサービス制約には公式資料へのリンクを付け、採用版・地域・提供条件は実装開始と公開前に確認します。
 
-## 5. miseセットアップの検証（2026-10-26）
+## 5. mise初回導入時の検証（2026-10-26）
 
-Linux x86_64、mise 2026.9.13と [mise.toml](mise.toml) の固定ツール版で確認しました。
+初回導入コミット `ffcd047` での記録です。Linux x86_64、mise 2026.9.13と [mise.toml](mise.toml) の固定ツール版で確認しました。uvプロジェクト管理へ移行した後の結果は次節に記録します。
 
 | 検証 | 結果 |
 | --- | --- |
@@ -83,3 +83,19 @@ Linux x86_64、mise 2026.9.13と [mise.toml](mise.toml) の固定ツール版で
 | `mise exec` での版・実行パス確認 | Python・Node.js・uv・pnpmが指定版と一致。Pythonはプロジェクトの `.venv` を使用 |
 
 ツール本体を未導入の環境でのダウンロード、macOS・WSL2・Piでの動作、アプリ用workspace・CI・製品テストは未検証です。
+
+## 6. uvプロジェクト管理への移行検証（2026-10-26）
+
+同じLinux環境で、[pyproject.toml](pyproject.toml)・[uv.lock](uv.lock) による依存管理とuvによる仮想環境の作成・同期を確認しました。
+
+| 検証 | 結果 |
+| --- | --- |
+| `mise run setup` | `uv sync --locked` で既存の `.venv` を同期し、PyYAMLをdev依存として利用可能 |
+| `mise exec -- uv lock --check --offline` | 依存宣言とlockfileが一致 |
+| `mise tasks validate`・`mise run check`・`mise run test` | 5タスクの定義、文書・契約・96件のチケット台帳が正常。単体テスト18件が成功 |
+| `mise -C docs run check:docs -- --json` | uv経由でもサブディレクトリからの実行・引数転送が成功し、status=PASS |
+| `mise exec -- uv run --locked --offline python` での実行パス確認 | プロジェクトの `.venv` とmiseの指定Python、lockfileのPyYAMLを使用 |
+| `/tmp` の新規環境で `uv sync --locked --offline` を2回実行 | コピーしたpyproject・lockfileとローカルキャッシュから環境を作成。再実行も成功 |
+| `/tmp` のプロジェクト版だけを変更して `uv sync --locked --offline` | 古いlockfileの更新が必要というエラーで停止。lockfileの内容は変化しない |
+
+新規環境の確認は使い捨てディレクトリで行い、作業中の `.venv` を削除せずに検証しました。macOS・WSL2・Pi、アプリ用workspace・CI・製品テストは引き続き未検証です。

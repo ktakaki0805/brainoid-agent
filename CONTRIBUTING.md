@@ -6,6 +6,8 @@
 
 開発ツールはmiseで管理します。[セットアップ手順](docs/toolchain.md)に従って `mise trust`、`mise install`、`mise run setup` を実行し、変更後は `mise run check` と `mise run test` で確認してください。ツール版と共有タスクの正本は [mise.toml](mise.toml) です。
 
+Python依存はuvのプロジェクト管理を使います。開発用依存は `uv add --dev`・`uv remove --dev` で管理し、変更した [pyproject.toml](pyproject.toml) と [uv.lock](uv.lock) を同じコミットに含めます。共有タスクとCIはlockfileを変更せずに検証する `--locked` を使います。
+
 ## 1. 変更の始め方
 
 小さな誤字修正や説明改善は、直接PRとして提案できます。機能追加、API変更、データモデル変更、認可変更、依存サービスの追加は、先にIssueで次の内容を合意します。

@@ -62,8 +62,11 @@ Home Assistant側のentity・service・報告状態は実装対象のバージ�
 | 資料 | 設計に使う内容 |
 | --- | --- |
 | [miseのセットアップ](https://mise.jdx.dev/getting-started.html) | 開発ツールの導入、設定の信頼、シェル有効化 |
-| [miseのPython環境](https://mise.jdx.dev/lang/python.html) | プロジェクトのvenv作成・有効化 |
+| [miseのPython環境](https://mise.jdx.dev/lang/python.html) | uvへmise管理のPythonを渡す設定 |
 | [miseのタスク定義](https://mise.jdx.dev/tasks/toml-tasks.html) | 開発コマンドの共通入口、依存タスク、作業ディレクトリ |
+| [uvのプロジェクト管理](https://docs.astral.sh/uv/guides/projects/) | pyproject.toml・uv.lock・仮想環境の管理 |
+| [uvの開発用依存](https://docs.astral.sh/uv/concepts/projects/dependencies/) | dependency-groupsとuv add・remove |
+| [uvのlockと同期](https://docs.astral.sh/uv/concepts/projects/sync/) | uv sync・run、lockfileの整合確認 |
 | [OpenAPI 3.1.1 specification](https://spec.openapis.org/oas/v3.1.1.html) | HTTP APIのスキーマ記述 |
 | [JSON Schema draft 2020-12](https://json-schema.org/draft/2020-12) | イベント・コマンド・ツールの構造記述 |
 | [Apache License 2.0標準本文](https://www.apache.org/licenses/LICENSE-2.0.txt) | 同梱LICENSEの出典。最終採用はOPEN-004 |

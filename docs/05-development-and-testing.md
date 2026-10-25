@@ -56,7 +56,7 @@
 
 開発ツールとコマンドはmiseで管理する。Python、Node.js、uv、pnpmは [mise.toml](../mise.toml) で完全なバージョンを固定し、[toolchain.md](toolchain.md) に初回セットアップ、対応環境、更新方法を記録する。最新版への自動追従は行わない。
 
-文書検証の依存は [requirements-docs.txt](../scripts/requirements-docs.txt) で固定し、`mise run setup` で `.venv` へ導入する。アプリのPython依存はuvとlockfile、JavaScript/TypeScript依存はpnpmとlockfileでB-01から管理する。ツール版の正本はmise設定、パッケージ依存の正本はworkspace設定・lockfileとし、CIもこれらに合わせる。ドキュメントでは同じバージョン一覧を手作業で複製しない。
+Python依存は [pyproject.toml](../pyproject.toml)・[uv.lock](../uv.lock) で管理する。現在は文書検証用のPyYAMLを開発用依存に含め、`mise run setup`（`uv sync --locked`）でuvが `.venv` を作成・同期する。依存の追加・削除は `uv add`・`uv remove`、実行は `uv run` を使う。B-01ではこのuvプロジェクトをアプリ用workspaceへ拡張し、JavaScript/TypeScript依存はpnpmとlockfileで管理する。ツール版の正本はmise設定、パッケージ依存の正本はworkspace設定・lockfileとし、CIもこれらに合わせる。ドキュメントでは同じバージョン一覧を手作業で複製しない。
 
 Java、Android SDK、Xcode、Capacitor、Docker、Terraform、Google Cloud CLI、Firebase CLIは、各コンポーネントの実装時に対応関係を確認してバージョンと導入方法を追加する。iOSビルドの環境と実機署名手順はMobile担当が提供する。Dockerイメージ、GitHub Actions、Pi配布物は再現可能な参照へ固定する。
 
@@ -94,11 +94,13 @@ Firestore emulatorは本番の全制限や複合索引を再現しないため�
 
 | 提供済みコマンド | 現在の振る舞い |
 | --- | --- |
-| `mise run setup` | `.venv` に固定版の文書検証依存を導入 |
+| `mise run setup` | `uv sync --locked` で `.venv` を作成・同期し、lockfileの開発用依存を導入 |
 | `mise run check:docs` | 文書の相対リンク、実装チケット、OpenAPI・JSON Schemaの構造・参照を検証。`-- --json` でJSON出力 |
 | `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
 | `mise run check` | `check:docs` と `check:tickets` を実行 |
 | `mise run test` | チケット管理スクリプトの既存の単体テストを実行 |
+
+現在のPython検証タスクは `uv run --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 
 以下はB-01以降で実装・拡張するmiseタスクの契約である。setup・check・testも、現在は上表の範囲だけを実行する。
 

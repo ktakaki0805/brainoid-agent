@@ -11,19 +11,19 @@ task.run_auto_install = false
 
 [env]
 UV_PYTHON_DOWNLOADS = "never"
-_.python.venv = { path = ".venv", create = true }
+UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
 
 [tasks.setup]
-description = "Install documentation dependencies into the project virtualenv"
-run = 'uv pip install --python "$VIRTUAL_ENV" -r scripts/requirements-docs.txt'
+description = "Sync the uv project environment from the lockfile"
+run = "uv sync --locked"
 
 [tasks."check:docs"]
 description = "Validate documentation links and API/schema contracts"
-run = "python scripts/validate_docs.py"
+run = "uv run --locked --offline python scripts/validate_docs.py"
 
 [tasks."check:tickets"]
 description = "Validate implementation ticket status and dependencies"
-run = "python -B .agents/skills/implement-ticket/scripts/ticket_plan.py check"
+run = "uv run --locked --offline python -B .agents/skills/implement-ticket/scripts/ticket_plan.py check"
 
 [tasks.check]
 description = "Run all available documentation and ticket checks"
@@ -31,4 +31,4 @@ depends = ["check:docs", "check:tickets"]
 
 [tasks.test]
 description = "Run the existing ticket planner unit tests"
-run = "python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'"
+run = "uv run --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'"

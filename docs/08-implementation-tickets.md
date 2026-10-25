@@ -210,14 +210,15 @@ IDの並びは分野別であり、実装の直列順序ではない。詳細に
 **主な変更範囲**
 
 - apps、services、packages、infraの予定構造をworkspaceとして定義する。
+- 既存の `pyproject.toml`・`uv.lock` をuv workspaceへ拡張し、Python依存は `uv add`・`uv remove` で管理する。ルートの文書検証用dev依存を維持し、サービス・共有パッケージの依存を各memberへ追加する。
 - 既存のmise設定を基にPython/Nodeとpackage managerのアプリ対応を確認し、formatter・型検査を設定する。
 - `mise run setup` をworkspaceのlockfileからの導入とtoolchain検査へ拡張し、秘密値やクラウド変更を必要としない。
 
-miseによるツール固定・文書検証用setup/check/testは提供済み。[開発ツールのセットアップ](toolchain.md)を基に拡張する。このチケットはworkspace・アプリ依存lock・formatter・型検査の受入条件まで満たして完了とする。
+miseによるツール固定、uvプロジェクトとlockfile、文書検証用setup/check/testは提供済み。setupは `uv sync --locked`、Python検証タスクは `uv run --locked --offline` を使う。[開発ツールのセットアップ](toolchain.md)を基に拡張する。このチケットはworkspace・アプリ依存lock・formatter・型検査の受入条件まで満たして完了とする。
 
 **成果物・変更先（予定）**
 
-- `pyproject.toml・uv.lock`
+- `pyproject.toml・uv.lock`（既存プロジェクトをworkspaceへ拡張）
 - `package.json・pnpm-workspace.yaml・pnpm-lock.yaml`
 - `mise.tomlのsetup/checkタスク`
 - `docs/toolchain.md`
