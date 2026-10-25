@@ -2,7 +2,13 @@
   "schema_version": 1,
   "tickets": {
     "BA-FND-01": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "77c6db89a3da2814f87bb6468215135974bd944d",
+      "updated_at": "2026-10-25T16:13:57+00:00",
+      "log_anchor": "ba-fnd-01-20261025t155149z",
+      "implementation_commit": "3e7f20493948ee27b725a849c1e898de2a181b50",
+      "review_rounds": 1
     },
     "BA-FND-02": {
       "status": "todo"
