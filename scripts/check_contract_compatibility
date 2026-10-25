@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [[ $# -gt 2 ]]; then
+  echo "Usage: scripts/check_contract_compatibility [baseline.yaml [candidate.yaml]]" >&2
+  exit 2
+fi
+baseline=$(mktemp)
+trap 'rm -f "$baseline"' EXIT
+if [[ $# -gt 0 ]]; then
+  cp "$1" "$baseline"
+else
+  base_ref=${CONTRACT_BASE_REF:-$(cat specs/openapi-baseline.ref)}
+  git show "$base_ref:specs/openapi.yaml" > "$baseline"
+fi
+# No external reference loading or upload flags: comparison stays local.
+oasdiff breaking "$baseline" "${2:-specs/openapi.yaml}" --fail-on WARN --format text

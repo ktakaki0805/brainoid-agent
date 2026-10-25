@@ -1,0 +1,14 @@
+{
+  "name": "@brainoid-internal/openapi-generator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "dependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "typescript": "5.9.3"
+  }
+}

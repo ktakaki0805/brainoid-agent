@@ -5,6 +5,11 @@
       "apps/**",
       "packages/ui/**",
       "packages/api-client/**",
+      "packages/openapi-generator/**",
+      "!packages/api-client/src/generated",
+      "scripts/*.mjs",
+      "tests/*.mjs",
+      "openapi-ts.config.mjs",
       "package.json",
       "tsconfig.base.json",
       "biome.json"

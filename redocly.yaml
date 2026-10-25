@@ -1,0 +1,9 @@
+extends:
+  - spec
+rules:
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-parameters-unique: error
+  path-parameters-defined: error
+  security-defined: error
+  no-unresolved-refs: error

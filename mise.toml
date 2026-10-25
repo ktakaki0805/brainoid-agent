@@ -6,6 +6,15 @@ node = "24.21.0"
 uv = "0.12.19"
 pnpm = "11.28.2"
 
+[tools."github:oasdiff/oasdiff"]
+version = "1.34.1"
+
+[tools."github:oasdiff/oasdiff".platforms]
+linux-x64 = { asset_pattern = "oasdiff_1.34.1_linux_amd64.tar.gz", checksum = "sha256:75775f65b0adebd26a8e013af51a799342dfdc6262d89efa9e3b7bdf89657d90" }
+linux-arm64 = { asset_pattern = "oasdiff_1.34.1_linux_arm64.tar.gz", checksum = "sha256:e8f99bbf102a4b7f235104da72d0b9d67702e78622d1d4d37169e698ee90a249" }
+macos-x64 = { asset_pattern = "oasdiff_1.34.1_darwin_all.tar.gz", checksum = "sha256:64948ba30c5555d3d15b95a7f3eda22fa83c15cf37fd4dad1720c0deb0a07cb5" }
+macos-arm64 = { asset_pattern = "oasdiff_1.34.1_darwin_all.tar.gz", checksum = "sha256:64948ba30c5555d3d15b95a7f3eda22fa83c15cf37fd4dad1720c0deb0a07cb5" }
+
 [settings]
 task.run_auto_install = false
 
@@ -43,13 +52,30 @@ run = "uv run --all-packages --locked --offline python -B .agents/skills/impleme
 
 [tasks.check]
 description = "Run all available project checks"
-depends = ["check:tickets", "check:format", "check:lint", "check:types"]
+depends = ["check:tickets", "check:format", "check:lint", "check:types", "check:contracts", "check:client", "check:compatibility"]
+
+[tasks."check:contracts"]
+description = "Validate OpenAPI 3.1 and JSON Schema 2020-12 contracts"
+run = "scripts/validate_contracts"
+
+[tasks.generate-client]
+description = "Generate the typed HTTP client from the fixed OpenAPI contract"
+run = "scripts/generate_api_client"
+
+[tasks."check:client"]
+description = "Detect generated-client drift without modifying the checkout"
+run = "scripts/generate_api_client --check"
+
+[tasks."check:compatibility"]
+description = "Reject breaking OpenAPI changes against the pinned Git baseline"
+run = "scripts/check_contract_compatibility"
 
 [tasks.test]
 description = "Run API, workspace foundation and ticket planner tests without external APIs"
 run = [
   "uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_*.py'",
   "uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'",
+  "node --test tests/test_api_contracts.mjs",
 ]
 
 [tasks.dev-api]

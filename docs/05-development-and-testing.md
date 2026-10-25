@@ -114,13 +114,15 @@ BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・�
 | `mise run format` | workspaceのPython/TypeScript/対象JSONをRuff・Biomeで整形 |
 | `mise run check:format` / `check:lint` / `check:types` | 書換えなしの整形・lint・Python/TypeScript型検査 |
 | `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
-| `mise run check` | format・lint・型・チケットを検証 |
-| `mise run test` | APIの設定・起動終了・health・共通エラー・秘密非出力、package解決・秘密ファイル除外と既存チケット管理テストを実行 |
+| `mise run check:contracts` / `check:client` / `check:compatibility` | OpenAPI/JSON Schema検証、生成差分、固定基準版とのHTTP契約互換性を検証 |
+| `mise run generate-client` | 固定OpenAPIからTypeScript HTTP clientを再生成 |
+| `mise run check` | format・lint・型・チケット・契約・生成差分・互換性を検証 |
+| `mise run test` | API基盤・共通型・package境界・秘密除外・チケット管理、契約負例と生成clientのfake transportテストを実行 |
 | `mise run dev-api` | export済みの設定を検証し、localhost:8000でAPIのhealthを起動。Ctrl-Cで依存を終了 |
 
 現在のPython検証タスクは `uv run --all-packages --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 
-文書リンク・OpenAPI・JSON Schemaの自動検証は現在提供していない。BA-FND-04で契約用validator、BA-FND-06で既存のMarkdownリンク検証ツールを導入する。導入までは変更したリンク・契約と、要件・テストIDの対応をレビューで確認する。
+OpenAPI・JSON Schema検証とclient生成・互換性比較はBA-FND-04で提供する。[通信契約の手順](contracts.md#httpクライアントと契約検証)を参照する。文書リンクの自動検証はBA-FND-06で既存ツールを導入するまでレビューで確認する。
 
 Ruff・mypyは `tests`・Python member、Biome・TypeScriptはNode memberと設定JSONを検査する。既存のチケット管理Skillは既存テストで回帰確認し、このチケットで一括整形・型移行しない。以下は後続チケットで実装・拡張するmiseタスクの契約である。check・testも、現在は上表の範囲だけを実行する。
 
@@ -129,9 +131,7 @@ Ruff・mypyは `tests`・Python member、Biome・TypeScriptはNode memberと設�
 | `mise run dev` | fakeを既定としてAPI・worker・UIを起動。終了時に子processを停止 |
 | `mise run dev-emulator` | emulatorを明示して起動。専用fixture以外に接続しない |
 | `mise run seed-demo` | 2テナントの架空データをlocal専用環境へ投入。prodなら拒否 |
-| `mise run generate-client` | OpenAPIからTypeScript clientを再生成 |
-| `mise run check` | format、lint、型検査、schema検証、生成差分確認 |
-| `mise run test` | 外部APIに接続せずunit・contract・local integrationを実行 |
+| `mise run test`（拡張） | 外部APIに接続せず、実装した機能のunit・contract・local integrationを追加 |
 | `mise run test-staging` | 明示したstagingで外部API・索引・IAM確認を実行。件数上限と後片付けを伴う |
 | `mise run test-device` | 対応Piとテスト用Home Assistantへの実機試験を開始 |
 

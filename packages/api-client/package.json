@@ -9,5 +9,8 @@
   },
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "eventsource-parser": "4.1.2"
   }
 }

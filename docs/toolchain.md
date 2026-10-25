@@ -31,7 +31,7 @@ mise run test
 
 `setup` は最初に `mise install` で指定版のPython・Node・uv・pnpmを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
 
-`check` は整形、lint、Python/TypeScript型、チケット管理を検査する。`format` はソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run` で実行する。キャッシュ・依存不足時は先にsetupを行う。API起動は [dev-apiの手順](05-development-and-testing.md#51-api基盤の起動)を参照する。画面の起動と契約validatorはまだ提供しない。
+`check` は整形、lint、Python/TypeScript型、チケット管理、契約validator、生成差分、HTTP契約の互換性を検査する。`format` は手書きソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run/exec` で実行する。キャッシュ・依存不足時は先にsetupを行う。API起動は [dev-apiの手順](05-development-and-testing.md#51-api基盤の起動)、clientは [契約検証の手順](contracts.md#httpクライアントと契約検証)を参照する。画面の起動はまだ提供しない。
 
 uvが `.venv` を作成・同期する。miseは `UV_PYTHON` で固定Pythonのパスを渡し、uvのPython自動ダウンロードとmiseタスクの自動ツール導入は無効にする。固定ツールの導入は `setup` 内の明示的な `mise install` が担当する。IDEにも `.venv` を指定する。
 
@@ -56,7 +56,8 @@ mise exec -- pnpm --version
 | `packages/agent_core`・`memory`・`tools` | uv member。`src/brainoid_agent_core`・`brainoid_memory`・`brainoid_tools` の公開API |
 | `packages/contracts` | uv member。`src/brainoid_contracts` の共通型。PydanticはAPIと同じ固定版を使用 |
 | `apps/mobile`・`display` | 非公開pnpm member。`src/index.ts`。UI機能はBA-UI-01以降 |
-| `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。client生成はBA-FND-04 |
+| `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。api-clientは生成SDK・型と注入factoryを提供 |
+| `packages/openapi-generator` | 開発専用pnpm member。生成器とそのcompiler API用TypeScriptを固定し、ルートdev依存から利用 |
 | `infra/gcp` | Terraform用の領域。Python/Nodeのmemberではなく、配備定義はBA-OPS-01以降 |
 | `tests` | package解決・秘密ファイル除外、API起動・health・エラーの受入テスト |
 
@@ -90,7 +91,7 @@ Pythonの追加・削除はuvコマンドで行う。変更したmanifestとlock
 3. Node/pnpm変更時はルート `package.json` の `engines`・`packageManager` と `pnpm-workspace.yaml` の `nodeVersion` を同期する。設定間の版の一致は更新時に確認する。
 4. 新規環境でsetup/format/check/testを実行し、通常導入でlockが変化しないことを確認する。
 
-pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、タスクのNodeはmiseの固定版を使用する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。今回の依存にはinstall lifecycle scriptが不要なので `allowBuilds: {}` とし、新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)
+pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、タスクのNodeはmiseの固定版を使用する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。`verifyDepsBeforeRun: error` はrun/exec中の暗黙installを防ぎ、依存不整合時はsetupを要求する。今回の依存にはinstall lifecycle scriptが不要なので `allowBuilds: {}` とし、新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)、[実行前の依存確認](https://github.com/pnpm/pnpm/blob/main/pnpm/docs/settings/build.md#verifydepsbeforerun)
 
 Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CLIとネイティブCapacitor buildは、それぞれの実装チケットで対応版と導入方法を追加する。今回のNode依存固定だけではiOS・Android・Pi実機の対応を保証しない。
 
@@ -116,3 +117,22 @@ Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CL
 公式metadata上、Python側の上表の開発ツール・API依存は2026年9〜10月にもリリースされている。Node側も各公式配布元の採用版を固定し、現在のtoolchainで型検査とimportを実行する。これらは通常のローカルコード実行権限を持ち、setupではダウンロード・環境作成を行う。クラウドIAM・認証情報・外部サービスへの実行権限は追加しない。アプリの配布に含まれる依存と、開発時だけ使う依存を上表の配置で区別する。
 
 BA-FND-02で追加したHTTPX2はテスト専用で、APIの実行依存へは追加しない。lockには推移依存のHTTPcore2（BSD-3-Clause）とtruststore（MIT）も追加される。2026-10-26に導入したdistribution metadataでPython要件・保守元・ライセンスを確認した。TestClientはアプリ内ASGI transportを使い、通常テストに外部HTTP接続やクラウド権限を追加しない。
+
+BA-FND-04では次の既存ツールを2026-10-26の公式docs・npm/PyPI metadata・release assetで確認し固定した。
+
+| 採用依存・版 | 理由・互換性・ライセンス |
+| --- | --- |
+| @redocly/cli 2.71.0 | OpenAPI 3.1の標準構造とoperationId/path/security/参照を既存rulesetで検査。Node >=22.12または20.19系、MIT。継続リリースされる公式CLI。[npm](https://www.npmjs.com/package/@redocly/cli/v/2.71.0)、[rules](https://redocly.com/docs/cli/rules/built-in-rules) |
+| openapi-spec-validator 0.9.0 | ルートdev。OpenAPI内Schema Objectの2020-12メタスキーマ適合を既存CLIの `check_schema` で検証。Python >=3.10,<4.0、Apache-2.0。3.1のdialect/メタスキーマ対応を含む現行版をuvで固定し、backendはjsonschemaへ明示固定する。[PyPI](https://pypi.org/project/openapi-spec-validator/0.9.0/)、[CLI](https://openapi-spec-validator.readthedocs.io/en/latest/cli.html) |
+| ajv-cli 5.0.0・ajv-formats 3.0.1 | Draft 2020-12メタスキーマと参照をcompileし、標準formatも検査。MIT。CLIのリリース間隔は長いが、lockのAjv 8.20.0を利用する安定したコマンド入口。[CLI](https://ajv.js.org/packages/ajv-cli)、[formats](https://ajv.js.org/packages/ajv-formats.html) |
+| @hey-api/openapi-ts 0.99.0 | 3.1からSDK・要求/応答型とfetch runtimeを生成。Node >=22.18、MIT。公式の現行plugin構成を固定。[npm](https://www.npmjs.com/package/@hey-api/openapi-ts/v/0.99.0)、[fetch](https://heyapi.dev/docs/openapi/typescript/clients/fetch) |
+| eventsource-parser 4.1.2 | api-clientの実行依存。SSEのCRLF/UTF-8分割・複数data行を既存parserで処理し、event/id/retryを保持。Node >=22.12、MIT。公式実装のchunk境界処理と現行版のlicenseを確認し、pnpm memberへ完全固定。[npm](https://www.npmjs.com/package/eventsource-parser/v/4.1.2)、[公式source](https://github.com/rexxars/eventsource-parser) |
+| TypeScript 5.9.3（生成器内部のみ） | compiler APIを必要とする生成器と同じ開発専用memberに完全版を宣言し、peerを解決する。Node >=14.17、Apache-2.0。workspace compilerは既存の7.0.2を維持。[npm](https://www.npmjs.com/package/typescript/v/5.9.3)、[pnpmのpeer解決](https://github.com/pnpm/pnpm/blob/main/pnpm/docs/settings/peer-dependencies.md#resolvepeersfromworkspaceroot) |
+| yaml 2.9.1 | 契約負例fixtureでYAMLを解析するテストdev依存。独自文書validatorには使わない。Node >=14.6、ISC。[npm](https://www.npmjs.com/package/yaml/v/2.9.1) |
+| oasdiff 1.34.1 | OpenAPI 3.1/2020-12対応の破壊的HTTP契約差分を検出する既存CLI。Apache-2.0。miseのGitHub backendで公式tar archiveを導入し、Linux x64/arm64とmacOS universalのasset名・SHA256を固定。[release](https://github.com/oasdiff/oasdiff/releases/tag/v1.34.1)、[breaking](https://github.com/oasdiff/oasdiff/blob/v1.34.1/docs/BREAKING-CHANGES.md) |
+
+各ツールはローカルで契約・Git履歴・一時生成物を読み書きする開発権限だけを使う。setupは公式配布元から取得するが、check/testはcredentialや外部APIを必要としない。Redocly telemetryは無効、oasdiffのアップロード機能は使用しない。Nodeのinstall lifecycle script許可は追加しない。アプリには生成されたfetch runtime・型とSSE parserが含まれ、開発ツール自体は配布しない。parserは受信テキストを処理するだけで、独自の外部接続・認証・実行権限を追加しない。MIT表示はapi-clientの [Hey API](../packages/api-client/LICENSE.hey-api)・[eventsource-parser](../packages/api-client/LICENSE.eventsource-parser) に同梱する。oasdiffの確認環境はLinux x64で、他platformの実行は未確認。
+
+openapi-spec-validatorの追加は開発環境だけに適用し、APIサービスの実行依存には加えない。JSON Schemaの規則は推移依存のopenapi-schema-validator/jsonschemaが担当する。独自にSchema Objectを列挙したり、個別keywordを判定するコードは追加しない。メタスキーマは依存packageに同梱されたものを使い、検証時の追加ダウンロードやクラウド権限は不要。
+
+sandboxがNodeの子process出力captureを制限すると契約負例テストは `spawnSync EPERM` になる。既存API TestClientの通知制限と同様に、通常のローカル実行環境で `mise run test` を行う。検証処理にクラウド接続や権限付与は不要。

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Delegate document validation to the pinned existing validators.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [[ $# -gt 1 ]]; then
+  echo "Usage: scripts/validate_contracts [openapi.yaml]" >&2
+  exit 2
+fi
+export REDOCLY_TELEMETRY=off
+export OPENAPI_SPEC_VALIDATOR_SCHEMA_VALIDATOR_BACKEND=jsonschema
+pnpm exec redocly lint --config redocly.yaml "${1:-specs/openapi.yaml}"
+uv run --all-packages --locked --offline openapi-spec-validator --schema 3.1 "${1:-specs/openapi.yaml}"
+pnpm exec ajv compile --spec=draft2020 --strict=false -c ajv-formats -s 'specs/*.schema.json'
