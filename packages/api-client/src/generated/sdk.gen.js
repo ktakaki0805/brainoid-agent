@@ -29,7 +29,7 @@ export const getCurrentUser = (options) => (options?.client ?? client).get({
 /**
  * 所属テナント一覧
  *
- * 所属テナント一覧
+ * 本人の現在有効な所属のみ。tenant ID昇順。cursorは現在の所属集合・limitに束縛し、権限変更後は400。
  */
 export const listTenants = (options) => (options?.client ?? client).get({
     security: [{
@@ -43,7 +43,7 @@ export const listTenants = (options) => (options?.client ?? client).get({
 /**
  * テナント作成・本人をownerに登録
  *
- * テナント作成・本人をownerに登録
+ * tenant・本人owner・初期agentを原子的に作成。profile未作成も利用可能。user単位の冪等キーは24時間有効。再送は現在ownerを再確認し、現在のTenantを201で返す。
  */
 export const createTenant = (options) => (options.client ?? client).post({
     security: [{
@@ -61,7 +61,7 @@ export const createTenant = (options) => (options.client ?? client).post({
 /**
  * テナント取得
  *
- * テナント取得
+ * 選択したtenantの現在membershipを照合して取得。未所属・失効・削除中は404。
  */
 export const getTenant = (options) => (options.client ?? client).get({
     security: [{
@@ -75,7 +75,7 @@ export const getTenant = (options) => (options.client ?? client).get({
 /**
  * テナント設定更新
  *
- * テナント設定更新
+ * 現在のowner/adminのみ。正規化patchとIf-Match版に冪等キーを束縛。再送は二重更新せず現在のTenantを返す。
  */
 export const updateTenant = (options) => (options.client ?? client).patch({
     security: [{

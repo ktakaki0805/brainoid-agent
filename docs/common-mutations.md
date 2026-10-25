@@ -10,6 +10,8 @@ BA-FND-08（FR-004/007/008）のAPI内部共通処理を `services/api/src/brain
 
 束縛対象はtenant、actorの種別・ID、許可scope、認可版、端末のprivate session IDと有効user、resource scopeとownerである。private sessionの現在の絶対期限・idle期限は毎回検査する。期限の値自体はhashへ含めない。同じsessionの活動でidle期限が延長されても再送とcursorを利用できるようにし、session交代・user交代・認可版変更では古い結果を拒否する。
 
+BA-IAM-03 の [tenant bootstrap](tenants.md) は `AuthorizedUserScope` と明示 `execute_user` を使い、tenant 作成前の user 名前空間へ同じ24時間の冪等処理を適用する。cursor は共通の binding/liveness port を受け、user の所属一覧にも利用する。`compare_and_write` は認可済み自 tenant のルート document も扱える。
+
 ## 保存と再送
 
 `Idempotency.execute` はサーバー定義のoperation（更新対象IDも含める）、16〜128文字のkey、schema検証・既定値・時刻等の正規化後のJSON bodyを受け取る。bodyのobject keyは再帰的にソートして空白を除いたJSONをSHA-256でhash化する。配列順序とscalar型は維持し、NaN/Infinityは扱わない。この形式はRFC 8785ではなくPython API内部の形式であり、他言語から記録を生成しない。

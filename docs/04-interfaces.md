@@ -98,6 +98,8 @@ BA-FND-02では要求検証・HTTP例外・未処理例外をこの形式へ統�
 
 healthは `/v1` の外に置き、認証情報を要求しない。依存先の名前・接続先・失敗詳細は返さず、全応答を `Cache-Control: no-store` とする。現時点の標準構成はhealthのみで外部依存probeを持たないため、readyは起動完了だけを意味する。Firestore等のadapterを実装するチケットで、そのlifespanとprobeを登録する。
 
+[テナントAPI](tenants.md) は user 単位の作成冪等性、現在 membership による選択、管理者の設定更新、現在権限へ束縛した所属一覧 cursor を提供する。作成/更新の再送は現在の Tenant と対応する ETag を返す。
+
 ## 3. HTTP機能グループ
 
 下表のパスには `/v1` を前置する。`{t}` 等は説明用の省略で、完全な名称・全operationはOpenAPIを参照する。

@@ -137,6 +137,7 @@ class Action(StrEnum):
 
 
 class ManagementAction(StrEnum):
+    UPDATE_TENANT = "update_tenant"
     INVITE = "invite"
     CHANGE_ROLE = "change_role"
     REMOVE_MEMBER = "remove_member"

@@ -21,6 +21,7 @@ DEMO_ENV = {
     "MODEL_ID": "fake-model",
     "FIRESTORE_EMULATOR_HOST": HOSTS["firestore"],
     "FIREBASE_AUTH_EMULATOR_HOST": HOSTS["auth"],
+    "CURSOR_SIGNING_KEY": "synthetic-cursor-signing-key-for-tests-only",
 }
 
 

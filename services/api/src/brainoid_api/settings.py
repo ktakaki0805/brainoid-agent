@@ -5,7 +5,15 @@ from collections.abc import Mapping
 from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 Identifier = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_.()-]+$")]
 
@@ -28,6 +36,7 @@ class Settings(BaseModel):
     firebase_auth_emulator_host: str | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     readiness_timeout_seconds: Annotated[float, Field(gt=0, le=30, allow_inf_nan=False)] = 2.0
+    cursor_signing_key: Annotated[SecretStr, Field(min_length=32, max_length=512)] | None = None
 
     @field_validator("firestore_emulator_host", "firebase_auth_emulator_host")
     @classmethod
@@ -57,6 +66,8 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
+        if self.auth_provider == "firebase" and self.cursor_signing_key is None:
+            raise ValueError("firebase requires an explicit cursor signing key")
         hosts = (self.firestore_emulator_host, self.firebase_auth_emulator_host)
         if self.app_env == "local-fake":
             if self.auth_provider != "fake" or self.model_provider != "fake":

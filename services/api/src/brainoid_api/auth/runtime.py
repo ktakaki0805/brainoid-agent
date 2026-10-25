@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Annotated, cast
 from uuid import uuid4
 
@@ -19,7 +20,10 @@ from brainoid_api.auth.firebase_identity import (
     validate_sdk_environment,
 )
 from brainoid_api.auth.profiles import FirestoreProfiles, ProfileReader
+from brainoid_api.common.firestore import FirestoreTransactions
+from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
+from brainoid_api.repositories.tenants import Tenants
 from brainoid_api.settings import Settings
 
 
@@ -27,6 +31,7 @@ from brainoid_api.settings import Settings
 class AuthServices:
     verifier: IdentityVerifier | None = None
     profiles: ProfileReader | None = None
+    tenants: Tenants | None = None
 
 
 @asynccontextmanager
@@ -52,7 +57,16 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
             database=settings.firestore_database_id,
             credentials=credential,
         )
-        yield AuthServices(FirebaseIdentityVerifier(app, settings), FirestoreProfiles(client))
+        assert settings.cursor_signing_key is not None
+        cursors = Cursors(
+            settings.cursor_signing_key.get_secret_value().encode("utf-8"),
+            now=lambda: datetime.now(UTC),
+        )
+        yield AuthServices(
+            FirebaseIdentityVerifier(app, settings),
+            FirestoreProfiles(client),
+            Tenants(FirestoreTransactions(client), cursors),
+        )
     finally:
         try:
             if client is not None:

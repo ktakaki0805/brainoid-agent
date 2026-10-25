@@ -31,6 +31,15 @@ class _Transaction:
     def create(self, path: str, document: Document) -> None:
         self._transaction.create(self._client.document(path), document)
 
+    def memberships(self, user_id: str) -> list[tuple[str, Document]]:
+        query = self._client.collection_group("memberships").where(
+            filter=FieldFilter("user_id", "==", user_id)
+        )
+        return [
+            (snapshot.reference.path, snapshot.to_dict() or {})
+            for snapshot in query.stream(transaction=self._transaction)
+        ]
+
     def set(self, path: str, document: Document) -> None:
         self._transaction.set(self._client.document(path), document)
 

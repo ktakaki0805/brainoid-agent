@@ -77,6 +77,8 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `audit_events/{id}` | actor、操作、対象ID、結果、request_id | 本文・認証token・音声を含めない |
 | `users/{user_id}/push_installations/{id}` | app installation、FCM token、端末OS | 利用者専用。退出/失効時に通知経路を再評価 |
 
+[tenant 作成](tenants.md) 前の冪等記録は `user_operations/{user_hash}/idempotency_records/{request_hash}` に保存する。本人の現在状態と再送対象の現在 owner を確認し、tenant・owner・初期 agent と同じ transaction で commit する。削除・復元ではこの user 名前空間も対象にする。
+
 ペアリングの一時情報は `device_pairings/{id}` に保存し、未所属の端末をテナントデータに直接アクセスさせない。テナント・actor・operation・idempotency keyの組をハッシュ化した `idempotency_records` を保存し、初期保持24時間とする。上表の追加コレクションも同じ認可・削除ルールの対象である。
 
 ## 4. 軽量グラフのモデル

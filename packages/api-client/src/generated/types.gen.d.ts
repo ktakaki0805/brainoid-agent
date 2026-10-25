@@ -805,7 +805,7 @@ export type ListTenantsErrors = {
 export type ListTenantsError = ListTenantsErrors[keyof ListTenantsErrors];
 export type ListTenantsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の認可を通して取得したテナント
      */
     200: TenantPage;
 };
@@ -831,7 +831,7 @@ export type CreateTenantErrors = {
 export type CreateTenantError = CreateTenantErrors[keyof CreateTenantErrors];
 export type CreateTenantResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の認可を通して取得したテナント
      */
     201: Tenant;
 };
@@ -853,7 +853,7 @@ export type GetTenantErrors = {
 export type GetTenantError = GetTenantErrors[keyof GetTenantErrors];
 export type GetTenantResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の認可を通して取得したテナント
      */
     200: Tenant;
 };
@@ -885,7 +885,7 @@ export type UpdateTenantErrors = {
 export type UpdateTenantError = UpdateTenantErrors[keyof UpdateTenantErrors];
 export type UpdateTenantResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の認可を通して取得したテナント
      */
     200: Tenant;
 };

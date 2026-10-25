@@ -97,12 +97,12 @@ paths:
     get:
       operationId: listTenants
       summary: 所属テナント一覧
-      description: 所属テナント一覧
+      description: 本人の現在有効な所属のみ。tenant ID昇順。cursorは現在の所属集合・limitに束縛し、権限変更後は400。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の認可を通して取得したテナント
           content:
             application/json:
               schema:
@@ -133,16 +133,21 @@ paths:
     post:
       operationId: createTenant
       summary: テナント作成・本人をownerに登録
-      description: テナント作成・本人をownerに登録
+      description: tenant・本人owner・初期agentを原子的に作成。profile未作成も利用可能。user単位の冪等キーは24時間有効。再送は現在ownerを再確認し、現在のTenantを201で返す。
       security:
       - userBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の認可を通して取得したテナント
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Tenant'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
         default:
           description: 共通エラー
           content:
@@ -169,12 +174,12 @@ paths:
     get:
       operationId: getTenant
       summary: テナント取得
-      description: テナント取得
+      description: 選択したtenantの現在membershipを照合して取得。未所属・失効・削除中は404。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の認可を通して取得したテナント
           content:
             application/json:
               schema:
@@ -199,12 +204,12 @@ paths:
     patch:
       operationId: updateTenant
       summary: テナント設定更新
-      description: テナント設定更新
+      description: 現在のowner/adminのみ。正規化patchとIf-Match版に冪等キーを束縛。再送は二重更新せず現在のTenantを返す。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の認可を通して取得したテナント
           content:
             application/json:
               schema:

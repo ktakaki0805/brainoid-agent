@@ -7,7 +7,7 @@ from typing import Annotated
 from brainoid_contracts import ResourceId, Version, normalize_utc
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
-from brainoid_api.common.access import AuthorizedScope, fingerprint
+from brainoid_api.common.access import AuthorizedScope, AuthorizedUserScope, fingerprint
 from brainoid_api.common.transactions import Transaction, TransactionStore
 from brainoid_api.errors import APIError, ErrorCode
 
@@ -60,16 +60,8 @@ class Idempotency:
         be checked for current ownership, scope and deletion. Both checks use this
         transaction; a captured old context is not a current authorization check.
         """
-        if key is None or not 16 <= len(key) <= 128:
-            raise APIError(ErrorCode.INVALID_REQUEST)
-        if not operation:
-            raise ValueError("A server-defined operation is required")
-        body_hash = fingerprint(body)
 
-        def execute(transaction: Transaction) -> MutationResult:
-            current = authorize(transaction, None)
-            now = normalize_utc(self._now())
-            current.ensure_live(now)
+        def record_path(current: AuthorizedScope) -> str:
             actor = current.context.actor
             record_id = fingerprint(
                 [
@@ -80,7 +72,67 @@ class Idempotency:
                     key,
                 ]
             )
-            path = f"tenants/{current.context.tenant_id}/idempotency_records/{record_id}"
+            return f"tenants/{current.context.tenant_id}/idempotency_records/{record_id}"
+
+        return self._execute(
+            operation=operation,
+            key=key,
+            body=body,
+            authorize=authorize,
+            mutate=mutate,
+            record_path=record_path,
+        )
+
+    def execute_user(
+        self,
+        *,
+        operation: str,
+        key: str | None,
+        body: JsonValue,
+        authorize: Callable[[Transaction, MutationResult | None], AuthorizedUserScope],
+        mutate: Callable[[Transaction, AuthorizedUserScope], MutationResult],
+    ) -> MutationResult:
+        """Explicit user namespace for operations before a tenant exists.
+
+        Authorize checks current account state; replays must also authorize the
+        receipt's tenant. This scope cannot authorize tenant-scoped mutations.
+        """
+
+        def record_path(current: AuthorizedUserScope) -> str:
+            actor = fingerprint(["user", current.user_id])
+            record_id = fingerprint(["user", current.user_id, operation, key])
+            return f"user_operations/{actor}/idempotency_records/{record_id}"
+
+        return self._execute(
+            operation=operation,
+            key=key,
+            body=body,
+            authorize=authorize,
+            mutate=mutate,
+            record_path=record_path,
+        )
+
+    def _execute[S: (AuthorizedScope, AuthorizedUserScope)](
+        self,
+        *,
+        operation: str,
+        key: str | None,
+        body: JsonValue,
+        authorize: Callable[[Transaction, MutationResult | None], S],
+        mutate: Callable[[Transaction, S], MutationResult],
+        record_path: Callable[[S], str],
+    ) -> MutationResult:
+        if key is None or not 16 <= len(key) <= 128:
+            raise APIError(ErrorCode.INVALID_REQUEST)
+        if not operation:
+            raise ValueError("A server-defined operation is required")
+        body_hash = fingerprint(body)
+
+        def execute(transaction: Transaction) -> MutationResult:
+            current = authorize(transaction, None)
+            now = normalize_utc(self._now())
+            current.ensure_live(now)
+            path = record_path(current)
             record = transaction.get(path)
             if record is not None and now < record["expires_at"]:
                 result = MutationResult.model_validate(record["result"])

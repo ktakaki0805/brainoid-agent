@@ -3,13 +3,14 @@
 import hashlib
 import json
 from datetime import datetime
-from typing import Self
+from typing import Protocol, Self
 
 from brainoid_contracts import (
     DeviceActorContext,
     FirebaseUid,
     Scope,
     TenantContext,
+    UtcTimestamp,
     Visibility,
     normalize_utc,
 )
@@ -31,6 +32,29 @@ def canonical_json(value: JsonValue) -> str:
 
 def fingerprint(value: JsonValue) -> str:
     return hashlib.sha256(canonical_json(value).encode("ascii")).hexdigest()
+
+
+class BoundScope(Protocol):
+    def ensure_live(self, now: datetime) -> None: ...
+    def binding(self) -> str: ...
+
+
+class AuthorizedUserScope(BaseModel):
+    """Current global user authority for bootstrap/listing, never tenant authority."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    user_id: FirebaseUid
+    authorization_stamp: str = Field(pattern=r"^[0-9a-f]{64}$")
+    issued_at: UtcTimestamp
+    expires_at: UtcTimestamp
+
+    def ensure_live(self, now: datetime) -> None:
+        if not self.issued_at <= normalize_utc(now) < self.expires_at:
+            raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+
+    def binding(self) -> str:
+        # Token refresh does not change account authority.
+        return fingerprint(["user", self.user_id, self.authorization_stamp])
 
 
 class AuthorizedScope(BaseModel):
@@ -78,7 +102,7 @@ class AuthorizedScope(BaseModel):
     def require_tenant_path(self, path: str) -> None:
         parts = path.split("/")
         if (
-            len(parts) < 4
+            len(parts) < 2
             or len(parts) % 2
             or any(not part or part in (".", "..") for part in parts)
             or parts[:2] != ["tenants", str(self.context.tenant_id)]

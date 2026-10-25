@@ -71,6 +71,13 @@ class MemoryTransaction:
             raise AssertionError("Duplicate creation")
         self.set(path, document)
 
+    def memberships(self, user_id: str) -> list[tuple[str, Document]]:
+        return [
+            (path, copy.deepcopy(document))
+            for path, document in self.data.items()
+            if path.split("/")[-2] == "memberships" and document.get("user_id") == user_id
+        ]
+
     def set(self, path: str, document: Document) -> None:
         self.data[path] = copy.deepcopy(document)
 
@@ -94,6 +101,31 @@ class MemoryStore:
 
 
 class CommonMutationsTests(unittest.TestCase):
+    def test_tenant_root_compare_and_write_preserves_tenant_boundary(self) -> None:
+        store = MemoryStore()
+        store.data[f"tenants/{TENANT}"] = {"version": 1, "name": "original"}
+        result = store.run(
+            lambda tx: compare_and_write(
+                tx,
+                authorized_scope=scope(),
+                path=f"tenants/{TENANT}",
+                if_match='"1"',
+                replacement={"name": "updated"},
+            )
+        )
+        self.assertEqual(result, 2)
+        with self.assertRaises(APIError) as denied:
+            store.run(
+                lambda tx: compare_and_write(
+                    tx,
+                    authorized_scope=scope(),
+                    path=f"tenants/{OTHER}",
+                    if_match='"1"',
+                    replacement={"name": "forbidden"},
+                )
+            )
+        self.assertEqual(denied.exception.code, ErrorCode.OPERATION_FORBIDDEN)
+
     def setUp(self) -> None:
         self.clock = FakeClock()
         self.store = MemoryStore()

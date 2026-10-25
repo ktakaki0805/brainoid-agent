@@ -44,6 +44,8 @@
       "fields": {
         "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
         "name": "Fixture Tenant A",
+        "id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "timezone": "Asia/Tokyo",
         "status": "active",
         "policy_version": 1,
         "created_by": "fixture-system",
@@ -299,6 +301,8 @@
       "fields": {
         "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
         "name": "Fixture Tenant B",
+        "id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "timezone": "Asia/Tokyo",
         "status": "active",
         "policy_version": 1,
         "created_by": "fixture-system",

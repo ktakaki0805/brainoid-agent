@@ -102,6 +102,8 @@ BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・�
 | `LOG_LEVEL` | 既定 `INFO`。`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL`。APIアプリログに適用 |
 | `READINESS_TIMEOUT_SECONDS` | 既定2秒。0より大きく30以下の有限数。全probeの確認に対する共通期限 |
 
+BA-IAM-03 以降、Firebase 利用環境では `CURSOR_SIGNING_KEY`（32〜512文字の秘密値）も明示必須。全 replica・revision で共有する。テスト専用値は `.env.emulator.example` にあり、production に転用しない。[tenant API と検証・配備の詳細](tenants.md)。
+
 設定検証はFastAPI lifespanの開始時、依存の初期化より先に行う。失敗時は起動を中止し、入力値や例外traceを含まない `api_startup_failed` を記録する。`load_settings()` は診断用に不正な設定名を含む `ConfigurationError` を返すが、値を出さない。APIの通常ログは `request_completed`、`request_id`、HTTP status、固定のerror codeのみとし、URL/query・header・body・例外本文を渡さない。Uvicornのaccess logは提供する起動コマンドで無効にする。独自の起動方法やproxyのaccess logにも同じ除外方針を適用する。
 
 ## 5. 提供する開発コマンド

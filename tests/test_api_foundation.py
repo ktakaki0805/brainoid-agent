@@ -39,6 +39,7 @@ CLOUD_ENV = {
     "MODEL_PROVIDER": "vertex",
     "GCP_PROJECT_ID": "brainoid-test-project",
     "MODEL_ID": "explicit-model",
+    "CURSOR_SIGNING_KEY": "synthetic-cursor-signing-key-for-tests-only",
 }
 EMULATOR_ENV = {
     **LOCAL_ENV,
@@ -46,6 +47,7 @@ EMULATOR_ENV = {
     "AUTH_PROVIDER": "firebase",
     "FIRESTORE_EMULATOR_HOST": "127.0.0.1:8080",
     "FIREBASE_AUTH_EMULATOR_HOST": "127.0.0.1:9099",
+    "CURSOR_SIGNING_KEY": "synthetic-cursor-signing-key-for-tests-only",
 }
 SECRET = "fixture-secret-not-for-logs"
 

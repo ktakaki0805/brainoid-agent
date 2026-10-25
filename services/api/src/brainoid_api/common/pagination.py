@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from brainoid_contracts import normalize_utc
 from pydantic import JsonValue
 
-from brainoid_api.common.access import AuthorizedScope, canonical_json, fingerprint
+from brainoid_api.common.access import BoundScope, canonical_json, fingerprint
 from brainoid_api.errors import APIError, ErrorCode
 
 
@@ -53,7 +53,7 @@ class Cursors:
         *,
         position: str,
         query: JsonValue,
-        authorize: Callable[[], AuthorizedScope],
+        authorize: Callable[[], BoundScope],
         lifetime: timedelta = timedelta(hours=1),
     ) -> str:
         current = authorize()
@@ -86,7 +86,7 @@ class Cursors:
         token: str,
         *,
         query: JsonValue,
-        authorize: Callable[[], AuthorizedScope],
+        authorize: Callable[[], BoundScope],
     ) -> str:
         current = authorize()
         now = normalize_utc(self._now())

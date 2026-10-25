@@ -34,25 +34,25 @@ export declare const getCurrentUser: <ThrowOnError extends boolean = false>(opti
 /**
  * 所属テナント一覧
  *
- * 所属テナント一覧
+ * 本人の現在有効な所属のみ。tenant ID昇順。cursorは現在の所属集合・limitに束縛し、権限変更後は400。
  */
 export declare const listTenants: <ThrowOnError extends boolean = false>(options?: Options<ListTenantsData, ThrowOnError>) => RequestResult<ListTenantsResponses, ListTenantsErrors, ThrowOnError>;
 /**
  * テナント作成・本人をownerに登録
  *
- * テナント作成・本人をownerに登録
+ * tenant・本人owner・初期agentを原子的に作成。profile未作成も利用可能。user単位の冪等キーは24時間有効。再送は現在ownerを再確認し、現在のTenantを201で返す。
  */
 export declare const createTenant: <ThrowOnError extends boolean = false>(options: Options<CreateTenantData, ThrowOnError>) => RequestResult<CreateTenantResponses, CreateTenantErrors, ThrowOnError>;
 /**
  * テナント取得
  *
- * テナント取得
+ * 選択したtenantの現在membershipを照合して取得。未所属・失効・削除中は404。
  */
 export declare const getTenant: <ThrowOnError extends boolean = false>(options: Options<GetTenantData, ThrowOnError>) => RequestResult<GetTenantResponses, GetTenantErrors, ThrowOnError>;
 /**
  * テナント設定更新
  *
- * テナント設定更新
+ * 現在のowner/adminのみ。正規化patchとIf-Match版に冪等キーを束縛。再送は二重更新せず現在のTenantを返す。
  */
 export declare const updateTenant: <ThrowOnError extends boolean = false>(options: Options<UpdateTenantData, ThrowOnError>) => RequestResult<UpdateTenantResponses, UpdateTenantErrors, ThrowOnError>;
 /**
