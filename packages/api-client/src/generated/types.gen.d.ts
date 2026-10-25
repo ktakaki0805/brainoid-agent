@@ -1497,7 +1497,7 @@ export type CreatePrivateSessionErrors = {
 export type CreatePrivateSessionError = CreatePrivateSessionErrors[keyof CreatePrivateSessionErrors];
 export type CreatePrivateSessionResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（再送時は同じIDの現在状態）
      */
     201: PrivateSession;
 };
@@ -1530,11 +1530,34 @@ export type EndPrivateSessionErrors = {
 export type EndPrivateSessionError = EndPrivateSessionErrors[keyof EndPrivateSessionErrors];
 export type EndPrivateSessionResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     204: void;
 };
 export type EndPrivateSessionResponse = EndPrivateSessionResponses[keyof EndPrivateSessionResponses];
+export type GetPrivateSessionData = {
+    body?: never;
+    path: {
+        tenant_id: ResourceId;
+        private_session_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/private-sessions/{private_session_id}';
+};
+export type GetPrivateSessionErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type GetPrivateSessionError = GetPrivateSessionErrors[keyof GetPrivateSessionErrors];
+export type GetPrivateSessionResponses = {
+    /**
+     * 現在状態
+     */
+    200: PrivateSession;
+};
+export type GetPrivateSessionResponse = GetPrivateSessionResponses[keyof GetPrivateSessionResponses];
 export type GetDeviceSnapshotData = {
     body?: never;
     path: {

@@ -20,6 +20,7 @@ from brainoid_policy.models import (
 from brainoid_policy.scopes import PolicyDenied, ResourceGrant
 from pydantic import ValidationError
 
+from brainoid_api.auth.account_state import account_stamp
 from brainoid_api.auth.context import SelectedTenantIdentity
 from brainoid_api.common.access import AuthorizedScope, fingerprint
 from brainoid_api.common.transactions import Document, Transaction
@@ -140,10 +141,26 @@ class TransactionPolicyState:
         return self._fence(self._parse(DeviceState, document), document)
 
     def session(self, tenant_id: ResourceId, session_id: ResourceId) -> SessionState | None:
-        return self._parse(
+        session = self._parse(
             SessionState,
             self._transaction.get(f"tenants/{tenant_id}/private_sessions/{session_id}"),
         )
+        if session is None:
+            return None
+        slot = self._transaction.get(
+            f"tenants/{tenant_id}/private_session_slots/{session.device_id}"
+        )
+        try:
+            stamp = account_stamp(self._transaction, session.user_id)
+        except APIError:
+            raise PolicyDenied() from None
+        if (
+            slot is None
+            or slot.get("session_id") != session.id
+            or stamp != session.user_authorization_stamp
+        ):
+            return session.model_copy(update={"status": "suspended"})
+        return session
 
     def resource(self, ref: ResourceRef) -> ResourceState | None:
         document = self._transaction.get(f"tenants/{ref.tenant_id}/{ref.kind}/{ref.id}")

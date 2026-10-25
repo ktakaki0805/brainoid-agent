@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from functools import partial
 from uuid import uuid4
 
+from brainoid_api.auth.account_state import account_stamp
 from brainoid_api.auth.authorization import authorized_scope, policy_call, transaction_policy
 from brainoid_api.common.access import AuthorizedScope
 from brainoid_api.common.firestore import FirestoreTransactions
@@ -197,11 +198,19 @@ class PolicyIntegrationTests(unittest.TestCase):
                 "status": "active",
                 "authorization_version": 1,
                 "connection_generation": 1,
+                "membership_authorization_version": 1,
+                "device_authorization_version": 1,
+                "user_authorization_stamp": self.store.run(
+                    lambda tx: account_stamp(tx, self.member.user_id)
+                ),
                 "allowed_scopes": ["notes"],
                 "expires_at": self.now + timedelta(minutes=5),
                 "idle_expires_at": self.now + timedelta(seconds=60),
             }
         )
+        self.client.document(
+            f"tenants/{self.tenant}/private_session_slots/{self.device.device_id}"
+        ).set({"session_id": session_id})
         personal = self.device.model_copy(update={"private_session_id": session_id})
         saved = self.grant(self.member, self.private, output=personal)
 
@@ -223,6 +232,9 @@ class PolicyIntegrationTests(unittest.TestCase):
         self.client.document(session_path).update({"status": "active"})
         self.client.document(self.device_path).update({"authorization_version": 2})
         self.denied(output)
+        self.denied(partial(self.grant, self.member, self.private, output=personal))
+        # Restore the fixture's device to isolate the next membership denial.
+        self.client.document(self.device_path).update({"authorization_version": 1})
         saved = self.grant(self.member, self.private, output=personal)
         self.client.document(f"tenants/{self.tenant}/memberships/{self.member.user_id}").update(
             {"status": "suspended"}

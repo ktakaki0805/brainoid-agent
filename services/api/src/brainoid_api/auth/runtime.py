@@ -33,6 +33,7 @@ from brainoid_api.repositories.devices import Devices
 from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.tenants import Tenants
+from brainoid_api.services.private_sessions import PrivateSessions
 from brainoid_api.settings import Settings
 
 
@@ -45,6 +46,7 @@ class AuthServices:
     memberships: Memberships | None = None
     devices: DeviceCredentialRepository | None = None
     device_management: Devices | None = None
+    private_sessions: PrivateSessions | None = None
 
 
 @asynccontextmanager
@@ -95,6 +97,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
             )
         store = FirestoreTransactions(client)
         tenants = Tenants(store, cursors, ledger=ledger)
+        devices = DeviceCredentialRepository(store, tenants, ledger, device_tokens)
         yield AuthServices(
             FirebaseIdentityVerifier(app, settings),
             FirestoreProfiles(client),
@@ -106,8 +109,9 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
                 code_key=settings.cursor_signing_key.get_secret_value().encode(),
             ),
             Memberships(store, tenants, ledger, cursors),
-            DeviceCredentialRepository(store, tenants, ledger, device_tokens),
+            devices,
             Devices(store, tenants, ledger, cursors),
+            PrivateSessions(store, tenants, ledger, devices),
         )
     finally:
         try:

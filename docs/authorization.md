@@ -47,3 +47,5 @@ private sessionの絶対期限・idle期限は毎回現在時刻で検査する�
 `mise run test` の [policy matrix](../tests/test_policy.py) がT-001/002/020/029/033/034、正常read/write/投稿、display方針、scope不足、room、membership減権限/失効、device/session失効、版と期限の境界を検証する。`mise run test-emulator` の [integration](../tests/emulator/test_policy_integration.py) は固定2tenant fixtureと公式SDKで、同じtransaction readerを使った隔離・検索・現在状態の変更・再送/cursor・worker出力・opaque UID/重複を検証する。稼働中SSE/WSSへの反映はBA-RUN-05/DEV-03、session発行はIAM-09、独立台帳の先行deny/確定grantはIAM-05で接続する。
 
 追加の外部依存はない。policy memberは既存のcontractsと固定済みPydanticだけに依存し、Firebase/FastAPI/SDKをimportしない。内部APIの追加で既存HTTP契約の変更はない。導入時は既存device documentへoperation scopeと認可版を明示してから利用し、欠落時はfail closedになる。切戻し時は権限を緩和せず、policyへ接続した業務入口を停止する。独立認可台帳実装前に復元安全性を達成済みとは扱わない。
+
+Pi個人セッションの開始・終了・期限・利用活動の契約は[個人セッション](private-sessions.md)を参照する。SessionStateは開始時のmembership/device認可版・account stampを要求し、transaction adapterは現在のslot/accountも確認する。旧bindingの欠落を認可として扱わない。

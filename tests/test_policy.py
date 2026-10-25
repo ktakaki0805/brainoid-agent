@@ -8,6 +8,7 @@ from functools import partial
 from typing import Any, cast
 from uuid import uuid4
 
+from brainoid_api.auth.account_state import account_stamp
 from brainoid_api.auth.authorization import (
     authorized_scope,
     policy_call,
@@ -70,9 +71,15 @@ class PolicyTests(unittest.TestCase):
             "status": "active",
             "authorization_version": 1,
             "connection_generation": 1,
+            "membership_authorization_version": 1,
+            "device_authorization_version": 1,
+            "user_authorization_stamp": account_stamp(self.tx, self.member.user_id),
             "allowed_scopes": ["conversation", "memory.read", "memory.write", "notes"],
             "expires_at": NOW + timedelta(minutes=5),
             "idle_expires_at": NOW + timedelta(seconds=60),
+        }
+        self.tx.data[f"tenants/{self.tenant}/private_session_slots/{self.device.device_id}"] = {
+            "session_id": self.session_id
         }
         self.personal = self.device.model_copy(update={"private_session_id": self.session_id})
 

@@ -894,12 +894,17 @@ paths:
     post:
       operationId: createPrivateSession
       summary: 本人のPi個人セッション開始
-      description: 本人のPi個人セッション開始
+      description: 本人の明示同意で開始。1台につきactiveは1件。同一キー再送は同じIDの現在状態を返し、ended/expiredから復活しない。最長5分・無操作60秒をサーバー時刻で検査。
       security:
       - userBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（再送時は同じIDの現在状態）
+          headers:
+            ETag:
+              description: セッション同意・終了状態の版。idle更新では変化しない。
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -927,15 +932,48 @@ paths:
             schema:
               $ref: '#/components/schemas/PrivateSessionCreate'
   /tenants/{tenant_id}/private-sessions/{private_session_id}:
+    get:
+      operationId: getPrivateSession
+      summary: 本人がPi個人セッションの現在状態を取得
+      description: 開始した本人のみ。現在の権限とサーバー時刻でended/expiredを反映し、無操作期限は更新しない。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 現在状態
+          headers:
+            ETag:
+              description: セッション同意・終了状態の版。idle更新では変化しない。
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateSession'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: private_session_id
+        in: path
+        required: true
+        schema: *id001
     delete:
       operationId: endPrivateSession
       summary: Pi個人セッション終了
-      description: Pi個人セッション終了
+      description: 本人スマホのみ。If-Matchは同意・終了状態の版と照合。終了・失効後の再送でセッションを復活させない。
       security:
       - userBearer: []
       responses:
         '204':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
         default:
           description: 共通エラー
           content:

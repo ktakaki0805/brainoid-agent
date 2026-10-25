@@ -6,6 +6,7 @@ from functools import partial
 from typing import Any, cast
 from uuid import uuid4
 
+from brainoid_api.auth.account_state import account_stamp
 from brainoid_api.auth.authorization import transaction_policy
 from brainoid_api.auth.runtime import AuthServices, get_auth_services
 from brainoid_api.common.pagination import Cursors
@@ -261,9 +262,17 @@ class DeviceManagementTests(DevicePairingFixture):
             "status": "active",
             "authorization_version": 1,
             "connection_generation": 1,
+            "membership_authorization_version": 1,
+            "device_authorization_version": 1,
+            "user_authorization_stamp": self.store.run(
+                lambda tx: account_stamp(tx, FirebaseUid(self.uid))
+            ),
             "allowed_scopes": ["notes"],
             "expires_at": self.clock.now() + timedelta(minutes=5),
             "idle_expires_at": self.clock.now() + timedelta(seconds=60),
+        }
+        self.store.data[f"tenants/{self.tenant}/private_session_slots/{self.device.id}"] = {
+            "session_id": session
         }
         self.store.run(
             lambda tx: self.boundary.current(

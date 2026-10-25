@@ -27,9 +27,9 @@ from pydantic import (
     model_validator,
 )
 
+from brainoid_api.auth.account_state import account_stamp
 from brainoid_api.auth.authorization import policy_call, transaction_policy, user_subject
 from brainoid_api.auth.context import AuthenticatedIdentity, select_tenant
-from brainoid_api.auth.profiles import UserProfile
 from brainoid_api.common.access import AuthorizedScope, AuthorizedUserScope, fingerprint
 from brainoid_api.common.idempotency import Idempotency, MutationResult
 from brainoid_api.common.pagination import Cursors, page_limit
@@ -102,31 +102,9 @@ class Tenants:
             expires_at=identity.expires_at,
         )
         scope.ensure_live(self._now())
-        documents = tx.find("users", "user_id", identity.user_id)
-        if len(documents) > 1:
-            raise APIError(ErrorCode.INTERNAL_ERROR)
-        if documents:
-            document = documents[0]
-            try:
-                profile = UserProfile.model_validate(
-                    {field: document.get(field) for field in UserProfile.model_fields}
-                )
-            except ValidationError:
-                raise APIError(ErrorCode.INTERNAL_ERROR) from None
-            if profile.user_id != identity.user_id or profile.status != "active":
-                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
-            scope = scope.model_copy(
-                update={
-                    "authorization_stamp": fingerprint(
-                        [
-                            profile.user_id,
-                            profile.status,
-                            profile.version,
-                            document.get("deletion_epoch", 0),
-                        ]
-                    )
-                }
-            )
+        scope = scope.model_copy(
+            update={"authorization_stamp": account_stamp(tx, identity.user_id)}
+        )
         return scope
 
     def _principal(

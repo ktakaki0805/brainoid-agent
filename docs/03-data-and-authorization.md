@@ -55,7 +55,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `invitations/{id}` | 招待コードのハッシュ、期限、作成者、invitation_epoch、使用operation | 生コードは保存せず、一回利用・期限検査。[招待契約](invitations.md) |
 | `agents/{id}` | 人格、プロンプト版、利用可能tool設定 | 外部資格情報を格納しない |
 | `devices/{id}` | 名前、能力、許可scope、状態、session generation | 端末資格情報は別管理。無期限の接続状態を信用しない |
-| `private_sessions/{id}` | user/device、許可scope、期限、最終活動 | 最長5分・無操作60秒を初期案とする |
+| `private_sessions/{id}` | user/device、許可scope、期限、最終活動、認可binding | 最長5分・無操作60秒。[個人セッション契約](private-sessions.md) |
 | `conversations/{id}` | agent、visibility、display_policy、タイトル | privateは所有者のみ。sharedはactive memberが参加可能 |
 | `conversations/{id}/messages/{id}` | role、text、source_refs、run_id | transcriptのみ。生音声は通常保存しない |
 | `runs/{id}` / `runs/{id}/events/{seq}` | 実行状態、checkpoint、出力端末とassignment generation、最終結果、再接続用イベント | events初期保持24時間。本文は会話権限を継承 |
@@ -189,6 +189,8 @@ BA-IAM-07 の[端末資格情報契約](device-pairing.md)でコードの select
 端末access tokenは初期15分とし、refresh credentialは暗号学的ハッシュで保存・ローテーションする。ログ、URL query、Chromiumの永続storageに入れない。OSの秘密ファイルは専用ユーザーと最小権限で管理する。再ペアリングでは古いcredential・セッションを失効する。失効は新しい接続だけでなく既存接続・待機コマンドにも適用し、オンライン反映目標は60秒以内とする。
 
 本人のスマホからPi個人セッションを開始する際、対象Pi、共有空間での表示・読み上げ、許可範囲を示す。セッションは最長5分・無操作60秒で失効する初期案とし、device・user・tenantに束縛する。セッションID単独は資格情報にしない。終了時は表示、再生キュー、ローカル一時本文を消去し、遅延した応答もsession generationで拒否する。
+
+BA-IAM-09の[個人セッション契約](private-sessions.md)は本人の開始・状態取得・終了、Piごとの単一active slot、再送で復活しないreceipt、認可済み活動だけのidle更新を提供する。開始時のmembership/device認可版とaccount状態を現在値に照合し、変更後の再同意を必要とする。snapshot用内部境界は正規状態を返すが、配送と画面・音声消去は後続チケットで接続する。
 
 許可scopeはconversation、memory.read/write、notes、tasks、reminders、calendar.read/propose、home.controlから本人が選ぶ。Calendar実行確認、membership/端末管理、export、アカウント/tenant削除はスマホで行う。Piはsession_startedと再接続snapshotで現在のsessionを取得し、cloud側と異なるローカル推測で本人を決めない。
 

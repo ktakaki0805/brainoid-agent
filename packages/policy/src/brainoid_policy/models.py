@@ -73,6 +73,9 @@ class SessionState(Record):
     status: Status
     authorization_version: Version
     connection_generation: Version
+    membership_authorization_version: Version
+    device_authorization_version: Version
+    user_authorization_stamp: str
     allowed_scopes: frozenset[str]
     expires_at: UtcTimestamp
     idle_expires_at: UtcTimestamp

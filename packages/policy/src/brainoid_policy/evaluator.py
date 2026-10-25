@@ -36,7 +36,18 @@ from brainoid_policy.models import (
 from brainoid_policy.scopes import PolicyDenied, Principal, ResourceGrant, SearchFilter, SearchScope
 
 USER_SCOPES = frozenset(
-    {"shared", "conversation", "memory.read", "memory.write", "notes", "tasks", "reminders"}
+    {
+        "shared",
+        "conversation",
+        "memory.read",
+        "memory.write",
+        "notes",
+        "tasks",
+        "reminders",
+        "calendar.read",
+        "calendar.propose",
+        "home.control",
+    }
 )
 ALL_DISPLAY = frozenset(DisplayPolicy)
 
@@ -143,11 +154,14 @@ class Evaluator:
                 or session.id != subject.private_session_id
                 or session.device_id != device.id
                 or session.connection_generation != device.connection_generation
+                or session.device_authorization_version != device.authorization_version
                 or session.status != "active"
                 or now >= min(session.expires_at, session.idle_expires_at)
             ):
                 raise PolicyDenied()
             session_member = self._member(tenant_id, session.user_id)
+            if session.membership_authorization_version != session_member.authorization_version:
+                raise PolicyDenied()
             # `shared` belongs to the device's visibility grant, not the session's
             # selectable operation enum. A session restricts operations, while the
             # device's shared permission remains necessary for shared resources.

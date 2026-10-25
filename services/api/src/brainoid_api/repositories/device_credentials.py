@@ -594,16 +594,22 @@ class DeviceCredentialRepository:
     def authenticate(self, token: str) -> DeviceIdentity:
         identity = self._tokens.verify(token)
 
-        def authenticate(tx: Transaction) -> DeviceIdentity:
-            family, _ = self._family(tx, identity.family_id)
-            if (
-                any(
-                    family[field] != getattr(identity, field)
-                    for field in ("tenant_id", "authorization_version", "connection_generation")
-                )
-                or family["device_id"] != identity.sub
-            ):
-                raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
-            return identity
+        return self._store.run(lambda tx: self.authorize(tx, identity))
 
-        return self._store.run(authenticate)
+    def authorize(self, tx: Transaction, identity: DeviceIdentity) -> DeviceIdentity:
+        """Recheck a verified credential inside the protected operation's transaction."""
+        if (
+            identity.credential_epoch != self._tokens.epoch
+            or not identity.iat <= self._now().timestamp() < identity.exp
+        ):
+            raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+        family, _ = self._family(tx, identity.family_id)
+        if (
+            any(
+                family[field] != getattr(identity, field)
+                for field in ("tenant_id", "authorization_version", "connection_generation")
+            )
+            or family["device_id"] != identity.sub
+        ):
+            raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+        return identity

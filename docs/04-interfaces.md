@@ -116,7 +116,7 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 | 共有人格 | `/tenants/{t}/agents`、`/agents/{a}` | 読取りと管理者による人格更新 |
 | 端末登録 | `/device-pairings`、`/tenants/{t}/device-pairings:confirm`、`/device-pairings/{p}:exchange` | 未登録Pi開始→スマホ確認→Pi資格情報受領 |
 | 端末管理 | `/tenants/{t}/devices`、`/devices/{d}`、`POST /device-tokens:refresh` | 許可範囲、失効、token更新 |
-| 個人セッション | `POST /tenants/{t}/devices/{d}/private-sessions`、`DELETE /tenants/{t}/private-sessions/{s}` | 本人スマホで開始/終了 |
+| 個人セッション | `POST /tenants/{t}/devices/{d}/private-sessions`、`GET/DELETE /tenants/{t}/private-sessions/{s}` | [本人スマホで開始・現在状態・終了](private-sessions.md) |
 | 端末再同期 | `GET /devices/{d}/snapshot` | active session・出力割当run・未完了command/notification・cursor |
 | 会話 | `/tenants/{t}/conversations`、`/conversations/{c}/messages`、`/conversations/{c}/turns` | 許可された会話の閲覧・発話受付 |
 | 実行 | `/tenants/{t}/runs/{r}`、`/events`、`POST /runs/{r}:cancel` | 状態、SSE、生成停止 |

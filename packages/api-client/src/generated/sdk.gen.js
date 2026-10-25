@@ -396,7 +396,7 @@ export const updateDevice = (options) => (options.client ?? client).patch({
 /**
  * 本人のPi個人セッション開始
  *
- * 本人のPi個人セッション開始
+ * 本人の明示同意で開始。1台につきactiveは1件。同一キー再送は同じIDの現在状態を返し、ended/expiredから復活しない。最長5分・無操作60秒をサーバー時刻で検査。
  */
 export const createPrivateSession = (options) => (options.client ?? client).post({
     security: [{
@@ -414,9 +414,23 @@ export const createPrivateSession = (options) => (options.client ?? client).post
 /**
  * Pi個人セッション終了
  *
- * Pi個人セッション終了
+ * 本人スマホのみ。If-Matchは同意・終了状態の版と照合。終了・失効後の再送でセッションを復活させない。
  */
 export const endPrivateSession = (options) => (options.client ?? client).delete({
+    security: [{
+            key: 'userBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/tenants/{tenant_id}/private-sessions/{private_session_id}',
+    ...options
+});
+/**
+ * 本人がPi個人セッションの現在状態を取得
+ *
+ * 開始した本人のみ。現在の権限とサーバー時刻でended/expiredを反映し、無操作期限は更新しない。
+ */
+export const getPrivateSession = (options) => (options.client ?? client).get({
     security: [{
             key: 'userBearer',
             scheme: 'bearer',
