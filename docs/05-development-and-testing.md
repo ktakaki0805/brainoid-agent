@@ -59,7 +59,7 @@
 
 Python依存は [pyproject.toml](../pyproject.toml)・[uv.lock](../uv.lock) で管理し、`mise run setup`（`uv sync --all-packages --locked`）でuvが `.venv` を作成・同期する。現在のチケット管理スクリプトに外部パッケージ依存はない。依存の追加・削除は `uv add`・`uv remove`、実行は `uv run` を使う。BA-FND-01でこのuvプロジェクトをworkspaceへ拡張済み。共通devツールはルート、実行依存は各memberに宣言する。JavaScript/TypeScript依存はpnpm workspaceと `pnpm-lock.yaml` で管理する。ツール版の正本はmise設定、パッケージ依存の正本はworkspace設定・lockfileとし、CIもこれらに合わせる。ドキュメントでは同じバージョン一覧を手作業で複製しない。
 
-Java、Android SDK、Xcode、Capacitorのnative platform/CLI、Docker、Terraform、Google Cloud CLI、Firebase CLIは、各コンポーネントの実装時に対応関係を確認してバージョンと導入方法を追加する。iOSビルドの環境と実機署名手順はMobile担当が提供する。Dockerイメージ、GitHub Actions、Pi配布物は再現可能な参照へ固定する。
+JavaとFirebase CLIはBA-FND-05で固定し、Auth/Firestore emulatorの起動に使う。Android SDK、Xcode、Capacitorのnative platform/CLI、Docker、Terraform、Google Cloud CLIは、各コンポーネントの実装時に対応関係を確認してバージョンと導入方法を追加する。iOSビルドの環境と実機署名手順はMobile担当が提供する。Dockerイメージ、GitHub Actions、Pi配布物は再現可能な参照へ固定する。
 
 開発環境を3段階に分ける。
 
@@ -119,18 +119,20 @@ BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・�
 | `mise run check` | format・lint・型・チケット・契約・生成差分・互換性を検証 |
 | `mise run test` | API基盤・共通型・package境界・秘密除外・チケット管理、契約負例と生成clientのfake transportテストを実行 |
 | `mise run dev-api` | export済みの設定を検証し、localhost:8000でAPIのhealthを起動。Ctrl-Cで依存を終了 |
+| `mise run dev-emulator` | 明示した専用local設定でAuth/Firestoreを起動。Ctrl-Cで両方終了 |
+| `mise run seed-demo` | 固定fixtureをupsert。既存のfixture IDを再利用し、アプリの時刻も固定 |
+| `mise run reset-demo` | 専用local projectのAuthユーザーとFirestore全データ（子collection含む）を消去 |
+| `mise run test-emulator` | 実emulatorを起動し、二重seed・初期化・prod拒否を検証して自動終了 |
 
 現在のPython検証タスクは `uv run --all-packages --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 
 OpenAPI・JSON Schema検証とclient生成・互換性比較はBA-FND-04で提供する。[通信契約の手順](contracts.md#httpクライアントと契約検証)を参照する。文書リンクの自動検証はBA-FND-06で既存ツールを導入するまでレビューで確認する。
 
-Ruff・mypyは `tests`・Python member、Biome・TypeScriptはNode memberと設定JSONを検査する。既存のチケット管理Skillは既存テストで回帰確認し、このチケットで一括整形・型移行しない。以下は後続チケットで実装・拡張するmiseタスクの契約である。check・testも、現在は上表の範囲だけを実行する。
+Ruff・mypyは `tests`・Python member・`scripts`、Biome・TypeScriptはNode memberと設定JSONを検査する。既存のチケット管理Skillは既存テストで回帰確認し、このチケットで一括整形・型移行しない。以下は後続チケットで実装・拡張するmiseタスクの契約である。check・testも、現在は上表の範囲だけを実行する。
 
 | 予定コマンド | 実装する振る舞い |
 | --- | --- |
 | `mise run dev` | fakeを既定としてAPI・worker・UIを起動。終了時に子processを停止 |
-| `mise run dev-emulator` | emulatorを明示して起動。専用fixture以外に接続しない |
-| `mise run seed-demo` | 2テナントの架空データをlocal専用環境へ投入。prodなら拒否 |
 | `mise run test`（拡張） | 外部APIに接続せず、実装した機能のunit・contract・local integrationを追加 |
 | `mise run test-staging` | 明示したstagingで外部API・索引・IAM確認を実行。件数上限と後片付けを伴う |
 | `mise run test-device` | 対応Piとテスト用Home Assistantへの実機試験を開始 |
@@ -154,6 +156,37 @@ mise run dev-api
 
 BA-FND-02のテストは `tests/test_api_foundation.py`。T-027のproduction/stagingでのfake・emulator拒否、必須設定、矛盾、起動終了、probe異常・復旧・timeout、共通エラー、成功・失敗両方のログ非出力を外部APIなしで検証する。sandboxでAnyIOのthread通知が制限される環境ではTestClientが停止するため、通常のローカル実行環境で `mise run test` を行う。
 
+### 5.2 Auth・Firestore emulatorの起動と初期化
+
+`mise run setup` で固定Java・Firebase CLIを導入後、リポジトリのルートで専用設定を明示的にexportする。Firebase login・実GCP project・service accountは不要。初回起動時だけ、CLIが対応版のFirestore JARを公式配布元から取得して `~/.cache/firebase/emulators` に保存する。通常の `mise run test` はemulatorを起動・取得せず、設定拒否とfixtureの静的検証だけを行う。
+
+~~~bash
+set -a
+. ./.env.emulator.example
+set +a
+mise run dev-emulator
+~~~
+
+Authは `127.0.0.1:9099`、Firestoreは `127.0.0.1:8080`、管理用hub/loggingは4400/4500、Firestoreのwebsocketは9150を使う。UIは無効。port使用中は起動に失敗するため、他のemulatorを停止してから再実行する。起動完了後、別terminalでも上記の設定exportを行い、次を実行する。
+
+~~~bash
+mise run seed-demo
+mise run seed-demo
+# この専用projectの手動追加データもすべて消去する。
+mise run reset-demo
+mise run seed-demo
+~~~
+
+成功時は `demo_seed_complete` / `demo_reset_complete` と終了コード0を返す。不正設定・接続失敗は本文や設定値を出さず非ゼロで終了する。seedはfixture IDの文書を置き換え、同じAuth UIDを再利用する。fixture外の追加データはseedでは消さない。AuthとFirestore間の一括transactionはないので、途中失敗時は原因を解消してseedを再実行するか、reset後にseedする。resetの完了応答を待ってから次の操作へ進む。
+
+起動terminalのCtrl-CでAuth/Firestoreが終了する。import/exportを使わないため再起動時は空になる。実データのexportを持ち込まない。実emulatorを使う自動検証は、手動起動を止めた状態で同じ設定をexportして `mise run test-emulator` を実行する。`emulators:exec` が起動・テスト後の停止を担当し、テスト失敗も非ゼロで返す。fixtureの件数・ID・時刻、二重seed、子collectionを含むresetと再seed、不正設定によるseed/reset拒否、直接clientからのFirestore読取拒否を検証する。localhost bindが `EPERM` になるsandboxでは、通常のローカル実行環境で行う。
+
+4タスクはAPIと同じ設定検証を通した上で、`APP_ENV=local-emulator`、`GCP_PROJECT_ID=demo-brainoid`、default DB、`MODEL_PROVIDER=fake` / `MODEL_ID=fake-model`、上記の固定loopback hostを要求する。production設定やproject aliasの不一致を黙って上書きせず、socket接続より前に拒否する。seed/resetは標準HTTP clientで数値loopbackへ直接接続し、環境proxy・redirect・SDKのcredential探索・cloud fallbackを使わない。将来の外部provider設定も指定する場合はfakeに限る。APIの業務adapter・会員認可はまだ接続しておらず、この環境の成功はそれらの動作保証ではない。
+
+ログはterminalとGit除外済みの `firebase-debug.log` / `firestore-debug.log` に出る。fixtureには実ユーザー・秘密値・tokenを入れない。Firestore Rulesはclientの直接接続を拒否し、seedだけがemulator専用の固定 `owner` 資格値を使う。API/workerのserver側認可はRulesとは別にBA-IAM-02以降で検証する。
+
+emulatorは複合索引の要否、全transaction挙動、document/transaction等の本番制限を再現しない。索引・同時更新・上限・IAMはBA-OPS-02等のstaging検証に残す。今回のローカル成功を本番索引や役割ごとの実認可の合格扱いにしない。[Firestore emulatorとproductionの差](https://firebase.google.com/docs/emulator-suite/connect_firestore#how_the_cloud_firestore_emulator_differs_from_production)、[起動・停止の公式仕様](https://firebase.google.com/docs/emulator-suite/install_and_configure)
+
 ## 6. モックとfixture
 
 BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合はBA-IAM-02の責務である。
@@ -170,7 +203,7 @@ fakeは本番adapterと同じinterfaceを実装する。LLMの自由回答を固
 | Home Assistant | 存在しないentity、接続切断、受付後状態不変、観測遅延 |
 | 時刻・配送 | タイムゾーン、日付跨ぎ、DST、時計ずれ、重複配信、順序入替、再接続 |
 
-共通fixtureはtenant A/B、Aのowner/member、Bのowner、A内のprivate/shared会話、同名の別人・別室の照明、登録/失効Piを含める。権限のない事実を検索候補に混ぜ、最終回答だけでなくLLM入力・SSE・TTS・ログにも漏れないことを検証する。fixtureの時刻とIDを固定し、テストがwall clockや乱数に依存しないようにする。
+BA-FND-05の[固定fixture](../tests/fixtures/tenants/README.md)はtenant A/B、それぞれのowner/admin/member、private/shared会話・ノート、登録/失効Pi、agentを提供する。UID・UUID・アプリ時刻を固定し、本文は `FIXTURE_` 識別語だけで構成する。同名の別人・別室の照明や記憶の派生データは、対応する機能チケットで追加する。権限のない事実を検索候補に混ぜ、最終回答だけでなくLLM入力・SSE・TTS・ログにも漏れないことを後続の認可・機能テストで検証する。
 
 ## 7. テストの層と責任
 

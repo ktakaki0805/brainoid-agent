@@ -5,6 +5,7 @@ python = "3.13.15"
 node = "24.21.0"
 uv = "0.12.19"
 pnpm = "11.28.2"
+java = "temurin-21.0.13+9.0.LTS"
 
 [tools."github:oasdiff/oasdiff"]
 version = "1.34.1"
@@ -81,3 +82,19 @@ run = [
 [tasks.dev-api]
 description = "Run the API health endpoints on localhost:8000 with explicitly exported settings"
 run = "uv run --all-packages --locked --offline python -m brainoid_api"
+
+[tasks.dev-emulator]
+description = "Start disposable local Auth/Firestore emulators; Ctrl-C stops both"
+run = "scripts/dev_emulator start"
+
+[tasks.seed-demo]
+description = "Upsert fixed synthetic fixtures into the explicitly configured local emulators"
+run = "scripts/seed_demo"
+
+[tasks.reset-demo]
+description = "Clear all Auth/Firestore data in the dedicated local demo project"
+run = "scripts/dev_emulator reset"
+
+[tasks.test-emulator]
+description = "Start emulators, verify seed twice and reset, then stop automatically"
+run = "scripts/dev_emulator test"

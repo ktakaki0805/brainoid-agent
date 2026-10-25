@@ -29,7 +29,7 @@ mise run check
 mise run test
 ~~~
 
-`setup` は最初に `mise install` で指定版のPython・Node・uv・pnpmを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
+`setup` は最初に `mise install` で指定版のPython・Node・uv・pnpm・Java・oasdiffを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
 
 `check` は整形、lint、Python/TypeScript型、チケット管理、契約validator、生成差分、HTTP契約の互換性を検査する。`format` は手書きソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run/exec` で実行する。キャッシュ・依存不足時は先にsetupを行う。API起動は [dev-apiの手順](05-development-and-testing.md#51-api基盤の起動)、clientは [契約検証の手順](contracts.md#httpクライアントと契約検証)を参照する。画面の起動はまだ提供しない。
 
@@ -91,9 +91,9 @@ Pythonの追加・削除はuvコマンドで行う。変更したmanifestとlock
 3. Node/pnpm変更時はルート `package.json` の `engines`・`packageManager` と `pnpm-workspace.yaml` の `nodeVersion` を同期する。設定間の版の一致は更新時に確認する。
 4. 新規環境でsetup/format/check/testを実行し、通常導入でlockが変化しないことを確認する。
 
-pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、タスクのNodeはmiseの固定版を使用する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。`verifyDepsBeforeRun: error` はrun/exec中の暗黙installを防ぎ、依存不整合時はsetupを要求する。今回の依存にはinstall lifecycle scriptが不要なので `allowBuilds: {}` とし、新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)、[実行前の依存確認](https://github.com/pnpm/pnpm/blob/main/pnpm/docs/settings/build.md#verifydepsbeforerun)
+pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、タスクのNodeはmiseの固定版を使用する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。`verifyDepsBeforeRun: error` はrun/exec中の暗黙installを防ぎ、依存不整合時はsetupを要求する。install lifecycle scriptは許可しない。Firebase CLI経由のRE2 native buildとprotobufjsのnotice scriptはAuth/Firestoreで不要なので `allowBuilds` にfalseを明示する。新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)、[実行前の依存確認](https://github.com/pnpm/pnpm/blob/main/pnpm/docs/settings/build.md#verifydepsbeforerun)
 
-Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CLIとネイティブCapacitor buildは、それぞれの実装チケットで対応版と導入方法を追加する。今回のNode依存固定だけではiOS・Android・Pi実機の対応を保証しない。
+Java・Firebase CLIはBA-FND-05で下記の通り導入する。Android SDK・Xcode・Docker・Terraform・Google Cloud CLIとネイティブCapacitor buildは、それぞれの実装チケットで対応版と導入方法を追加する。今回のNode依存固定だけではiOS・Android・Pi実機の対応を保証しない。
 
 ## 6. 採用依存と確認根拠
 
@@ -136,3 +136,14 @@ BA-FND-04では次の既存ツールを2026-10-26の公式docs・npm/PyPI metada
 openapi-spec-validatorの追加は開発環境だけに適用し、APIサービスの実行依存には加えない。JSON Schemaの規則は推移依存のopenapi-schema-validator/jsonschemaが担当する。独自にSchema Objectを列挙したり、個別keywordを判定するコードは追加しない。メタスキーマは依存packageに同梱されたものを使い、検証時の追加ダウンロードやクラウド権限は不要。
 
 sandboxがNodeの子process出力captureを制限すると契約負例テストは `spawnSync EPERM` になる。既存API TestClientの通知制限と同様に、通常のローカル実行環境で `mise run test` を行う。検証処理にクラウド接続や権限付与は不要。
+
+BA-FND-05では2026-10-26に公式配布元で次の版・互換性・ライセンスを確認した。
+
+| 採用依存・版 | 理由・互換性・ライセンス |
+| --- | --- |
+| Firebase CLI (`firebase-tools`) 15.34.1 | ルートdev依存としてpnpmで固定。Node >=20（固定Node 24対応）、MIT。Firebase公式が継続保守し、Auth emulatorとFirestore lifecycleを提供。[npm metadata](https://registry.npmjs.org/firebase-tools/15.34.1)、[公式source](https://github.com/firebase/firebase-tools/tree/v15.34.1) |
+| Eclipse Temurin 21.0.13+9 LTS | Firestore emulatorのJava runtime。miseでdistributionを含む完全版を固定。GPL-2.0 with Classpath Exception。Adoptiumが継続提供するOpenJDK build。[公式FAQ](https://adoptium.net/docs/faq/)、[Emulator導入要件](https://firebase.google.com/docs/emulator-suite/install_and_configure) |
+
+Firebase CLIに同梱された[emulator metadata](https://github.com/firebase/firebase-tools/blob/v15.34.1/src/emulator/downloadableEmulatorInfo.json)がFirestore JARの版とchecksumを固定する。JARは初回の明示的な `dev-emulator` / `test-emulator` で公式配布元から取得し、Gitやアプリ配布物に含めない。Auth/Firestore以外のサービス・デプロイ・Firebase loginはこのタスクから呼ばない。CLIの本来のcloud操作機能は開発依存に含まれるが、今回の実行経路は固定demo projectのloopback起動に限定する。Java/CLI/JARは開発専用で、mobileやPiの配布依存へは追加しない。
+
+固定CLIで使わないHosting用RE2のnative installとprotobufjsのinstall noticeは、pnpmの `allowBuilds: false` で明示的に実行を拒否する。通常のfrozen installで承認待ちにせず、Auth/Firestoreの起動・seed・resetを実測する。実行手順は[開発ガイド5.2節](05-development-and-testing.md#52-authfirestore-emulatorの起動と初期化)。通常のcheck/testにJAR取得やlocalhost server起動を隠さない。

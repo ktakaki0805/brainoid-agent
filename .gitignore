@@ -17,6 +17,7 @@ htmlcov/
 .env
 .env.*
 !.env.example
+!.env.emulator.example
 mise.local.toml
 mise.*.local.toml
 .mise.local.toml
@@ -47,3 +48,9 @@ id_ed25519
 *.tfstate.*
 *.tfvars
 *.tfvars.json
+
+# Local Firebase emulator runtime output; fixtures are hand-authored JSON instead.
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*

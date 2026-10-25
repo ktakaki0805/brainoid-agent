@@ -11,5 +11,7 @@ pmOnFail: error
 verifyDepsBeforeRun: error
 autoInstallPeers: false
 strictPeerDependencies: true
-# No install lifecycle scripts are needed by this foundation.
-allowBuilds: {}
+# Auth/Firestore do not use the optional RE2 native matcher or protobuf's install notice.
+allowBuilds:
+  re2: false
+  protobufjs: false

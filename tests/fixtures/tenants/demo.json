@@ -1,0 +1,581 @@
+{
+  "description": "Synthetic local fixtures only; no real people, credentials or conversations.",
+  "auth_users": [
+    {
+      "localId": "demo-a-owner",
+      "displayName": "Fixture A owner",
+      "createdAt": "1792922400000",
+      "lastLoginAt": "1792922400000"
+    },
+    {
+      "localId": "demo-a-admin",
+      "displayName": "Fixture A admin",
+      "createdAt": "1792922400000",
+      "lastLoginAt": "1792922400000"
+    },
+    {
+      "localId": "demo-a-member",
+      "displayName": "Fixture A member",
+      "createdAt": "1792922400000",
+      "lastLoginAt": "1792922400000"
+    },
+    {
+      "localId": "demo-b-owner",
+      "displayName": "Fixture B owner",
+      "createdAt": "1792922400000",
+      "lastLoginAt": "1792922400000"
+    },
+    {
+      "localId": "demo-b-admin",
+      "displayName": "Fixture B admin",
+      "createdAt": "1792922400000",
+      "lastLoginAt": "1792922400000"
+    },
+    {
+      "localId": "demo-b-member",
+      "displayName": "Fixture B member",
+      "createdAt": "1792922400000",
+      "lastLoginAt": "1792922400000"
+    }
+  ],
+  "documents": [
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124",
+      "fields": {
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "name": "Fixture Tenant A",
+        "status": "active",
+        "policy_version": 1,
+        "created_by": "fixture-system",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "users/demo-a-owner",
+      "fields": {
+        "user_id": "demo-a-owner",
+        "display_name": "Fixture A owner",
+        "language": "ja",
+        "timezone": "Asia/Tokyo",
+        "status": "active",
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/memberships/demo-a-owner",
+      "fields": {
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "user_id": "demo-a-owner",
+        "role": "owner",
+        "status": "active",
+        "authorization_version": 1,
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "users/demo-a-admin",
+      "fields": {
+        "user_id": "demo-a-admin",
+        "display_name": "Fixture A admin",
+        "language": "ja",
+        "timezone": "Asia/Tokyo",
+        "status": "active",
+        "created_by": "demo-a-admin",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/memberships/demo-a-admin",
+      "fields": {
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "user_id": "demo-a-admin",
+        "role": "admin",
+        "status": "active",
+        "authorization_version": 1,
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "users/demo-a-member",
+      "fields": {
+        "user_id": "demo-a-member",
+        "display_name": "Fixture A member",
+        "language": "ja",
+        "timezone": "Asia/Tokyo",
+        "status": "active",
+        "created_by": "demo-a-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/memberships/demo-a-member",
+      "fields": {
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "user_id": "demo-a-member",
+        "role": "member",
+        "status": "active",
+        "authorization_version": 1,
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/devices/8dfa7e1d-2fe9-55c8-a349-f976c395c549",
+      "fields": {
+        "id": "8dfa7e1d-2fe9-55c8-a349-f976c395c549",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "name": "Fixture Pi registered",
+        "status": "active",
+        "allowed_scopes": ["shared"],
+        "revoked_at": null,
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "connection_generation": 1,
+        "capabilities": ["display", "audio_output"],
+        "allowed_entity_ids": []
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/devices/fbea2e66-47cb-58b1-a0f8-0c4fa8f8658b",
+      "fields": {
+        "id": "fbea2e66-47cb-58b1-a0f8-0c4fa8f8658b",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "name": "Fixture Pi revoked",
+        "status": "revoked",
+        "allowed_scopes": ["shared"],
+        "revoked_at": "2026-10-25T10:00:00Z",
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "connection_generation": 1,
+        "capabilities": ["display", "audio_output"],
+        "allowed_entity_ids": []
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/conversations/190ac888-c2e4-583e-9af8-5fd399dd24a8",
+      "fields": {
+        "id": "190ac888-c2e4-583e-9af8-5fd399dd24a8",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "visibility": "private",
+        "owner_user_id": "demo-a-member",
+        "display_policy": "authenticated_session",
+        "title": "FIXTURE_A_PRIVATE",
+        "created_by": "demo-a-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "agent_id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80"
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/conversations/190ac888-c2e4-583e-9af8-5fd399dd24a8/messages/6499730c-7935-55ba-bcdf-9755b70cbaba",
+      "fields": {
+        "id": "6499730c-7935-55ba-bcdf-9755b70cbaba",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "role": "user",
+        "text": "FIXTURE_A_PRIVATE_SYNTHETIC_MESSAGE",
+        "created_by": "demo-a-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/notes/eb408191-0d58-559d-92a6-892cc32f4e1a",
+      "fields": {
+        "id": "eb408191-0d58-559d-92a6-892cc32f4e1a",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "visibility": "private",
+        "owner_user_id": "demo-a-member",
+        "display_policy": "authenticated_session",
+        "title": "FIXTURE_A_PRIVATE",
+        "body": "FIXTURE_A_PRIVATE_SYNTHETIC_NOTE",
+        "created_by": "demo-a-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/conversations/d18aec61-c030-58b4-a8c2-e9a07f290487",
+      "fields": {
+        "id": "d18aec61-c030-58b4-a8c2-e9a07f290487",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "visibility": "shared",
+        "owner_user_id": "demo-a-owner",
+        "display_policy": "shared_display",
+        "title": "FIXTURE_A_SHARED",
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "agent_id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80"
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/conversations/d18aec61-c030-58b4-a8c2-e9a07f290487/messages/53b2f965-bb6d-5c01-bf5a-a61b3d922815",
+      "fields": {
+        "id": "53b2f965-bb6d-5c01-bf5a-a61b3d922815",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "role": "user",
+        "text": "FIXTURE_A_SHARED_SYNTHETIC_MESSAGE",
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/notes/650d42e7-c852-58a3-93ae-f2cbe0530f5b",
+      "fields": {
+        "id": "650d42e7-c852-58a3-93ae-f2cbe0530f5b",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "visibility": "shared",
+        "owner_user_id": "demo-a-owner",
+        "display_policy": "shared_display",
+        "title": "FIXTURE_A_SHARED",
+        "body": "FIXTURE_A_SHARED_SYNTHETIC_NOTE",
+        "created_by": "demo-a-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d",
+      "fields": {
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "name": "Fixture Tenant B",
+        "status": "active",
+        "policy_version": 1,
+        "created_by": "fixture-system",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "users/demo-b-owner",
+      "fields": {
+        "user_id": "demo-b-owner",
+        "display_name": "Fixture B owner",
+        "language": "ja",
+        "timezone": "Asia/Tokyo",
+        "status": "active",
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/memberships/demo-b-owner",
+      "fields": {
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "user_id": "demo-b-owner",
+        "role": "owner",
+        "status": "active",
+        "authorization_version": 1,
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "users/demo-b-admin",
+      "fields": {
+        "user_id": "demo-b-admin",
+        "display_name": "Fixture B admin",
+        "language": "ja",
+        "timezone": "Asia/Tokyo",
+        "status": "active",
+        "created_by": "demo-b-admin",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/memberships/demo-b-admin",
+      "fields": {
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "user_id": "demo-b-admin",
+        "role": "admin",
+        "status": "active",
+        "authorization_version": 1,
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "users/demo-b-member",
+      "fields": {
+        "user_id": "demo-b-member",
+        "display_name": "Fixture B member",
+        "language": "ja",
+        "timezone": "Asia/Tokyo",
+        "status": "active",
+        "created_by": "demo-b-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/memberships/demo-b-member",
+      "fields": {
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "user_id": "demo-b-member",
+        "role": "member",
+        "status": "active",
+        "authorization_version": 1,
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/devices/f21d84cb-b83f-5640-bcdf-0aa20baab5f3",
+      "fields": {
+        "id": "f21d84cb-b83f-5640-bcdf-0aa20baab5f3",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "name": "Fixture Pi registered",
+        "status": "active",
+        "allowed_scopes": ["shared"],
+        "revoked_at": null,
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "connection_generation": 1,
+        "capabilities": ["display", "audio_output"],
+        "allowed_entity_ids": []
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/devices/e3a5c0f3-2e70-520f-bf74-fe7d9569f98a",
+      "fields": {
+        "id": "e3a5c0f3-2e70-520f-bf74-fe7d9569f98a",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "name": "Fixture Pi revoked",
+        "status": "revoked",
+        "allowed_scopes": ["shared"],
+        "revoked_at": "2026-10-25T10:00:00Z",
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "connection_generation": 1,
+        "capabilities": ["display", "audio_output"],
+        "allowed_entity_ids": []
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/conversations/4e36a697-386b-5584-a86e-09c844899ced",
+      "fields": {
+        "id": "4e36a697-386b-5584-a86e-09c844899ced",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "visibility": "private",
+        "owner_user_id": "demo-b-member",
+        "display_policy": "authenticated_session",
+        "title": "FIXTURE_B_PRIVATE",
+        "created_by": "demo-b-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "agent_id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b"
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/conversations/4e36a697-386b-5584-a86e-09c844899ced/messages/dede92b5-fdac-5bcf-a516-0e46146a5db6",
+      "fields": {
+        "id": "dede92b5-fdac-5bcf-a516-0e46146a5db6",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "role": "user",
+        "text": "FIXTURE_B_PRIVATE_SYNTHETIC_MESSAGE",
+        "created_by": "demo-b-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/notes/87bbf0a7-e560-5f64-a2fe-dcaa77c84c69",
+      "fields": {
+        "id": "87bbf0a7-e560-5f64-a2fe-dcaa77c84c69",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "visibility": "private",
+        "owner_user_id": "demo-b-member",
+        "display_policy": "authenticated_session",
+        "title": "FIXTURE_B_PRIVATE",
+        "body": "FIXTURE_B_PRIVATE_SYNTHETIC_NOTE",
+        "created_by": "demo-b-member",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/conversations/cb87cb14-db38-5199-9108-be50527b6a79",
+      "fields": {
+        "id": "cb87cb14-db38-5199-9108-be50527b6a79",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "visibility": "shared",
+        "owner_user_id": "demo-b-owner",
+        "display_policy": "shared_display",
+        "title": "FIXTURE_B_SHARED",
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "agent_id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b"
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/conversations/cb87cb14-db38-5199-9108-be50527b6a79/messages/96b165e6-564c-504a-bfa1-9d4a6bd9fe2a",
+      "fields": {
+        "id": "96b165e6-564c-504a-bfa1-9d4a6bd9fe2a",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "role": "user",
+        "text": "FIXTURE_B_SHARED_SYNTHETIC_MESSAGE",
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/notes/c72dbec5-65f3-5d2f-905b-21c99cf176a5",
+      "fields": {
+        "id": "c72dbec5-65f3-5d2f-905b-21c99cf176a5",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "visibility": "shared",
+        "owner_user_id": "demo-b-owner",
+        "display_policy": "shared_display",
+        "title": "FIXTURE_B_SHARED",
+        "body": "FIXTURE_B_SHARED_SYNTHETIC_NOTE",
+        "created_by": "demo-b-owner",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/agents/4a5f91dd-75ab-50bf-94dd-97ae419ede80",
+      "fields": {
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "created_by": "fixture-system",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80",
+        "name": "Fixture Agent A",
+        "prompt_version": 1,
+        "enabled_tools": []
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/agents/755eb6a6-da20-5c4a-93d1-ab8eeb24705b",
+      "fields": {
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "created_by": "fixture-system",
+        "version": 1,
+        "schema_version": 1,
+        "deletion_epoch": 0,
+        "id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b",
+        "name": "Fixture Agent B",
+        "prompt_version": 1,
+        "enabled_tools": []
+      }
+    }
+  ]
+}

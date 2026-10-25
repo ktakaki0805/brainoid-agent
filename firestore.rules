@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Clients use the API. The local seed uses the emulator's owner credential.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
