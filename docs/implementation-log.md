@@ -1358,3 +1358,170 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.87秒、全9タスク成功、台帳done8/todo88。
 - 終了: 2026-10-25T19:24:46.652148+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-01-20261025t192509z
+
+- チケット: BA-IAM-01
+- 状態: done
+- 開始: 2026-10-25T19:25:09.804735+00:00
+- ブランチ / base commit: main / 16142046ba59d724195610efc43e21225b0e8ca9
+- 開始時の変更: なし
+- 選択: check成功（done8/todo88）、IDなしnextで依存順の次。依存FND-02/03/05実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam01_implementation`（独立context）。
+- 実装コミット: `a683dbf0764af1912d8c3150de7396c8b0196cfb`
+
+### 受入条件と検証計画
+
+- Firebase ID token署名/audience/issuer/期限/失効を検査。未認証/期限切れ/別project/失効は401、正常UIDへUUIDを要求しない。
+- 本文user_id/roleで主体や権限が変化しない。選択tenantは後続membership照合に渡し、認可済みとはしない。
+- GET /users/me、直近再認証の補助、認証token非ログ化を実装。
+- emulator正常系と署名adapter負例で偽署名/audience/古いauth_timeを拒否、T-027 production fake混入拒否を確認。全mise check/testと適切なemulator検証。
+- membership認可はIAM-02、端末専用tokenはIAM-07。追加の外部前提なし。
+
+### 認証とContextの境界方針
+
+- firebase-admin7.7.0のverify_id_token(check_revoked=True, clock_skew_seconds=0)をadapterで利用予定。
+- AuthenticatedIdentity(uid/auth_time/iat/exp)とSelectedTenantIdentityを分け、IAM-02のmembership照合前にactive/allowed_scopesを推測したTenantContextを作らない。
+- GET /users/meは保存済global profileをUser schemaへ厳密投影、未作成404。opaque UIDのslashをpathへ直接使わず、usersのuser_id equality+limit2で一意性確認する方針。
+- local-fakeは認証を常時401としてhealthを維持。正常系emulator、署名負例は実SDKとローカルRSA鍵を使う。
+- 親からSDKがprocessのemulator envを参照する点を共有。明示Settings注入と実環境の矛盾でもproduction署名検証が迂回されない検証を求めた。
+
+### 固定SDK sourceの確認
+
+- 実装担当がFirebase Admin7.7.0 sourceを確認。emulatorでJWT時刻検査も省略されるため、auth_time/iat/expの厳密数値・順序・期限をSDK後に全環境共通検査する方針。
+- SDKの失効比較がiatとtokens_valid_after_timestampのため、check_revoked=Trueに加えauth.get_userでauth_time cutoffも比較し、失効前の認証から後でrefreshしたtokenを拒否する。追加user lookupを文書化予定。
+- process emulator変数とSettingsの照合を構築時/verify前後へ設け、不整合はstartup failure/503とする。
+
+### 実装中の契約整合確認
+
+- 親から初版routeがroot /users/meだった点を共有。OpenAPI servers=/v1、既存生成clientに合わせ /v1/users/me のwire pathを実HTTP試験するよう依頼。
+- 直近再認証不足はdocs04の403 reauth_requiredと整合させ、未認証/期限切れtokenの401と区別するよう依頼。いずれも実装中の補完で、独立レビュー回数には算入しない。
+
+### 初回認証検証
+
+- /v1/users/me prefixを修正。直近再認証不足403 reauth_required、期限切れ/future401へ整合。
+- 署名adapter unit13件初回成功、mypy54files成功。実emulator新6+既存11=17件成功。
+- emulatorで実revoke/disabled、6users profile、schema検証、opaque slash UID、未作成404、duplicate/corrupt/deleting拒否を確認。
+- 残り: HTTP再認証403/SDK環境guard補強、文書/schema説明/client生成、setup/check/test全体と新規diff検査。
+
+### 実装完了と全体検証
+
+- `/root/iam01_implementation` が編集停止、製品21ファイル。SDK依存/auth/context/runtime/profile/users、共通reauth403、文書/schema説明/生成clientを変更。
+- `mise run setup` 成功、前後uv.lock/pnpm-lock.yaml SHA256一致（`/tmp/ba-iam-01-locks-before-setup.sha256`）。
+- `mise run check` 成功: mypy54source、format54、docs1034OK、生成client一致/互換性破壊なし。`mise run test` Python79/Skill18/Node38成功。
+- 最後のETag assertion追加後、認証unit14件成功、実emulator17件成功13.109秒。git diff --checkと新規を含む21製品ファイル空白/最終改行成功。
+- 本文user/roleを主体へ採用しない、profile未作成404等をdocs/authentication.mdに記録。production Firebase/実ADC/Cloud Run/staging試験は未実施で範囲外。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam01_review_r1`（新規独立context）。base commit: `16142046ba59d724195610efc43e21225b0e8ca9`
+- 最新製品差分全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `a3267b68597f6aef080022efa898f5b029059599575e20fd14d349b7c795c0b5` |
+| `docs/05-development-and-testing.md` | `b4fb01aae3e6c3ba3afe0f0af14b6e6b366e9dd61a0e17fd1c5315ff12acd5b2` |
+| `docs/authentication.md` | `8e8fd92b5af43100294bc70a40578f4adcfec762c47bceab67ec71956e578547` |
+| `docs/toolchain.md` | `80ade4e77f4e75e3626544307b58ccd6825b6acc7ae48900152d9cc82aa4f4e4` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `1597efdbf98a21a3bc5be5d527bb6e227101406f0dda38c34fc43f40da8a1102` |
+| `packages/api-client/src/generated/sdk.gen.js` | `8f3063480c5271007182dc7a054b620ffaecad2b31cea06bcd7bdfcb6c9ebc2b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `1c038d594438041c41fd15e320b623e9a1e7180f2c9dc428e4dfa52c626fddd8` |
+| `services/api/pyproject.toml` | `6e8acf0d34ed182191aafdf104c8d907517a6d04ea7a0c8422b1980b8668f55e` |
+| `services/api/src/brainoid_api/app.py` | `72fd4a6c00e87115d21faabad710b99bc134fb2b71ee709501191c16531a6a57` |
+| `services/api/src/brainoid_api/auth/__init__.py` | `c19e6882a893191fb086fbfb44209af1d2cb6fedef9c81cdb945ca6d8dc2bccb` |
+| `services/api/src/brainoid_api/auth/context.py` | `83e65fdb80dc94e748c29f84b652f9bc558264a26c2c780a5726f55ccefb6110` |
+| `services/api/src/brainoid_api/auth/firebase_identity.py` | `21a43cde688d3c71738f7fafcd58f04a11f24fdf7cfe1b76969a17b4568a6947` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `bfa96fddfb45bb552f447086c6623666af8483a8d3bd622a53ed0e80cd56109c` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `3ed1983474691430952db667902e860b636da2794d0497ea95e1081520542c46` |
+| `services/api/src/brainoid_api/errors.py` | `213b3ed434fbf2d97cc39240f42486ea299700e82cdd06e7de5d84c65ff80edc` |
+| `services/api/src/brainoid_api/routes/__init__.py` | `bf93295a2561be11b268de55107f1facf918c1fc90da44ed26f9dce72be81e69` |
+| `services/api/src/brainoid_api/routes/users.py` | `784bec581aa5ed2de262bc12525e716f2258997d0548370d34bf28f23c15bb00` |
+| `specs/openapi.yaml` | `dd05fa4b5a0e3e386c32d6aa626965673222392a493661e877f0f1631f6d5727` |
+| `tests/emulator/test_authentication_integration.py` | `0fb167ae0e967047bc0c3f35d302dc1509207e8362b868d1d49d8aa9f6bb16c8` |
+| `tests/test_authentication.py` | `5cf704ed3a7e29846ba5db96654a3e1e8a43384bbd878dec8a9019de99f46675` |
+| `uv.lock` | `59e8505616721a8f5803f5e27ca1c8f179c0b51ff0da230102b999766f3853bd` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam01_review_r1` が開始時21製品ファイルhash/main/base一致と作業規約/DoD/チケット/User schemaを確認。署名/失効/主体上書き防止/未認可tenant選択分離を追跡。
+- 親から追加確認: pinned SDK _auth_client.pyは通常root clientでfirebase.tenantを照合しないように見えるため、Auth tenant付き同UID tokenがglobal profileへ混同されるかを合成署名fixtureで評価するよう依頼。現時点は未確定であり、必須指摘とは扱わない。
+
+### 独立レビュー ラウンド1 境界再現
+
+- レビュー担当の認証unit14件直接実行は成功。一方、合成RSA署名fixtureに `firebase={tenant:other-identity-tenant}` を追加すると /v1/users/me がrootのPROFILEを200で返すことを再現。空tenant/Noneも200。
+- SDK root clientがtenant検査を省略し、後続get_user(uid)がrootを参照することをsourceで確認。ADR-005は認証基盤tenant分割を不採用でglobal UIDのみ。
+- [Identity Platform公式のtenant管理](https://docs.cloud.google.com/identity-platform/docs/multi-tenancy-managing-tenants)のIdentity verification節もproject-level verify後のtenant選別を要求。未対応Auth tenant tokenの401拒否が最小修正との評価。全体レビュー最終判定待ち。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam01_review_r1`: request_changes、確認済みレビュー1回、必須1件、任意なし。開始/終了時21ファイルhash一致。
+- IAM01-R1-01/P1: firebase_identity.py:64。同projectのAuth tenant tokenをglobal UIDとみなし、rootの失効状態/profileへ到達。署名済firebase.tenant=other-identity-tenantで200/root profileを独立再現。成立には同projectのIdentity Platform tenantとroot/tenant間UID重複が必要で、実環境での成立は未確認。
+- ADR-005に沿いAuth tenantが含まれるclaimsを401拒否し、profile readerへ到達しない署名検証回帰を要求。tenant対応追加は不要。
+- 直接認証unit14成功0.218秒、上記再現、diff --check/hash一致。他の署名/時刻/失効/opaque UID/主体不変/User schema/再認証/T027/log/lifecycle/依存はコードとテストに整合。
+- 全check/test79+18+38/emulator17は提供結果。修正は元実装担当へ返し、最新差分全体を新しいreviewerで再確認する。
+
+### IAM01-R1-01 修正途中検証
+
+- 元実装担当がSDK検証後_identityでfirebaseがobject以外、またはtenantキーを含む場合に値を問わず401とする最小修正を追加。
+- 署名済み回帰: tenantの通常/空/null/false/0/array/objectと不正firebase containerを拒否しprofile reader未到達。rootの正常metadataは200。
+- 認証unit17件成功。文書リンク補正後、全check/testと既存emulator17件を再検証中。
+
+### IAM01-R1-01 修正完了
+
+- 元実装担当が編集停止。firebase_identity.py/tests/test_authentication.py/docs/authentication.mdの3ファイルで対応、前回manifestとの差も3件だけ。
+- 認証unit17成功、mise test Python82/Skill18/Node38成功、実emulator17成功13.962秒。mise check初回は追加testのtuple型注釈1件失敗、修正後全check成功（mypy54/docs1035OK/client一致/互換性破壊なし）。
+- git diff --checkと新規含む製品21files空白/改行成功、両lock checksum一致。実Auth tenant作成/UID重複は行わず、ローカルRSA+実SDKで署名済境界を検証。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/iam01_review_r2`（新規独立context）。base commit: `16142046ba59d724195610efc43e21225b0e8ca9`
+- 最新製品差分21ファイル全体、親の台帳・ログのみ除外。前回指摘の修正3ファイルだけに限定せず再レビュー。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `a3267b68597f6aef080022efa898f5b029059599575e20fd14d349b7c795c0b5` |
+| `docs/05-development-and-testing.md` | `b4fb01aae3e6c3ba3afe0f0af14b6e6b366e9dd61a0e17fd1c5315ff12acd5b2` |
+| `docs/authentication.md` | `4e1fa36d86ea94969161a9d809fa9b8d8254eb7e5616ce7f45311dc328240c59` |
+| `docs/toolchain.md` | `80ade4e77f4e75e3626544307b58ccd6825b6acc7ae48900152d9cc82aa4f4e4` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `1597efdbf98a21a3bc5be5d527bb6e227101406f0dda38c34fc43f40da8a1102` |
+| `packages/api-client/src/generated/sdk.gen.js` | `8f3063480c5271007182dc7a054b620ffaecad2b31cea06bcd7bdfcb6c9ebc2b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `1c038d594438041c41fd15e320b623e9a1e7180f2c9dc428e4dfa52c626fddd8` |
+| `services/api/pyproject.toml` | `6e8acf0d34ed182191aafdf104c8d907517a6d04ea7a0c8422b1980b8668f55e` |
+| `services/api/src/brainoid_api/app.py` | `72fd4a6c00e87115d21faabad710b99bc134fb2b71ee709501191c16531a6a57` |
+| `services/api/src/brainoid_api/auth/__init__.py` | `c19e6882a893191fb086fbfb44209af1d2cb6fedef9c81cdb945ca6d8dc2bccb` |
+| `services/api/src/brainoid_api/auth/context.py` | `83e65fdb80dc94e748c29f84b652f9bc558264a26c2c780a5726f55ccefb6110` |
+| `services/api/src/brainoid_api/auth/firebase_identity.py` | `9031b548b06bd24d53070810f3234da1cd44430e55ebef54663ade40b29d8dc7` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `bfa96fddfb45bb552f447086c6623666af8483a8d3bd622a53ed0e80cd56109c` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `3ed1983474691430952db667902e860b636da2794d0497ea95e1081520542c46` |
+| `services/api/src/brainoid_api/errors.py` | `213b3ed434fbf2d97cc39240f42486ea299700e82cdd06e7de5d84c65ff80edc` |
+| `services/api/src/brainoid_api/routes/__init__.py` | `bf93295a2561be11b268de55107f1facf918c1fc90da44ed26f9dce72be81e69` |
+| `services/api/src/brainoid_api/routes/users.py` | `784bec581aa5ed2de262bc12525e716f2258997d0548370d34bf28f23c15bb00` |
+| `specs/openapi.yaml` | `dd05fa4b5a0e3e386c32d6aa626965673222392a493661e877f0f1631f6d5727` |
+| `tests/emulator/test_authentication_integration.py` | `0fb167ae0e967047bc0c3f35d302dc1509207e8362b868d1d49d8aa9f6bb16c8` |
+| `tests/test_authentication.py` | `ba25e31f34df15d13a7c6ee989b2e3b99982c23f4e362851b7951b006cceacb8` |
+| `uv.lock` | `59e8505616721a8f5803f5e27ca1c8f179c0b51ff0da230102b999766f3853bd` |
+
+### 独立レビュー ラウンド2 直接検証
+
+- `/root/iam01_review_r2` が開始時21files hash/main一致を確認。
+- 認証unit17件成功0.242秒、mise check全9タスク成功（mypy54/docs1035/client一致/互換性破壊なし）。
+- SDK7.7.0 sourceと公式Identity Platform資料でrootSDKのtenant非照合/iat失効比較を直接確認。追加namespace拒否とauth_time比較の整合を確認し、専用demo emulatorを独自再実行へ進む。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/iam01_review_r2`: approve。確認済みレビュー2回、必須/任意指摘なし、IAM01-R1-01解消。開始/終了時21files hash一致、main/base維持、対象外製品差分なし。
+- SDK署名/claims/失効/無効化/削除、opaqueUID、主体不変、User公開項目/ETag/再認証300秒、token非漏洩/T027、後続認可分離を確認。
+- Auth tenant keyを値に関わらず拒否、不正firebase container拒否、署名済各種401/profile未参照/root正常metadata200を直接確認。固定SDK/公式資料とも整合。
+- 直接: 認証unit17成功0.242秒、mise check全9成功21.94秒（mypy54/docs1035/client一致/互換破壊なし）、emulator結合17成功11.038秒、diff --check。
+- 提供結果: setup成功/両lock不変、全test82+18+38成功。本番Firebase/ADC/CloudRun/Auth tenant作成は未実施。チケット許容の署名検証/emulator範囲で受入完了。
+
+### 完了結果 (2026-10-25T19:47:53.396141+00:00)
+
+- BA-IAM-01: Firebase署名/claims/失効とglobal認証namespace検査、認証と未認可tenant選択の分離、/v1/users/me、直近再認証helperを実装。全check9タスク、test82+18+38、emulator17成功。
+- 独立レビュー2回、r1のIAM01-R1-01を修正しr2 approve、未解決必須指摘なし。r2がunit17/check9/emulator17を直接成功確認。
+- 実装コミット: `a683dbf0764af1912d8c3150de7396c8b0196cfb`（feat(auth): BA-IAM-01 verify Firebase identities and current profiles）。
+- 承認済み21ファイルのみをmainへstage、cached diff/--checkとindex hash一致を確認。commit後の対象・内容・worktree一致、hook変更なし。
+- 本番Firebase/ADC/CloudRun/tenant作成は未実施、チケットが許容するローカル署名検証/emulator範囲で完了。membership認可等は後続。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.95秒、全9タスク成功、台帳done9/todo87。
+- 終了: 2026-10-25T19:48:19.844326+00:00。台帳・ログのみを記録コミット。
