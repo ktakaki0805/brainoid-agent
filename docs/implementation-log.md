@@ -1971,3 +1971,176 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.91秒、全9タスク成功、台帳done13/todo83。
 - 終了: 2026-10-25T21:04:31.457392+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-06-20261025t210447z
+
+- チケット: BA-IAM-06
+- 状態: done
+- 開始: 2026-10-25T21:04:47.146235+00:00
+- ブランチ / base commit: main / 88a6cf3978a65528a5850a6f97a94b61c57198ff
+- 開始時の変更: なし
+- 選択: check成功（done13/todo83）、IDなしnextで依存順の次。依存IAM03/04/05実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam06_implementation`（独立context）。
+- 実装コミット: `8289740e3684690fc49952279a825b4576a9ed9c`
+
+### 受入条件と検証計画
+
+- role更新/所属失効/owner移譲を独立台帳とversion照合へ接続。owner付与/移譲はownerのみ、adminによるowner変更・自己昇格を拒否。
+- 最終ownerを失う変更と並行移譲を原子的検査。DBだけでなく先行deny/pending台帳による有効owner数も維持し、監査は対象と結果のみ。
+- 所属失効後は古いtokenでも当該tenant拒否、他tenantへ影響しない。管理権限からprivate本文/global削除権限を与えない。
+- T033/T034、最終owner離脱/同時role変更/移譲/台帳途中失敗/再送をfake+emulatorで検証。全check/test、契約/client/doc整合。
+- 外部前提なし。本人退会/purgeはIAM10、管理UIはUI11対象。IAM04任意R1-OPT-01のdocs03接続時期表現も本件接続範囲に合わせる。
+
+### 会員管理の原子性・移譲方針
+
+- 実装担当案: tenantの永続membership_mutation reservationをDB txで取得し、ledger.prepare前からIAM06 role/revoke/transferを直列化。TTL解除せず、同actor/key/If-Match/正規化bodyへ束縛したreceiptだけroll-forward可能。
+- 全phaseでreservation/current tenant/global user/対象版/最新台帳/guardで有効ownerを再確認。自己減権限後だけ自身のexact change/最新台帳一致で専用再開を許し、一般PATCH認可へ転用しない。
+- POST memberships:transfer-owner追加、相手owner grant確定・active確認後に旧owner member deny。ownerのみ複数ownerの降格/他owner失効を許すが有効owner0はprepare前拒否。本人DELETEはIAM10、失効/transferは5分再認証。
+- transaction.collectionでowner列挙、opaqueUIDはbody/path converterとsafe lookup。親から予約取得/解放応答喪失・各台帳/DBphase・同時降格/移譲の検証、再送不能時の安全停止と復旧境界を共有。docs03監査allowlist/再認証とEvaluator既存制約も確認。
+
+### 初回実装・障害行列検証
+
+- 実装担当: repository、GET/PATCH/DELETE/transfer POST、runtime接続、永続tenant予約/固定receipt、各phase最新台帳・actor・tenant再確認、新owner確定→旧owner deny、自己減権限retryを実装。
+- fake transferの台帳8write前後16障害、全DB transaction前後20障害のroll-forward成功。初回追加10test中8成功、2件は操作順/冪等key衝突期待を修正中（まだ全成功ではない）。
+- 次に契約/client/docs、emulator競合・旧Firebase token拒否を検証。
+
+### 単体・emulator初回成功
+
+- 初回2件の期待/操作順を修正後、追加fake10件すべて成功。emulator47件（既存42+追加5）43秒で成功。
+- 同時2owner自己降格、異なるowner同時移譲、旧owner deny途中失敗、予約/完了commit応答喪失、実Firebase旧tokenで失効tenant404・他tenant200を確認。
+- OpenAPI transferOwner/client生成、docs/memberships.mdと03/04/control-ledger/invitations更新。auditは正本のtenants/{t}/audit_eventsへ合わせた。
+- formatter/mypy初回指摘を修正中。setup/check/testと最終編集後emulator再実行待ち。後続IAM10も予約に参加する境界を共有済み。
+
+### 全体検証の初回結果と再参加競合の補強
+
+- setup/check全9（mypy83）成功。全test Python153/Skill18成功、Node37/38。新endpointで生成メソッド数86→87となった固定期待1件を更新中。
+- 実装担当自己点検: revoke active化後/予約解放前にinvite rejoinが次版を作ると旧管理receiptを再開できない窓を確認。owner0ではないが予約完了を妨げるため、Invitations._eligibleでmembership_mutation予約中のgrantを409拒否へ補強する。
+- 親から未claimコードを使用済みにせず409とすること、既claim再送も予約完了後に最新版を照合することを共有。対応test/docと最終check/test/emulator待ち。
+
+### 実装完了・最終検証
+
+- `/root/iam06_implementation` が製品編集停止。setup成功、最終差分check全9成功（mypy83/ruff83/client driftなし/契約破壊なし/docs0errors）、全test Python156/Skill18/Node38成功、明示.env.emulator.exampleでemulator48件42.632秒成功・停止、git diff --check成功。
+- fake追加13件/emulator追加6件。管理予約と招待grantの競合拒否、未claimコード非消費、自己減権限exact Change再開、grant→deny移譲、監査・API/client/docsを含む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam06_review_r1`（新規独立context）。base commit: `88a6cf3978a65528a5850a6f97a94b61c57198ff`。
+- 製品24files差分全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `1acd365597c12ced4a680bac89c35cf29d95216c671f427e0e4507d082a0dcd6` |
+| `docs/04-interfaces.md` | `cc3bca9111c2203c1d2477c4fed74cec2cdeff1724a68e566f4103ff0d3a2674` |
+| `docs/control-ledger.md` | `a014f564d15ed559d8245d703c9ae4c4dd499996a29fc171e23f9f9944996b8b` |
+| `docs/invitations.md` | `e23e8c5169f360e46dcba5b705954709b8c8cfc5080d269699e87bf148e1bf7f` |
+| `docs/memberships.md` | `e1d9fbb7789ef01393aecab2b6f0268a49276da21fda1d12ce1bbedf8c6242f4` |
+| `packages/api-client/src/generated/index.d.ts` | `b8a3c7c22d13f19925e0b3dbe57f73f98158a8548e21a352ce3430e941b2bc1e` |
+| `packages/api-client/src/generated/index.js` | `e4c64261a933f640b983328c9d95b1604db047ca7df0aa510d2ceaf31c053b8d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `100f35373e6408e09ee5e981f4040a4b6066d41493c42bb1d3dc69de2b29f825` |
+| `packages/api-client/src/generated/sdk.gen.js` | `d04fabda017b8b8dec0de4e28ed25554f874bbfad86eadec2619e5976e4e697f` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `b36bbce17ac342942d695b02bbf3b4b644729e8d973a67b7401f753df9c574b7` |
+| `packages/policy/src/brainoid_policy/evaluator.py` | `d6cff35f9f1dfa3de19d700ba93ddbee3c38f50a516437f1ace6a0d3f5637658` |
+| `services/api/src/brainoid_api/app.py` | `21547050c3d7ac3fc285614a9263cc1ef36f5aa1253e0b482e98f5440d05c964` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `31f6c3466253512c19ec9d2921c5d296cdb4ae9ec064437f187980104e00c9b8` |
+| `services/api/src/brainoid_api/common/firestore.py` | `db77991666443a81949db370041e09dfea5fa59da399147c5c933adc7170d94f` |
+| `services/api/src/brainoid_api/common/transactions.py` | `44e0d356a3fb8395a85f3d07f25d88779faa496946e5e47dee469b6c62184104` |
+| `services/api/src/brainoid_api/repositories/authz_changes.py` | `46263e307c81f2ae143919d3c25876221c54796e67705d1a1629ef1751d9a2eb` |
+| `services/api/src/brainoid_api/repositories/invitations.py` | `554e271fff0b0a01e1db4d5103dcbdc4351f437b178af400ebb5eeab79324148` |
+| `services/api/src/brainoid_api/repositories/memberships.py` | `a9de858ef98180af232faf232fa536894a5af5ddc526cfbafa395279f200570b` |
+| `services/api/src/brainoid_api/routes/memberships.py` | `41d5e040948f74dbe456bac6bc97c53efde8afc59dc94590c2f363e6224f0989` |
+| `specs/openapi.yaml` | `8e015061ca2c4bf65aec6fed81989d9edf2a20373b8edfa25ff40006a12d26fe` |
+| `tests/emulator/test_memberships_integration.py` | `d3afb44905112c15bce1b0a6b0dba8255ae444c96222d3f154853bdc855c20a8` |
+| `tests/test_api_contracts.mjs` | `9b3abfcf8ced0469ec7ecca133351b661ad9ed0a14e9bcdb8575e9e37d6e27b0` |
+| `tests/test_common_mutations.py` | `c3d881ba8a497cf3c0c7e4dd3c86001f9964c812c7b88102a70cdbf636832e52` |
+| `tests/test_memberships.py` | `e858fcc860a68c99fcce2aec51b8fbf221c546a9f7a5f3cdda52d59e4b70c532` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam06_review_r1` が開始時main/HEAD/baseと24files全SHA一致を確認。AGENTSなし、CONTRIBUTING/DoD/IAM06/FR002/T033/T034、全差分・周辺実装を確認中。
+- 直接fake追加13testが2.684秒で成功（TestClient制約のため通常権限）。予約/各phase再認可/invite割込をさらに精査、必須指摘は現時点で未確定。
+
+### 独立レビュー ラウンド1 途中の要修正候補
+
+- reviewerが生成SDK fake-fetch probeでUID `.` / `..` の不具合を再現。共通FirebaseUidとFirebase Admin validate_uidは受理するが、Requestのdot-segment正規化でupdateMembership/revokeMembershipのURLが別pathとなり対象会員を変更/失効できない。
+- P2 request_changes候補、最終位置・修正条件の回答待ち。製品差分はレビュー中のまま固定、まだ修正していない。
+
+### 独立レビュー ラウンド1 最終判定・修正指示
+
+- `/root/iam06_review_r1`: request_changes。24files全差分/新規全文/周辺/正本を確認、開始/終了main/HEAD/base・対象集合・全SHA一致。必須1件、任意なし。
+- BA-IAM-06-R1-01 P2: routes/memberships.py:79/108、specs/openapi.yaml:279。UID . / .. はFirebaseUidと固定Firebase SDKが受理するが、生成SDKの実Requestでdot segment正規化され別URLになる。update/revokeが対象に届かない。percent encodeのみでは解消しない。UIDをbody/query等へ渡す追加経路、または正規化されない明示識別子表現を契約/route/SDKへ接続し、. / .. / slash UIDの実Requestとサーバー対象解決を回帰検証する。UID一律禁止は不可。元の実装担当へ修正返却。
+- 主要ACの予約/台帳順序/有効owner維持、管理権限/自己降格exact再送/invite予約拒否、tenant限定失効/private・global不操作/audit allowlistは確認。
+- 直接: fake13成功2.684秒、client/contracts/compatibility/diff --check、SDK URL probe。reviewerの初回mise複数task指定usage errorは個別再実行で成功。setup/check9/test156+18+38/emulator48は提供証跡。
+
+### R1-01修正方針
+
+- 同collection /tenants/{t}/memberships に必須query user_idのPATCH/DELETEを追加、operationId updateMembershipByUid/revokeMembershipByUid。既存path経路は互換維持、全opaque UIDにはquery経路を推奨する。
+- generated SDKの実Requestをfake fetch検証し、そのURL/method/bodyをserverへ渡す連結回帰を追加するよう共有。. / .. / slashのほかliteral %2E・?/#/+等のencoding衝突も検証する。
+- 同repositoryで対象/version/台帳の処理を共用、契約/client/docsとfake/emulatorを更新し、最終検証後r2へ進む。
+
+### R1-01のSDK→server連結検証
+
+- tests/fixtures/memberships/sdk_requests.mjsが生成SDKのactual Request URL/method/headers/bodyをJSON化し、値を変更せずFastAPI TestClientへ投入する回帰を追加、fake成功。
+- . / .. / opaque slash UID / literal %2E / u?/#+ の各PATCH/DELETE計10要求を検証。旧slash pathへ同key再送して同結果・二重更新なし。query重複400/欠落422も確認。
+- 修正後check9（mypy83）、test Python158/Skill18/Node39成功。実Firestore routeへ同じRequestを投入する追加testを含むemulator49件を実行中。
+
+### R1-01修正完了・最終検証
+
+- 実装担当が製品編集停止。最終check9/mypy83/client一致/契約破壊なし、test Python158/Skill18/Node39、emulator49件44.516秒、最後の文書表現調整後docs0error、diff --check成功。setupはR1前に成功、その後依存変更なし。
+- query routeを同一handlerへ追加、query重複400、OpenAPI/client/docs更新。actual SDK Request10件を未改変でfake/実Firestore APIへ投入しUID別version2/3とactive/revokedを確認、旧pathとの同key再送は二重更新なし。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/iam06_review_r2`（新規独立context）。base commit: `88a6cf3978a65528a5850a6f97a94b61c57198ff`。
+- 最新差分全25files、修正箇所のみでなく全体をレビュー。親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `1acd365597c12ced4a680bac89c35cf29d95216c671f427e0e4507d082a0dcd6` |
+| `docs/04-interfaces.md` | `01141dd1d88edd9bb458e2526dafddf58395a66163dc8b04671bb1eeec1f6ce5` |
+| `docs/control-ledger.md` | `a014f564d15ed559d8245d703c9ae4c4dd499996a29fc171e23f9f9944996b8b` |
+| `docs/invitations.md` | `e23e8c5169f360e46dcba5b705954709b8c8cfc5080d269699e87bf148e1bf7f` |
+| `docs/memberships.md` | `f6edcf4ea198689a6033459e431a55d164ebc16353730dcf7f08fce8ad205c77` |
+| `packages/api-client/src/generated/index.d.ts` | `49d6498508b74df057a1c274583c7f0afe3ccea4d98b5fa0c07b99708eff9366` |
+| `packages/api-client/src/generated/index.js` | `cd84d718b8556f151f6a09b31638577aa68b2eacde281028f6629425aedd270b` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `09088c96ed1b51ae195b92baa535d3fa64cb976b8300369b9308224eaf5c5060` |
+| `packages/api-client/src/generated/sdk.gen.js` | `eddbf141bce85ad22ccfe0e34881d477ef436140342d964ef74ec8e406a26bf6` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `1f5b3455fcf78ee9ff1f338537079e369fbb97266962aa6b1cf9af27d5ffb871` |
+| `packages/policy/src/brainoid_policy/evaluator.py` | `d6cff35f9f1dfa3de19d700ba93ddbee3c38f50a516437f1ace6a0d3f5637658` |
+| `services/api/src/brainoid_api/app.py` | `21547050c3d7ac3fc285614a9263cc1ef36f5aa1253e0b482e98f5440d05c964` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `31f6c3466253512c19ec9d2921c5d296cdb4ae9ec064437f187980104e00c9b8` |
+| `services/api/src/brainoid_api/common/firestore.py` | `db77991666443a81949db370041e09dfea5fa59da399147c5c933adc7170d94f` |
+| `services/api/src/brainoid_api/common/transactions.py` | `44e0d356a3fb8395a85f3d07f25d88779faa496946e5e47dee469b6c62184104` |
+| `services/api/src/brainoid_api/repositories/authz_changes.py` | `46263e307c81f2ae143919d3c25876221c54796e67705d1a1629ef1751d9a2eb` |
+| `services/api/src/brainoid_api/repositories/invitations.py` | `554e271fff0b0a01e1db4d5103dcbdc4351f437b178af400ebb5eeab79324148` |
+| `services/api/src/brainoid_api/repositories/memberships.py` | `a9de858ef98180af232faf232fa536894a5af5ddc526cfbafa395279f200570b` |
+| `services/api/src/brainoid_api/routes/memberships.py` | `cb1fdde6ec609b6722c7661f15710c08c3cf02d669213c376eb4d45c460ff8d1` |
+| `specs/openapi.yaml` | `a59626adbee3ffb16602a6eeaffcc095c6711b10bdbda4ef3b43b529e883b110` |
+| `tests/emulator/test_memberships_integration.py` | `55f0e155c72a0855990850132ea3ee107bbf4d20e6c5cd2a242f8cf30588e0f3` |
+| `tests/fixtures/memberships/sdk_requests.mjs` | `b7bd818949331f944fab70a442b2b14d34b17c56c2234dbb7f8e0261bc8cccbe` |
+| `tests/test_api_contracts.mjs` | `ff6610fe487099c84f3a5ab1f8c33714a0942e7904d5fd3fa89f71926ff04f49` |
+| `tests/test_common_mutations.py` | `c3d881ba8a497cf3c0c7e4dd3c86001f9964c812c7b88102a70cdbf636832e52` |
+| `tests/test_memberships.py` | `167362cebebeb2915f24acf14fd4af11f136a7bf800d05f895cd1d2bab02a51f` |
+
+### 独立レビュー ラウンド2 途中確認
+
+- `/root/iam06_review_r2`: 開始時base/main、25files対象集合・全SHA一致。全差分/新規repo/routes/fake/emulator/正本を確認中。
+- 直接tests/test_memberships.py15件が3.256秒で成功。R1-01のSDK実Request→FastAPI/fake10要求、欠落/重複query、旧path再送成功。明示emulator設定で結合を独立再実行中。現時点で追加必須指摘なし。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/iam06_review_r2`: approve。必須/任意指摘なし、R1-01解消。25files全差分/周辺、開始/終了main/base/対象集合/SHA一致。
+- 必須query経路でdot/slash/予約文字/literal %2E保持、actual SDK Request10件をfake/Firestoreへ投入し対象・版2/3・失効と旧path再送を独立確認。
+- tenant予約の台帳先行、移譲先確定後旧owner降格、並行降格/移譲/停止境界の有効owner維持、owner/admin境界、現actor/tenant/ledger、自己降格後fixed receipt再開、tenant限定失効/private不拡張/audit allowlistを確認。
+- 直接: check9、会員15件、policy10件、SDK関連2件、emulator49件44.415秒・停止、diff --checkすべて成功。Nodeはsandbox制約失敗後に通常権限で成功。全test158/18/39とsetupは提供証跡。
+- レビュー2回、未解決要修正指摘ゼロ。
+
+### 完了結果 (2026-10-25T21:33:33.135638+00:00)
+
+- BA-IAM-06: 会員一覧/role変更/失効/owner移譲、先行台帳前のtenant予約、固定receipt再開/有効owner維持、招待割込拒否、再認証/audit、全opaque UID対応query APIを実装。
+- setup/check9/test158+18+39/emulator49成功。独立レビュー2回、R1-01修正後r2 approve、未解決必須/任意指摘なし。reviewerもcheck9/関連test/emulator49を直接成功確認。
+- 実装コミット: `8289740e3684690fc49952279a825b4576a9ed9c`（feat(memberships): BA-IAM-06 serialize role changes and owner transfer）。
+- 承認済み25ファイルのみmainへstage、cached diff/--check/index hash、commit後対象・内容・worktree一致を確認。hook変更なし。
+- 未完了予約はTTL解除しない。同actor/key/body/If-Matchで再送、不可逆actor喪失等は隔離復旧へ。IAM10もreservationに参加。実復元/UI/本人退会purgeは後続。IAM04任意R1-OPT-01概要表現も更新済み。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.96秒、全9タスク成功、台帳done14/todo82。
+- 終了: 2026-10-25T21:34:04.734965+00:00。台帳・ログのみを記録コミット。
