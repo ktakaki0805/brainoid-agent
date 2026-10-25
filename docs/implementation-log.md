@@ -1859,3 +1859,115 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.90秒、全9タスク成功、台帳done12/todo84。
 - 終了: 2026-10-25T20:44:38.433488+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-04-20261025t204456z
+
+- チケット: BA-IAM-04
+- 状態: done
+- 開始: 2026-10-25T20:44:56.621875+00:00
+- ブランチ / base commit: main / 084cd621b94e69a6721b31c1c95c09ec368228cd
+- 開始時の変更: なし
+- 選択: check成功（done12/todo84）、IDなしnextで依存順の次。依存IAM03/IAM05実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam04_implementation`（独立context）。
+- 実装コミット: `6d01b1a865b44c3d1864405a8f01c88662871b75`
+
+### 受入条件と検証計画
+
+- owner/adminのみ期限付き招待作成、本人のみ受諾。ハッシュ保存、期限/一回使用/照合頻度を原子的に検査。owner付与禁止。
+- 同時受諾は一参加に収束、同operation再送でmembership重複なし。使用済み/別コード/期限切れ、member発行を拒否。
+- 最新独立認可台帳を確認し、失効後の新招待による再参加のみDB適用確認済みgrantで有効化。旧受諾再送・pending grantは権限を復活させない。
+- fake clockで期限/上限、実emulatorで並行受諾/再招待/台帳DB途中失敗/旧再送を確認。全check/test、必要な契約/client/文書を更新。
+- 外部前提なし。招待メールなし、コード共有UIはIAM対象外（UI11）。
+
+### 招待秘密・受諾操作とruntimeの方針
+
+- 実装担当: 生コードはUUIDと明示キーからHMAC/domain separationで再導出、DBにはhashのみ。共通秘密非保持receiptと整合。既存CURSOR_SIGNING_KEYを用途別導出し、rotation時の影響を文書化する。
+- 受諾はUID+Idempotency-Keyの永続claimと招待used operationを同transactionで固定し、固定ChangeをIAM05 executeで再試行する。最新deny後に旧claimで新grantを作らない。
+- Tenants guardも同ledgerへ接続する。runtimeはGCS bucket明示設定、local-emulatorはDBから独立したcreate-only file台帳で再起動をまたいで保持する方針。productionのlocal/fake fallbackは不可。
+- 親から鍵rotation/保持・切戻し、file adapterの原子的create/read、DB reset独立保持とpending deny持続の検証、最終形で全検証を共有。
+
+### 初回実装と失効前招待の境界確認
+
+- 実装担当: DTO/repository/routes、24hコード/HMAC再導出、UID単位5回/15分の原子的失敗カウンタ、永続claim/固定Change、confirm/activateの再認可、Tenants guard、明示local file/GCS設定を実装、mypy77成功。
+- claim時に期限/一回性を確定し、その後は同operationのroll-forwardを許すが現在認可と最新台帳を毎回検査。active会員に対する別招待の受諾でrole変更はできない。
+- 親から失効前に発行された未使用inviteの再利用でも復帰を拒否するよう共有。失効後の再発行を要するACとして扱う。時計比較を避けるためmembership denyと同DB transactionでtenantの専用invitation_epoch更新、発行時epoch/受諾時epoch照合という保守的案を提示。実装方針・検証待ち。
+
+### 失効前招待の無効化方針を確定
+
+- 実装担当がinvitation_epoch案を採用。membership deny初回DB適用でtenant epochを増分、同operation _matches retryでは増分しない。invite発行時epochとclaim/authorize時の現epochを比較する。
+- 復元reapplyは異なるoperation/version適用時にepochを増分し、途中denyを省略して最新grantへ復元する場合も古いbackup招待を無効化する。同適用済みreapplyの重複増分を防ぐ。
+- pending denyのDB未適用期間は最新ledgerで拒否。台帳Change形式を維持する。tenant全体の未使用invite無効化という保守的な影響とretry/reapply条件を文書・テストへ明記する。
+
+### 初回全体検証
+
+- 実装担当: setup成功、招待単体14件、全test Python140/Skill18/Node38成功。emulator41件成功（既存34+追加7）。
+- emulator追加: 同一operation/別UID/別code並行、最終照合上限/期限、revoke/pending/rejoin、claim commit応答喪失、実Firebase HTTP。
+- OpenAPI説明/client生成、docs/invitations.mdと関連docs更新済み。最終checkとlocal list PermissionError/権限拒否時試行countのcommit強化後の再検証を待つ。
+
+### 最終検証前のguard補強
+
+- checkは型79/format/lint/docs/contracts/client/compatibility/tickets成功、Node側完了待ち。全test/emulatorを再実行中。
+- 実装担当はbootstrap互換を初期の未記録主体だけに限定する。DBにauthorization_operation_id/authorization_changeが存在するtracked主体では、独立台帳欠落を互換許可せず停止する。最終変更後のcheck/関連unit/emulator再検証結果を待つ。
+
+### 実装完了・最終検証
+
+- `/root/iam04_implementation` が製品編集停止。setup成功（最終guard前、依存変更なし）。最終guard変更後にcheck全9成功（mypy79）、全test Python143/Skill18/Node38成功、明示.env.emulator.exampleでemulator42成功・停止、git diff --check成功。
+- guardはtracked DBの台帳欠落も拒否。HTTP/code hash/同時受諾/試行上限/期限/途中失敗/失効前invite無効化/再招待/復元/SDK runtimeと契約・docを含む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam04_review_r1`（新規独立context）。base commit: `084cd621b94e69a6721b31c1c95c09ec368228cd`。
+- 製品26files全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.emulator.example` | `88e9e2267d2f8416174eb4f914152df61879dfe2a14df40d89aca2c57952a691` |
+| `.env.example` | `6f580551dfc2280d2158607c32bc9ff5b8cdb48fc9886160c616b48657fa1c16` |
+| `docs/03-data-and-authorization.md` | `33b4bc22e179b568b01885406f8c527d46cc7b4e66db1a6110cc64868bb75566` |
+| `docs/04-interfaces.md` | `318abd7c422f303670e94274a286e050f0861aaf5c4f2e5e4ce21fbb14d89c3a` |
+| `docs/05-development-and-testing.md` | `76a470e7fdd1bce8d1704416a24756f999ffca4adb6b3ed666055188968ea05d` |
+| `docs/control-ledger.md` | `ac601db6ccc5c74e2e93f4570a13590def01911b422ae83233b4bafb4b8bad3f` |
+| `docs/invitations.md` | `beabc3cd5c45efaa24a3275c21a8e672768e4f920a80e93b0e677b88586a192e` |
+| `docs/tenants.md` | `6cdee99811899f89bd5cc4b1865e37519190d11d0ed564445e12888ca63a2d68` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `df0c96db83da2cc0841cd9bdece42cc4803decd46c19cce5aa1ed90d7ca8ba6b` |
+| `packages/api-client/src/generated/sdk.gen.js` | `939596774dd413d4980245c5ac1c847677ea552d5d52e0fed47153eba8ebd2dc` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `2d8f6c961246855fa6d4c92014121dda8b46d3dec968e981883361df21beeee5` |
+| `services/api/src/brainoid_api/adapters/local_authz_ledger.py` | `2010dc78ec870259ed12c0f9ddd551ae18a2beab9101d7c9b8d26c86e4a941aa` |
+| `services/api/src/brainoid_api/app.py` | `986ee1dc3a79df0b42ce8200412d5fb6678cc5d6ae8f9dc035319c4f9c790536` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `3c4edb65460d1ae61b92452be5adbe003cef9e0dc61e97b04455839dcc1171e7` |
+| `services/api/src/brainoid_api/auth/firebase_identity.py` | `d4268f925dd36d68d2a7ad93138f82244d5e9dd6a7507843c581c3560576a8b2` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `6b4add1bd8ac21d96ce882912f99c0fa497c417027b1e88501a1dfb0f25aaaf9` |
+| `services/api/src/brainoid_api/repositories/authz_changes.py` | `3a62460ce9e291ba060d8fbda8be072e28f309245249d78d3125a1cdb0004bc2` |
+| `services/api/src/brainoid_api/repositories/invitations.py` | `48accbeb36b02aa3e18bfa718bddb207c77ffffac5751f9d9c5490031313f367` |
+| `services/api/src/brainoid_api/repositories/tenants.py` | `8dc2ba0c434847acfa3d56499aa0aeba13080beb957a2e4c830cd0d98d67fd6c` |
+| `services/api/src/brainoid_api/routes/invitations.py` | `4da44911740b0a4b10e5905e51bfb94e0b9cc7adb8c1bcf99d66f02e2fa55898` |
+| `services/api/src/brainoid_api/settings.py` | `6c2561e3513bbdff6c63c0ac61a5b2238bfcb21060a07f0a6415db6bd08f6beb` |
+| `specs/openapi.yaml` | `49c1dc80b069713f2272b3363b18a9c1b9f27ec96556210e67a578fe1a5d25c0` |
+| `tests/emulator/test_invitations_integration.py` | `9185f902fca6292c76241254adb6e5432512ee5b663a69913c657f695fa198d7` |
+| `tests/test_api_foundation.py` | `ccc0024a99411352bd54705719341147b23b54ff5de9526eb77c2d2a503e4e8f` |
+| `tests/test_demo_emulator.py` | `a71fa0b0a4aea64e4945b857a676f8740007e4ce6efb351e90f12738154e15fe` |
+| `tests/test_invitations.py` | `e0d91f4669b8156da88e61baf40f62a6366dab8a206914cca08ceafc8a34f6b2` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam04_review_r1` が26files SHA/main/base一致を開始時に確認。要件、新規実装/テスト全文、tracked差分主要部分を確認し、IAM05/Firestore/認可と障害経路を照合中。
+- 独立check実行中、format/lint/types/docs/client/compatibility等は成功。必須指摘は現時点で未確定。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam04_review_r1`: approve。全26files差分・周辺コード、開始/終了SHA・対象集合・main/base一致。必須指摘/未検証必須条件なし。
+- hash保存、期限/使用状態/回数/claimの原子性と失敗count永続化、固定Changeと最新slotによる同時受諾収束、現在owner/admin/本人束縛/owner入力拒否を確認。
+- deny+epoch原子更新/再増分防止、旧招待・旧受諾拒否、DB確認済みgrantのみ有効化、復元の旧招待無効化を確認。tenant guard・tracked DB台帳欠落拒否・外部write tx外、secret/config/contract/client/保持・切戻しも確認。
+- 直接検証: check全9、test Python143/Skill18/Node38、git diff --check成功。提供証跡: setup、emulator42成功・停止。実bucket/IAM/backup/メール/UIは対象外。
+- 任意 R1-OPT-01 Low: docs/03-data-and-authorization.md:181の「各APIへの接続はIAM06/08」がtenant/invite接続済み範囲を明記していない。詳細docs/invitations.mdは正しく、runtime影響なし。会員API接続を行う次のIAM06で該当概要も更新するため本件では見送り。未解決必須指摘ゼロ。
+
+### 完了結果 (2026-10-25T21:03:58.908520+00:00)
+
+- BA-IAM-04: 24h一回招待/本人参加、hash非秘密保存/UID照合上限、原子的claim/固定operation、最新台帳・DB確認済みgrant、旧招待無効化、tenant guard/runtimeを実装。
+- setup/check9/test143+18+38/emulator42成功。独立レビュー1回approve、未解決必須指摘なし。reviewerもcheck9/test143+18+38を直接成功確認。
+- 実装コミット: `6d01b1a865b44c3d1864405a8f01c88662871b75`（feat(invitations): BA-IAM-04 add one-use invitation acceptance）。
+- 承認済み26ファイルのみmainへstage、cached diff/--check/index hash、commit後対象・内容・worktree一致を確認。hook変更なし。
+- 一人のmembership denyでtenant内旧招待全体を無効化。Firebase環境で明示台帳設定必須。実GCS/IAM/backup/メール/UIは後続。任意概要文書表現R1-OPT-01はIAM06のAPI接続時に更新する。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.91秒、全9タスク成功、台帳done13/todo83。
+- 終了: 2026-10-25T21:04:31.457392+00:00。台帳・ログのみを記録コミット。

@@ -101,7 +101,13 @@
       "review_rounds": 1
     },
     "BA-IAM-04": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "084cd621b94e69a6721b31c1c95c09ec368228cd",
+      "updated_at": "2026-10-25T21:03:58.908520+00:00",
+      "log_anchor": "ba-iam-04-20261025t204456z",
+      "implementation_commit": "6d01b1a865b44c3d1864405a8f01c88662871b75",
+      "review_rounds": 1
     },
     "BA-IAM-05": {
       "status": "done",
