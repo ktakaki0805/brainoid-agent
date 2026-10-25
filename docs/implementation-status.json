@@ -146,7 +146,13 @@
       "implementation_commit": "7990a2ceb6bfc73a7b743649818b80093f850216"
     },
     "BA-IAM-09": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "13be535a0074886d60e59f91085b9bf6d94488bd",
+      "updated_at": "2026-10-25T22:44:52.719753+00:00",
+      "log_anchor": "ba-iam-09-20261025t222527z",
+      "implementation_commit": "9f4a382c3b4c595b571927545fb652aebc2bd537",
+      "review_rounds": 1
     },
     "BA-IAM-10": {
       "status": "todo"

@@ -2457,3 +2457,108 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.93秒、全9タスク成功、台帳done16/todo80。
 - 終了: 2026-10-25T22:25:10.141244+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-09-20261025t222527z
+
+- チケット: BA-IAM-09
+- 状態: done
+- 開始: 2026-10-25T22:25:27.931411+00:00
+- ブランチ / base commit: main / 13be535a0074886d60e59f91085b9bf6d94488bd
+- 開始時の変更: なし
+- 選択: check成功（done16/todo80）、IDなしnextで依存順の次。依存IAM02/08実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam09_implementation`（独立context）。
+- 実装コミット: 9f4a382c3b4c595b571927545fb652aebc2bd537
+
+### 受入条件と検証計画
+
+- 本人スマホから対象Pi/許可scope/共有空間確認付きでsession開始/終了。tenant/user/device束縛、サーバー時刻で最長5分/idle60秒。
+- X-Private-Sessionはdevice bearerと併用、IDのみ/別Pi/別user/期限切れ拒否。終了/失効の正規状態をsnapshot側へ提供。
+- heartbeatのみでidle延長不可、Calendar実行確認/会員管理/export/削除受付の委任不可、終了後遅延応答拒否。
+- T020/T021期限境界/scope不足/差替えをfake clock、必要emulatorで確認。全check/test/契約client/doc整合。
+- session_started/snapshot配送DEV04、画面/音声消去UI10/VOICE05は対象外。外部前提なし。
+
+### セッション認可版の初期境界
+
+- 親の周辺確認: 現IAM02 sessionはcurrent membership activeを読むが開始時のmember版を保持しないため、revoke→再招待で同UID active復帰時に古sessionへ再同意なしで戻れないよう、開始時membership認可版/user状態/device認可版・generation束縛を実装担当へ共有。
+- role変更後の新要求も古sessionを使えない負例、通常idle延長はstampから除外しlive期限検査を維持する点を確認。
+
+### 個人セッションの初期方針
+
+- private_sessions正本とPiごとのprivate_session_slotsを同tx更新。activeがあれば同user新規も409、同keyは同IDの現在状態。終了/期限後の旧開始再送はended/expiredを返し復活しない。
+- 開始device認可版/generation・membership認可版・user状態stampを保存し毎回現在値を照合。5分固定/idle60秒server clock、snapshot読取は延長しない。
+- 実利用延長はdevice資格情報/current policy grant再確認＋dedupe activity IDを同txで扱う内部境界、heartbeatや新HTTP活動APIは提供しない。start/end ETagとadditive状態GETを検討。
+- 親からslot競合/旧keyterminal保持、activityのtenant/device/session/op束縛・同ID別body/旧遅延活動/絶対期限越え拒否、read-after-write回避/framework-free維持、旧binding欠落sessionのfail-closedとfixture/移行を共有。
+
+### 初回実装・fake-clock結果
+
+- PrivateSessions start/end/本人GET、device bearer+X-Private-Session依存、単一Pi slot/永続開始終了receipt/activity dedupe/snapshot正規状態を追加。
+- SessionStateにmember/device認可版・account stamp必須化、transaction adapterでslot/account現在値照合、device credentialに同tx再検証メソッドを追加。
+- fake-clock初回8件中7成功、出力test fixtureのdisplay capability欠落1件を補正済み。Python全体/型/契約client/emulator競合を検証中。
+
+### 全Python・emulator初回結果
+
+- fake8を含むPython全190件成功。emulator全65件の新session6件はすべて成功。既存IAM02の1件が、device authv変更後も旧sessionから新grant取得を成功期待しており、開始時binding拒否の新仕様と矛盾して失敗。新grantも拒否される期待へ更新後に全emulator再実行する。
+- 本人GETをadditive追加、OpenAPI/client生成済み（business88+health2）。新emulatorfixtureが親bodyメソッドと衝突したmypy指摘は修正済み。全check/setup/test待ち。
+
+### 最終setup/check/test成功
+
+- 実装担当編集停止。setup成功（sandbox shimreadonly後通常権限）、check全9/mypy100/契約破壊なし/client一致/docs0error、全test Python192（新10）/Skill18/Node39成功。
+- docs/private-sessions.mdとservice等の編集完了。emulator65件再実行中（初回新6成功）、最終結果・停止確認後にreview対象固定予定。
+
+### 実装完了・最終emulator結果
+
+- 編集停止維持、emulator65件90.567秒exit0成功、Firestore/Auth/hub/logging停止確認。初回失敗はIAM02旧session再grant成功期待、新binding拒否期待へ更新済み。最終setup/check9/test192+18+39成功証跡と合わせてレビューへ進む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam09_review_r1`（新規独立context）。base commit: `13be535a0074886d60e59f91085b9bf6d94488bd`。
+- 製品27files最新差分全体、親台帳/logのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `b2807a52c1c2e316bcb62af68edf58f743d0c372d81de42e6a35a65f70a42955` |
+| `docs/04-interfaces.md` | `cb0175c6521169c55c69da38928d853177aea2290fa75b3faa41b2deb525b3d5` |
+| `docs/authorization.md` | `d5475948d5ea10a1f938b0b4e11fbc10a3f6693074596cb828d6596f7bd70991` |
+| `docs/private-sessions.md` | `8f9b3aef8742f0286caff60601c668fac2f6505249785621afe0383e17195e33` |
+| `packages/api-client/src/generated/index.d.ts` | `610e421aa4d4cdf3943d744cbe4ead3043ff17e1b74bda96f472a6003f5b617f` |
+| `packages/api-client/src/generated/index.js` | `a12361c1f07f2d2dc8082315da55448f6017a3faefe1ea0a341281ebda6dd533` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `25616578e47d406ae898297c0e869e9b6c8ac55ed64caffe25852dfd6b918d1f` |
+| `packages/api-client/src/generated/sdk.gen.js` | `6f40b64c03c15486ab8d5bd64bbf501d15d2b3c0b0c4b50c875063c5c23bf380` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `09352ea4665fead617222dd46d4857d4f55e29a3ea1d49868693e4f4e5c4b3ea` |
+| `packages/policy/src/brainoid_policy/evaluator.py` | `d2fb87b294b1204d264430bdb61de1447d9b32c8f7f85d9e126e2e38e916bf1f` |
+| `packages/policy/src/brainoid_policy/models.py` | `d8aa7b168ccd2bfc1e618e731c4935ec1580f6022034b3e47a898cfa4be02c4c` |
+| `services/api/src/brainoid_api/app.py` | `d2baefa743ab542956d6372bf37b2d4ff8264c311a3e574d911b3a39a85227cf` |
+| `services/api/src/brainoid_api/auth/account_state.py` | `83558d6db06476910bcd952851a6e371382a2086d4530c7a1c25261464a03556` |
+| `services/api/src/brainoid_api/auth/authorization.py` | `cf304841a9b50b935b3b8979c3b74248050a8d2a0e38c4fefb4e7df615553e98` |
+| `services/api/src/brainoid_api/auth/private_session_context.py` | `811b71082da4df327cce54d5e2665533ee0c09c159a312f3f895c561a82a620a` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `e555e59af6e8e6caf5cb92f3854c4311b047743be22d01dbbdbaf75b881ef3a9` |
+| `services/api/src/brainoid_api/repositories/device_credentials.py` | `15b0391a12af23d4659eeeb2ee9d182c04b53d52fc7532de76d99494018c3dff` |
+| `services/api/src/brainoid_api/repositories/tenants.py` | `a0dd9ecc30dee872e204a69b14610d7afaf8790ced393298e8d61229807ab847` |
+| `services/api/src/brainoid_api/routes/private_sessions.py` | `32d9b8b79f0b4dfa82259fe8fe1586bcd714348441894c4889dc0dc55c014eab` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `93be98dce20218ca7f38a3f9f170b680931b1d1c970fe444f3aa33ec092de5df` |
+| `specs/openapi.yaml` | `e19443759a054f3e0a41acabaa9ae4455cddef0c4b986ba910caa01f9dcb6fdf` |
+| `tests/emulator/test_policy_integration.py` | `8adf02b9f76dd873f1a4efc1063cfd5d17a44cb8ca4ce848307f999fdb79fdee` |
+| `tests/emulator/test_private_sessions_integration.py` | `f4745cf196865a439ccf41a8f023746aa3665e47845484fb8953507058f69840` |
+| `tests/test_api_contracts.mjs` | `8d070f5f5320286de9105be4550b53cf38e7c709458e964d8818811104e4bcb7` |
+| `tests/test_devices.py` | `1503d939fc4268fd05d9beed285bfc900d890aea6312e8432a0db8ed1683e081` |
+| `tests/test_policy.py` | `349d26d6585b675dc4a6a4385b1c132aaecc75746736ce13c9d1797f6007c0c2` |
+| `tests/test_private_sessions.py` | `c08d383f1db4aff74aadf6896f640471e253cbc9642dd13414a61e0a3018bf4b` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam09_review_r1` が開始時main/base・27files集合/全SHA一致、AGENTSなしを確認。正本/service/policy/HTTP境界、活動期限/tx競合/再送を全差分と合わせて検証中。現時点で必須指摘は未確定。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam09_review_r1`: approve。必須/任意なし。27files全差分/新規全文/関連正本を確認、開始/終了main/base・対象集合/全SHA一致、製品/index/記録変更なし。
+- 本人同意/tenant-user-device/認可版-accountstamp/単一slot/terminal再送不復活、device bearer+session header/別Pi-user-期限拒否、禁止scope/管理権限/旧grant-output拒否、heartbeat非延長/activitydedupe/snapshot正規化を確認。IAM02旧期待の変更も新binding拒否と整合。
+- 直接check9/mypy100/client一致/互換破壊なし/docs0error、private session10件0.751秒、diff --check成功。全test192/18/39・emulator65は提供証跡で独立再実行なし。配送/画面音声消去/実利用受付接続は後続。
+- レビュー1回、未解決必須条件ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み27ファイルの作業内容・index blob・commit blobのSHA-256が一致、main/base・対象集合・cached diff --check確認済み。
+- 実装コミット: `9f4a382c3b4c595b571927545fb652aebc2bd537`。独立レビュー1回approve、未解決必須指摘なし。親の完了記録checkへ進む。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.90秒、全9タスク成功、台帳done17/todo79。
+- 終了: 2026-10-25T22:45:32.258460+00:00。台帳・ログのみを記録コミット。
