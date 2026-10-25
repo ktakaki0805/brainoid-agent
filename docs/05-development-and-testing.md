@@ -94,19 +94,18 @@ Firestore emulatorは本番の全制限や複合索引を再現しないため�
 
 | 提供済みコマンド | 現在の振る舞い |
 | --- | --- |
-| `mise run setup` | toolchainを検査し、`uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` で全memberの依存を導入 |
+| `mise run setup` | `mise install` で固定版の開発ツールを揃え、`uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` で全memberの依存を導入 |
 | `mise run format` | workspaceのPython/TypeScript/対象JSONをRuff・Biomeで整形 |
-| `mise run check:toolchain` | 実行中のPython/Node/uv/pnpmと宣言の固定版を確認 |
 | `mise run check:format` / `check:lint` / `check:types` | 書換えなしの整形・lint・Python/TypeScript型検査 |
 | `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
-| `mise run check` | toolchain・format・lint・型・チケットを検証 |
-| `mise run test` | 基盤のtoolchain拒否・package解決・秘密ファイル除外と既存チケット管理テストを実行 |
+| `mise run check` | format・lint・型・チケットを検証 |
+| `mise run test` | 基盤のpackage解決・秘密ファイル除外と既存チケット管理テストを実行 |
 
 現在のPython検証タスクは `uv run --all-packages --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 
 文書リンク・OpenAPI・JSON Schemaの自動検証は現在提供していない。BA-FND-04で契約用validator、BA-FND-06で既存のMarkdownリンク検証ツールを導入する。導入までは変更したリンク・契約と、要件・テストIDの対応をレビューで確認する。
 
-Ruff・mypyは `scripts`・`tests`・Python member、Biome・TypeScriptはNode memberと設定JSONを検査する。既存のチケット管理Skillは既存テストで回帰確認し、このチケットで一括整形・型移行しない。以下は後続チケットで実装・拡張するmiseタスクの契約である。check・testも、現在は上表の範囲だけを実行する。
+Ruff・mypyは `tests`・Python member、Biome・TypeScriptはNode memberと設定JSONを検査する。既存のチケット管理Skillは既存テストで回帰確認し、このチケットで一括整形・型移行しない。以下は後続チケットで実装・拡張するmiseタスクの契約である。check・testも、現在は上表の範囲だけを実行する。
 
 | 予定コマンド | 実装する振る舞い |
 | --- | --- |

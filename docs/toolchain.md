@@ -29,11 +29,11 @@ mise run check
 mise run test
 ~~~
 
-`mise install` は指定版のPython・Node・uv・pnpmを導入する。`setup` は最初に `scripts/check_toolchain.py` で実行中の4ツールと設定の完全な版を照合する。不一致・不足時は必要版と復旧コマンドを表示して、依存導入前に停止する。その後 `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
+`setup` は最初に `mise install` で指定版のPython・Node・uv・pnpmを導入する。既に導入済みの版は再利用し、導入できなければmiseのエラーで停止する。その後、miseの実行環境で `uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` を実行する。初回はネットワークとローカルディスク書込が必要で、秘密値・クラウド接続は不要。
 
-`check` はtoolchain、整形、lint、Python/TypeScript型、チケット管理を検査する。`format` はソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run` で実行する。キャッシュ・依存不足時は先にsetupを行う。API/画面の起動と契約validatorはまだ提供しない。
+`check` は整形、lint、Python/TypeScript型、チケット管理を検査する。`format` はソースを整形し、`check:format` は書き換えない。Pythonの検証は `uv run --all-packages --locked --offline`、Nodeの検証はインストール済みツールを `pnpm run` で実行する。キャッシュ・依存不足時は先にsetupを行う。API/画面の起動と契約validatorはまだ提供しない。
 
-uvが `.venv` を作成・同期する。miseは `UV_PYTHON` で固定Pythonのパスを渡し、uvのPython自動ダウンロードとmiseタスクの自動ツール導入は無効にする。IDEにも `.venv` を指定する。
+uvが `.venv` を作成・同期する。miseは `UV_PYTHON` で固定Pythonのパスを渡し、uvのPython自動ダウンロードとmiseタスクの自動ツール導入は無効にする。固定ツールの導入は `setup` 内の明示的な `mise install` が担当する。IDEにも `.venv` を指定する。
 
 ~~~bash
 mise ls --current
@@ -57,7 +57,7 @@ mise exec -- pnpm --version
 | `apps/mobile`・`display` | 非公開pnpm member。`src/index.ts`。UI機能はBA-UI-01以降 |
 | `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。client生成はBA-FND-04 |
 | `infra/gcp` | Terraform用の領域。Python/Nodeのmemberではなく、配備定義はBA-OPS-01以降 |
-| `scripts`・`tests` | toolchain検査と基盤の受入テスト |
+| `tests` | package解決・秘密ファイル除外の受入テスト |
 
 サービス間の内部importは置かず、共通実装は共有packageへ移す。Pythonは各memberの `dependencies` と `tool.uv.sources` の `workspace = true`、Nodeは `workspace:*` を使う。Pythonの公開名からimportし、別memberの `src` への相対パス・`sys.path` 変更・TypeScriptのpaths aliasでpackage境界を迂回しない。Pythonはuvが依存隔離を強制しないため、他memberの未宣言依存・内部moduleを使っていないこともレビューする。
 
@@ -86,10 +86,10 @@ Pythonの追加・削除はuvコマンドで行う。変更したmanifestとlock
 
 1. 公式情報で対応Python/Node・peer依存・ライセンス・保守状況を確認し、miseの完全版を更新する。
 2. `mise install` を実行する。Python対応範囲を変更する場合は全memberの `requires-python` とlockを更新する。uv変更時は各memberのbuild backendも確認する。
-3. Node/pnpm変更時はルート `package.json` の `engines`・`packageManager` と `pnpm-workspace.yaml` の `nodeVersion` を同期する。`check:toolchain` が不一致を検出する。
+3. Node/pnpm変更時はルート `package.json` の `engines`・`packageManager` と `pnpm-workspace.yaml` の `nodeVersion` を同期する。設定間の版の一致は更新時に確認する。
 4. 新規環境でsetup/format/check/testを実行し、通常導入でlockが変化しないことを確認する。
 
-pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、実際のPATH上のNodeは独立したtoolchain検査で照合する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。今回の依存にはinstall lifecycle scriptが不要なので `allowBuilds: {}` とし、新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)
+pnpm 11のstandalone版には独自のNodeが内蔵されている。アプリの互換性はmiseのNodeを基準にするため、`nodeVersion` と `engineStrict: true` で依存のengineを判定し、タスクのNodeはmiseの固定版を使用する。`pmOnFail: error` によりpnpmの暗黙の版変更・取得を停止する。今回の依存にはinstall lifecycle scriptが不要なので `allowBuilds: {}` とし、新しく必要になったscriptは追加時に確認する。[pnpm 11の設定変更](https://pnpm.io/blog/releases/11.0)、[engineとpackage manager設定](https://pnpm.io/settings)
 
 Java・Android SDK・Xcode・Docker・Terraform・Google Cloud CLI・Firebase CLIとネイティブCapacitor buildは、それぞれの実装チケットで対応版と導入方法を追加する。今回のNode依存固定だけではiOS・Android・Pi実機の対応を保証しない。
 

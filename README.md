@@ -91,9 +91,9 @@ mise run check
 mise run test
 ~~~
 
-`setup` はtoolchainを検査してから、`uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` でPython/Nodeのworkspace依存を固定lockから導入します。Python依存の追加・削除は `uv add`・`uv remove`、スクリプトの実行は `uv run` を使います。詳しくは[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
+`setup` は `mise install` で固定版の開発ツールを揃えてから、`uv sync --all-packages --locked` と `pnpm install --frozen-lockfile` でPython/Nodeのworkspace依存を固定lockから導入します。Python依存の追加・削除は `uv add`・`uv remove`、スクリプトの実行は `uv run` を使います。詳しくは[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
 
-`mise run format` はworkspaceソースを整形します。`check` はtoolchain、format、lint、Python/TypeScriptの型、実装チケットのID・依存関係・進捗台帳・完了記録を点検します。`test` はtoolchain拒否・package解決・秘密ファイル除外と、既存のチケット管理スクリプトの単体テストを実行します。文書リンク・OpenAPI・JSON Schemaの自動検証は、[実装チケット](docs/08-implementation-tickets.md)のBA-FND-04・06で専用ツールを導入します。アプリの起動、GCPへのデプロイ、実機性能、製品のセキュリティ適合を検証するものではありません。
+`mise run format` はworkspaceソースを整形します。`check` はformat、lint、Python/TypeScriptの型、実装チケットのID・依存関係・進捗台帳・完了記録を点検します。`test` はpackage解決・秘密ファイル除外と、既存のチケット管理スクリプトの単体テストを実行します。文書リンク・OpenAPI・JSON Schemaの自動検証は、[実装チケット](docs/08-implementation-tickets.md)のBA-FND-04・06で専用ツールを導入します。アプリの起動、GCPへのデプロイ、実機性能、製品のセキュリティ適合を検証するものではありません。
 
 アプリを動かすためのセットアップは、[開発ガイド](docs/05-development-and-testing.md)にある初回実装タスクを完了した後に有効になります。存在しないリポジトリURLや起動コマンドをクイックスタートとして案内しない方針です。
 

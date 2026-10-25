@@ -14,37 +14,31 @@ UV_PYTHON_DOWNLOADS = "never"
 UV_PYTHON = { value = "{{ tools.python.path }}", tools = true }
 
 [tasks.setup]
-description = "Validate the toolchain and install all workspace members from fixed locks"
-depends = ["check:toolchain"]
-run = ["uv sync --all-packages --locked", "pnpm install --frozen-lockfile"]
-
-[tasks."check:toolchain"]
-description = "Check actual tool versions and manifest pins before installing dependencies"
-run = "python -B scripts/check_toolchain.py"
+description = "Install the pinned toolchain and all workspace members from fixed locks"
+run = [
+  "mise install",
+  "mise exec -- uv sync --all-packages --locked",
+  "mise exec -- pnpm install --frozen-lockfile",
+]
 
 [tasks.format]
 description = "Format Python and TypeScript workspace sources and configuration"
-depends = ["check:toolchain"]
 run = ["uv run --all-packages --locked --offline ruff format .", "pnpm run format"]
 
 [tasks."check:format"]
 description = "Check workspace formatting without changing files"
-depends = ["check:toolchain"]
 run = ["uv run --all-packages --locked --offline ruff format --check .", "pnpm run format:check"]
 
 [tasks."check:lint"]
 description = "Lint Python and TypeScript workspace sources"
-depends = ["check:toolchain"]
 run = ["uv run --all-packages --locked --offline ruff check .", "pnpm run lint"]
 
 [tasks."check:types"]
 description = "Type-check Python and every TypeScript workspace member"
-depends = ["check:toolchain"]
 run = ["uv run --all-packages --locked --offline mypy", "pnpm run typecheck"]
 
 [tasks."check:tickets"]
 description = "Validate implementation ticket status and dependencies"
-depends = ["check:toolchain"]
 run = "uv run --all-packages --locked --offline python -B .agents/skills/implement-ticket/scripts/ticket_plan.py check"
 
 [tasks.check]
@@ -53,7 +47,6 @@ depends = ["check:tickets", "check:format", "check:lint", "check:types"]
 
 [tasks.test]
 description = "Run foundation and existing ticket planner tests without external APIs"
-depends = ["check:toolchain"]
 run = [
   "uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_*.py'",
   "uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'",

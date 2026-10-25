@@ -41,7 +41,7 @@ mise run check
 mise run test
 ~~~
 
-現在の `check` はtoolchain、workspaceのformat/lint・Python/TypeScript型検査とチケットのID・依存関係・進捗台帳・完了記録、`test` は開発基盤の受入テストとチケット管理の単体テストを対象とします。文書リンク・要件対応・契約ファイルの自動検証は含みません。
+現在の `check` はworkspaceのformat/lint・Python/TypeScript型検査とチケットのID・依存関係・進捗台帳・完了記録、`test` は開発基盤の受入テストとチケット管理の単体テストを対象とします。文書リンク・要件対応・契約ファイルの自動検証は含みません。
 
 ## 3. 文書間で整合させた重要事項
 
@@ -128,3 +128,11 @@ Linux x86_64とmiseの既存固定版を使用した。`/tmp` の新規checkout�
 古いPython lockの最初の負例は、空からsetupしたcacheに解決用registry metadataがないためoffline解決エラーになった。この結果をlock固定の証明には数えず、`uv add` 時のmetadata cacheを使って上表の明示的な `--locked` 拒否とhash不変を確認した。各負例の変更は使い捨てコピー内だけで行い復元した。
 
 macOS・WSL2・Pi、toolchain本体の初回ダウンロード、API/画面機能、ネイティブbuild、契約validator、CI、クラウド・実機検証は未実施で、それぞれ後続チケットまたは対応環境で確認する。
+
+## 9. 独自toolchain検査の削除（2026-10-26）
+
+利用者の依頼により `scripts/check_toolchain.py`、専用タスクと専用テスト2件を削除した。ツールの導入はsetup内の `mise install`、依存の同期は `mise exec` 経由のuv/pnpmへ委ねる。設定ファイル間の版の一致は更新時に確認する。8節と作業ログは削除前の検証記録として保持する。
+
+Linux x86_64で `mise run setup`、`mise run check`、`mise run test` が成功。基盤3件と既存チケット管理18件、Ruff/mypy対象7ファイルとTypeScript全4 memberを確認した。`mise tasks validate` は8タスクが正常で、両lockfileに差分はない。
+
+使い捨てのmise設定でNodeを未導入版に変更した負例では、ネットワーク制限による `mise install` の失敗でsetupがexit 1となり、uv/pnpmの依存導入へ進まないことを確認した。通常setupの初回検証はsandbox内でmiseのshim書込みに失敗し、書込み権限を付けた再実行で成功した。固定ツールは既存の導入を再利用しており、ツール本体の新規ダウンロードは検証していない。

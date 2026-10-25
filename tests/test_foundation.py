@@ -1,39 +1,12 @@
-"""Acceptance checks for setup failures, installed packages and ignored credentials."""
+"""Acceptance checks for installed packages and ignored credentials."""
 
-import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
-from scripts.check_toolchain import ROOT, check
-
-
-class ToolchainTests(unittest.TestCase):
-    def test_wrong_node_is_rejected_with_recovery_instructions(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            executable = Path(temporary) / "node"
-            executable.write_text("#!/bin/sh\nprintf 'v0.0.0\\n'\n")
-            executable.chmod(0o755)
-            result = subprocess.run(
-                [sys.executable, "-B", str(ROOT / "scripts/check_toolchain.py")],
-                env={**os.environ, "PATH": f"{temporary}:{os.environ['PATH']}"},
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("node: required", result.stderr)
-        self.assertIn("found 0.0.0", result.stderr)
-        self.assertIn("mise install", result.stderr)
-
-    def test_missing_tools_fail_closed(self) -> None:
-        with patch("scripts.check_toolchain.subprocess.run", side_effect=FileNotFoundError):
-            errors = check()
-        self.assertEqual(len(errors), 4)
-        self.assertTrue(all("cannot run --version" in error for error in errors))
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class WorkspaceTests(unittest.TestCase):
