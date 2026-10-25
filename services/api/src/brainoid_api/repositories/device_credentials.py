@@ -11,16 +11,21 @@ from uuid import uuid4
 
 from brainoid_contracts import ResourceId, UtcTimestamp, Version
 from brainoid_policy.control_ledger import ControlLedger
-from brainoid_policy.models import DeviceSubject, ManagementAction, UserSubject
+from brainoid_policy.models import ManagementAction, UserSubject
 from pydantic import BaseModel, ConfigDict, Field
 
-from brainoid_api.auth.authorization import policy_call, transaction_policy
+from brainoid_api.auth.authorization import TransactionPolicyState, policy_call, transaction_policy
 from brainoid_api.auth.context import AuthenticatedIdentity
 from brainoid_api.auth.device_tokens import DeviceIdentity, DeviceTokens
 from brainoid_api.common.access import fingerprint
 from brainoid_api.common.transactions import Document, Transaction, TransactionStore
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.tenants import Name, Tenants
+from brainoid_api.services.device_authorization import (
+    DeviceAuthorization,
+    DeviceBinding,
+    validate_entities,
+)
 
 PAIRING_LIFETIME = timedelta(minutes=5)
 REPLAY_GRACE = timedelta(seconds=60)
@@ -51,6 +56,7 @@ class PairingConfirm(Input):
     user_code: Code = Field(repr=False)
     device_name: Name
     allowed_entity_ids: Annotated[list[ResourceId], Field(max_length=100)]
+    replaces_device_id: ResourceId | None = None
 
 
 class PairingExchange(Input):
@@ -83,6 +89,9 @@ class Device(Input):
     capabilities: list[str]
     allowed_entity_ids: list[ResourceId]
     connection_generation: Version
+    authorization_version: Version
+    allowed_scopes: list[str]
+    allowed_room_ids: list[ResourceId]
 
 
 def _hash(secret: str) -> str:
@@ -225,10 +234,13 @@ class DeviceCredentialRepository:
         body: PairingConfirm,
         key: str | None,
         ip: str,
+        request_id: str | None = None,
     ) -> Device:
         key = _key(key)
         self._rate("confirm", ip, identity.user_id, 60, 30)
-        request = fingerprint([identity.user_id, str(tenant_id), key, body.model_dump(mode="json")])
+        request = fingerprint(
+            [identity.user_id, str(tenant_id), key, body.model_dump(mode="json", exclude_none=True)]
+        )
         selector_path = "device_pairing_selectors/" + self._tokens.digest(
             "selector", body.user_code[:4]
         )
@@ -271,9 +283,33 @@ class DeviceCredentialRepository:
                 if pairing.get("confirm_request") != request:
                     return ErrorCode.IDEMPOTENCY_CONFLICT
                 document = self._device(tx, pairing["tenant_id"], pairing["device_id"])
+                if any(
+                    pairing.get(field, 1) != document[field]
+                    for field in ("authorization_version", "connection_generation")
+                ):
+                    return ErrorCode.AUTHENTICATION_REQUIRED
                 return self._view(document)
+            validate_entities(tx, tenant_id, body.allowed_entity_ids)
             installation_path = "device_installations/" + pairing["installation"]
-            if tx.get(installation_path) is not None:
+            installation = tx.get(installation_path)
+            previous = None
+            if installation is not None:
+                if (
+                    installation["tenant_id"] != tenant_id
+                    or installation["device_id"] != body.replaces_device_id
+                ):
+                    return ErrorCode.CONFLICT
+                state = TransactionPolicyState(
+                    tx, ledger=self._ledger, allow_untracked_bootstrap=False
+                )
+                previous = policy_call(lambda: state.device(tenant_id, installation["device_id"]))
+                if previous is None or previous.status != "revoked":
+                    return ErrorCode.CONFLICT
+                prior = tx.get(f"tenants/{tenant_id}/devices/{installation['device_id']}")
+                if prior is None or prior.get("device_mutation") is not None:
+                    return ErrorCode.CONFLICT
+                validate_entities(tx, tenant_id, (), previous.allowed_room_ids)
+            elif body.replaces_device_id is not None:
                 return ErrorCode.CONFLICT
             device_id = ResourceId(str(uuid4()))
             now = self._now()
@@ -287,8 +323,10 @@ class DeviceCredentialRepository:
                 "created_at": now,
                 "updated_at": now,
                 "status": "active",
-                "capabilities": [],
-                "allowed_scopes": [
+                "capabilities": [] if previous is None else sorted(previous.capabilities),
+                "allowed_scopes": sorted(previous.allowed_scopes)
+                if previous is not None
+                else [
                     "shared",
                     "conversation",
                     "memory.read",
@@ -298,9 +336,18 @@ class DeviceCredentialRepository:
                     "reminders",
                 ],
                 "allowed_entity_ids": list(dict.fromkeys(body.allowed_entity_ids)),
-                "allowed_room_ids": [],
+                "allowed_room_ids": [] if previous is None else sorted(previous.allowed_room_ids),
             }
-            tx.create(installation_path, {"tenant_id": tenant_id, "device_id": device_id})
+            tx.set(
+                installation_path,
+                {
+                    "tenant_id": tenant_id,
+                    "device_id": device_id,
+                    "original_device_id": (installation or {}).get(
+                        "original_device_id", (installation or {}).get("device_id", device_id)
+                    ),
+                },
+            )
             tx.create(f"tenants/{tenant_id}/devices/{device_id}", device)
             tx.set(
                 path,
@@ -310,6 +357,18 @@ class DeviceCredentialRepository:
                     "tenant_id": tenant_id,
                     "device_id": device_id,
                     "confirm_request": request,
+                    "authorization_version": 1,
+                    "connection_generation": 1,
+                },
+            )
+            tx.create(
+                f"tenants/{tenant_id}/audit_events/{pairing['id']}",
+                {
+                    "actor_user_id": identity.user_id,
+                    "target_device_id": device_id,
+                    "result": "succeeded",
+                    "request_id": request_id or str(pairing["id"]),
+                    "at": now,
                 },
             )
             return self._view(device)
@@ -325,19 +384,15 @@ class DeviceCredentialRepository:
         document = tx.get(path)
         if not document:
             raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
-        policy = transaction_policy(
-            tx, now=self._now, ledger=self._ledger, allow_untracked_bootstrap=True
+        DeviceAuthorization(self._ledger, now=self._now).current(
+            tx,
+            DeviceBinding(
+                tenant_id=tenant_id,
+                device_id=device_id,
+                authorization_version=document["authorization_version"],
+                connection_generation=document["connection_generation"],
+            ),
         )
-        principal = policy_call(
-            lambda: policy.principal(
-                tenant_id,
-                DeviceSubject(
-                    device_id=device_id, connection_generation=document["connection_generation"]
-                ),
-            )
-        )
-        if principal.context.actor.authorization_version != document["authorization_version"]:
-            raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
         return document
 
     def _family(self, tx: Transaction, family_id: ResourceId) -> tuple[Document, Document]:
@@ -394,6 +449,11 @@ class DeviceCredentialRepository:
             if pairing["status"] == "pending":
                 return ErrorCode.PAIRING_PENDING
             device = self._device(tx, pairing["tenant_id"], pairing["device_id"])
+            if any(
+                pairing.get(field, 1) != device[field]
+                for field in ("authorization_version", "connection_generation")
+            ):
+                return ErrorCode.AUTHENTICATION_REQUIRED
             binding = self._binding(
                 "exchange",
                 f"{pairing['tenant_id']}/{pairing['device_id']}/{pairing_id}",

@@ -46,7 +46,7 @@ EPOCH = ResourceId("00000000-0000-0000-0000-000000000001")
 KEYRING = Path("tests/fixtures/device_tokens/local-keyring.json").read_text()
 
 
-class DevicePairingTests(unittest.TestCase):
+class DevicePairingFixture(unittest.TestCase):
     def setUp(self) -> None:
         self.clock = FakeClock()
         self.store = MemoryStore()
@@ -140,6 +140,8 @@ class DevicePairingTests(unittest.TestCase):
             fn()
         self.assertEqual(error.exception.code, code)
 
+
+class DevicePairingTests(DevicePairingFixture):
     def test_http_contract_and_no_plaintext_secrets_or_logs(self) -> None:
         headers = {"Idempotency-Key": KEY}
         with self.assertLogs("brainoid_api", level="INFO") as logs:

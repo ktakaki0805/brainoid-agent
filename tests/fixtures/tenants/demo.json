@@ -170,7 +170,8 @@
         "deletion_epoch": 0,
         "connection_generation": 1,
         "capabilities": ["display", "audio_output"],
-        "allowed_entity_ids": []
+        "allowed_entity_ids": [],
+        "allowed_room_ids": []
       }
     },
     {
@@ -191,7 +192,8 @@
         "deletion_epoch": 0,
         "connection_generation": 1,
         "capabilities": ["display", "audio_output"],
-        "allowed_entity_ids": []
+        "allowed_entity_ids": [],
+        "allowed_room_ids": []
       }
     },
     {
@@ -427,7 +429,8 @@
         "deletion_epoch": 0,
         "connection_generation": 1,
         "capabilities": ["display", "audio_output"],
-        "allowed_entity_ids": []
+        "allowed_entity_ids": [],
+        "allowed_room_ids": []
       }
     },
     {
@@ -448,7 +451,8 @@
         "deletion_epoch": 0,
         "connection_generation": 1,
         "capabilities": ["display", "audio_output"],
-        "allowed_entity_ids": []
+        "allowed_entity_ids": [],
+        "allowed_room_ids": []
       }
     },
     {

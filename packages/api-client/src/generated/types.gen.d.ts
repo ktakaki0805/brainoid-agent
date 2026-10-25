@@ -128,6 +128,9 @@ export type Device = {
     capabilities: Array<string>;
     allowed_entity_ids: Array<ResourceId>;
     connection_generation: number;
+    authorization_version?: Version;
+    allowed_scopes?: Array<DeviceOperationScope>;
+    allowed_room_ids?: Array<ResourceId>;
 };
 export type DevicePage = {
     items: Array<Device>;
@@ -136,7 +139,10 @@ export type DevicePage = {
 export type DevicePatch = {
     name?: string;
     allowed_entity_ids?: Array<ResourceId>;
+    allowed_room_ids?: Array<ResourceId>;
+    allowed_scopes?: Array<DeviceOperationScope>;
 };
+export type DeviceOperationScope = 'shared' | 'conversation' | 'memory.read' | 'memory.write' | 'notes' | 'tasks' | 'reminders' | 'calendar.read' | 'calendar.propose' | 'home.control';
 /**
  * Piサービス専用。installation_nonceは起動ごとに変更せず、初回deviceとtenantへ束縛される。
  */
@@ -160,6 +166,10 @@ export type PairingConfirm = {
     user_code: string;
     device_name: string;
     allowed_entity_ids: Array<ResourceId>;
+    /**
+     * 明示再登録。最新台帳で失効済みの同installation・同tenantの旧device ID。旧credentialは使わず新device IDを発行する。
+     */
+    replaces_device_id?: ResourceId | null;
 };
 export type PairingExchange = {
     poll_secret: string;
@@ -1369,7 +1379,7 @@ export type ListDevicesErrors = {
 export type ListDevicesError = ListDevicesErrors[keyof ListDevicesErrors];
 export type ListDevicesResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: DevicePage;
 };
@@ -1402,7 +1412,7 @@ export type RevokeDeviceErrors = {
 export type RevokeDeviceError = RevokeDeviceErrors[keyof RevokeDeviceErrors];
 export type RevokeDeviceResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     204: void;
 };
@@ -1425,7 +1435,7 @@ export type GetDeviceErrors = {
 export type GetDeviceError = GetDeviceErrors[keyof GetDeviceErrors];
 export type GetDeviceResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Device;
 };
@@ -1458,7 +1468,7 @@ export type UpdateDeviceErrors = {
 export type UpdateDeviceError = UpdateDeviceErrors[keyof UpdateDeviceErrors];
 export type UpdateDeviceResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Device;
 };

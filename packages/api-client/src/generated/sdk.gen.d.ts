@@ -148,13 +148,13 @@ export declare const refreshDeviceToken: <ThrowOnError extends boolean = false>(
 /**
  * 登録端末一覧
  *
- * 登録端末一覧
+ * owner/admin専用。現在の台帳状態で認可し、cursorを現在の認可と一覧内容へ束縛する。
  */
 export declare const listDevices: <ThrowOnError extends boolean = false>(options: Options<ListDevicesData, ThrowOnError>) => RequestResult<ListDevicesResponses, ListDevicesErrors, ThrowOnError>;
 /**
  * 端末失効
  *
- * 端末失効
+ * owner/admin専用。同一Idempotency-KeyとIf-Matchで途中失敗を再送。台帳先行deny後は旧access/refresh/保存commandを拒否。
  */
 export declare const revokeDevice: <ThrowOnError extends boolean = false>(options: Options<RevokeDeviceData, ThrowOnError>) => RequestResult<RevokeDeviceResponses, RevokeDeviceErrors, ThrowOnError>;
 /**
@@ -166,7 +166,7 @@ export declare const getDevice: <ThrowOnError extends boolean = false>(options: 
 /**
  * 端末表示名・操作scope変更
  *
- * 端末表示名・操作scope変更
+ * owner/admin専用。名前だけの変更は通常versionのみ更新。scope/entity/room変更は台帳と認可版・generationを更新し、旧credentialを失効する。再接続は明示失効と再登録が必要。
  */
 export declare const updateDevice: <ThrowOnError extends boolean = false>(options: Options<UpdateDeviceData, ThrowOnError>) => RequestResult<UpdateDeviceResponses, UpdateDeviceErrors, ThrowOnError>;
 /**

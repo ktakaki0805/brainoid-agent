@@ -287,3 +287,5 @@ PiローカルUIとdevice serviceはloopbackで接続し、Host/Origin/session�
 受信フレームはsize上限64KiB、JSON検証、未知type拒否、頻度制限を行う初期案とする。更新時はserverが新旧deviceを受け入れる期間を設け、rollback先でも保存データを読めるexpand/contract migrationを使う。
 
 契約の検証項目は、構文・参照解決、正例/負例、tenant差替え、期限切れ/重複/旧generation、再接続seq、本人session終了後の遅延TTS、削除後のjob結果、Calendar二重確認・競合である。この文書パッケージの静的検証と、今後実装するAPI/実機の試験結果は区別して記録する。
+
+BA-IAM-08の端末一覧・設定・失効、scope変更時の資格情報停止、明示再登録は[端末管理契約](devices.md)を参照する。全管理APIはowner/admin専用で、PATCH/DELETEはIdempotency-KeyとIf-Matchを必要とする。

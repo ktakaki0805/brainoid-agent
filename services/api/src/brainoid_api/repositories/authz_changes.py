@@ -92,6 +92,16 @@ def _invalidate_invitations(tx: Transaction, change: Change) -> None:
         tx.set(path, {**tenant, "invitation_epoch": epoch + 1})
 
 
+def _device_generation(document: Document | None, change: Change) -> Document:
+    """Fence connections once per application; schema-1 ledger records stay unchanged."""
+    if isinstance(change.target, MemberTarget):
+        return {}
+    generation = (document or {}).get("connection_generation", 0)
+    if type(generation) is not int or generation < 0:
+        raise LedgerConflict()
+    return {"connection_generation": generation + 1}
+
+
 class AuthzChanges:
     """Trusted service boundary, not a public generic PATCH API.
 
@@ -133,7 +143,14 @@ class AuthzChanges:
                     raise LedgerConflict()
                 if change.effect == "deny":
                     _invalidate_invitations(tx, change)
-                tx.set(path, {**(document or {}), **_fields(change, active=False)})
+                tx.set(
+                    path,
+                    {
+                        **(document or {}),
+                        **_fields(change, active=False),
+                        **_device_generation(document, change),
+                    },
+                )
 
             self._store.run(apply)
 
@@ -191,6 +208,7 @@ class AuthzChanges:
                     if not _matches(document, current):
                         # A latest grant can hide intervening denies absent from a backup.
                         _invalidate_invitations(tx, current)
+                        updated.update(_device_generation(document, current))
                     tx.set(path, updated)
                 return ReapplyResult("applied" if active else "suspended", current.operation_id)
 

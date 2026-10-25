@@ -1,6 +1,6 @@
 # 端末ペアリングと専用資格情報
 
-BA-IAM-07 は [FR-003](01-requirements.md) の未登録 Pi 開始、owner/admin 確認、Pi への資格情報交換と更新を提供する。[HTTP route](../services/api/src/brainoid_api/routes/device_pairings.py)、[transaction repository](../services/api/src/brainoid_api/repositories/device_credentials.py)、[専用 token codec](../services/api/src/brainoid_api/auth/device_tokens.py) を使う。端末失効・設定 API は IAM-08、Pi の秘密ファイル保存は DEV-02、画面は UI-09、実署名鍵・実行時 IAM は OPS-04 の範囲である。
+BA-IAM-07 は [FR-003](01-requirements.md) の未登録 Pi 開始、owner/admin 確認、Pi への資格情報交換と更新を提供する。[HTTP route](../services/api/src/brainoid_api/routes/device_pairings.py)、[transaction repository](../services/api/src/brainoid_api/repositories/device_credentials.py)、[専用 token codec](../services/api/src/brainoid_api/auth/device_tokens.py) を使う。端末失効・設定・再登録は IAM-08 の[端末管理契約](devices.md)、Pi の秘密ファイル保存は DEV-02、画面は UI-09、実署名鍵・実行時 IAM は OPS-04 の範囲である。
 
 ## API と確認コード
 
@@ -17,7 +17,7 @@ BA-IAM-07 は [FR-003](01-requirements.md) の未登録 Pi 開始、owner/admin 
 
 固定5分窓の上限は作成20/IP・5/installation、確認60/IP・30/actor、exchange120/IP・60/pairing、refresh240/IP・120/device。拒否・再送も回数に含む。counter は Firestore transaction で更新し、IP/installation/actor の index は専用鍵で HMAC 化する。HTTP 429 は既存共通エラーを返す。Pi は5分窓を考慮して backoff する。API は `Forwarded` / `X-Forwarded-For` を読まず、標準起動では Uvicorn の proxy header 処理も無効にする。cloud 配備では API の直接アクセスを閉じ、信頼する ingress 境界を OPS-04 で設定する。未設定の proxy header を信用してIP制限を外さない。proxy 下では同じ接続元IPへ集約され得る。
 
-installation_nonce は Pi が安定して保持する32文字以上の識別乱数であり、物理端末の証明ではない。HMAC index を初回確認で tenant/device に恒久束縛する。同 nonce の別 pairing による追加発行・別 tenant への移動は409。元の確認要求の同一再送だけが同 device を返す。再登録は IAM-08 が旧 credential/session の失効を伴う経路を実装するまで拒否する。nonce を変更した装置を同じ物理端末と推定せず、別の未登録 installation として管理者確認を要求する。
+installation_nonce は Pi が安定して保持する32文字以上の識別乱数であり、物理端末の証明ではない。HMAC index を初回確認で tenant と初回deviceを記録する。tenant束縛は恒久的で、別tenantへの移動は409。既登録installationは通常の別pairingで追加発行できない。元の確認要求の同一再送は、認可版/generationが変わらない間だけ同deviceを返す。IAM-08の明示再登録では、現在のowner/adminが最新台帳で失効済みの旧device IDを指定し、同tenantの後継device UUIDへindexを原子的に更新する。旧deviceと初回IDは保持し、旧credential/commandを後継へ移さない。nonce を変更した装置を同じ物理端末と推定せず、別の未登録 installation として管理者確認を要求する。
 
 ## 秘密の受渡しと再送
 

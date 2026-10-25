@@ -29,6 +29,7 @@ from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.device_credentials import DeviceCredentialRepository
+from brainoid_api.repositories.devices import Devices
 from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.tenants import Tenants
@@ -43,6 +44,7 @@ class AuthServices:
     invitations: Invitations | None = None
     memberships: Memberships | None = None
     devices: DeviceCredentialRepository | None = None
+    device_management: Devices | None = None
 
 
 @asynccontextmanager
@@ -105,6 +107,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
             ),
             Memberships(store, tenants, ledger, cursors),
             DeviceCredentialRepository(store, tenants, ledger, device_tokens),
+            Devices(store, tenants, ledger, cursors),
         )
     finally:
         try:

@@ -336,7 +336,7 @@ export const refreshDeviceToken = (options) => (options.client ?? client).post({
 /**
  * 登録端末一覧
  *
- * 登録端末一覧
+ * owner/admin専用。現在の台帳状態で認可し、cursorを現在の認可と一覧内容へ束縛する。
  */
 export const listDevices = (options) => (options.client ?? client).get({
     security: [{
@@ -350,7 +350,7 @@ export const listDevices = (options) => (options.client ?? client).get({
 /**
  * 端末失効
  *
- * 端末失効
+ * owner/admin専用。同一Idempotency-KeyとIf-Matchで途中失敗を再送。台帳先行deny後は旧access/refresh/保存commandを拒否。
  */
 export const revokeDevice = (options) => (options.client ?? client).delete({
     security: [{
@@ -378,7 +378,7 @@ export const getDevice = (options) => (options.client ?? client).get({
 /**
  * 端末表示名・操作scope変更
  *
- * 端末表示名・操作scope変更
+ * owner/admin専用。名前だけの変更は通常versionのみ更新。scope/entity/room変更は台帳と認可版・generationを更新し、旧credentialを失効する。再接続は明示失効と再登録が必要。
  */
 export const updateDevice = (options) => (options.client ?? client).patch({
     security: [{

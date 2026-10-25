@@ -766,12 +766,12 @@ paths:
     get:
       operationId: listDevices
       summary: 登録端末一覧
-      description: 登録端末一覧
+      description: owner/admin専用。現在の台帳状態で認可し、cursorを現在の認可と一覧内容へ束縛する。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -798,7 +798,7 @@ paths:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -826,12 +826,12 @@ paths:
     patch:
       operationId: updateDevice
       summary: 端末表示名・操作scope変更
-      description: 端末表示名・操作scope変更
+      description: owner/admin専用。名前だけの変更は通常versionのみ更新。scope/entity/room変更は台帳と認可版・generationを更新し、旧credentialを失効する。再接続は明示失効と再登録が必要。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -867,12 +867,12 @@ paths:
     delete:
       operationId: revokeDevice
       summary: 端末失効
-      description: 端末失効
+      description: owner/admin専用。同一Idempotency-KeyとIf-Matchで途中失敗を再送。台帳先行deny後は旧access/refresh/保存commandを拒否。
       security:
       - userBearer: []
       responses:
         '204':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
         default:
           description: 共通エラー
           content:
@@ -3431,6 +3431,16 @@ components:
         connection_generation:
           type: integer
           minimum: 0
+        authorization_version: *id010
+        allowed_scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceOperationScope'
+          maxItems: 10
+        allowed_room_ids:
+          type: array
+          items: *id001
+          maxItems: 100
       required:
       - id
       - tenant_id
@@ -3468,9 +3478,31 @@ components:
           type: array
           items: *id001
           maxItems: 100
+        allowed_room_ids:
+          type: array
+          items: *id001
+          maxItems: 100
+        allowed_scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceOperationScope'
+          maxItems: 10
       required: []
       additionalProperties: false
       minProperties: 1
+    DeviceOperationScope:
+      type: string
+      enum:
+      - shared
+      - conversation
+      - memory.read
+      - memory.write
+      - notes
+      - tasks
+      - reminders
+      - calendar.read
+      - calendar.propose
+      - home.control
     PairingCreate:
       description: Piサービス専用。installation_nonceは起動ごとに変更せず、初回deviceとtenantへ束縛される。
       type: object
@@ -3515,6 +3547,11 @@ components:
           type: array
           items: *id001
           maxItems: 100
+        replaces_device_id:
+          description: 明示再登録。最新台帳で失効済みの同installation・同tenantの旧device ID。旧credentialは使わず新device IDを発行する。
+          anyOf:
+          - *id001
+          - type: 'null'
       required:
       - user_code
       - device_name

@@ -80,6 +80,7 @@ async def confirm_pairing(
         body,
         _header(request, "Idempotency-Key"),
         _ip(request),
+        request.state.request_id,
     )
 
 

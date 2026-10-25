@@ -178,13 +178,13 @@ ownerによる所属整理は当該テナントからの所属解除と、その
 
 membership/deviceの減権限・失効・owner移譲はDB外の制御bucketに認可変更台帳を先行記録し、DBに認可版を適用する。減権限は未完了の意図もdenyとして扱い、grantはDB適用確認済みのcommitted recordだけを有効にする。競合・未確定の主体はsuspendedとし、roll-forwardで整合させる。旧backupを復元した後に再ログインさせるだけでは旧権限が復活し得るため、最新台帳の再適用が終わるまでAPIを開かない。台帳は全復元可能backupより長く保持する初期30日案とする。
 
-BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主体ごとの連続版 slot・DB 適用確認後の committed marker を追記する。effect と確定後の status を分け、部分減権限後の active を表現する。未確定の grant は隔離復元で確定せず suspended に留める。台帳なしの初期 owner を許す通常導入時の互換モードは、復元時には使わない。tenant/招待 API は IAM-04、[会員管理 API](memberships.md) は IAM-06 で接続済み。会員変更は先行 deny 前に tenant 予約を取得し、有効 owner を保持する。端末・worker/output など後続経路への接続は IAM-08 以降、実復元 gate は OPS-07 で行う。
+BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主体ごとの連続版 slot・DB 適用確認後の committed marker を追記する。effect と確定後の status を分け、部分減権限後の active を表現する。未確定の grant は隔離復元で確定せず suspended に留める。台帳なしの初期 owner を許す通常導入時の互換モードは、復元時には使わない。tenant/招待 API は IAM-04、[会員管理 API](memberships.md) は IAM-06 で接続済み。会員変更は先行 deny 前に tenant 予約を取得し、有効 owner を保持する。[端末設定・失効と保存command/worker/outputの検査境界](devices.md)は IAM-08 で接続済み。実dispatch/socketへの接続は後続チケット、実復元 gate は OPS-07 で行う。
 
 ### 5.2 端末ペアリングと個人セッション
 
 未登録Piは一時pairing ID、短いuser code、十分な乱数のpoll secretを取得する。codeは画面に表示し、poll secretはPiサービスのみが保持する。初期期限5分、コード照合失敗5回で失効、作成・照合にrate limitを設ける。スマホのowner/adminがテナントと端末表示名・許可範囲を確認して承認し、Piはpoll secretを提示して一度だけ専用refresh credentialを取得する。
 
-BA-IAM-07 の[端末資格情報契約](device-pairing.md)でコードの selector/secret 構造、5回失効、IP/installation 制限、60秒の暗号化再送 receipt と再利用検知を実装する。installation は初回 tenant/device へ固定し、IAM-08 の明示失効・再登録経路ができるまでは既登録 installation の再登録を拒否する。通常再起動で保持する外部 `DEVICE_CREDENTIAL_EPOCH` は隔離復元時に必ず更新し、旧資格情報を復活させない。
+BA-IAM-07 の[端末資格情報契約](device-pairing.md)でコードの selector/secret 構造、5回失効、IP/installation 制限、60秒の暗号化再送 receipt と再利用検知を実装する。installation はtenantへ固定し、初回device IDを保持する。IAM-08の明示再登録は旧deviceの台帳失効を条件に同tenantの新device IDを作り、旧credential/commandを移さない。通常再起動で保持する外部 `DEVICE_CREDENTIAL_EPOCH` は隔離復元時に必ず更新し、旧資格情報を復活させない。
 
 端末access tokenは初期15分とし、refresh credentialは暗号学的ハッシュで保存・ローテーションする。ログ、URL query、Chromiumの永続storageに入れない。OSの秘密ファイルは専用ユーザーと最小権限で管理する。再ペアリングでは古いcredential・セッションを失効する。失効は新しい接続だけでなく既存接続・待機コマンドにも適用し、オンライン反映目標は60秒以内とする。
 

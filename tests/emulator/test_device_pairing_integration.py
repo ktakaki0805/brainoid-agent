@@ -44,7 +44,7 @@ from scripts.demo_emulator import DATABASE, PROJECT, DemoEmulator, load_fixture
 KEY = "emulator-device-request-key"
 
 
-class DevicePairingIntegrationTests(unittest.TestCase):
+class DevicePairingIntegrationFixture(unittest.TestCase):
     def setUp(self) -> None:
         self.emulator = DemoEmulator(os.environ)
         self.emulator.reset()
@@ -138,6 +138,8 @@ class DevicePairingIntegrationTests(unittest.TestCase):
             futures = [pool.submit(run, call) for call in calls]
             return [future.result(timeout=45) for future in futures]
 
+
+class DevicePairingIntegrationTests(DevicePairingIntegrationFixture):
     def test_double_confirmation_exchange_and_identical_refresh_issue_once(self) -> None:
         pairing = self.pairing()
         confirmations = self.concurrent(
@@ -205,11 +207,24 @@ class DevicePairingIntegrationTests(unittest.TestCase):
         pairing = self.pairing()
         wrong = pairing.user_code[:4] + ("AAAA" if pairing.user_code[4:] != "AAAA" else "BBBB")
         results = self.concurrent(*(partial(self.confirm, pairing, wrong) for _ in range(5)))
-        self.assertTrue(all(result == ErrorCode.RESOURCE_NOT_FOUND for result in results))
+        # Concurrent rate admission can exhaust the SDK's bounded transaction retries.
+        # Retry only unfinished 503 requests, with the same body/key, at most three
+        # additional times each. A 503 never counts as a completed bad-code refusal.
+        for index, result in enumerate(results):
+            for _ in range(3):
+                if result != ErrorCode.TEMPORARILY_UNAVAILABLE:
+                    break
+                try:
+                    result = self.confirm(pairing, wrong)
+                except APIError as error:
+                    result = error.code
+            results[index] = result
+        self.assertTrue(all(result == ErrorCode.RESOURCE_NOT_FOUND for result in results), results)
         self.fails(partial(self.confirm, pairing), ErrorCode.RESOURCE_EXPIRED)
         saved = self.db.document("device_pairings/" + pairing.pairing_id).get().to_dict()
         assert saved is not None
         self.assertEqual(saved["failures"], 5)
+        self.assertEqual(saved["status"], "expired")
         other = self.pairing()
         self.now += timedelta(seconds=300)
         self.fails(partial(self.confirm, other), ErrorCode.RESOURCE_EXPIRED)
