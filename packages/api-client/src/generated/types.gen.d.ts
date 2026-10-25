@@ -1004,7 +1004,7 @@ export type CreateInvitationErrors = {
 export type CreateInvitationError = CreateInvitationErrors[keyof CreateInvitationErrors];
 export type CreateInvitationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（同一operationの再送を含む）。Cache-Controlはno-store。
      */
     201: Invitation;
 };
@@ -1030,7 +1030,7 @@ export type AcceptInvitationErrors = {
 export type AcceptInvitationError = AcceptInvitationErrors[keyof AcceptInvitationErrors];
 export type AcceptInvitationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（同一operationの再送を含む）。Cache-Controlはno-store。
      */
     201: Membership;
 };

@@ -128,7 +128,7 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 | アカウント削除 | `POST /operations`、`GET /operations/{o}` | 本人再認証。他tenant管理者から呼べない |
 | 利用量 | `GET /tenants/{t}/usage` | memberは本人分、owner/adminはtenant総量 |
 
-招待の送信機能はMVPの必須契約に含めず、生成コードを利用者が共有する。Home AssistantのURL・tokenはPiのローカル設定に置き、クラウドへ任意のLAN URLを渡して接続させない。
+BA-IAM-04 で `POST /tenants/{tenant_id}/invitations` と `POST /invitations:accept` を実装済み。コードは24時間・一回利用、照合は UID ごと15分5回まで。失効後は新規発行コードと確定grantを要求する。[再送・台帳・エラーの契約](invitations.md)に従う。招待の送信機能はMVPの必須契約に含めず、生成コードを利用者が共有する。Home AssistantのURL・tokenはPiのローカル設定に置き、クラウドへ任意のLAN URLを渡して接続させない。
 
 ## 4. 会話と音声の流れ
 

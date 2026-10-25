@@ -37,6 +37,12 @@ class Settings(BaseModel):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     readiness_timeout_seconds: Annotated[float, Field(gt=0, le=30, allow_inf_nan=False)] = 2.0
     cursor_signing_key: Annotated[SecretStr, Field(min_length=32, max_length=512)] | None = None
+    authz_ledger_bucket: (
+        Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$")] | None
+    ) = None
+    authz_ledger_directory: (
+        Annotated[str, Field(min_length=2, max_length=4096, pattern=r"^/")] | None
+    ) = None
 
     @field_validator("firestore_emulator_host", "firebase_auth_emulator_host")
     @classmethod
@@ -66,6 +72,14 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
+        if self.app_env == "local-emulator":
+            if self.authz_ledger_directory is None or self.authz_ledger_bucket is not None:
+                raise ValueError("local-emulator requires only an explicit local ledger directory")
+        elif self.app_env in ("staging", "production"):
+            if self.authz_ledger_bucket is None or self.authz_ledger_directory is not None:
+                raise ValueError("cloud requires only an explicit independent ledger bucket")
+        elif self.authz_ledger_directory is not None or self.authz_ledger_bucket is not None:
+            raise ValueError("local-fake cannot configure an authorization ledger")
         if self.auth_provider == "firebase" and self.cursor_signing_key is None:
             raise ValueError("firebase requires an explicit cursor signing key")
         hosts = (self.firestore_emulator_host, self.firebase_auth_emulator_host)

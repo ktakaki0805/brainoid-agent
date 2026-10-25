@@ -1,6 +1,6 @@
 # テナントの作成・選択・設定
 
-BA-IAM-03 は FR-001・FR-004 の初期状態を提供する。API は `/v1/tenants` の GET/POST と `/v1/tenants/{tenant_id}` の GET/PATCH。実装は [tenant repository](../services/api/src/brainoid_api/repositories/tenants.py)、通信契約は [OpenAPI](../specs/openapi.yaml) を正本とする。人格の会話への反映・agent API は BA-RUN-03、招待は BA-IAM-04、role 変更は BA-IAM-06 の対象。
+BA-IAM-03 は FR-001・FR-004 の初期状態を提供する。API は `/v1/tenants` の GET/POST と `/v1/tenants/{tenant_id}` の GET/PATCH。実装は [tenant repository](../services/api/src/brainoid_api/repositories/tenants.py)、通信契約は [OpenAPI](../specs/openapi.yaml) を正本とする。人格の会話への反映・agent API は BA-RUN-03、招待は [BA-IAM-04](invitations.md)、role 変更は BA-IAM-06 の対象。
 
 ## 作成の境界
 
@@ -30,4 +30,4 @@ cursor は user の現在状態と現在有効な membership 全件の policy st
 
 本番の collection-group 等価 query には [index 定義](../firestore.indexes.json) の `memberships.user_id` が必要。emulator は本番の index 要求を再現しないため、BA-OPS-02 で index の配備と staging 確認を行う。本 ticket はクラウドへ配備しない。既存 tenant データを移行する場合、公開契約の `id=tenant_id` と明示 timezone を確認し、推測値を読取り時に補完しない。合成 fixture にはこれらを追加済み。
 
-切戻し時も tenant・owner・agent・冪等記録を削除しない。作成台帳は user 名前空間なので、後続の account/tenant 削除・purge と backup 復元では receipt の tenant 参照も対象にする。24時間の保持中に台帳形式や namespace を変える場合は旧記録を読める期間を確保する。独立認可台帳による復元・権限変更 fencing は BA-IAM-05 で接続する。
+切戻し時も tenant・owner・agent・冪等記録を削除しない。作成台帳は user 名前空間なので、後続の account/tenant 削除・purge と backup 復元では receipt の tenant 参照も対象にする。24時間の保持中に台帳形式や namespace を変える場合は旧記録を読める期間を確保する。独立認可台帳は BA-IAM-05 が提供し、BA-IAM-04 で全 tenant API へ接続済み。最新台帳と一致しない主体・pending・台帳障害を拒否する。台帳未記録の初期 owner のみ通常稼働の bootstrap 互換モードを使う。

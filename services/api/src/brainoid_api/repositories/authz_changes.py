@@ -79,6 +79,19 @@ def _matches(document: Document | None, change: Change) -> bool:
     )
 
 
+def _invalidate_invitations(tx: Transaction, change: Change) -> None:
+    """A deny cancels all outstanding invitations without clock-order assumptions."""
+    if not isinstance(change.target, MemberTarget):
+        return
+    path = f"tenants/{change.tenant_id}"
+    tenant = tx.get(path)
+    if tenant is not None:
+        epoch = tenant.get("invitation_epoch", 0)
+        if type(epoch) is not int or epoch < 0:
+            raise LedgerConflict()
+        tx.set(path, {**tenant, "invitation_epoch": epoch + 1})
+
+
 class AuthzChanges:
     """Trusted service boundary, not a public generic PATCH API.
 
@@ -117,11 +130,14 @@ class AuthzChanges:
                     return
                 if _version(document) != change.expected_version:
                     raise LedgerConflict()
+                if change.effect == "deny":
+                    _invalidate_invitations(tx, change)
                 tx.set(path, {**(document or {}), **_fields(change, active=False)})
 
             self._store.run(apply)
 
             def confirm(tx: Transaction) -> None:
+                authorize(tx, change)
                 _, document = _locate(tx, change)
                 if not _matches(document, change):
                     raise LedgerConflict()
@@ -131,6 +147,7 @@ class AuthzChanges:
             self._latest(change)
 
             def activate(tx: Transaction) -> None:
+                authorize(tx, change)
                 path, document = _locate(tx, change)
                 if not _matches(document, change):
                     raise LedgerConflict()
@@ -170,6 +187,9 @@ class AuthzChanges:
                 active = entry.state == "committed"
                 updated = {**(document or {}), **_fields(current, active=active)}
                 if document != updated:
+                    if not _matches(document, current):
+                        # A latest grant can hide intervening denies absent from a backup.
+                        _invalidate_invitations(tx, current)
                     tx.set(path, updated)
                 return ReapplyResult("applied" if active else "suspended", current.operation_id)
 

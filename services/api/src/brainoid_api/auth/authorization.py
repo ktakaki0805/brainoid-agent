@@ -79,7 +79,9 @@ class TransactionPolicyState:
         self._ledger = ledger
         self._allow_untracked = allow_untracked_bootstrap
 
-    def _fence[T: Membership | DeviceState](self, state: T | None) -> T | None:
+    def _fence[T: Membership | DeviceState](
+        self, state: T | None, document: Document | None
+    ) -> T | None:
         if state is None or self._ledger is None:
             return state
         kind = "membership" if isinstance(state, Membership) else "device"
@@ -88,7 +90,10 @@ class TransactionPolicyState:
             entry = self._ledger.latest(subject_key(state.tenant_id, kind, identity))
         except LedgerError:
             raise PolicyDenied() from None
-        if entry is None and self._allow_untracked:
+        tracked = document is not None and (
+            "authorization_operation_id" in document or "authorization_change" in document
+        )
+        if entry is None and self._allow_untracked and not tracked:
             return state
         if (
             entry is not None
@@ -127,14 +132,12 @@ class TransactionPolicyState:
         documents = self._transaction.find(f"tenants/{tenant_id}/memberships", "user_id", user_id)
         if len(documents) > 1:
             raise PolicyDenied()
-        return self._fence(self._parse(Membership, documents[0] if documents else None))
+        document = documents[0] if documents else None
+        return self._fence(self._parse(Membership, document), document)
 
     def device(self, tenant_id: ResourceId, device_id: ResourceId) -> DeviceState | None:
-        return self._fence(
-            self._parse(
-                DeviceState, self._transaction.get(f"tenants/{tenant_id}/devices/{device_id}")
-            )
-        )
+        document = self._transaction.get(f"tenants/{tenant_id}/devices/{device_id}")
+        return self._fence(self._parse(DeviceState, document), document)
 
     def session(self, tenant_id: ResourceId, session_id: ResourceId) -> SessionState | None:
         return self._parse(

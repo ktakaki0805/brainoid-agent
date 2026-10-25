@@ -20,6 +20,8 @@ class IdentityVerifier(Protocol):
 
 def validate_sdk_environment(settings: Settings) -> None:
     """SDKs read process environment even when the app receives explicit Settings."""
+    if "STORAGE_EMULATOR_HOST" in os.environ:
+        raise ConfigurationError("Storage emulator overrides are not supported")
     for name, expected in (
         ("FIREBASE_AUTH_EMULATOR_HOST", settings.firebase_auth_emulator_host),
         ("FIRESTORE_EMULATOR_HOST", settings.firestore_emulator_host),

@@ -76,13 +76,13 @@ export declare const updateMembership: <ThrowOnError extends boolean = false>(op
 /**
  * 招待コード作成
  *
- * 招待コード作成
+ * owner/admin が24時間有効な一回利用コードを発行する。owner付与不可。Idempotency-Key再送は現在の管理権限・未使用・期限を再確認して同じコードを返す。membership減権限で同テナントの既存招待は無効になる。
  */
 export declare const createInvitation: <ThrowOnError extends boolean = false>(options: Options<CreateInvitationData, ThrowOnError>) => RequestResult<CreateInvitationResponses, CreateInvitationErrors, ThrowOnError>;
 /**
  * 本人が招待を受理
  *
- * 本人が招待を受理
+ * 検証済み本人がコードを受諾する。UIDごと15分5回まで照合し、期限と一回性を原子的にclaimする。同じkey/codeは固定operationを再試行し、最新台帳のDB適用確認済みgrantのみで所属を有効にする。失効後は新しく発行された招待と別keyが必要。
  */
 export declare const acceptInvitation: <ThrowOnError extends boolean = false>(options: Options<AcceptInvitationData, ThrowOnError>) => RequestResult<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError>;
 /**

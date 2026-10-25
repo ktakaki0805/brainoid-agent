@@ -52,7 +52,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `users/{user_id}` | 表示名、言語、タイムゾーン、アカウント状態 | グローバル最小プロフィール。テナント会話は入れない |
 | `tenants/{tenant_id}` | 名称、状態、ポリシー版、利用上限 | 削除中は新規処理を拒否 |
 | `memberships/{user_id}` | role、active/revoked/suspended、認可版 | owner/admin/member。招待状態とは区別 |
-| `invitations/{id}` | 招待コードのハッシュ、期限、作成者 | 生コードは保存せず、一回利用・期限検査 |
+| `invitations/{id}` | 招待コードのハッシュ、期限、作成者、invitation_epoch、使用operation | 生コードは保存せず、一回利用・期限検査。[招待契約](invitations.md) |
 | `agents/{id}` | 人格、プロンプト版、利用可能tool設定 | 外部資格情報を格納しない |
 | `devices/{id}` | 名前、能力、許可scope、状態、session generation | 端末資格情報は別管理。無期限の接続状態を信用しない |
 | `private_sessions/{id}` | user/device、許可scope、期限、最終活動 | 最長5分・無操作60秒を初期案とする |

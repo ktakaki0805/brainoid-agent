@@ -14,6 +14,7 @@ from brainoid_contracts import (
     Version,
     Visibility,
 )
+from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.models import ManagementAction, Role
 from brainoid_policy.scopes import Principal
 from pydantic import (
@@ -83,13 +84,17 @@ class Tenants:
         cursors: Cursors,
         *,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        ledger: ControlLedger | None = None,
     ) -> None:
         self._store = store
         self._cursors = cursors
         self._now = now
+        self._ledger = ledger
         self._idempotency = Idempotency(store, now=now)
 
-    def _user(self, tx: Transaction, identity: AuthenticatedIdentity) -> AuthorizedUserScope:
+    def authorize_user(
+        self, tx: Transaction, identity: AuthenticatedIdentity
+    ) -> AuthorizedUserScope:
         scope = AuthorizedUserScope(
             user_id=identity.user_id,
             authorization_stamp=fingerprint(["unprovisioned", identity.user_id]),
@@ -133,7 +138,9 @@ class Tenants:
         manage: bool = False,
     ) -> Principal:
         subject = user_subject(select_tenant(identity, tenant_id), now=self._now())
-        policy = transaction_policy(tx, now=self._now)
+        policy = transaction_policy(
+            tx, now=self._now, ledger=self._ledger, allow_untracked_bootstrap=True
+        )
         return policy_call(
             lambda: (
                 policy.management(tenant_id, subject, ManagementAction.UPDATE_TENANT)
@@ -166,7 +173,7 @@ class Tenants:
 
     def get(self, identity: AuthenticatedIdentity, tenant_id: ResourceId) -> Tenant:
         def read(tx: Transaction) -> Tenant:
-            self._user(tx, identity)
+            self.authorize_user(tx, identity)
             return self._project(tx, self._principal(tx, identity, tenant_id))
 
         return self._store.run(read)
@@ -175,7 +182,7 @@ class Tenants:
         self, identity: AuthenticatedIdentity, body: TenantCreate, key: str | None
     ) -> Tenant:
         def authorize(tx: Transaction, replay: MutationResult | None) -> AuthorizedUserScope:
-            current = self._user(tx, identity)
+            current = self.authorize_user(tx, identity)
             if replay is not None:
                 if replay.resource_id is None:
                     raise APIError(ErrorCode.INTERNAL_ERROR)
@@ -252,7 +259,7 @@ class Tenants:
         expected = require_if_match(if_match)
 
         def authorize(tx: Transaction, replay: MutationResult | None) -> AuthorizedScope:
-            user = self._user(tx, identity)
+            user = self.authorize_user(tx, identity)
             principal = self._principal(tx, identity, tenant_id, manage=True)
             if replay is not None and replay.resource_id != tenant_id:
                 raise APIError(ErrorCode.OPERATION_FORBIDDEN)
@@ -300,7 +307,7 @@ class Tenants:
         limit = page_limit(limit)
 
         def read(tx: Transaction) -> TenantPage:
-            user = self._user(tx, identity)
+            user = self.authorize_user(tx, identity)
             candidates: set[ResourceId] = set()
             for path, document in tx.memberships(identity.user_id):
                 parts = path.split("/")

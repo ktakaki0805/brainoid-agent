@@ -8,11 +8,15 @@ from typing import Annotated, cast
 from uuid import uuid4
 
 import firebase_admin  # type: ignore[import-untyped]
+from brainoid_policy.control_ledger import ControlLedger
 from fastapi import Depends, Request
 from google.auth.credentials import AnonymousCredentials
+from google.cloud import storage
 from google.cloud.firestore_v1 import Client
 from starlette.concurrency import run_in_threadpool
 
+from brainoid_api.adapters.gcs_authz_ledger import GCSAuthzObjects
+from brainoid_api.adapters.local_authz_ledger import LocalAuthzObjects
 from brainoid_api.auth.context import AuthenticatedIdentity
 from brainoid_api.auth.firebase_identity import (
     FirebaseIdentityVerifier,
@@ -23,6 +27,7 @@ from brainoid_api.auth.profiles import FirestoreProfiles, ProfileReader
 from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
+from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.tenants import Tenants
 from brainoid_api.settings import Settings
 
@@ -32,6 +37,7 @@ class AuthServices:
     verifier: IdentityVerifier | None = None
     profiles: ProfileReader | None = None
     tenants: Tenants | None = None
+    invitations: Invitations | None = None
 
 
 @asynccontextmanager
@@ -46,6 +52,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
         name="brainoid-api-" + str(uuid4()),
     )
     client: Client | None = None
+    storage_client = None
     try:
         credential = (
             AnonymousCredentials()  # type: ignore[no-untyped-call]
@@ -62,13 +69,32 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
             settings.cursor_signing_key.get_secret_value().encode("utf-8"),
             now=lambda: datetime.now(UTC),
         )
+        if settings.app_env == "local-emulator":
+            assert settings.authz_ledger_directory is not None
+            ledger = ControlLedger(LocalAuthzObjects(settings.authz_ledger_directory))
+        else:
+            assert settings.authz_ledger_bucket is not None
+            storage_client = storage.Client(project=settings.gcp_project_id, credentials=credential)
+            ledger = ControlLedger(
+                GCSAuthzObjects(storage_client.bucket(settings.authz_ledger_bucket))
+            )
+        store = FirestoreTransactions(client)
+        tenants = Tenants(store, cursors, ledger=ledger)
         yield AuthServices(
             FirebaseIdentityVerifier(app, settings),
             FirestoreProfiles(client),
-            Tenants(FirestoreTransactions(client), cursors),
+            tenants,
+            Invitations(
+                store,
+                tenants,
+                ledger,
+                code_key=settings.cursor_signing_key.get_secret_value().encode(),
+            ),
         )
     finally:
         try:
+            if storage_client is not None:
+                await run_in_threadpool(storage_client.close)
             if client is not None:
                 await run_in_threadpool(client.close)
         finally:
