@@ -349,3 +349,85 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前検証: `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` はexit 0（21.74秒）。Python13ソース・TS4 member・format/lint・台帳96件（done 2/todo 94）すべて成功。
 - 終了: 2026-10-25T17:00:15.654894+00:00。台帳・ログ2ファイルのみを記録コミットする。
+
+## ba-fnd-03-20261025t170038z
+
+- チケット: BA-FND-03
+- 状態: done
+- 開始: 2026-10-25T17:00:38.113050+00:00
+- ブランチ / base commit: main / 868cdbaf9d0fa2d87c9db907394ffd04662bedd2
+- 開始時の変更: なし
+- 選択: check成功（done 2/todo 94）、IDなしnextで依存順の次。依存BA-FND-01は現履歴に存在。
+- 親担当: /root、実装担当: `/root/fnd03_implementation`（独立コンテキスト）。
+- 実装コミット: 5d2c4a10f43e27c2ee740c554524ed8031109c85
+
+### 受入条件と検証計画
+
+- UUIDリソースと非UUIDのFirebase UID/provider opaque IDを区別し、境界値の正負例を検証。
+- timezoneなし日時と不正IANA名を拒否、offset付き時刻・日付跨ぎをUTC正規化。
+- 正整数version、visibility/display_policy、private+shared_display禁止の共通検証。
+- Context型は主体・tenantを保持し、認可判断は後続IAM層へ委ねる。既存OpenAPIとの対応を記録。
+- mise run check/testで基盤・API回帰も検証。追加外部前提なし。
+
+### 実装途中の検証結果
+
+- 実装担当: `uv add --package brainoid-contracts pydantic==2.14.1 --offline` で既存版Pydanticをcontractsへ追加、manifestとlock同期成功。
+- 新規contracts単体テスト14件が成功。subTestでID境界、UTCの日付/年/DST、version型・値、Scope全組合せ、Context判別・不変性、JSON roundtripを検証。
+- OpenAPI共通schemas・対応表の整合後に全体mise check/testを実施予定。
+
+### 実装担当の全体検証結果
+
+- `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit 0。Ruff format/lint、mypy19ソース、Biome format/lint、TS4 member、台帳整合が成功。
+- 同環境の `mise run test`: exit 0（require_escalated）。製品32件とplanner18件が全成功。
+- 初回checkで新テストのimport整列・setattr lint・loop変数型推論を検出し修正済み。
+- 追加読み取り専用確認: OpenAPI YAML解析、全local $ref解決、git diff --checkに成功。
+- 実装担当は編集停止済み。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当: `/root/fnd03_review_r1`（新規独立コンテキスト）。
+- base commit: `868cdbaf9d0fa2d87c9db907394ffd04662bedd2`
+- 対象: 全変更と未追跡ファイルから台帳・ログのみ除外、既存の無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `0c86a31ef192b793bf8e7a15796857d28e8098bc44971c71b07fddb5399f6495` |
+| `docs/05-development-and-testing.md` | `2c7ea668f6649a567df047455aa974fc88938dc549a82467189be15bfd4444df` |
+| `docs/contracts.md` | `e4e213b131f822da2d5c15ac131c2f9f6523b44ed18a76d86cf3f5b79daa0949` |
+| `docs/toolchain.md` | `5a3325bead0b1638e65fc5f8976d4ef452df0e1cf3765a5d6174f97d2ec749d6` |
+| `packages/contracts/pyproject.toml` | `f60f2b9da80cca8ed344a71e3adb2627d099a91cc71e1c5d17da29c2f0d31931` |
+| `packages/contracts/src/brainoid_contracts/__init__.py` | `97b5fe56da986fa0c6ae02a9d9b2205496da464b9dac9d2ff5043b805c9bbdfc` |
+| `packages/contracts/src/brainoid_contracts/context.py` | `5c37a767e74a662666728a79a5410e17a43db7900c198e6c84b510d8f84e9bd4` |
+| `packages/contracts/src/brainoid_contracts/identifiers.py` | `af281e6974a663e41ab94d9399d46d3e487666e28c7405cfd6621f8e0f1b1ca6` |
+| `packages/contracts/src/brainoid_contracts/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/contracts/src/brainoid_contracts/scope.py` | `84581eac60169563dbdae9dba28c4983e944d4d6d4c5517df0520095e3601e81` |
+| `packages/contracts/src/brainoid_contracts/time.py` | `7a538de491c2239463fdc4308f4d196dcbc3744895be3b9bf21de3d1bebb51a3` |
+| `pyproject.toml` | `d2875ca1d4863c5696756b125246672c6f6606f3185c0938007a57326abb8173` |
+| `specs/openapi.yaml` | `5df9d60fdf335469907c64e9a7f7cd260d116fd158212c235e5f21ba835b6f34` |
+| `specs/tool-contracts.schema.json` | `f20ff059bc259b920acc9fc04155aff41869f7164cf17099e7b5d71cf0b4d060` |
+| `tests/test_contracts.py` | `f3ec582ec2efd462fd60ab0d0cce9a0c937bab81723b3d45fcaf8fb023ea82f1` |
+| `tests/test_foundation.py` | `5d60a7bf914765384f3c25c107d15e2c2ac2010a3557d7b25c230ce0a83b1104` |
+| `uv.lock` | `3607cd45dd323897e3ff23fd4284613b46f432866f1fb64881c05df19042e56d` |
+
+### 独立レビュー ラウンド1 途中検証
+
+- `/root/fnd03_review_r1` が直接実行: contracts14件・foundation3件成功。OpenAPI99 componentsとtool JSON Schemaの構文、両仕様local $ref633箇所、Scope6組合せ、日時pattern6/7桁境界を確認し成功。
+- 対象17ファイルのSHA-256一致とmainを確認。最終判定待ち。
+
+### 独立レビュー ラウンド1 最終判定
+
+- 担当 `/root/fnd03_review_r1`: approve。要修正指摘0件、任意改善0件、未検証の必須条件なし。
+- UUID/opaque IDの区別、offset必須とUTC正規化、不正IANA拒否、version型制約、Scope禁止組合せ、認可判断をIAMへ委ねる不変Context、契約/workspace/lock整合を確認。
+- 直接実行した検証は上記。全体check/testは実装担当提供結果として確認したことを区別。最終SHA-256も17件すべて一致。
+- 確認済みレビュー回数1。修正要求なし。認可照合・業務組込み・client生成は後続範囲。
+
+### 完了結果 (2026-10-25T17:12:28.282543+00:00)
+
+- BA-FND-03の受入条件・検証が成功、独立レビュー1回approve、未解決指摘0件。
+- 実装コミット: `5d2c4a10f43e27c2ee740c554524ed8031109c85`（feat(contracts): BA-FND-03 define shared identifiers time and scope）。
+- 承認済み17ファイルだけをmainへstage。git diff --cachedと--check、index全blobのSHA-256一致を確認。commit後のパス/内容と作業ツリーも一致、hook変更なし。
+- 7番目のPython memberとして共通型・境界テスト・契約対応表を追加。全体check/test成功、独立schema参照検証成功。
+- 認可照合・自然言語日時・業務組込み・生成clientは後続対象。必須未完了事項なし。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit 0、21.74秒。format/lint、Python19ソース・TS4 member型検査、台帳96件（done3/todo93）が成功。
+- 終了: 2026-10-25T17:13:01.491794+00:00。台帳・ログ2ファイルだけを記録コミット。
