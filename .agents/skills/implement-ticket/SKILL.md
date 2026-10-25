@@ -80,7 +80,7 @@ python3 .agents/skills/implement-ticket/scripts/ticket_plan.py check
 3. commit成功後、`git rev-parse HEAD` とcommit内容を確認する。hook等がレビュー対象を変更したら、追加の修正・再検証・再レビューを経てから完了にする。失敗時に `done` を付けない。
 4. `docs/implementation-log.md` の保存済みの途中経過に、完了結果と実装コミットの完全なハッシュを追記して今回の記録を仕上げる。受入条件と検証結果、各レビューラウンドの指摘・修正・再確認、未実施の理由が揃っていることを確認する。
 5. `docs/implementation-status.json` の対象を `done` にし、`implementation_commit`、`log_anchor`、`updated_at`、`review_rounds` を記録する。既存チケットの記録を初期化しない。
-6. `ticket_plan.py check`、`python3 scripts/validate_docs.py`、記録差分の確認を行い、台帳とログだけを `docs(tickets): record BA-XXX-NN completion` でcommitする。記録コミットのハッシュは最終報告に示し、同じログへの自己参照更新を繰り返さない。
+6. `mise run check`、記録差分の確認を行い、台帳とログだけを `docs(tickets): record BA-XXX-NN completion` でcommitする。記録コミットのハッシュは最終報告に示し、同じログへの自己参照更新を繰り返さない。
 7. `git status --short` と両コミットの内容を確認する。元からある変更を除き、今回の作業が未記録で残っていないことを確かめる。
 
 実装commit済みで記録commitに失敗したら、実装ハッシュと記録待ちのファイルを報告し、次回は記録工程から再開する。未完成で停止する場合も台帳・ログに理由と検証の現状を残す。可能なら記録だけを `docs(tickets): record BA-XXX-NN blocker` でcommitし、未承認の実装を混ぜない。

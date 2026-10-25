@@ -93,7 +93,7 @@ mise run test
 
 `setup` は `uv sync --locked` で [pyproject.toml](pyproject.toml)・[uv.lock](uv.lock) に基づく依存を `.venv` へ同期します。Python依存の追加・削除は `uv add`・`uv remove`、スクリプトの実行は `uv run` を使います。詳しくは[依存の管理手順](docs/toolchain.md#4-python依存の追加削除更新)を参照してください。
 
-`check` は相対リンク、文書の必須ファイル、実装チケットのID・依存関係・進捗台帳・要件対応、OpenAPIの構造・参照、JSONの構文・参照などを点検します。`test` は既存のチケット管理スクリプトの単体テストを実行します。アプリの起動、GCPへのデプロイ、実機性能、製品のセキュリティ適合を検証するものではありません。
+`check` は実装チケットのID・依存関係・進捗台帳・完了記録を点検します。`test` は既存のチケット管理スクリプトの単体テストを実行します。文書リンク・OpenAPI・JSON Schemaの自動検証は、[実装チケット](docs/08-implementation-tickets.md)のBA-FND-04・06で専用ツールを導入します。アプリの起動、GCPへのデプロイ、実機性能、製品のセキュリティ適合を検証するものではありません。
 
 アプリを動かすためのセットアップは、[開発ガイド](docs/05-development-and-testing.md)にある初回実装タスクを完了した後に有効になります。存在しないリポジトリURLや起動コマンドをクイックスタートとして案内しない方針です。
 

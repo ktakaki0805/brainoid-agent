@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 状態 | 初版の設計ベースライン案。miseによる文書・チケット検証環境を提供。アプリ、CI、製品テストは未実装 |
+| 状態 | 初版の設計ベースライン案。miseによるチケット検証環境を提供。アプリ、CI、製品テストは未実装 |
 | 版 | 0.2.0 |
 | 更新日 | 2026-10-26（日本時間） |
 | 責任者 | 技術リード。実装担当者が変更と同じPRで更新する |
@@ -31,7 +31,7 @@
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |
 
-表のパスは作成予定である。現在の `docs`、`specs`、`scripts`、チケット管理Skill、mise設定を基に、各実装チケットで追加する。
+表のパスは作成予定である。現在の `docs`、`specs`、チケット管理Skill、mise設定、uvプロジェクトを基に、各実装チケットで追加する。
 
 技術リードは共通契約の変更を管理する。UI担当は画面と音声状態、API担当は認証・認可と永続化、Agent担当は記憶・推論・ツール、Device担当は実機・ローカル処理、Platform担当はGCP・CI・運用に責任を持つ。少人数チームでは兼任できるが、権限・削除・外部操作の変更は実装者以外がレビューする。
 
@@ -56,7 +56,7 @@
 
 開発ツールとコマンドはmiseで管理する。Python、Node.js、uv、pnpmは [mise.toml](../mise.toml) で完全なバージョンを固定し、[toolchain.md](toolchain.md) に初回セットアップ、対応環境、更新方法を記録する。最新版への自動追従は行わない。
 
-Python依存は [pyproject.toml](../pyproject.toml)・[uv.lock](../uv.lock) で管理する。現在は文書検証用のPyYAMLを開発用依存に含め、`mise run setup`（`uv sync --locked`）でuvが `.venv` を作成・同期する。依存の追加・削除は `uv add`・`uv remove`、実行は `uv run` を使う。B-01ではこのuvプロジェクトをアプリ用workspaceへ拡張し、JavaScript/TypeScript依存はpnpmとlockfileで管理する。ツール版の正本はmise設定、パッケージ依存の正本はworkspace設定・lockfileとし、CIもこれらに合わせる。ドキュメントでは同じバージョン一覧を手作業で複製しない。
+Python依存は [pyproject.toml](../pyproject.toml)・[uv.lock](../uv.lock) で管理し、`mise run setup`（`uv sync --locked`）でuvが `.venv` を作成・同期する。現在のチケット管理スクリプトに外部パッケージ依存はない。依存の追加・削除は `uv add`・`uv remove`、実行は `uv run` を使う。B-01ではこのuvプロジェクトをアプリ用workspaceへ拡張し、JavaScript/TypeScript依存はpnpmとlockfileで管理する。ツール版の正本はmise設定、パッケージ依存の正本はworkspace設定・lockfileとし、CIもこれらに合わせる。ドキュメントでは同じバージョン一覧を手作業で複製しない。
 
 Java、Android SDK、Xcode、Capacitor、Docker、Terraform、Google Cloud CLI、Firebase CLIは、各コンポーネントの実装時に対応関係を確認してバージョンと導入方法を追加する。iOSビルドの環境と実機署名手順はMobile担当が提供する。Dockerイメージ、GitHub Actions、Pi配布物は再現可能な参照へ固定する。
 
@@ -95,12 +95,13 @@ Firestore emulatorは本番の全制限や複合索引を再現しないため�
 | 提供済みコマンド | 現在の振る舞い |
 | --- | --- |
 | `mise run setup` | `uv sync --locked` で `.venv` を作成・同期し、lockfileの開発用依存を導入 |
-| `mise run check:docs` | 文書の相対リンク、実装チケット、OpenAPI・JSON Schemaの構造・参照を検証。`-- --json` でJSON出力 |
 | `mise run check:tickets` | チケットの依存関係・進捗台帳・完了記録を検証 |
-| `mise run check` | `check:docs` と `check:tickets` を実行 |
+| `mise run check` | 現在は `check:tickets` を実行 |
 | `mise run test` | チケット管理スクリプトの既存の単体テストを実行 |
 
 現在のPython検証タスクは `uv run --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
+
+文書リンク・OpenAPI・JSON Schemaの自動検証は現在提供していない。BA-FND-04で契約用validator、BA-FND-06で既存のMarkdownリンク検証ツールを導入する。導入までは変更したリンク・契約と、要件・テストIDの対応をレビューで確認する。
 
 以下はB-01以降で実装・拡張するmiseタスクの契約である。setup・check・testも、現在は上表の範囲だけを実行する。
 

@@ -210,11 +210,11 @@ IDの並びは分野別であり、実装の直列順序ではない。詳細に
 **主な変更範囲**
 
 - apps、services、packages、infraの予定構造をworkspaceとして定義する。
-- 既存の `pyproject.toml`・`uv.lock` をuv workspaceへ拡張し、Python依存は `uv add`・`uv remove` で管理する。ルートの文書検証用dev依存を維持し、サービス・共有パッケージの依存を各memberへ追加する。
+- 既存の `pyproject.toml`・`uv.lock` をuv workspaceへ拡張し、Python依存は `uv add`・`uv remove` で管理する。共通の開発ツールはルートのdev依存、サービス・共有パッケージの依存は各memberへ追加する。
 - 既存のmise設定を基にPython/Nodeとpackage managerのアプリ対応を確認し、formatter・型検査を設定する。
 - `mise run setup` をworkspaceのlockfileからの導入とtoolchain検査へ拡張し、秘密値やクラウド変更を必要としない。
 
-miseによるツール固定、uvプロジェクトとlockfile、文書検証用setup/check/testは提供済み。setupは `uv sync --locked`、Python検証タスクは `uv run --locked --offline` を使う。[開発ツールのセットアップ](toolchain.md)を基に拡張する。このチケットはworkspace・アプリ依存lock・formatter・型検査の受入条件まで満たして完了とする。
+miseによるツール固定、uvプロジェクトとlockfile、チケット検証用setup/check/testは提供済み。setupは `uv sync --locked`、Python検証タスクは `uv run --locked --offline` を使う。[開発ツールのセットアップ](toolchain.md)を基に拡張する。このチケットはworkspace・アプリ依存lock・formatter・型検査の受入条件まで満たして完了とする。
 
 **成果物・変更先（予定）**
 
@@ -351,7 +351,7 @@ Pythonと生成クライアントがID・時刻・更新版を同じ意味で扱
 
 **主な変更範囲**
 
-- OpenAPI 3.1とJSON Schema 2020-12に対応するvalidatorを固定する。
+- OpenAPI 3.1とJSON Schema 2020-12に対応する既存validatorを固定し、構文・メタスキーマ適合・ローカル参照・pathパラメーター・認証方式の定義を検証する。独自の文書検証スクリプトは前提にしない。
 - HTTPクライアントをTypeScriptへ生成し、認証・base URL・transportを注入する入口を設ける。
 - 生成設定を固定し、再生成差分と基準版からの破壊的契約変更を検出する。
 
@@ -443,7 +443,7 @@ PRを取り込む前に、整形・型・通信契約の破損を一貫して検
 
 **主な変更範囲**
 
-- Python/TypeScriptのformat・lint・型検査と文書/契約検証をPRで実行する。
+- Python/TypeScriptのformat・lint・型検査、BA-FND-04の契約validator、既存のMarkdownリンク検証ツールをPRで実行する。文書の相対リンクと見出しリンクの破損を検出し、チケットのID・依存関係・進捗台帳の検証は既存の `check:tickets` を利用する。
 - lockfileに基づく依存導入とAPI client再生成差分を確認する。
 - forkの変更にも実行できる最小のread権限にし、deploy credentialや本番secretを渡さない。
 
@@ -457,11 +457,12 @@ PRを取り込む前に、整形・型・通信契約の破損を一貫して検
 
 - [ ] 同じ検証をローカルとCIで実行でき、失敗した工程と再現方法が分かる。
 - [ ] 生成ファイルの更新漏れと壊れたスキーマがmerge前に検出される。
+- [ ] 文書の存在しない相対リンク先・見出しリンク先を失敗として検出できる。
 - [ ] このworkflowからクラウドの書込や有料provider呼出しが発生しない。
 
 **検証方法**
 
-- 型エラーと生成差分を入れた試験PR相当で失敗を確認し、修正後に通ることを確認する。
+- 型エラー、生成差分、壊れた相対リンク・見出しリンクを入れた試験PR相当で失敗を確認し、修正後に通ることを確認する。
 
 **このPRに含めないもの**
 
