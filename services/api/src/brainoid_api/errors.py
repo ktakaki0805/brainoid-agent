@@ -24,6 +24,7 @@ class ErrorCode(StrEnum):
     RESOURCE_NOT_FOUND = "resource_not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
     CONFLICT = "conflict"
+    IDEMPOTENCY_CONFLICT = "idempotency_conflict"
     RESOURCE_EXPIRED = "resource_expired"
     VERSION_CONFLICT = "version_conflict"
     VERSION_REQUIRED = "version_required"
@@ -48,6 +49,9 @@ ERRORS = {
     ErrorCode.RESOURCE_NOT_FOUND: ErrorDefinition(404, "Resource not found."),
     ErrorCode.METHOD_NOT_ALLOWED: ErrorDefinition(405, "Method not allowed."),
     ErrorCode.CONFLICT: ErrorDefinition(409, "Request conflicts with the current state."),
+    ErrorCode.IDEMPOTENCY_CONFLICT: ErrorDefinition(
+        409, "Idempotency key was used with another body."
+    ),
     ErrorCode.RESOURCE_EXPIRED: ErrorDefinition(410, "Resource expired."),
     ErrorCode.VERSION_CONFLICT: ErrorDefinition(412, "Resource version changed."),
     ErrorCode.VERSION_REQUIRED: ErrorDefinition(428, "Resource version required."),

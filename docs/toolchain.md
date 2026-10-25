@@ -107,6 +107,7 @@ Java・Firebase CLIはBA-FND-05で下記の通り導入する。Android SDK・Xc
 | uv_build 0.12.19 | 各Python memberのbuild backend | 固定uvの内蔵backendと同版、MIT OR Apache-2.0。[PyPI](https://pypi.org/project/uv-build/0.12.19/) |
 | FastAPI 0.162.0・Pydantic 2.14.1 | API memberの実行依存。Pydanticはcontractsでも使用 | Python >=3.10、MIT。HTTP入口・型付きvalidation用。contracts追加による実行権限の増加なし。[FastAPI](https://pypi.org/project/fastapi/0.162.0/)、[Pydantic](https://pypi.org/project/pydantic/2.14.1/) |
 | Uvicorn 0.54.0 | API memberのASGI実行依存 | Python >=3.10、BSD-3-Clause。setupではサーバーを起動しない。[PyPI](https://pypi.org/project/uvicorn/0.54.0/) |
+| google-cloud-firestore 2.34.1 | API memberの実行依存。冪等記録と業務writeの原子的transaction | Python >=3.10（3.13対応）、Apache-2.0、Google保守のProduction/Stable SDK。[PyPI](https://pypi.org/project/google-cloud-firestore/2.34.1/)、[現行source](https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-firestore) |
 | TypeScript 7.0.2 | ルートdev。全Node memberのstrict型検査 | Node >=16.20.0、Apache-2.0。[npm](https://www.npmjs.com/package/typescript/v/7.0.2) |
 | Biome 2.6.3 | ルートdev。TypeScript/JSON format/lint | Node >=14.21.3、MIT OR Apache-2.0。[npm](https://www.npmjs.com/package/@biomejs/biome/v/2.6.3) |
 | Vite 8.3.5 | ルートdev。後続UI用buildツール | Node ^20.19.0 または >=22.12.0、MIT。[npm](https://www.npmjs.com/package/vite/v/8.3.5)、[公式ガイド](https://vite.dev/guide/) |
@@ -117,6 +118,8 @@ Java・Firebase CLIはBA-FND-05で下記の通り導入する。Android SDK・Xc
 公式metadata上、Python側の上表の開発ツール・API依存は2026年9〜10月にもリリースされている。Node側も各公式配布元の採用版を固定し、現在のtoolchainで型検査とimportを実行する。これらは通常のローカルコード実行権限を持ち、setupではダウンロード・環境作成を行う。クラウドIAM・認証情報・外部サービスへの実行権限は追加しない。アプリの配布に含まれる依存と、開発時だけ使う依存を上表の配置で区別する。
 
 BA-FND-02で追加したHTTPX2はテスト専用で、APIの実行依存へは追加しない。lockには推移依存のHTTPcore2（BSD-3-Clause）とtruststore（MIT）も追加される。2026-10-26に導入したdistribution metadataでPython要件・保守元・ライセンスを確認した。TestClientはアプリ内ASGI transportを使い、通常テストに外部HTTP接続やクラウド権限を追加しない。
+
+BA-FND-08で追加したFirestore SDKはAPIの配布依存となり、gRPC、google-auth、protobuf等の推移依存もuv.lockで固定する。2026-10-26に公式PyPIと導入済みdistribution metadataで版・Python要件・Apache-2.0を確認した。以前の単独repositoryはarchive済みで、保守先は表の `google-cloud-python` 配下へ移管されている。SDKは構成済みのDB clientを注入された場合にその接続先へ読み書きするが、導入だけでcloud IAM権限を付与しない。通常check/testでは接続せず、明示的なemulator testは固定loopbackへ限定する。credential、SDKのpayload debugログ、外部providerの実行を共通処理から有効にしない。配布時はSDKと推移依存のlicense表示も保持する。利用境界と検証は[共通処理](common-mutations.md)を参照する。
 
 BA-FND-04では次の既存ツールを2026-10-26の公式docs・npm/PyPI metadata・release assetで確認し固定した。
 

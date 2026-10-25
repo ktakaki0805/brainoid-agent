@@ -122,5 +122,5 @@ description = "Clear all Auth/Firestore data in the dedicated local demo project
 run = "scripts/dev_emulator reset"
 
 [tasks.test-emulator]
-description = "Start emulators, verify seed twice and reset, then stop automatically"
+description = "Start emulators, verify fixtures and atomic common mutations, then stop automatically"
 run = "scripts/dev_emulator test"

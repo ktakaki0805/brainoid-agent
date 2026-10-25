@@ -5,9 +5,11 @@ description = "FastAPI startup, health checks and common error handling"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "brainoid-agent-core",
+    "brainoid-contracts",
     "brainoid-memory",
     "brainoid-tools",
     "fastapi==0.162.0",
+    "google-cloud-firestore==2.34.1",
     "pydantic==2.14.1",
     "uvicorn==0.54.0",
 ]
@@ -21,3 +23,4 @@ build-backend = "uv_build"
 brainoid-agent-core = { workspace = true }
 brainoid-memory = { workspace = true }
 brainoid-tools = { workspace = true }
+brainoid-contracts = { workspace = true }
