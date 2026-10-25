@@ -431,3 +431,552 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit 0、21.74秒。format/lint、Python19ソース・TS4 member型検査、台帳96件（done3/todo93）が成功。
 - 終了: 2026-10-25T17:13:01.491794+00:00。台帳・ログ2ファイルだけを記録コミット。
+
+## ba-fnd-04-20261025t171317z
+
+- チケット: BA-FND-04
+- 状態: done
+- 開始: 2026-10-25T17:13:17.055597+00:00
+- ブランチ / base commit: main / 2be16efc04f766eaa2e6e1066d6c4d11443b44ee
+- 開始時の変更: なし
+- 選択: check成功（done3/todo93）、IDなしnextで依存順の次。依存FND-01/03の実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/fnd04_implementation`（独立コンテキスト）。
+- 実装コミット: bbd81e2954a0143bce0c7364c030237d23614ce0
+
+### 受入条件と検証計画
+
+- 既存validatorを固定し、OpenAPI3.1/JSON Schema2020-12の構文・schema適合・local参照・path parameter・認証方式を検証。
+- 既存84業務操作（FND-02でhealth2操作追加）を解析、未解決参照・重複operationId・必須項目不足の負例を検出。
+- 認証・base URL・transportを注入できるTypeScript HTTP clientを生成し型検査。秘密値を生成コードへ埋め込まない。
+- 再生成の差分なし、基準版からの操作削除等を破壊的変更として検出。mise run check/testを実行。
+- 業務handler・本番配備CIは対象外。追加外部前提なし。
+
+### 実装方針の確認
+
+- 実装担当が既存契約を確認し、84業務操作＋health2操作の計86操作を確認。
+- 既存validator/生成器の候補: Redocly CLI、Ajv CLI、Hey API、oasdiff。対応版・licenseを公式情報で確認して固定し、独自validatorではなく薄い実行ラッパーとして組み合わせる。採用版と実測結果は後述する。
+
+### ツール導入と途中検証
+
+- Redocly CLI 2.71.0: 現行OpenAPI検証成功。Ajv CLI 5.0.0: JSON Schema3件の検証成功。oasdiff 1.34.1: 公式SHA-256をmiseへ固定し、基準2be16efとの比較はNo changes detected。
+- Hey API 0.99.0はTypeScript7のcompiler API廃止により初回起動失敗。生成器のtypescript依存だけpnpm overrideで5.9.3へ固定し生成成功。rootのTypeScript7は維持。
+- client注入入口、再生成差分確認、負例テストの実装を継続。
+
+### 初回受入検証（実装担当から受領）
+
+- Node受入テスト18件成功（7.2秒）。未解決ref、重複operationId、info.version欠落、不正schema type、path parameter不足、security未定義、JSON Schema meta/ref/必須payloadを負例検証。
+- 操作削除・要求必須追加・enum縮小をbreakingとして検出、非破壊追加は受理。
+- clientのURL/auth更新/health非認証/独立client/body/header/query/errorを検証。生成86操作の全export、TS4 workspaceと型負例、再生成差分なしを確認。
+- 上流runtimeはexactOptionalPropertyTypes未対応のため、一時TSをstrict+noUncheckedでJS/d.tsへcompileして保存。consumer/factory/type-testsは既存strict設定を維持し、制約と依存license根拠を文書化。
+- sandboxのcaptureはEPERMとなる環境制限があり、必要なテストは権限拡張実行。最終mise check/test結果を待つ。
+
+### 生成差分の負例と依存実行規約
+
+- 一時コピーで生成物の改変・余分なファイルを検出する19件目の負例が成功。
+- pnpm11のrun/execによる暗黙install挙動を確認し、`verifyDepsBeforeRun: error` を固定。検証で依存不整合を黙って修復せず失敗させる。
+- 生成物のcompile工程はインストール済みTypeScript7を直接起動する方式へ変更。生成器API依存のTypeScript5.9.3固定とは用途を区別する。pnpm frozen/offline再導入成功。
+- 変更後の最終check/testを実行中。
+
+### 最終検証・レビュー開始
+
+- 実装担当の `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: 成功。契約・生成差分・互換性・format/lint・Python/TS4 workspace型検査。
+- 同環境の `mise run test`: Python32件、Skill18件、契約/client19件すべて成功。最終報告の権限表記に不一致があり、実行環境の事実確認を担当へ依頼（コード編集は停止のまま）。
+- `pnpm install --frozen-lockfile --offline`、`git diff --check` 成功、oasdiff 1.34.1確認。
+- Ajvのiana-timezone custom format警告は既知。実在検証は既存Python共通型を使い文書に明記。macOS/ARM・実機・配備CIは範囲外。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当: `/root/fnd04_review_r1`（新規独立コンテキスト）。実装担当は編集停止。
+- base commit: `2be16efc04f766eaa2e6e1066d6c4d11443b44ee`
+- 全変更と未追跡ファイルから台帳・ログのみ除外。既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `biome.json` | `a8439a977149700ede331a1c0e45e19e5b87984fee3fbba46cf3960f61de5426` |
+| `docs/04-interfaces.md` | `a9711bd37517edba8776339fde3c760041eef4aa0a27d6b655d332c14da5be4e` |
+| `docs/05-development-and-testing.md` | `a9f866b94456c1bd2ae7c0a689a9dd2a9f324fc7a6497fb525e9ac06cf8d6579` |
+| `docs/contracts.md` | `ce65eb73f25c2b1ac8bc8c2df854311c0c328b0deefd1e29cafe44e94f8ca02b` |
+| `docs/toolchain.md` | `d7522fd4436cbb50bd94213bd56e51a8eef402f79b17b3d75c2aecc1de98ae0e` |
+| `mise.toml` | `ede65d3d7b6e5b8b83c28fa4955483de1d802c67d503c458be3a7dad5b3b6199` |
+| `openapi-ts.config.mjs` | `df69d137921a612eb788f13179f5a5567ce42a3daee0e367462d7450bc58fa62` |
+| `package.json` | `5f092cd41ddff23d477bbdd6a60384632ccf46e5884554bdcfef81d044681c63` |
+| `packages/api-client/LICENSE.hey-api` | `7354457f471fda3d2ef7ae7b7dc758c98a57054875ccc1e211b950646b03bf10` |
+| `packages/api-client/src/generated/client.gen.d.ts` | `e4f5a5fadebd9f7765fd1f1c5ee8e01938b02f79b0fed70dabe1eead8c290f74` |
+| `packages/api-client/src/generated/client.gen.js` | `fdbecf54327afb75febcaae6fe28b71604173d9decd5469e01daeaabde78333a` |
+| `packages/api-client/src/generated/client/client.gen.d.ts` | `bf212e4be18e7344b1c5b220fa99cbaeb92163fe82eecd94d0764e38a67ce9de` |
+| `packages/api-client/src/generated/client/client.gen.js` | `bc4ed435f1d0ba31e7d0159781e0e0c1ea73072c24a1502389f6ee6df0b7e42e` |
+| `packages/api-client/src/generated/client/index.d.ts` | `2fe302bba2fcc3b08ecbb87497823a826dfab8befdd418e25e661404543e33d8` |
+| `packages/api-client/src/generated/client/index.js` | `94e300244308b6b55a56aa3f8433b82e00ca62fe034da102349d90e654eba42d` |
+| `packages/api-client/src/generated/client/types.gen.d.ts` | `a41e52023e46d0111a4a96eb212094bcbd2e24c7f636915a8eaa3b82a9499d2c` |
+| `packages/api-client/src/generated/client/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/client/utils.gen.d.ts` | `fb4c37a76744c398ed3bf7dfaf7e5eb0646251f05cfb6ac3a7c32344726737ce` |
+| `packages/api-client/src/generated/client/utils.gen.js` | `63f24443fe668c36ffad61c203f558b73f259f5769472f65bb2a50ac72188ef9` |
+| `packages/api-client/src/generated/core/auth.gen.d.ts` | `baaf667467a104128dbad679d65d9bf60bd6585073557d968fe6b41705747f66` |
+| `packages/api-client/src/generated/core/auth.gen.js` | `a8a8faa4b1c7383a3f8570b9e74849cd77c4ee59406bf00b9e00ff2f0c89321d` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.d.ts` | `b03f428c56911eb47b1bde743deaed2f82c025ba4d190549c497817319e3a2a4` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.js` | `85f6abdc0ad36c810a635e0a24fa7a05cf1fd40b1aa4638d5128055178aac467` |
+| `packages/api-client/src/generated/core/params.gen.d.ts` | `24c3a8e82e56cf4eb5cf9e28d7a6ff05d0c4048e6c98c2d58665ea52b89abd3b` |
+| `packages/api-client/src/generated/core/params.gen.js` | `25ddaaae0571f0efa0821d47f3ab963e82097a08e05fcb6f6ecf0ca48dbfd11c` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.d.ts` | `6fa72aec2712b74d65a207fec9e007bc60c4251ee56cbe04c90bfb7c3809187a` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.js` | `a1ad57fbaeb6331c3e3d811cbfdb1c16f9884b4d6b93658a6c73f2882088d994` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.d.ts` | `137b06ec431c2ede0e82663e8190ec2d3d9c0eadda2265ec36a2aa8009cba2b3` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.js` | `759a91074785c0e7f6161c98d0a2f055ac1755e101ca2bcb548cefc84113dd00` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.d.ts` | `8648a32fb76550d635512140a92fab51a51d1e5c4371cb4f5ca847e6a19af88a` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.js` | `550784cb0e43872d31eb0d7257765b162b72855fac54f729710fbf0a3cc2bd31` |
+| `packages/api-client/src/generated/core/types.gen.d.ts` | `7e0ef3073fe45803bd4c923f8b9c1dde36d47e14f602d704d0d6326cba33248d` |
+| `packages/api-client/src/generated/core/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/core/utils.gen.d.ts` | `6c2e5228cde53ddcaad3cf51abae7425147996078a1162a1723a8f06f24eca88` |
+| `packages/api-client/src/generated/core/utils.gen.js` | `cf3731ed79b03412088cbf6645246ba32cc8ba415485c5591943db07174c4afd` |
+| `packages/api-client/src/generated/index.d.ts` | `bebe015941cc71eed8e3eccbd0d02915f32a676ce2cf5eb742b73e3ba5fc39b5` |
+| `packages/api-client/src/generated/index.js` | `8d7414a6283a4b675ef6bd80109f7dfed11cebeda025f03707f07c54584ace04` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b823903b0954621bce9ed8b5278b2ac3d63b45939af432e20e8f0a863b0d0976` |
+| `packages/api-client/src/generated/sdk.gen.js` | `3de05597aec3c2f8eb3b0eda910c716f04586cead986cdc6bb5cfd7d1bca8355` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `51d8d0b31decde7db3acf119dd2cc87ca76b568eb185124a543bda2273cf1f89` |
+| `packages/api-client/src/generated/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/index.ts` | `e3032b5649a956479aeef2437486a340548bfc61361e3b281c0a87ca09c1fecc` |
+| `packages/api-client/tsconfig.json` | `415a9771435916764f223f6b8b6492ce6661350a4b07cb7b768b901774fd7499` |
+| `packages/api-client/type-tests/client.ts` | `951a7520fca05eb4f8a2fc22ef1ab6db1aa314bbd4d12e9e25dd300231a2622b` |
+| `pnpm-lock.yaml` | `2d5946ab6d369bc40fdc46e5dd30b65318f7e30c8631ba164e9d8a47b17dd0e3` |
+| `pnpm-workspace.yaml` | `bcd3f565efb4cbe5d91e7c209f43821858498b1475021cf495e931bd54d92d62` |
+| `redocly.yaml` | `6770d0da71895beab1b9d5753b48b18816a47cc5e6400dffb2bd7f244b58d61b` |
+| `scripts/check_contract_compatibility` | `be01d737df675decdc2ece5de38b521bb5442cb435b5dfcdffc660ad90507c8f` |
+| `scripts/generate_api_client` | `92d9c1ef36e7da39311c4b7f0f27cb4ffa8bd6fb7cd3fb009145f7944c3af1f2` |
+| `scripts/generate_api_client.mjs` | `b8fac5dbaa736c25c1bd08e017a4e1835bcecc0defb667226381a75ab742a73d` |
+| `scripts/validate_contracts` | `6e85156984b4df0e5771b7432e8c2232fd58f68e08004ae6160c60214e8fb1f0` |
+| `specs/openapi-baseline.ref` | `10d149fd9540446d51a229ff0a4edad9d2e479650e7ac11c666b0d3baf41cbc6` |
+| `tests/test_api_contracts.mjs` | `08cfe29c4f03ddbd0b47d2833d0824f47f28ea26005e90dc4b2f6406e7a70dff` |
+
+### 最終検証の実行環境を確認
+
+- 実装担当の事実確認: 最終checkはuse_defaultでexit 0（exec session24124、22.25秒）。最終testはrequire_escalatedでexit 0（session90658）。通常権限とした表記は誤記であり、訂正を受領。
+- 最終test内訳: Python32件1.186秒、Skill18件0.060秒、Node19件9.181秒。ツール出力を事実として本ログへ保存。
+- 本担当で実測したsandbox失敗はNode `spawnSync pnpm EPERM` と `spawnSync scripts/check_contract_compatibility EPERM`。同テストは権限拡張で成功。API AnyIO停止は前チケットの既知事項を引き継いでおり本担当では再現していない。独立レビュー担当へ訂正情報を伝達済み。
+
+### 独立レビュー ラウンド1 途中所見
+
+- `/root/fnd04_review_r1` が全86関数のHTTP method/path/securityをOpenAPIと照合し一致。
+- 追加実測でSSEの `streamRunEvents` 公開型がAsyncGenerator<string>なのにJSONイベントをobjectとしてyieldする不一致を確認。401再接続でもauth provider再取得なし（fake fetch2回/provider1回）を確認。必須指摘への判定は精査中。
+- レビュー担当の全体check実行中。最終判定後に必要修正を実装担当へ返す。
+
+### 独立レビュー ラウンド1 追加実測
+
+- レビュー担当の全体check: use_defaultでexit 0（21.82秒）。公開HTTP入口5テストをtest-isolation=noneで実行し5/5成功。対象53ファイルのhash一致を再確認。
+- 必須のメタスキーマ検証漏れ: OpenAPI内Version.multipleOf=0、required配列重複のfixtureを既存validate_contracts/Redoclyがexit 0で受理する一方、Ajv2020.validateSchemaは拒否。OpenAPI Schema Objectの2020-12メタスキーマ適合検証が不足している。最終request_changesを待って修正へ進む。
+
+### 独立レビュー ラウンド1 最終判定と修正依頼
+
+- 担当 `/root/fnd04_review_r1`: request_changes、必須P2指摘3件、任意改善なし。確認済みレビュー回数1。台帳をin_progressへ戻す。
+- R1-01: scripts/validate_contracts:10。OpenAPI内Schema ObjectのmultipleOf=0/重複requiredを見逃す。既存validatorによる2020-12メタスキーマ検証を追加し両負例を拒否すること。fixture `/tmp/ba-fnd-04-review-invalid-openapi.json` を `mise exec -- scripts/validate_contracts` に渡すとexit0となる実測。独自キーワード検査で代替しない。
+- R1-02: generated/types.gen.d.ts:1707 と core/serverSentEvents.gen.js:85。streamRunEventsの要素型stringに対しJSON objectをyield。strict型検査済み再現 `/tmp/ba-fnd-04-review-sse-repro.ts` は実行でtext.trim TypeError。生成設定または公開adapterで再生成可能な型/実値整合とfake stream/型テストを追加。
+- R1-03: generated/client/client.gen.js:169 と core/serverSentEvents.gen.js:118。SSE再接続がtoken providerを再評価せず、401後も同じbearerを再送（fake fetch2回/provider1回、既定retry上限なし）。再現 `/tmp/ba-fnd-04-review-auth-repro.mjs`。各接続で再認証、または自動再接続を停止し呼出元が失敗を観測できる入口へ修正。更新/失効テストが必要。
+- 正常HTTP入口、86操作のmethod/path/security、生成差分なし、依存固定・compile互換策は適合。全体checkや既存テスト成功だけでは上記3件をカバーしていなかった。
+- 元の実装担当 `/root/fnd04_implementation` へ3件を返し、修正後は新規担当による最新差分全体の再レビューを行う。
+
+### 修正方針（実装担当から受領）
+
+- R1-01: 公式OpenAPI schema-baseを固定し、既存AjvでSchema Objectを含む2020-12メタスキーマ検証を追加する方針。
+- R1-02/03: 公開SSE adapterでdecoded dataをunknownとして扱い、自動再接続を禁止し失敗をthrow。明示的な再接続ごとにtoken providerを再取得する方針。文字列扱いの型負例、JSON objectのfake stream、401/失効とtoken更新を追加する。
+- 上記は修正方針であり、成功結果は実測受領後に記録する。
+
+### R1指摘への修正・個別再検証
+
+- R1-01: 公式schema-base直接利用案から、既存 `openapi-spec-validator==0.9.0` CLIのuv固定依存追加へ変更。独自validatorなし。レビューfixtureはexit1/exclusiveMinimumで拒否、通常契約は成功。component multipleOf=0とinline schema重複requiredの負例が成功。
+- R1-02: 公開SSE adapterのdecoded data型をunknownへ正し、文字列扱いの型負例とfake JSON object/cursorを検証。全workspace型検査成功。
+- R1-03: SSEを1接続限定にして失敗をiteratorからthrow。401後の明示再接続でfresh token、403/失効provider停止をfakeで検証し成功。
+- 生成物とOpenAPI正本はこの修正で変更なし。全体check/testは変更後に再実行する。
+
+### 修正後の全体検証結果
+
+- 共通環境: `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache`。
+- `mise run check`: use_default、exit0、22.37秒。実測log `/tmp/ba-fnd-04-r1-check.log`。
+- `mise run test`: require_escalated、exit0。Python32/Skill18/Node24件が全成功。log `/tmp/ba-fnd-04-r1-test.log`。
+- `mise exec -- uv sync --all-packages --locked --offline` と `git diff --check`: use_default、exit0。
+- R1-01再現: 元の不正OpenAPIへvalidate_contractsを実行しexit1/exclusiveMinimum違反（`/tmp/ba-fnd-04-r1-openapi-negative.log`）。
+- R1-02再現: 元のSSE再現TSはstrict/exactOptionalでexit1（unknownからstringへの代入エラー、`/tmp/ba-fnd-04-r1-sse-type-negative.log`）。
+- R1-03: 401/403/失効provider/token更新の追加テスト成功。86操作export/生成再現性/互換性/TS型も再成功。実装担当は編集停止。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当: `/root/fnd04_review_r2`（新規、前回レビュー担当とは別）。
+- base commit: `2be16efc04f766eaa2e6e1066d6c4d11443b44ee`
+- 対象は修正箇所に限定せず最新製品差分全体。台帳・ログのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `biome.json` | `a8439a977149700ede331a1c0e45e19e5b87984fee3fbba46cf3960f61de5426` |
+| `docs/04-interfaces.md` | `a9711bd37517edba8776339fde3c760041eef4aa0a27d6b655d332c14da5be4e` |
+| `docs/05-development-and-testing.md` | `a9f866b94456c1bd2ae7c0a689a9dd2a9f324fc7a6497fb525e9ac06cf8d6579` |
+| `docs/contracts.md` | `304505b37e5df2154283cfa355c28dcfe5882d7aef266eb7e6f44d8e189fb240` |
+| `docs/toolchain.md` | `6f0f5f113ddda10d7da30d28a16e6b449a347f85ee3bebb2a2fbcc69981ddc00` |
+| `mise.toml` | `ede65d3d7b6e5b8b83c28fa4955483de1d802c67d503c458be3a7dad5b3b6199` |
+| `openapi-ts.config.mjs` | `df69d137921a612eb788f13179f5a5567ce42a3daee0e367462d7450bc58fa62` |
+| `package.json` | `5f092cd41ddff23d477bbdd6a60384632ccf46e5884554bdcfef81d044681c63` |
+| `packages/api-client/LICENSE.hey-api` | `7354457f471fda3d2ef7ae7b7dc758c98a57054875ccc1e211b950646b03bf10` |
+| `packages/api-client/src/generated/client.gen.d.ts` | `e4f5a5fadebd9f7765fd1f1c5ee8e01938b02f79b0fed70dabe1eead8c290f74` |
+| `packages/api-client/src/generated/client.gen.js` | `fdbecf54327afb75febcaae6fe28b71604173d9decd5469e01daeaabde78333a` |
+| `packages/api-client/src/generated/client/client.gen.d.ts` | `bf212e4be18e7344b1c5b220fa99cbaeb92163fe82eecd94d0764e38a67ce9de` |
+| `packages/api-client/src/generated/client/client.gen.js` | `bc4ed435f1d0ba31e7d0159781e0e0c1ea73072c24a1502389f6ee6df0b7e42e` |
+| `packages/api-client/src/generated/client/index.d.ts` | `2fe302bba2fcc3b08ecbb87497823a826dfab8befdd418e25e661404543e33d8` |
+| `packages/api-client/src/generated/client/index.js` | `94e300244308b6b55a56aa3f8433b82e00ca62fe034da102349d90e654eba42d` |
+| `packages/api-client/src/generated/client/types.gen.d.ts` | `a41e52023e46d0111a4a96eb212094bcbd2e24c7f636915a8eaa3b82a9499d2c` |
+| `packages/api-client/src/generated/client/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/client/utils.gen.d.ts` | `fb4c37a76744c398ed3bf7dfaf7e5eb0646251f05cfb6ac3a7c32344726737ce` |
+| `packages/api-client/src/generated/client/utils.gen.js` | `63f24443fe668c36ffad61c203f558b73f259f5769472f65bb2a50ac72188ef9` |
+| `packages/api-client/src/generated/core/auth.gen.d.ts` | `baaf667467a104128dbad679d65d9bf60bd6585073557d968fe6b41705747f66` |
+| `packages/api-client/src/generated/core/auth.gen.js` | `a8a8faa4b1c7383a3f8570b9e74849cd77c4ee59406bf00b9e00ff2f0c89321d` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.d.ts` | `b03f428c56911eb47b1bde743deaed2f82c025ba4d190549c497817319e3a2a4` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.js` | `85f6abdc0ad36c810a635e0a24fa7a05cf1fd40b1aa4638d5128055178aac467` |
+| `packages/api-client/src/generated/core/params.gen.d.ts` | `24c3a8e82e56cf4eb5cf9e28d7a6ff05d0c4048e6c98c2d58665ea52b89abd3b` |
+| `packages/api-client/src/generated/core/params.gen.js` | `25ddaaae0571f0efa0821d47f3ab963e82097a08e05fcb6f6ecf0ca48dbfd11c` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.d.ts` | `6fa72aec2712b74d65a207fec9e007bc60c4251ee56cbe04c90bfb7c3809187a` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.js` | `a1ad57fbaeb6331c3e3d811cbfdb1c16f9884b4d6b93658a6c73f2882088d994` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.d.ts` | `137b06ec431c2ede0e82663e8190ec2d3d9c0eadda2265ec36a2aa8009cba2b3` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.js` | `759a91074785c0e7f6161c98d0a2f055ac1755e101ca2bcb548cefc84113dd00` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.d.ts` | `8648a32fb76550d635512140a92fab51a51d1e5c4371cb4f5ca847e6a19af88a` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.js` | `550784cb0e43872d31eb0d7257765b162b72855fac54f729710fbf0a3cc2bd31` |
+| `packages/api-client/src/generated/core/types.gen.d.ts` | `7e0ef3073fe45803bd4c923f8b9c1dde36d47e14f602d704d0d6326cba33248d` |
+| `packages/api-client/src/generated/core/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/core/utils.gen.d.ts` | `6c2e5228cde53ddcaad3cf51abae7425147996078a1162a1723a8f06f24eca88` |
+| `packages/api-client/src/generated/core/utils.gen.js` | `cf3731ed79b03412088cbf6645246ba32cc8ba415485c5591943db07174c4afd` |
+| `packages/api-client/src/generated/index.d.ts` | `bebe015941cc71eed8e3eccbd0d02915f32a676ce2cf5eb742b73e3ba5fc39b5` |
+| `packages/api-client/src/generated/index.js` | `8d7414a6283a4b675ef6bd80109f7dfed11cebeda025f03707f07c54584ace04` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b823903b0954621bce9ed8b5278b2ac3d63b45939af432e20e8f0a863b0d0976` |
+| `packages/api-client/src/generated/sdk.gen.js` | `3de05597aec3c2f8eb3b0eda910c716f04586cead986cdc6bb5cfd7d1bca8355` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `51d8d0b31decde7db3acf119dd2cc87ca76b568eb185124a543bda2273cf1f89` |
+| `packages/api-client/src/generated/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/index.ts` | `0375e9d4f6382ff229122d341174004e567c9cc311778bbf4ded719fb8cd452f` |
+| `packages/api-client/tsconfig.json` | `415a9771435916764f223f6b8b6492ce6661350a4b07cb7b768b901774fd7499` |
+| `packages/api-client/type-tests/client.ts` | `4e05d87b13054c3b058c24bfdeda2667c1a4e321c32cce27c24c3abd06a6ae1c` |
+| `pnpm-lock.yaml` | `2d5946ab6d369bc40fdc46e5dd30b65318f7e30c8631ba164e9d8a47b17dd0e3` |
+| `pnpm-workspace.yaml` | `bcd3f565efb4cbe5d91e7c209f43821858498b1475021cf495e931bd54d92d62` |
+| `pyproject.toml` | `e30c1ad27a45738cbb7ab40960beb564d64e051bf1e26d9fbb4260e40c166789` |
+| `redocly.yaml` | `6770d0da71895beab1b9d5753b48b18816a47cc5e6400dffb2bd7f244b58d61b` |
+| `scripts/check_contract_compatibility` | `be01d737df675decdc2ece5de38b521bb5442cb435b5dfcdffc660ad90507c8f` |
+| `scripts/generate_api_client` | `92d9c1ef36e7da39311c4b7f0f27cb4ffa8bd6fb7cd3fb009145f7944c3af1f2` |
+| `scripts/generate_api_client.mjs` | `b8fac5dbaa736c25c1bd08e017a4e1835bcecc0defb667226381a75ab742a73d` |
+| `scripts/validate_contracts` | `920067d3db1f829fc0d9989d4be61b44c0e51605e9502357045d52ee6e2857f6` |
+| `specs/openapi-baseline.ref` | `10d149fd9540446d51a229ff0a4edad9d2e479650e7ac11c666b0d3baf41cbc6` |
+| `tests/test_api_contracts.mjs` | `62db551ee098100116e950e119c70dc92e46a6be5ee2018e10815da364b322d0` |
+| `uv.lock` | `f1b2bacb3392346f0ffac418672c9db34f3496e37c21acf68856fcf3551534b7` |
+
+### 独立レビュー ラウンド2 途中所見
+
+- `/root/fnd04_review_r2` が55ファイルのhash一致を確認。前回3件はコード上修正済み。全体checkは実行・最終exit回収中。
+- 生成SSE parserでCRLFのCR/LF間にfetch chunk境界が入ると同一イベントを別frameへ誤分割しevent metadataを失う再現を確認。実害・必須指摘への該当を精査中。
+- レビュー担当のNode test sandbox試行は失敗。既知環境制限と製品不具合を区別して確認する。
+
+### 独立レビュー ラウンド2 追加指摘の実測
+
+- R2-01 / P2を確認: generated/core/serverSentEvents.gen.js:56のCRLF正規化がchunk末尾CRをLFへ即変換し、次chunk先頭LFで偽空行を作る。正常run.started JSONのCRLF/複数data行が、一括chunkではobject1個、CR|LF分割では不完全string2個になる。単一data行でもevent metadataを分離/喪失。
+- 再現 `/tmp/ba-fnd-04-r2-sse-crlf-repro.mjs` はexit1、同名.logに実測。WHATWGのCRLF/multiline規定と照合済みとの報告。
+- 対応要求: 生成物直接編集ではなくgenerator/runtime更新または公開adapter parserでchunk境界を扱い、分割fixtureを追加する。
+- 独立実測: check exit0/22.17秒、Node24件 exit0/11.71秒。既存テストはchunk境界の問題をカバーしていなかった。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/fnd04_review_r2`: request_changes。確認済みレビュー2回。前回R1-01/02/03はすべて独立検証で解消、新規R2-01/P2のみ必須未解決。任意改善なし。
+- R1-01元fixture拒否、R1-02元TSはTS2322、R1-03の401/403/no retry/fresh token/失効providerを独立確認。
+- 全86操作をfake transportで呼出しmethod/URL一致。開始・終了時の55ファイルhash一致。check log `/tmp/ba-fnd-04-r2-check.log`、Node24件の成功log `/tmp/ba-fnd-04-r2-node-unsandboxed.log`。
+- Python32/Skill18は提供結果を参照しレビュー側では再実行なし。Node sandbox失敗は通常環境で成功したものと区別。
+- R2-01の根拠: WHATWG SSE parsing https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream 。元実装担当へ修正を返し、修正後は新規第3ラウンド担当で全差分レビューする。
+
+### R2-01修正方針・依存選定
+
+- 既存 `eventsource-parser==4.1.2`（MIT、Node>=22.12）をapi-client実行依存へ完全固定。公式実装のCR/LF跨ぎ状態保持を実装担当が確認。
+- 公開adapterは生成SDKのURL/security選択を維持し、受信部分を生成HTTP transport＋既存parserへ差し替える方針。unknown型、1接続、失敗throw、明示再接続時fresh authを維持。
+- 元再現に加え全byte境界/multiline/event/id/retryの検証を予定。成功結果は別途記録する。
+
+### R2-01修正後の個別検証
+
+- 元再現はexit0に改善（`/tmp/ba-fnd-04-r2-sse-crlf-fixed.log`）。
+- 個別SSE回帰8件成功（`/tmp/ba-fnd-04-r2-sse-tests.log`）。単一/複数data行の全byte境界と1byte配送でCRLF/UTF-8/event/id/retry一致、id/retry状態、空白保持、末尾不完全event破棄、iterator終了時cancel、401/403/fresh authを確認。
+- TS全workspace型検査成功。生成SDKのURL/securityを使うprivate SSE client bridgeで、生成HTTP transport＋既存parserへ差し替え。生成物手編集なし。
+- 認証を含む要求開始はiterator初回read、失敗はiterator/onSseErrorへ統一し文書化。全体check/testは最終実行中。
+
+### R2修正後の全体検証で判明した依存再現性
+
+- 追加依存後のfrozen再installで、従来Hey API用TypeScript overrideがpeer解決に作用せず7.0.2へ戻り、check/testの生成検査が失敗。個別SSE8件と元再現は成功しているが、全体成功として扱わない。
+- 生成器内部だけ5.9.3をdependencyとして固定するpnpm packageExtensionsへ整理し、lock同期・frozen再install・生成検査で再現性を確認する方針。新しい根拠に基づく修正を継続。
+
+### R2修正後の全体検証・空環境再現性
+
+- override/packageExtensions双方でルートTS7が選ばれることを確認し、開発専用 `packages/openapi-generator` member（Hey0.99.0 + TS5.9.3）へ分離して解消。試行案は採用しない。生成物は変更なし。
+- `mise run check`: use_default、exit0、22.21秒（`/tmp/ba-fnd-04-r2-check.log`）。
+- `mise run test`: require_escalated、exit0、Node28件成功（`/tmp/ba-fnd-04-r2-test.log`）。
+- 元CRLF再現: exit0（`/tmp/ba-fnd-04-r2-sse-crlf-fixed.log`）。
+- 新しい空ディレクトリへmanifest/lockをコピーしoffline frozen install→生成差分検査: exit0（`/tmp/ba-fnd-04-r2-fresh-install.log`）。最終編集停止を待って再レビュー対象を固定する。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当: `/root/fnd04_review_r3`（新規独立コンテキスト）。実装担当は編集停止。
+- base commit: `2be16efc04f766eaa2e6e1066d6c4d11443b44ee`
+- 最新製品差分全体を対象。台帳・作業ログのみ除外。
+- 修正後全体testの内訳を再確認: Python32/Skill18/Node28が全成功。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `biome.json` | `8ad648c91588edb2716b4e35706f3f854e857549b281163949a92184d8fe12e3` |
+| `docs/04-interfaces.md` | `a9711bd37517edba8776339fde3c760041eef4aa0a27d6b655d332c14da5be4e` |
+| `docs/05-development-and-testing.md` | `a9f866b94456c1bd2ae7c0a689a9dd2a9f324fc7a6497fb525e9ac06cf8d6579` |
+| `docs/contracts.md` | `1b44592c8f4dc081de325fa5a375e18f8430912b30e8c73568bbffa3ae3d8ee5` |
+| `docs/toolchain.md` | `a2c02a602b4c19c5efe1bb7c4e11e2eba31bcc7ff2e0c28c1614294dde0a2eac` |
+| `mise.toml` | `ede65d3d7b6e5b8b83c28fa4955483de1d802c67d503c458be3a7dad5b3b6199` |
+| `openapi-ts.config.mjs` | `df69d137921a612eb788f13179f5a5567ce42a3daee0e367462d7450bc58fa62` |
+| `package.json` | `5e75f2562b55ec231f4acbe95cd67da18d0c84b0cad19edbf7359a92b2acc34f` |
+| `packages/api-client/LICENSE.eventsource-parser` | `835eb611a23301b27115ca1be9f754c876e643ceb7fe63049c6b50609a1cafeb` |
+| `packages/api-client/LICENSE.hey-api` | `7354457f471fda3d2ef7ae7b7dc758c98a57054875ccc1e211b950646b03bf10` |
+| `packages/api-client/package.json` | `06c7fc2e9f95ebefb6fbd9da87a0e7cb92243a535a53bd5c4fe28d4cac1c300a` |
+| `packages/api-client/src/generated/client.gen.d.ts` | `e4f5a5fadebd9f7765fd1f1c5ee8e01938b02f79b0fed70dabe1eead8c290f74` |
+| `packages/api-client/src/generated/client.gen.js` | `fdbecf54327afb75febcaae6fe28b71604173d9decd5469e01daeaabde78333a` |
+| `packages/api-client/src/generated/client/client.gen.d.ts` | `bf212e4be18e7344b1c5b220fa99cbaeb92163fe82eecd94d0764e38a67ce9de` |
+| `packages/api-client/src/generated/client/client.gen.js` | `bc4ed435f1d0ba31e7d0159781e0e0c1ea73072c24a1502389f6ee6df0b7e42e` |
+| `packages/api-client/src/generated/client/index.d.ts` | `2fe302bba2fcc3b08ecbb87497823a826dfab8befdd418e25e661404543e33d8` |
+| `packages/api-client/src/generated/client/index.js` | `94e300244308b6b55a56aa3f8433b82e00ca62fe034da102349d90e654eba42d` |
+| `packages/api-client/src/generated/client/types.gen.d.ts` | `a41e52023e46d0111a4a96eb212094bcbd2e24c7f636915a8eaa3b82a9499d2c` |
+| `packages/api-client/src/generated/client/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/client/utils.gen.d.ts` | `fb4c37a76744c398ed3bf7dfaf7e5eb0646251f05cfb6ac3a7c32344726737ce` |
+| `packages/api-client/src/generated/client/utils.gen.js` | `63f24443fe668c36ffad61c203f558b73f259f5769472f65bb2a50ac72188ef9` |
+| `packages/api-client/src/generated/core/auth.gen.d.ts` | `baaf667467a104128dbad679d65d9bf60bd6585073557d968fe6b41705747f66` |
+| `packages/api-client/src/generated/core/auth.gen.js` | `a8a8faa4b1c7383a3f8570b9e74849cd77c4ee59406bf00b9e00ff2f0c89321d` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.d.ts` | `b03f428c56911eb47b1bde743deaed2f82c025ba4d190549c497817319e3a2a4` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.js` | `85f6abdc0ad36c810a635e0a24fa7a05cf1fd40b1aa4638d5128055178aac467` |
+| `packages/api-client/src/generated/core/params.gen.d.ts` | `24c3a8e82e56cf4eb5cf9e28d7a6ff05d0c4048e6c98c2d58665ea52b89abd3b` |
+| `packages/api-client/src/generated/core/params.gen.js` | `25ddaaae0571f0efa0821d47f3ab963e82097a08e05fcb6f6ecf0ca48dbfd11c` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.d.ts` | `6fa72aec2712b74d65a207fec9e007bc60c4251ee56cbe04c90bfb7c3809187a` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.js` | `a1ad57fbaeb6331c3e3d811cbfdb1c16f9884b4d6b93658a6c73f2882088d994` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.d.ts` | `137b06ec431c2ede0e82663e8190ec2d3d9c0eadda2265ec36a2aa8009cba2b3` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.js` | `759a91074785c0e7f6161c98d0a2f055ac1755e101ca2bcb548cefc84113dd00` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.d.ts` | `8648a32fb76550d635512140a92fab51a51d1e5c4371cb4f5ca847e6a19af88a` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.js` | `550784cb0e43872d31eb0d7257765b162b72855fac54f729710fbf0a3cc2bd31` |
+| `packages/api-client/src/generated/core/types.gen.d.ts` | `7e0ef3073fe45803bd4c923f8b9c1dde36d47e14f602d704d0d6326cba33248d` |
+| `packages/api-client/src/generated/core/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/core/utils.gen.d.ts` | `6c2e5228cde53ddcaad3cf51abae7425147996078a1162a1723a8f06f24eca88` |
+| `packages/api-client/src/generated/core/utils.gen.js` | `cf3731ed79b03412088cbf6645246ba32cc8ba415485c5591943db07174c4afd` |
+| `packages/api-client/src/generated/index.d.ts` | `bebe015941cc71eed8e3eccbd0d02915f32a676ce2cf5eb742b73e3ba5fc39b5` |
+| `packages/api-client/src/generated/index.js` | `8d7414a6283a4b675ef6bd80109f7dfed11cebeda025f03707f07c54584ace04` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b823903b0954621bce9ed8b5278b2ac3d63b45939af432e20e8f0a863b0d0976` |
+| `packages/api-client/src/generated/sdk.gen.js` | `3de05597aec3c2f8eb3b0eda910c716f04586cead986cdc6bb5cfd7d1bca8355` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `51d8d0b31decde7db3acf119dd2cc87ca76b568eb185124a543bda2273cf1f89` |
+| `packages/api-client/src/generated/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/index.ts` | `3fe6fcc0ccd390ac04beba45448d941aed97ac77bbc762ae5aaf8d1af062bfe6` |
+| `packages/api-client/tsconfig.json` | `415a9771435916764f223f6b8b6492ce6661350a4b07cb7b768b901774fd7499` |
+| `packages/api-client/type-tests/client.ts` | `4e05d87b13054c3b058c24bfdeda2667c1a4e321c32cce27c24c3abd06a6ae1c` |
+| `packages/openapi-generator/index.mjs` | `e67b928af19129edb82725db855a6159e5a48c3d16d30d56d4ccf9f3c6e68874` |
+| `packages/openapi-generator/package.json` | `ba45f51061e1c2ac497d2cd7e10e9d3135726ba74d340ab8b63bfdcde69aacf5` |
+| `pnpm-lock.yaml` | `7b81de9f7e8f1eecc0a398909d1cae201621d842e6b0cf233e159a076a44237a` |
+| `pnpm-workspace.yaml` | `f31d277586fecb769c12e095e2c6cc4cb03aa96c1099e6676e6767760d3166bd` |
+| `pyproject.toml` | `e30c1ad27a45738cbb7ab40960beb564d64e051bf1e26d9fbb4260e40c166789` |
+| `redocly.yaml` | `6770d0da71895beab1b9d5753b48b18816a47cc5e6400dffb2bd7f244b58d61b` |
+| `scripts/check_contract_compatibility` | `be01d737df675decdc2ece5de38b521bb5442cb435b5dfcdffc660ad90507c8f` |
+| `scripts/generate_api_client` | `92d9c1ef36e7da39311c4b7f0f27cb4ffa8bd6fb7cd3fb009145f7944c3af1f2` |
+| `scripts/generate_api_client.mjs` | `c53f18b7adefe60a28f4f94efddcfab4d7d5a3e219829fe23251f996ed1d9126` |
+| `scripts/validate_contracts` | `920067d3db1f829fc0d9989d4be61b44c0e51605e9502357045d52ee6e2857f6` |
+| `specs/openapi-baseline.ref` | `10d149fd9540446d51a229ff0a4edad9d2e479650e7ac11c666b0d3baf41cbc6` |
+| `tests/test_api_contracts.mjs` | `aab84b74bf803c286cc4e7e15bcd05512c3b9ac1e95e9b9435289e6caad6c86a` |
+| `uv.lock` | `f1b2bacb3392346f0ffac418672c9db34f3496e37c21acf68856fcf3551534b7` |
+
+### 独立レビュー ラウンド3 途中結果
+
+- `/root/fnd04_review_r3` が直接check exit0（21.86秒）、Node28/28成功、59ファイルhash一致を確認。
+- 新規R3-01/P2候補を再現: index.ts:61-80で1chunk内のframes配信中にAbortSignalを再検査しないため、最初のyield後にabortしても2件目をonSseEvent/iteratorへ配信。reader cancel自体は成功。非同期responseValidator/Transformer待機中にも同根の窓がある。最終報告・再現artifact待ち。
+
+### 独立レビュー ラウンド3 最終判定
+
+- `/root/fnd04_review_r3`: request_changes。確認済みレビュー3回。R1-01/02/03・R2-01はすべて解消確認済み、新規R3-01/P2のみ必須未解決。任意改善なし。
+- R3-01: index.ts:61以降。1chunkにdata1/data2を受信し初回next後にabortしても次のnextがvalue2/donefalse、callbackも[1,2]となる。validator待機中abortでも同様。元再現 `/tmp/ba-fnd-04-r3-sse-abort-repro.mjs` はexit1。
+- 中断後の未配信frame破棄と、非同期validator/transformer完了後のcallback/yield前の中断再検査を要求。正常終了または明示AbortErrorで新しいdataを配信しないこと。同一chunk間/非同期各待機中の負例を追加する。
+- 独立検証: 全86操作のmethod/URL/security、check/Node28件/生成差分/型/契約負例/CRLF元再現が成功。Python32/Skill18/空環境installは提供結果を参照。59ファイルhash一致。
+- 元実装担当に修正を返し、新規第4ラウンドで全差分を再レビューする。
+
+### R3-01修正と公開option整合の個別検証
+
+- 元abort再現はexit0（`/tmp/ba-fnd-04-r3-sse-abort-fixed.log`）。同一chunk未配信frame、pending read、validator/transformer待機中resolve/reject、callback内abort、事前abortの8件を追加し、SSE16件成功。
+- 親が公開StreamRunEventsOptionsのonRequestとprivate bridgeの挙動不一致の可能性を指摘し確認を依頼。実装担当の実測はonRequest0回、client.interceptors.request1回でheaderがtransportへ到達（`/tmp/ba-fnd-04-r3-on-request.log`）。
+- 非対応onRequestを公開optionsから除外し、型負例と文書でinterceptor入口を示す最小修正を採用。余分な機能追加は行わない。
+- 最終全体check/testを実行予定。
+
+### R3修正後の全体検証
+
+- 共通envは前述のMISE_TRUSTED_CONFIG_PATHS/UV_CACHE_DIR。`mise run check`: use_default、exit0、22.22秒。`mise run test`: require_escalated、exit0、Python32/Skill18/Node37が全成功。ログ `/tmp/ba-fnd-04-r3-check.log` と `/tmp/ba-fnd-04-r3-test.log`。
+- 元abort再現use_default exit0（`/tmp/ba-fnd-04-r3-sse-abort-fixed.log`）、git diff --check成功。
+- 今回の修正はindex.ts/type-tests/client.ts/test_api_contracts.mjs/docs/contracts.mdの4ファイル、生成物・依存の変更なし。実装担当は編集停止。
+
+### 独立レビュー ラウンド4 対象固定
+
+- 新規担当: `/root/fnd04_review_r4`。
+- base commit: `2be16efc04f766eaa2e6e1066d6c4d11443b44ee`
+- 最新製品差分全体、台帳・ログのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `biome.json` | `8ad648c91588edb2716b4e35706f3f854e857549b281163949a92184d8fe12e3` |
+| `docs/04-interfaces.md` | `a9711bd37517edba8776339fde3c760041eef4aa0a27d6b655d332c14da5be4e` |
+| `docs/05-development-and-testing.md` | `a9f866b94456c1bd2ae7c0a689a9dd2a9f324fc7a6497fb525e9ac06cf8d6579` |
+| `docs/contracts.md` | `0e3116340f212b284919a6d68f0b0ea490e07ea28c1b192b7d550d24baabcf15` |
+| `docs/toolchain.md` | `a2c02a602b4c19c5efe1bb7c4e11e2eba31bcc7ff2e0c28c1614294dde0a2eac` |
+| `mise.toml` | `ede65d3d7b6e5b8b83c28fa4955483de1d802c67d503c458be3a7dad5b3b6199` |
+| `openapi-ts.config.mjs` | `df69d137921a612eb788f13179f5a5567ce42a3daee0e367462d7450bc58fa62` |
+| `package.json` | `5e75f2562b55ec231f4acbe95cd67da18d0c84b0cad19edbf7359a92b2acc34f` |
+| `packages/api-client/LICENSE.eventsource-parser` | `835eb611a23301b27115ca1be9f754c876e643ceb7fe63049c6b50609a1cafeb` |
+| `packages/api-client/LICENSE.hey-api` | `7354457f471fda3d2ef7ae7b7dc758c98a57054875ccc1e211b950646b03bf10` |
+| `packages/api-client/package.json` | `06c7fc2e9f95ebefb6fbd9da87a0e7cb92243a535a53bd5c4fe28d4cac1c300a` |
+| `packages/api-client/src/generated/client.gen.d.ts` | `e4f5a5fadebd9f7765fd1f1c5ee8e01938b02f79b0fed70dabe1eead8c290f74` |
+| `packages/api-client/src/generated/client.gen.js` | `fdbecf54327afb75febcaae6fe28b71604173d9decd5469e01daeaabde78333a` |
+| `packages/api-client/src/generated/client/client.gen.d.ts` | `bf212e4be18e7344b1c5b220fa99cbaeb92163fe82eecd94d0764e38a67ce9de` |
+| `packages/api-client/src/generated/client/client.gen.js` | `bc4ed435f1d0ba31e7d0159781e0e0c1ea73072c24a1502389f6ee6df0b7e42e` |
+| `packages/api-client/src/generated/client/index.d.ts` | `2fe302bba2fcc3b08ecbb87497823a826dfab8befdd418e25e661404543e33d8` |
+| `packages/api-client/src/generated/client/index.js` | `94e300244308b6b55a56aa3f8433b82e00ca62fe034da102349d90e654eba42d` |
+| `packages/api-client/src/generated/client/types.gen.d.ts` | `a41e52023e46d0111a4a96eb212094bcbd2e24c7f636915a8eaa3b82a9499d2c` |
+| `packages/api-client/src/generated/client/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/client/utils.gen.d.ts` | `fb4c37a76744c398ed3bf7dfaf7e5eb0646251f05cfb6ac3a7c32344726737ce` |
+| `packages/api-client/src/generated/client/utils.gen.js` | `63f24443fe668c36ffad61c203f558b73f259f5769472f65bb2a50ac72188ef9` |
+| `packages/api-client/src/generated/core/auth.gen.d.ts` | `baaf667467a104128dbad679d65d9bf60bd6585073557d968fe6b41705747f66` |
+| `packages/api-client/src/generated/core/auth.gen.js` | `a8a8faa4b1c7383a3f8570b9e74849cd77c4ee59406bf00b9e00ff2f0c89321d` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.d.ts` | `b03f428c56911eb47b1bde743deaed2f82c025ba4d190549c497817319e3a2a4` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.js` | `85f6abdc0ad36c810a635e0a24fa7a05cf1fd40b1aa4638d5128055178aac467` |
+| `packages/api-client/src/generated/core/params.gen.d.ts` | `24c3a8e82e56cf4eb5cf9e28d7a6ff05d0c4048e6c98c2d58665ea52b89abd3b` |
+| `packages/api-client/src/generated/core/params.gen.js` | `25ddaaae0571f0efa0821d47f3ab963e82097a08e05fcb6f6ecf0ca48dbfd11c` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.d.ts` | `6fa72aec2712b74d65a207fec9e007bc60c4251ee56cbe04c90bfb7c3809187a` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.js` | `a1ad57fbaeb6331c3e3d811cbfdb1c16f9884b4d6b93658a6c73f2882088d994` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.d.ts` | `137b06ec431c2ede0e82663e8190ec2d3d9c0eadda2265ec36a2aa8009cba2b3` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.js` | `759a91074785c0e7f6161c98d0a2f055ac1755e101ca2bcb548cefc84113dd00` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.d.ts` | `8648a32fb76550d635512140a92fab51a51d1e5c4371cb4f5ca847e6a19af88a` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.js` | `550784cb0e43872d31eb0d7257765b162b72855fac54f729710fbf0a3cc2bd31` |
+| `packages/api-client/src/generated/core/types.gen.d.ts` | `7e0ef3073fe45803bd4c923f8b9c1dde36d47e14f602d704d0d6326cba33248d` |
+| `packages/api-client/src/generated/core/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/core/utils.gen.d.ts` | `6c2e5228cde53ddcaad3cf51abae7425147996078a1162a1723a8f06f24eca88` |
+| `packages/api-client/src/generated/core/utils.gen.js` | `cf3731ed79b03412088cbf6645246ba32cc8ba415485c5591943db07174c4afd` |
+| `packages/api-client/src/generated/index.d.ts` | `bebe015941cc71eed8e3eccbd0d02915f32a676ce2cf5eb742b73e3ba5fc39b5` |
+| `packages/api-client/src/generated/index.js` | `8d7414a6283a4b675ef6bd80109f7dfed11cebeda025f03707f07c54584ace04` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b823903b0954621bce9ed8b5278b2ac3d63b45939af432e20e8f0a863b0d0976` |
+| `packages/api-client/src/generated/sdk.gen.js` | `3de05597aec3c2f8eb3b0eda910c716f04586cead986cdc6bb5cfd7d1bca8355` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `51d8d0b31decde7db3acf119dd2cc87ca76b568eb185124a543bda2273cf1f89` |
+| `packages/api-client/src/generated/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/index.ts` | `c2bdc0097f435bac56bd1ce61e7f82f8464647b41f99966342d472144e3812a0` |
+| `packages/api-client/tsconfig.json` | `415a9771435916764f223f6b8b6492ce6661350a4b07cb7b768b901774fd7499` |
+| `packages/api-client/type-tests/client.ts` | `336c1b4a9cb49de380b31f7216c22a7551e2c57c2942e5be9f9f7cc9d5e505d1` |
+| `packages/openapi-generator/index.mjs` | `e67b928af19129edb82725db855a6159e5a48c3d16d30d56d4ccf9f3c6e68874` |
+| `packages/openapi-generator/package.json` | `ba45f51061e1c2ac497d2cd7e10e9d3135726ba74d340ab8b63bfdcde69aacf5` |
+| `pnpm-lock.yaml` | `7b81de9f7e8f1eecc0a398909d1cae201621d842e6b0cf233e159a076a44237a` |
+| `pnpm-workspace.yaml` | `f31d277586fecb769c12e095e2c6cc4cb03aa96c1099e6676e6767760d3166bd` |
+| `pyproject.toml` | `e30c1ad27a45738cbb7ab40960beb564d64e051bf1e26d9fbb4260e40c166789` |
+| `redocly.yaml` | `6770d0da71895beab1b9d5753b48b18816a47cc5e6400dffb2bd7f244b58d61b` |
+| `scripts/check_contract_compatibility` | `be01d737df675decdc2ece5de38b521bb5442cb435b5dfcdffc660ad90507c8f` |
+| `scripts/generate_api_client` | `92d9c1ef36e7da39311c4b7f0f27cb4ffa8bd6fb7cd3fb009145f7944c3af1f2` |
+| `scripts/generate_api_client.mjs` | `c53f18b7adefe60a28f4f94efddcfab4d7d5a3e219829fe23251f996ed1d9126` |
+| `scripts/validate_contracts` | `920067d3db1f829fc0d9989d4be61b44c0e51605e9502357045d52ee6e2857f6` |
+| `specs/openapi-baseline.ref` | `10d149fd9540446d51a229ff0a4edad9d2e479650e7ac11c666b0d3baf41cbc6` |
+| `tests/test_api_contracts.mjs` | `9f47d06341450508eb6f579a1c4912d0befc168a459a614888affa592ebe059a` |
+| `uv.lock` | `f1b2bacb3392346f0ffac418672c9db34f3496e37c21acf68856fcf3551534b7` |
+
+### 独立レビュー ラウンド4 検証結果
+
+- `/root/fnd04_review_r4` が直接 `mise run check` exit0（22.12秒）、Node契約37件すべて成功を確認。
+- R3元再現はabort後done=true/未配信callbackなしで成功。全86操作のURL/HTTP method/security schemeをOpenAPIと機械照合し一致。59ファイルhashと実差分一覧も一致。
+- 必須指摘なしとの報告。末尾だけの?/#をbaseUrlガードが見逃す低優先度の任意改善は最終報告で分離予定。最終判定待ち。
+
+### 独立レビュー ラウンド4 最終判定
+
+- `/root/fnd04_review_r4`: approve。必須指摘/必須未検証項目なし。レビュー実施4回（request_changes3回、approve1回）、R1-01/02/03・R2-01・R3-01はすべて解消。
+- 直接検証ログ: `/tmp/ba-fnd-04-r4-check.log`、`/tmp/ba-fnd-04-r4-node-test.log`、`/tmp/ba-fnd-04-r4-abort-repro.log`。Python32/Skill18と空環境導入は提供ログで確認。
+- 任意改善R4-N01/P3: index.ts:125のbaseUrlで末尾だけの?/#はURL.search/hashが空のため拒否されずhrefへ残る。文書化された通常base URLでは発生しない設定入力の改善であり、受入・承認の阻害要因ではないと評価。今回は必須修正完了済みの対象を確定し、この低優先度の入力改善は未対応として記録する。
+- 承認対象はr4 manifestの59ファイル。製品コードを追加変更せずコミットへ進む。
+
+### コミット前チェックの失敗と追加整形
+
+- 承認対象59ファイルのhash/index一致確認後、`git diff --cached --check` がexit2。新規 `packages/api-client/src/generated/client/utils.gen.d.ts:14,16` の末尾空白を検出。従来のunstaged diff --checkでは未追跡ファイルが対象外だった。実装commitは未実行。
+- 今回stageした59パスだけをstage解除し、元実装担当へ生成後の再現可能な末尾空白正規化を依頼する。生成物の手修正では解決しない。
+- 内容を変更するため新規第5ラウンドで全差分の再レビューを行う。
+
+### 生成出力の末尾空白修正
+
+- 実装担当がutils.gen.d.tsの2行を確認し、generatorのcompile後・比較/コピー前に末尾space/tab除去を追加。`mise run generate-client` はexit0。生成物手修正・git whitespace規則の変更なし。
+- 新規を含む全生成ファイルの空白検査、全体check、既存の生成差分負例を実行予定。
+
+### 末尾空白修正後の検証と独立レビュー ラウンド5
+
+- 実装担当は編集停止。変更はscripts/generate_api_client.mjsと再生成utils.gen.d.tsの末尾2行のみ。
+- generate-client use_default exit0、check use_default exit0/21.83秒（再生成一致）、既存regeneration負例 require_escalated exit0/1件成功。全32生成ファイルをgit diff --no-index --check（exit1でも診断なしは新規差分と区別）と末尾space/tab検査で確認し成功。
+- ログ `/tmp/ba-fnd-04-r5-generate.log`、`/tmp/ba-fnd-04-r5-check.log`、`/tmp/ba-fnd-04-r5-regeneration-test.log`、`/tmp/ba-fnd-04-r5-generated-whitespace.log`。既存の機能テスト全成功後の変更は生成整形のみ。
+- 新規独立担当 `/root/fnd04_review_r5`。base commit: `2be16efc04f766eaa2e6e1066d6c4d11443b44ee`。最新製品差分全体（台帳・ログ除外）。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `biome.json` | `8ad648c91588edb2716b4e35706f3f854e857549b281163949a92184d8fe12e3` |
+| `docs/04-interfaces.md` | `a9711bd37517edba8776339fde3c760041eef4aa0a27d6b655d332c14da5be4e` |
+| `docs/05-development-and-testing.md` | `a9f866b94456c1bd2ae7c0a689a9dd2a9f324fc7a6497fb525e9ac06cf8d6579` |
+| `docs/contracts.md` | `0e3116340f212b284919a6d68f0b0ea490e07ea28c1b192b7d550d24baabcf15` |
+| `docs/toolchain.md` | `a2c02a602b4c19c5efe1bb7c4e11e2eba31bcc7ff2e0c28c1614294dde0a2eac` |
+| `mise.toml` | `ede65d3d7b6e5b8b83c28fa4955483de1d802c67d503c458be3a7dad5b3b6199` |
+| `openapi-ts.config.mjs` | `df69d137921a612eb788f13179f5a5567ce42a3daee0e367462d7450bc58fa62` |
+| `package.json` | `5e75f2562b55ec231f4acbe95cd67da18d0c84b0cad19edbf7359a92b2acc34f` |
+| `packages/api-client/LICENSE.eventsource-parser` | `835eb611a23301b27115ca1be9f754c876e643ceb7fe63049c6b50609a1cafeb` |
+| `packages/api-client/LICENSE.hey-api` | `7354457f471fda3d2ef7ae7b7dc758c98a57054875ccc1e211b950646b03bf10` |
+| `packages/api-client/package.json` | `06c7fc2e9f95ebefb6fbd9da87a0e7cb92243a535a53bd5c4fe28d4cac1c300a` |
+| `packages/api-client/src/generated/client.gen.d.ts` | `e4f5a5fadebd9f7765fd1f1c5ee8e01938b02f79b0fed70dabe1eead8c290f74` |
+| `packages/api-client/src/generated/client.gen.js` | `fdbecf54327afb75febcaae6fe28b71604173d9decd5469e01daeaabde78333a` |
+| `packages/api-client/src/generated/client/client.gen.d.ts` | `bf212e4be18e7344b1c5b220fa99cbaeb92163fe82eecd94d0764e38a67ce9de` |
+| `packages/api-client/src/generated/client/client.gen.js` | `bc4ed435f1d0ba31e7d0159781e0e0c1ea73072c24a1502389f6ee6df0b7e42e` |
+| `packages/api-client/src/generated/client/index.d.ts` | `2fe302bba2fcc3b08ecbb87497823a826dfab8befdd418e25e661404543e33d8` |
+| `packages/api-client/src/generated/client/index.js` | `94e300244308b6b55a56aa3f8433b82e00ca62fe034da102349d90e654eba42d` |
+| `packages/api-client/src/generated/client/types.gen.d.ts` | `a41e52023e46d0111a4a96eb212094bcbd2e24c7f636915a8eaa3b82a9499d2c` |
+| `packages/api-client/src/generated/client/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/client/utils.gen.d.ts` | `57c5f490691e25d8df0fb8c50ad4ed215275a9f82c396dba7548cd4f2d57ddfe` |
+| `packages/api-client/src/generated/client/utils.gen.js` | `63f24443fe668c36ffad61c203f558b73f259f5769472f65bb2a50ac72188ef9` |
+| `packages/api-client/src/generated/core/auth.gen.d.ts` | `baaf667467a104128dbad679d65d9bf60bd6585073557d968fe6b41705747f66` |
+| `packages/api-client/src/generated/core/auth.gen.js` | `a8a8faa4b1c7383a3f8570b9e74849cd77c4ee59406bf00b9e00ff2f0c89321d` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.d.ts` | `b03f428c56911eb47b1bde743deaed2f82c025ba4d190549c497817319e3a2a4` |
+| `packages/api-client/src/generated/core/bodySerializer.gen.js` | `85f6abdc0ad36c810a635e0a24fa7a05cf1fd40b1aa4638d5128055178aac467` |
+| `packages/api-client/src/generated/core/params.gen.d.ts` | `24c3a8e82e56cf4eb5cf9e28d7a6ff05d0c4048e6c98c2d58665ea52b89abd3b` |
+| `packages/api-client/src/generated/core/params.gen.js` | `25ddaaae0571f0efa0821d47f3ab963e82097a08e05fcb6f6ecf0ca48dbfd11c` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.d.ts` | `6fa72aec2712b74d65a207fec9e007bc60c4251ee56cbe04c90bfb7c3809187a` |
+| `packages/api-client/src/generated/core/pathSerializer.gen.js` | `a1ad57fbaeb6331c3e3d811cbfdb1c16f9884b4d6b93658a6c73f2882088d994` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.d.ts` | `137b06ec431c2ede0e82663e8190ec2d3d9c0eadda2265ec36a2aa8009cba2b3` |
+| `packages/api-client/src/generated/core/queryKeySerializer.gen.js` | `759a91074785c0e7f6161c98d0a2f055ac1755e101ca2bcb548cefc84113dd00` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.d.ts` | `8648a32fb76550d635512140a92fab51a51d1e5c4371cb4f5ca847e6a19af88a` |
+| `packages/api-client/src/generated/core/serverSentEvents.gen.js` | `550784cb0e43872d31eb0d7257765b162b72855fac54f729710fbf0a3cc2bd31` |
+| `packages/api-client/src/generated/core/types.gen.d.ts` | `7e0ef3073fe45803bd4c923f8b9c1dde36d47e14f602d704d0d6326cba33248d` |
+| `packages/api-client/src/generated/core/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/generated/core/utils.gen.d.ts` | `6c2e5228cde53ddcaad3cf51abae7425147996078a1162a1723a8f06f24eca88` |
+| `packages/api-client/src/generated/core/utils.gen.js` | `cf3731ed79b03412088cbf6645246ba32cc8ba415485c5591943db07174c4afd` |
+| `packages/api-client/src/generated/index.d.ts` | `bebe015941cc71eed8e3eccbd0d02915f32a676ce2cf5eb742b73e3ba5fc39b5` |
+| `packages/api-client/src/generated/index.js` | `8d7414a6283a4b675ef6bd80109f7dfed11cebeda025f03707f07c54584ace04` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b823903b0954621bce9ed8b5278b2ac3d63b45939af432e20e8f0a863b0d0976` |
+| `packages/api-client/src/generated/sdk.gen.js` | `3de05597aec3c2f8eb3b0eda910c716f04586cead986cdc6bb5cfd7d1bca8355` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `51d8d0b31decde7db3acf119dd2cc87ca76b568eb185124a543bda2273cf1f89` |
+| `packages/api-client/src/generated/types.gen.js` | `17ebe2baaa8d2f0c94afaaaae74a46e43e2b163a0f4ffd69adb39ad57c318e78` |
+| `packages/api-client/src/index.ts` | `c2bdc0097f435bac56bd1ce61e7f82f8464647b41f99966342d472144e3812a0` |
+| `packages/api-client/tsconfig.json` | `415a9771435916764f223f6b8b6492ce6661350a4b07cb7b768b901774fd7499` |
+| `packages/api-client/type-tests/client.ts` | `336c1b4a9cb49de380b31f7216c22a7551e2c57c2942e5be9f9f7cc9d5e505d1` |
+| `packages/openapi-generator/index.mjs` | `e67b928af19129edb82725db855a6159e5a48c3d16d30d56d4ccf9f3c6e68874` |
+| `packages/openapi-generator/package.json` | `ba45f51061e1c2ac497d2cd7e10e9d3135726ba74d340ab8b63bfdcde69aacf5` |
+| `pnpm-lock.yaml` | `7b81de9f7e8f1eecc0a398909d1cae201621d842e6b0cf233e159a076a44237a` |
+| `pnpm-workspace.yaml` | `f31d277586fecb769c12e095e2c6cc4cb03aa96c1099e6676e6767760d3166bd` |
+| `pyproject.toml` | `e30c1ad27a45738cbb7ab40960beb564d64e051bf1e26d9fbb4260e40c166789` |
+| `redocly.yaml` | `6770d0da71895beab1b9d5753b48b18816a47cc5e6400dffb2bd7f244b58d61b` |
+| `scripts/check_contract_compatibility` | `be01d737df675decdc2ece5de38b521bb5442cb435b5dfcdffc660ad90507c8f` |
+| `scripts/generate_api_client` | `92d9c1ef36e7da39311c4b7f0f27cb4ffa8bd6fb7cd3fb009145f7944c3af1f2` |
+| `scripts/generate_api_client.mjs` | `b4e9c5f38f6c940c728c2d6aa35d7ac59c3891429feb8d811a6d4c2190f3662c` |
+| `scripts/validate_contracts` | `920067d3db1f829fc0d9989d4be61b44c0e51605e9502357045d52ee6e2857f6` |
+| `specs/openapi-baseline.ref` | `10d149fd9540446d51a229ff0a4edad9d2e479650e7ac11c666b0d3baf41cbc6` |
+| `tests/test_api_contracts.mjs` | `9f47d06341450508eb6f579a1c4912d0befc168a459a614888affa592ebe059a` |
+| `uv.lock` | `f1b2bacb3392346f0ffac418672c9db34f3496e37c21acf68856fcf3551534b7` |
+
+### 独立レビュー ラウンド5 最終判定
+
+- `/root/fnd04_review_r5`: approve、必須修正なし。確認済みレビュー5回（request_changes3回、approve2回）。59ファイルhash/対象一覧一致、既往必須指摘すべて解消。
+- 独立check exit0/21.80秒（`/tmp/ba-fnd-04-review-r5-independent-check.log`）、Node37件 require_escalated成功/11.77秒（`/tmp/ba-fnd-04-review-r5-independent-node.log`）。Node sandbox初回の診断なしfile-level失敗は環境制限として成功試行と区別。
+- 全86操作method/URL/security、生成32ファイル再生成一致・末尾空白なし・no-index --check診断なしを独立確認。Python32/Skill18は提供結果を参照、空環境installは再実行していない。
+- R4-N01/P3のみ継続任意改善。通常service rootは影響なし、今回の未対応理由はR4記録のとおり。新規必須指摘なし。
+
+### 完了結果 (2026-10-25T18:18:12.301535+00:00)
+
+- BA-FND-04: 既存validatorによる契約検証、86操作の型付きHTTP client、生成再現性、breaking検出を実装。必要検証と最終独立レビューが成功。
+- 実装コミット: `bbd81e2954a0143bce0c7364c030237d23614ce0`（feat(contracts): BA-FND-04 validate schemas and generate typed client）。
+- 独立レビュー5回、最終approve、全必須指摘解消。任意P3 R4-N01だけ未対応として記録済み。
+- 承認済み59ファイルだけをstageし、git diff --cached/--checkと全index SHA-256一致を確認。commit後の59パスと全内容も一致、hook変更なし。
+- 全体test Python32/Skill18/Node37成功。生成整形後はcheck・関連regeneration負例が成功、最終独立reviewでNode37を再成功。全32生成物の新規差分を含む空白検査成功。
+- 空環境offline frozen installと再生成一致を確認。実API配備/実機/macOS/ARMは範囲外。必須未完了事項なし。
+
+- 親の完了記録前check: `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` はexit0/21.87秒。契約/生成差分/互換性/format/lint/型/台帳（done4/todo92）が成功。既知iana-timezone警告はPython実在検証との分担として文書化済み。
+- 終了: 2026-10-25T18:18:44.904172+00:00。台帳・ログだけを記録コミット。
