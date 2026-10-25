@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Brainoid Agent run SSE event data",
+  "description": "Brainoid Agent v0.2.0 proposed contract, 2026-10-25.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/started"
+    },
+    {
+      "$ref": "#/$defs/text"
+    },
+    {
+      "$ref": "#/$defs/speech"
+    },
+    {
+      "$ref": "#/$defs/tool"
+    },
+    {
+      "$ref": "#/$defs/confirmation"
+    },
+    {
+      "$ref": "#/$defs/completed"
+    },
+    {
+      "$ref": "#/$defs/failed"
+    },
+    {
+      "$ref": "#/$defs/cancelled"
+    }
+  ],
+  "$defs": {
+    "started": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "run.started"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "text": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "text.delta"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "speech": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "speech.ready"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "speech_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sentence_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "speech_id",
+            "sentence_index",
+            "expires_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "tool": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "tool.status"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "tool_call_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "tool_name": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "running",
+                "succeeded",
+                "failed",
+                "outcome_unknown"
+              ]
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "tool_call_id",
+            "tool_name",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "confirmation": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "confirmation.required"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "proposal_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "kind": {
+              "type": "string",
+              "const": "calendar_write"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "proposal_id",
+            "kind",
+            "expires_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "completed": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "run.completed"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "message_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "message_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "failed": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "run.failed"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "error_code": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "retryable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "error_code",
+            "retryable"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "cancelled": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "run.cancelled"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "external_action_may_have_completed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "external_action_may_have_completed"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "run_id",
+        "seq",
+        "type",
+        "occurred_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

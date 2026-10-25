@@ -1,0 +1,1174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Brainoid Agent device protocol v1",
+  "description": "Brainoid Agent v0.2.0 proposed contract, 2026-10-25.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/hello"
+    },
+    {
+      "$ref": "#/$defs/hello_ack"
+    },
+    {
+      "$ref": "#/$defs/heartbeat"
+    },
+    {
+      "$ref": "#/$defs/heartbeat_ack"
+    },
+    {
+      "$ref": "#/$defs/command"
+    },
+    {
+      "$ref": "#/$defs/command_status"
+    },
+    {
+      "$ref": "#/$defs/command_status_ack"
+    },
+    {
+      "$ref": "#/$defs/command_start"
+    },
+    {
+      "$ref": "#/$defs/command_start_result"
+    },
+    {
+      "$ref": "#/$defs/session_started"
+    },
+    {
+      "$ref": "#/$defs/run_available"
+    },
+    {
+      "$ref": "#/$defs/notification"
+    },
+    {
+      "$ref": "#/$defs/notification_ack"
+    },
+    {
+      "$ref": "#/$defs/session_revoked"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ],
+  "$defs": {
+    "hello": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "hello"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "software_version": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "supported_protocol_versions": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "enum": [
+                  1
+                ]
+              },
+              "minItems": 1
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "maxItems": 30
+            },
+            "last_received_seq": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "device_id",
+            "software_version",
+            "supported_protocol_versions",
+            "capabilities",
+            "last_received_seq"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "hello_ack": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "hello_ack"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "heartbeat_interval_seconds": {
+              "type": "integer",
+              "const": 15
+            },
+            "lease_expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "server_time": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "snapshot_required": {
+              "const": true
+            }
+          },
+          "required": [
+            "heartbeat_interval_seconds",
+            "lease_expires_at",
+            "server_time",
+            "snapshot_required"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "heartbeat": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "heartbeat"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "last_received_seq": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "active_private_session_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "last_received_seq"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "heartbeat_ack": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "heartbeat_ack"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "lease_expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "server_time": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "lease_expires_at",
+            "server_time"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "command": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "command"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "delivery_seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "device_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "target_entity_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "operation": {
+              "$ref": "#/$defs/HomeAction"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "private_session_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "delivery_seq",
+            "tenant_id",
+            "device_id",
+            "command_id",
+            "target_entity_id",
+            "operation",
+            "created_at",
+            "expires_at"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "command_status": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "command_status"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "execution_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "succeeded",
+                "failed",
+                "expired",
+                "outcome_unknown"
+              ]
+            },
+            "observed_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "observed_state": {
+              "type": "object",
+              "properties": {
+                "power": {
+                  "type": "string",
+                  "enum": [
+                    "on",
+                    "off"
+                  ]
+                },
+                "brightness_pct": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "temperature_c": {
+                  "type": "number"
+                },
+                "hvac_mode": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "heat",
+                    "cool",
+                    "auto"
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "error_code": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "command_id",
+            "execution_id",
+            "status",
+            "observed_at"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "succeeded"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "observed_state"
+                ]
+              }
+            }
+          ]
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "command_status_ack": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "command_status_ack"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "execution_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "result": {
+              "type": "string",
+              "enum": [
+                "recorded",
+                "rejected"
+              ]
+            },
+            "reason_code": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "command_id",
+            "execution_id",
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "command_start": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "command_start"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "execution_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "command_id",
+            "execution_id"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "command_start_result": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "command_start_result"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "execution_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "result": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "rejected"
+              ]
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reason_code": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "command_id",
+            "execution_id",
+            "result",
+            "expires_at"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "session_started": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "session_started"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "private_session_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "user_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "allowed_scopes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "maxItems": 9
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "idle_expires_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "private_session_id",
+            "user_id",
+            "allowed_scopes",
+            "expires_at",
+            "idle_expires_at"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "run_available": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "run_available"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "conversation_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "output_mode": {
+              "type": "string",
+              "enum": [
+                "text",
+                "speech"
+              ]
+            },
+            "assignment_generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "last_event_seq": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "private_session_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "run_id",
+            "conversation_id",
+            "output_mode",
+            "assignment_generation",
+            "last_event_seq"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "notification": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "notification"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "delivery_seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "notification_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "private_session_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "delivery_seq",
+            "notification_id",
+            "title",
+            "expires_at"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "notification_ack": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "notification_ack"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "notification_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "displayed",
+                "suppressed",
+                "expired"
+              ]
+            },
+            "reason_code": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "notification_id",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "session_revoked": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "session_revoked"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "private_session_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "expired",
+                "user_ended",
+                "membership_revoked",
+                "device_revoked"
+              ]
+            }
+          },
+          "required": [
+            "private_session_id",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "const": "error"
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "related_message_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "code",
+            "retryable"
+          ],
+          "additionalProperties": false
+        },
+        "connection_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "protocol_version",
+        "message_id",
+        "type",
+        "sent_at",
+        "payload",
+        "connection_generation"
+      ],
+      "additionalProperties": false
+    },
+    "HomeAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "light.turn_on"
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "brightness_pct": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "action",
+            "parameters"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "light.turn_off"
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "action",
+            "parameters"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "climate.set_temperature"
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "temperature_c": {
+                  "type": "number",
+                  "minimum": 16,
+                  "maximum": 30
+                }
+              },
+              "required": [
+                "temperature_c"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "action",
+            "parameters"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "climate.set_hvac_mode"
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "hvac_mode": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "heat",
+                    "cool",
+                    "auto"
+                  ]
+                }
+              },
+              "required": [
+                "hvac_mode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "action",
+            "parameters"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

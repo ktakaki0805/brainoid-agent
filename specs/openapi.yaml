@@ -1,0 +1,5236 @@
+openapi: 3.1.0
+info:
+  title: Brainoid Agent API contract
+  version: 0.2.0
+  description: 2026-10-25 開発着手用設計案。アプリの実装を含まない。サーバーはscope/権限/クロスフィールド制約を検証する。
+servers:
+- url: /v1
+  description: 実装先APIの相対base path
+paths:
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      summary: 本人プロフィール
+      description: 本人プロフィール
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /tenants:
+    get:
+      operationId: listTenants
+      summary: 所属テナント一覧
+      description: 所属テナント一覧
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id003
+        name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - &id004
+        name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 2048
+    post:
+      operationId: createTenant
+      summary: テナント作成・本人をownerに登録
+      description: テナント作成・本人をownerに登録
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id002
+        name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+        description: 同一scopeで24時間。同一keyの異なるbodyは409。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreate'
+  /tenants/{tenant_id}:
+    get:
+      operationId: getTenant
+      summary: テナント取得
+      description: テナント取得
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+    patch:
+      operationId: updateTenant
+      summary: テナント設定更新
+      description: テナント設定更新
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - &id005
+        name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+        description: 直前に取得したversionを引用符付きで指定。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantPatch'
+  /tenants/{tenant_id}/memberships:
+    get:
+      operationId: listMemberships
+      summary: 会員一覧
+      description: 会員一覧
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+  /tenants/{tenant_id}/memberships/{user_id}:
+    patch:
+      operationId: updateMembership
+      summary: 会員role更新
+      description: owner/adminのみ。owner付与/剥奪はownerのみ。最後のownerは削除不可。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: user_id
+        in: path
+        required: true
+        schema: &id006
+          type: string
+          minLength: 1
+          maxLength: 128
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipPatch'
+    delete:
+      operationId: revokeMembership
+      summary: 会員失効
+      description: owner/adminのみ。本人退出はoperationsを使う。最後のownerは失効不可。
+      security:
+      - userBearer: []
+      responses:
+        '204':
+          description: 成功（契約上の応答。実装は未提供）
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: user_id
+        in: path
+        required: true
+        schema: *id006
+      - *id002
+      - *id005
+  /tenants/{tenant_id}/invitations:
+    post:
+      operationId: createInvitation
+      summary: 招待コード作成
+      description: 招待コード作成
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreate'
+  /invitations:accept:
+    post:
+      operationId: acceptInvitation
+      summary: 本人が招待を受理
+      description: 本人が招待を受理
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationAccept'
+  /tenants/{tenant_id}/agents:
+    get:
+      operationId: listAgents
+      summary: 利用可能な人格一覧
+      description: 利用可能な人格一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - &id007
+        name: X-Private-Session
+        in: header
+        required: false
+        schema: *id001
+        description: device bearerに追加するセッション参照。単独では認証しない。
+  /tenants/{tenant_id}/agents/{agent_id}:
+    get:
+      operationId: getAgent
+      summary: 人格取得
+      description: 人格取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: agent_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: updateAgent
+      summary: 共有人格更新
+      description: 共有人格更新
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: agent_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentPatch'
+  /device-pairings:
+    post:
+      operationId: createDevicePairing
+      summary: 未登録Piが短命ペアリングを開始
+      description: 未認証endpoint。IP/installation rate limit、5分失効。poll_secretをログへ出さない。
+      security: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pairing'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingCreate'
+  /tenants/{tenant_id}/device-pairings:confirm:
+    post:
+      operationId: confirmDevicePairing
+      summary: スマホ管理者が物理端末を確認して登録
+      description: スマホ管理者が物理端末を確認して登録
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingConfirm'
+  /device-pairings/{pairing_id}:exchange:
+    post:
+      operationId: exchangeDevicePairing
+      summary: Piがpoll_secretで一回だけ資格情報を受取る
+      description: 未承認は409 pairing_pending。poll_secret不一致は404。期限切れ410。一回利用。
+      security: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCredentials'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: pairing_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingExchange'
+  /device-tokens:refresh:
+    post:
+      operationId: refreshDeviceToken
+      summary: Pi専用credentialを更新
+      description: refresh_token自体を検証。短い同一refresh_request_id再送猶予とreuse検知を実装。
+      security: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCredentials'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRefresh'
+  /tenants/{tenant_id}/devices:
+    get:
+      operationId: listDevices
+      summary: 登録端末一覧
+      description: 登録端末一覧
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+  /tenants/{tenant_id}/devices/{device_id}:
+    get:
+      operationId: getDevice
+      summary: 端末情報
+      description: 端末情報
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+    patch:
+      operationId: updateDevice
+      summary: 端末表示名・操作scope変更
+      description: 端末表示名・操作scope変更
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevicePatch'
+    delete:
+      operationId: revokeDevice
+      summary: 端末失効
+      description: 端末失効
+      security:
+      - userBearer: []
+      responses:
+        '204':
+          description: 成功（契約上の応答。実装は未提供）
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+  /tenants/{tenant_id}/devices/{device_id}/private-sessions:
+    post:
+      operationId: createPrivateSession
+      summary: 本人のPi個人セッション開始
+      description: 本人のPi個人セッション開始
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateSession'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivateSessionCreate'
+  /tenants/{tenant_id}/private-sessions/{private_session_id}:
+    delete:
+      operationId: endPrivateSession
+      summary: Pi個人セッション終了
+      description: Pi個人セッション終了
+      security:
+      - userBearer: []
+      responses:
+        '204':
+          description: 成功（契約上の応答。実装は未提供）
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: private_session_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+  /devices/{device_id}/snapshot:
+    get:
+      operationId: getDeviceSnapshot
+      summary: Piが現在のsession・出力run・未完了配送を同期
+      description: Piが現在のsession・出力run・未完了配送を同期
+      security:
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceSnapshot'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 2048
+  /devices/{device_id}/connect:
+    get:
+      operationId: connectDevice
+      summary: Pi WebSocket upgrade
+      description: フレームはdevice-protocol.schema.json。Authorization header必須。tokenをqueryへ含めない。
+      security:
+      - deviceBearer: []
+      responses:
+        '101':
+          description: 成功（契約上の応答。実装は未提供）
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+      x-websocket-protocol: brainoid-agent.device.v1
+  /tenants/{tenant_id}/conversations:
+    get:
+      operationId: listConversations
+      summary: 閲覧可能な会話一覧
+      description: 閲覧可能な会話一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - *id007
+    post:
+      operationId: createConversation
+      summary: 会話作成
+      description: 会話作成
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationCreate'
+  /tenants/{tenant_id}/conversations/{conversation_id}:
+    get:
+      operationId: getConversation
+      summary: 会話取得
+      description: 会話取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: conversation_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: updateConversation
+      summary: 会話名・表示方針更新
+      description: 会話名・表示方針更新
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: conversation_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationPatch'
+  /tenants/{tenant_id}/conversations/{conversation_id}/messages:
+    get:
+      operationId: listMessages
+      summary: 会話メッセージ一覧
+      description: 会話メッセージ一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: conversation_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - *id007
+  /tenants/{tenant_id}/conversations/{conversation_id}/turns:
+    post:
+      operationId: createTurn
+      summary: 会話実行を永続化して受け付ける
+      description: 会話実行を永続化して受け付ける
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '202':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunAccepted'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: conversation_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TurnCreate'
+  /tenants/{tenant_id}/runs/{run_id}:
+    get:
+      operationId: getRun
+      summary: 実行状態を再取得
+      description: 実行状態を再取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: run_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+  /tenants/{tenant_id}/runs/{run_id}/events:
+    get:
+      operationId: streamRunEvents
+      summary: SSEで実行イベントを取得
+      description: 認証header付きfetch。idはrun内のseq。24時間内は再送可能。イベント履歴消失は410。run-events.schema.json参照。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: 'id: 1
+
+                event: run.started
+
+                data: {"run_id":"32ad4324-a25f-468f-88e6-a5f4ae34e076","seq":1,"type":"run.started","occurred_at":"2026-10-25T10:00:00Z","payload":{}}
+
+
+                '
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: run_id
+        in: path
+        required: true
+        schema: *id001
+      - name: Last-Event-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+      - *id007
+  /tenants/{tenant_id}/runs/{run_id}:cancel:
+    post:
+      operationId: cancelRun
+      summary: 生成と未実行ツールを停止
+      description: 実行済み外部副作用は取消しを保証しない。別途状態確認・補償が必要。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: run_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+  /tenants/{tenant_id}/audio-inputs:
+    post:
+      operationId: transcribeAudio
+      summary: タップ音声を文字起こし
+      description: タップ音声を文字起こし
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioInput'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          audio/wav:
+            schema:
+              type: string
+              format: binary
+              description: 16kHz/16bit/mono PCM WAV、60秒/5MiB以内。サービス自身は音声を永続化しない。
+  /tenants/{tenant_id}/speech-outputs/{speech_id}/audio:
+    get:
+      operationId: getSpeechAudio
+      summary: 確定文のTTSを認可付きで取得
+      description: speech.readyのspeech_id。5分期限、run/current sessionを再検査。音声自体は保存しない。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: speech_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+  /tenants/{tenant_id}/entities:
+    get:
+      operationId: listEntities
+      summary: 閲覧可能なentities一覧
+      description: 閲覧可能なentities一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - *id007
+    post:
+      operationId: createEntity
+      summary: Entity作成
+      description: deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityCreate'
+  /tenants/{tenant_id}/entities/{entity_id}:
+    get:
+      operationId: getEntity
+      summary: Entity取得
+      description: Entity取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: entity_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: updateEntity
+      summary: Entity更新
+      description: Entity更新
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: entity_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityPatch'
+  /tenants/{tenant_id}/memories:
+    get:
+      operationId: listMemories
+      summary: 閲覧可能なmemories一覧
+      description: 閲覧可能なmemories一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - *id007
+    post:
+      operationId: createMemory
+      summary: Memory作成
+      description: deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryCreate'
+  /tenants/{tenant_id}/memories/{memory_id}:
+    get:
+      operationId: getMemory
+      summary: Memory取得
+      description: Memory取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: memory_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: reviseMemory
+      summary: 旧記憶を置換する新記憶を作成
+      description: 旧記憶を置換する新記憶を作成
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: memory_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryRevision'
+  /tenants/{tenant_id}/notes:
+    get:
+      operationId: listNotes
+      summary: 閲覧可能なnotes一覧
+      description: 閲覧可能なnotes一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotePage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - *id007
+    post:
+      operationId: createNote
+      summary: Note作成
+      description: deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+  /tenants/{tenant_id}/notes/{note_id}:
+    get:
+      operationId: getNote
+      summary: Note取得
+      description: Note取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: note_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: updateNote
+      summary: Note更新
+      description: Note更新
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: note_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotePatch'
+  /tenants/{tenant_id}/tasks:
+    get:
+      operationId: listTasks
+      summary: 閲覧可能なtasks一覧
+      description: 閲覧可能なtasks一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - name: status
+        in: query
+        required: false
+        schema: &id023
+          type: string
+          enum:
+          - open
+          - done
+          - cancelled
+      - *id007
+    post:
+      operationId: createTask
+      summary: Task作成
+      description: deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+  /tenants/{tenant_id}/tasks/{task_id}:
+    get:
+      operationId: getTask
+      summary: Task取得
+      description: Task取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: task_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: updateTask
+      summary: Task更新
+      description: Task更新
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: task_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
+  /tenants/{tenant_id}/reminders:
+    get:
+      operationId: listReminders
+      summary: 閲覧可能なreminders一覧
+      description: 閲覧可能なreminders一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - name: status
+        in: query
+        required: false
+        schema: &id026
+          type: string
+          enum:
+          - scheduled
+          - dispatched
+          - acknowledged
+          - cancelled
+          - expired
+      - *id007
+    post:
+      operationId: createReminder
+      summary: Reminder作成
+      description: deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderCreate'
+  /tenants/{tenant_id}/reminders/{reminder_id}:
+    get:
+      operationId: getReminder
+      summary: Reminder取得
+      description: Reminder取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: reminder_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+    patch:
+      operationId: updateReminder
+      summary: Reminder更新
+      description: Reminder更新
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: reminder_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderPatch'
+  /tenants/{tenant_id}/memories:search:
+    post:
+      operationId: searchMemories
+      summary: scopeを絞ったグラフ・意味検索
+      description: 検索のPOSTは副作用なし。共通Idempotency-Keyは要求するが副作用記録は作らない。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemorySearch'
+  /tenants/{tenant_id}/reminders/{reminder_id}:snooze:
+    post:
+      operationId: snoozeReminder
+      summary: リマインダーを新しい予定版で再設定
+      description: expected_versionを検査しschedule_versionを増加、status=scheduled、旧通知/旧jobを無効化。本人sessionまたは本人ユーザーが必要。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: reminder_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderSnooze'
+  /users/me/push-installations:
+    post:
+      operationId: registerPushInstallation
+      summary: 本人スマホのpush送信先登録
+      description: 本人スマホのpush送信先登録
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushInstallation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushInstallationCreate'
+  /users/me/push-installations/{installation_id}:
+    patch:
+      operationId: refreshPushInstallation
+      summary: FCM token更新
+      description: FCM token更新
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushInstallation'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: installation_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushInstallationPatch'
+    delete:
+      operationId: removePushInstallation
+      summary: push登録解除
+      description: push登録解除
+      security:
+      - userBearer: []
+      responses:
+        '204':
+          description: 成功（契約上の応答。実装は未提供）
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: installation_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+  /tenants/{tenant_id}/notifications:
+    get:
+      operationId: listNotifications
+      summary: 本人・端末に許可された通知一覧
+      description: 本人・端末に許可された通知一覧
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - *id007
+  /tenants/{tenant_id}/notifications/{notification_id}:ack:
+    post:
+      operationId: ackNotification
+      summary: 通知表示・本人確認を記録
+      description: 通知表示・本人確認を記録
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: notification_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationAck'
+  /tenants/{tenant_id}/integrations:
+    get:
+      operationId: listIntegrations
+      summary: 連携一覧（秘密を返さない）
+      description: 連携一覧（秘密を返さない）
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+  /tenants/{tenant_id}/integrations/google-calendar/authorizations:
+    post:
+      operationId: startGoogleCalendarAuthorization
+      summary: 本人がGoogle Calendar OAuthを開始
+      description: 本人がGoogle Calendar OAuthを開始
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthAuthorization'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthStart'
+  /oauth/google-calendar/callback:
+    get:
+      operationId: completeGoogleCalendarAuthorization
+      summary: Google OAuth callback
+      description: stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。URLはaccess logでredact。
+      security: []
+      responses:
+        '303':
+          description: 成功（契約上の応答。実装は未提供）
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: 固定allowlistの復帰先。tokenは含めない。
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: state
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 512
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 4096
+      - name: error
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 100
+  /tenants/{tenant_id}/integrations/home-assistant:
+    post:
+      operationId: createHomeAssistantIntegration
+      summary: PiローカルHA連携の登録
+      description: PiローカルHA連携の登録
+      security:
+      - userBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeIntegrationCreate'
+  /tenants/{tenant_id}/integrations/{integration_id}/home-assistant/entities:sync:
+    post:
+      operationId: syncHomeAssistantEntities
+      summary: 登録Piが許可対象候補の家電情報を同期
+      description: 対象integrationとbearer deviceが一致することを検査。外部entity IDだけで別tenantへ結合しない。
+      security:
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeInventorySync'
+  /tenants/{tenant_id}/integrations/{integration_id}:
+    patch:
+      operationId: updateIntegration
+      summary: Calendar allowlist更新
+      description: Calendar allowlist更新
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationPatch'
+    delete:
+      operationId: revokeIntegration
+      summary: 連携失効と資格情報削除
+      description: 連携失効と資格情報削除
+      security:
+      - userBearer: []
+      responses:
+        '204':
+          description: 成功（契約上の応答。実装は未提供）
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id005
+  /tenants/{tenant_id}/integrations/{integration_id}/calendar-events:
+    get:
+      operationId: listCalendarEvents
+      summary: 本人calendarの予定一覧
+      description: deviceはcalendar.readを許可した本人private_session必須。区間最大31日。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEventPage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      - *id003
+      - *id004
+      - name: calendar_id
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 1024
+      - name: time_min
+        in: query
+        required: true
+        schema: &id008
+          type: string
+          format: date-time
+      - name: time_max
+        in: query
+        required: true
+        schema: *id008
+      - *id007
+  /tenants/{tenant_id}/integrations/{integration_id}/calendar-proposals:
+    post:
+      operationId: createCalendarProposal
+      summary: 予定書込みの確認内容を確定
+      description: deviceは本人private_sessionとcalendar.propose scope必須。実行確認はスマホのみ。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '201':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarProposal'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarProposalCreate'
+  /tenants/{tenant_id}/calendar-proposals/{proposal_id}:
+    get:
+      operationId: getCalendarProposal
+      summary: 予定書込み確認内容
+      description: 予定書込み確認内容
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarProposal'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: proposal_id
+        in: path
+        required: true
+        schema: *id001
+  /tenants/{tenant_id}/calendar-proposals/{proposal_id}:confirm:
+    post:
+      operationId: confirmCalendarProposal
+      summary: 本人が正規化内容を確認して実行を依頼
+      description: 同user、args_hash、5分期限、provider ETagを検査。proposalは一回使用。
+      security:
+      - userBearer: []
+      responses:
+        '202':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: proposal_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarConfirm'
+  /tenants/{tenant_id}/calendar-proposals/{proposal_id}:reject:
+    post:
+      operationId: rejectCalendarProposal
+      summary: 本人が提案を拒否
+      description: pendingのみdeclinedへ。対応runのcheckpointに否認結果を保存しresume jobを作成。既にexecutingなら409。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarProposal'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: proposal_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+  /tenants/{tenant_id}/commands:
+    post:
+      operationId: createDeviceCommand
+      summary: 照明・空調コマンドを保存
+      description: 照明・空調コマンドを保存
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '202':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandCreate'
+  /tenants/{tenant_id}/commands/{command_id}:
+    get:
+      operationId: getDeviceCommand
+      summary: 家電操作の結果取得
+      description: 家電操作の結果取得
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: command_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
+  /tenants/{tenant_id}/commands/{command_id}:cancel:
+    post:
+      operationId: cancelDeviceCommand
+      summary: 未実行家電操作を取り消す
+      description: queued/delivered/acceptedかつstart claim前のみ取消し可。running以降は409 already_executing。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: command_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      - *id007
+  /tenants/{tenant_id}/operations:
+    post:
+      operationId: createTenantOperation
+      summary: forget/delete/export/退出を受け付ける
+      description: delete_tenantはownerの直近5分の再認証と名称一致。削除は独立台帳の先行記録、DB tombstone保存後に202。
+      security:
+      - userBearer: []
+      responses:
+        '202':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationCreate'
+  /tenants/{tenant_id}/operations/{operation_id}:
+    get:
+      operationId: getTenantOperation
+      summary: 非同期処理状態
+      description: 非同期処理状態
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: operation_id
+        in: path
+        required: true
+        schema: *id001
+  /tenants/{tenant_id}/operations/{operation_id}/download:
+    get:
+      operationId: downloadExport
+      summary: 本人のexportを取得
+      description: export成功・24時間期限内のみ。再認可し、公開URLを返さずstreamする。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: operation_id
+        in: path
+        required: true
+        schema: *id001
+  /operations:
+    post:
+      operationId: createAccountOperation
+      summary: 本人アカウント削除を受け付ける
+      description: 直近5分の再認証が必要。最後のownerの場合409 ownership_transfer_required。
+      security:
+      - userBearer: []
+      responses:
+        '202':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountOperationCreate'
+  /operations/{operation_id}:
+    get:
+      operationId: getAccountOperation
+      summary: 本人アカウント処理状態
+      description: 削除中の既存認証は当該status参照だけに限定。削除確定でFirebase認証も失効し、以後は401/404になる。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: operation_id
+        in: path
+        required: true
+        schema: *id001
+  /tenants/{tenant_id}/usage:
+    get:
+      operationId: getUsage
+      summary: 本人に許可された利用量・残枠
+      description: owner/adminはtenant総量、memberは本人分。価格見積りを確定請求額と表示しない。
+      security:
+      - userBearer: []
+      responses:
+        '200':
+          description: 成功（契約上の応答。実装は未提供）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usage'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+components:
+  securitySchemes:
+    userBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+    deviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Dedicated short-lived device token
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              pattern: ^[a-z][a-z0-9_]+$
+            message:
+              type: string
+              maxLength: 300
+            request_id: *id001
+            retryable:
+              type: boolean
+            fields:
+              type: array
+              items:
+                type: string
+                maxLength: 100
+              maxItems: 20
+          required:
+          - code
+          - message
+          - request_id
+          - retryable
+          additionalProperties: false
+      required:
+      - error
+      additionalProperties: false
+    Scope:
+      type: object
+      properties:
+        visibility:
+          type: string
+          enum:
+          - private
+          - shared
+        display_policy:
+          type: string
+          enum:
+          - never
+          - authenticated_session
+          - shared_display
+      required:
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    User:
+      type: object
+      properties:
+        user_id: *id006
+        display_name: &id009
+          type: string
+          minLength: 1
+          maxLength: 200
+        timezone:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - active
+          - deleting
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - user_id
+      - display_name
+      - timezone
+      - status
+      - version
+      additionalProperties: false
+    TenantCreate:
+      type: object
+      properties:
+        name: *id009
+        timezone:
+          type: string
+          default: Asia/Tokyo
+          maxLength: 80
+      required:
+      - name
+      additionalProperties: false
+    Tenant:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: &id010
+          type: integer
+          minimum: 1
+        created_at: *id008
+        updated_at: *id008
+        name: *id009
+        timezone:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - active
+          - deleting
+        my_role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - name
+      - timezone
+      - status
+      - my_role
+      additionalProperties: false
+    TenantPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tenant'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    TenantPatch:
+      type: object
+      properties:
+        name: *id009
+        timezone:
+          type: string
+          maxLength: 80
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    Membership:
+      type: object
+      properties:
+        user_id: *id006
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+        status:
+          type: string
+          enum:
+          - active
+          - revoked
+          - suspended
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - user_id
+      - role
+      - status
+      - version
+      additionalProperties: false
+    MembershipPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Membership'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    MembershipPatch:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+      required:
+      - role
+      additionalProperties: false
+    InvitationCreate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - admin
+          - member
+      required:
+      - role
+      additionalProperties: false
+    Invitation:
+      type: object
+      properties:
+        id: *id001
+        code:
+          type: string
+          minLength: 16
+          maxLength: 256
+        expires_at: *id008
+        role:
+          type: string
+          enum:
+          - admin
+          - member
+      required:
+      - id
+      - code
+      - expires_at
+      - role
+      additionalProperties: false
+    InvitationAccept:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 16
+          maxLength: 256
+      required:
+      - code
+      additionalProperties: false
+    Agent:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        name: *id009
+        persona:
+          type: string
+          maxLength: 4000
+        allowed_tools:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 30
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - name
+      - persona
+      - allowed_tools
+      additionalProperties: false
+    AgentPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Agent'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    AgentPatch:
+      type: object
+      properties:
+        name: *id009
+        persona:
+          type: string
+          maxLength: 4000
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    Device:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        name: *id009
+        status:
+          type: string
+          enum:
+          - active
+          - revoked
+          - offline
+          - suspended
+        capabilities:
+          type: array
+          items:
+            type: string
+            maxLength: 80
+          maxItems: 30
+        allowed_entity_ids:
+          type: array
+          items: *id001
+          maxItems: 100
+        connection_generation:
+          type: integer
+          minimum: 0
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - name
+      - status
+      - capabilities
+      - allowed_entity_ids
+      - connection_generation
+      additionalProperties: false
+    DevicePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    DevicePatch:
+      type: object
+      properties:
+        name: *id009
+        allowed_entity_ids:
+          type: array
+          items: *id001
+          maxItems: 100
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    PairingCreate:
+      type: object
+      properties:
+        device_name: *id009
+        installation_nonce:
+          type: string
+          minLength: 32
+          maxLength: 128
+      required:
+      - device_name
+      - installation_nonce
+      additionalProperties: false
+    Pairing:
+      type: object
+      properties:
+        pairing_id: *id001
+        user_code:
+          type: string
+          pattern: ^[A-Z0-9]{8}$
+        poll_secret:
+          type: string
+          minLength: 32
+          maxLength: 256
+        expires_at: *id008
+      required:
+      - pairing_id
+      - user_code
+      - poll_secret
+      - expires_at
+      additionalProperties: false
+    PairingConfirm:
+      type: object
+      properties:
+        user_code:
+          type: string
+          pattern: ^[A-Z0-9]{8}$
+        device_name: *id009
+        allowed_entity_ids:
+          type: array
+          items: *id001
+          maxItems: 100
+      required:
+      - user_code
+      - device_name
+      - allowed_entity_ids
+      additionalProperties: false
+    PairingExchange:
+      type: object
+      properties:
+        poll_secret:
+          type: string
+          minLength: 32
+          maxLength: 256
+      required:
+      - poll_secret
+      additionalProperties: false
+    DeviceCredentials:
+      type: object
+      properties:
+        device_id: *id001
+        tenant_id: *id001
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          const: 900
+        token_type:
+          type: string
+          const: Bearer
+      required:
+      - device_id
+      - tenant_id
+      - access_token
+      - refresh_token
+      - expires_in
+      - token_type
+      additionalProperties: false
+    DeviceRefresh:
+      type: object
+      properties:
+        device_id: *id001
+        refresh_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+        refresh_request_id: *id001
+      required:
+      - device_id
+      - refresh_token
+      - refresh_request_id
+      additionalProperties: false
+    PrivateSessionCreate:
+      type: object
+      properties:
+        allowed_scopes:
+          type: array
+          items:
+            type: string
+            enum:
+            - memory.read
+            - memory.write
+            - conversation
+            - notes
+            - tasks
+            - reminders
+            - calendar.read
+            - calendar.propose
+            - home.control
+          minItems: 1
+          maxItems: 9
+          uniqueItems: true
+        acknowledge_shared_space:
+          const: true
+      required:
+      - allowed_scopes
+      - acknowledge_shared_space
+      additionalProperties: false
+    PrivateSession:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        user_id: *id006
+        device_id: *id001
+        allowed_scopes:
+          type: array
+          items:
+            type: string
+        expires_at: *id008
+        idle_expires_at: *id008
+        status:
+          type: string
+          enum:
+          - active
+          - ended
+          - expired
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - user_id
+      - device_id
+      - allowed_scopes
+      - expires_at
+      - idle_expires_at
+      - status
+      additionalProperties: false
+    PrivateSessionPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrivateSession'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    RunAssignment:
+      type: object
+      properties:
+        run_id: *id001
+        conversation_id: *id001
+        output_mode:
+          type: string
+          enum:
+          - text
+          - speech
+        assignment_generation:
+          type: integer
+          minimum: 1
+        last_event_seq:
+          type: integer
+          minimum: 0
+        private_session_id: *id001
+      required:
+      - run_id
+      - conversation_id
+      - output_mode
+      - assignment_generation
+      - last_event_seq
+      additionalProperties: false
+    DeviceSnapshot:
+      type: object
+      properties:
+        device_id: *id001
+        tenant_id: *id001
+        connection_generation:
+          type: integer
+          minimum: 1
+        active_private_session:
+          oneOf:
+          - $ref: '#/components/schemas/PrivateSession'
+          - type: 'null'
+        assigned_runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunAssignment'
+          maxItems: 100
+        pending_command_ids:
+          type: array
+          items: *id001
+          maxItems: 100
+        pending_notification_ids:
+          type: array
+          items: *id001
+          maxItems: 100
+        delivery_cursor:
+          type: integer
+          minimum: 0
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - device_id
+      - tenant_id
+      - connection_generation
+      - active_private_session
+      - assigned_runs
+      - pending_command_ids
+      - pending_notification_ids
+      - delivery_cursor
+      - next_cursor
+      additionalProperties: false
+      description: 現在の権限で再計算。失効したprivate session/runは返さない。next_cursorがある間は続頁取得。
+    ConversationCreate:
+      type: object
+      properties:
+        agent_id: *id001
+        title: *id009
+        visibility: &id011
+          type: string
+          enum:
+          - private
+          - shared
+        display_policy: &id012
+          type: string
+          enum:
+          - never
+          - authenticated_session
+          - shared_display
+      required:
+      - agent_id
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    Conversation:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        agent_id: *id001
+        title: *id009
+        visibility: *id011
+        display_policy: *id012
+        owner_user_id: *id006
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - agent_id
+      - title
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+          required:
+          - owner_user_id
+    ConversationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    ConversationPatch:
+      type: object
+      properties:
+        title: *id009
+        display_policy: *id012
+      required: []
+      additionalProperties: false
+      minProperties: 1
+      description: visibilityの変更は専用の明示共有フローを将来定義する。この版では変更不可。
+    SourceRef:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - message
+          - note
+          - import
+        resource_id: *id001
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - kind
+      - resource_id
+      - version
+      additionalProperties: false
+    Message:
+      type: object
+      properties:
+        id: *id001
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+          - tool
+        text: &id013
+          type: string
+          maxLength: 8000
+        run_id: *id001
+        created_at: *id008
+        source_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+          maxItems: 20
+      required:
+      - id
+      - role
+      - text
+      - run_id
+      - created_at
+      - source_refs
+      additionalProperties: false
+    MessagePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    TurnCreate:
+      oneOf:
+      - type: object
+        properties:
+          text:
+            type: string
+            minLength: 1
+            maxLength: 8000
+          output_mode:
+            type: string
+            enum:
+            - text
+            - speech
+          output_device_id: *id001
+        required:
+        - text
+        - output_mode
+        additionalProperties: false
+      - type: object
+        properties:
+          audio_input_id: *id001
+          output_mode:
+            type: string
+            enum:
+            - text
+            - speech
+          output_device_id: *id001
+        required:
+        - audio_input_id
+        - output_mode
+        additionalProperties: false
+    RunAccepted:
+      type: object
+      properties:
+        run_id: *id001
+        status:
+          type: string
+          enum:
+          - queued
+        events_path:
+          type: string
+        status_path:
+          type: string
+      required:
+      - run_id
+      - status
+      - events_path
+      - status_path
+      additionalProperties: false
+    Run:
+      type: object
+      properties:
+        run_id: *id001
+        conversation_id: *id001
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - waiting_confirmation
+          - completed
+          - failed
+          - cancelled
+        version:
+          type: integer
+          minimum: 1
+        last_event_seq:
+          type: integer
+          minimum: 0
+        created_at: *id008
+        final_message_id: *id001
+        error_code:
+          type: string
+        waiting_proposal_id: *id001
+        checkpoint_version:
+          type: integer
+          minimum: 1
+      required:
+      - run_id
+      - conversation_id
+      - status
+      - version
+      - last_event_seq
+      - created_at
+      additionalProperties: false
+    AudioInput:
+      type: object
+      properties:
+        audio_input_id: *id001
+        transcript: *id013
+        language:
+          type: string
+          const: ja-JP
+        expires_at: *id008
+      required:
+      - audio_input_id
+      - transcript
+      - language
+      - expires_at
+      additionalProperties: false
+    RunEvent:
+      type: object
+      properties:
+        run_id: *id001
+        seq:
+          type: integer
+          minimum: 1
+        type:
+          type: string
+          enum:
+          - run.started
+          - text.delta
+          - speech.ready
+          - tool.status
+          - confirmation.required
+          - run.completed
+          - run.failed
+          - run.cancelled
+        occurred_at: *id008
+        payload:
+          type: object
+      required:
+      - run_id
+      - seq
+      - type
+      - occurred_at
+      - payload
+      additionalProperties: false
+      description: payloadのtype別定義はrun-events.schema.jsonを正本とする。
+    EntityCreate:
+      type: object
+      properties:
+        kind: &id014
+          type: string
+          enum:
+          - person
+          - room
+          - appliance
+          - activity
+          - topic
+        label: *id009
+        aliases: &id015
+          type: array
+          items: *id009
+          maxItems: 10
+        visibility: *id011
+        display_policy: *id012
+      required:
+      - kind
+      - label
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    Entity:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        kind: *id014
+        label: *id009
+        aliases: *id015
+        visibility: *id011
+        display_policy: *id012
+        owner_user_id: *id006
+        external_refs:
+          type: array
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+                enum:
+                - home_assistant
+              integration_id: *id001
+              external_id:
+                type: string
+                maxLength: 255
+            required:
+            - provider
+            - integration_id
+            - external_id
+            additionalProperties: false
+          maxItems: 10
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - kind
+      - label
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+          required:
+          - owner_user_id
+    EntityPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    EntityPatch:
+      type: object
+      properties:
+        label: *id009
+        aliases:
+          type: array
+          items: *id009
+          maxItems: 10
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    MemoryCreate:
+      type: object
+      properties:
+        subject_entity_id: *id001
+        predicate: &id016
+          type: string
+          enum:
+          - located_in
+          - prefers_setting
+          - prefers
+          - related_to
+          - has_attribute
+        object_entity_id: *id001
+        value: &id017
+          type:
+          - string
+          - number
+          - boolean
+          maxLength: 4000
+        qualifiers: &id018
+          type: object
+          properties:
+            context:
+              type: string
+              maxLength: 200
+            brightness_pct:
+              type: integer
+              minimum: 0
+              maximum: 100
+            temperature_c:
+              type: number
+              minimum: 16
+              maximum: 30
+          required: []
+          additionalProperties: false
+        visibility: *id011
+        display_policy: *id012
+        source_refs: &id019
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+          maxItems: 20
+        valid_from: *id008
+        valid_to: &id020
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - subject_entity_id
+      - predicate
+      - visibility
+      - display_policy
+      additionalProperties: false
+      oneOf: &id021
+      - required:
+        - object_entity_id
+        not:
+          required:
+          - value
+      - required:
+        - value
+        not:
+          required:
+          - object_entity_id
+      description: 利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    Memory:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        subject_entity_id: *id001
+        predicate: *id016
+        object_entity_id: *id001
+        value: *id017
+        qualifiers: *id018
+        visibility: *id011
+        display_policy: *id012
+        source_refs: *id019
+        valid_from: *id008
+        valid_to: *id020
+        owner_user_id: *id006
+        origin:
+          type: string
+          enum:
+          - user_explicit
+          - imported
+          - inferred
+        status:
+          type: string
+          enum:
+          - candidate
+          - confirmed
+          - superseded
+          - retracted
+        recorded_at: *id008
+        deletion_epoch:
+          type: integer
+          minimum: 0
+        supersedes_fact_id: *id001
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - subject_entity_id
+      - predicate
+      - visibility
+      - display_policy
+      - source_refs
+      - valid_from
+      - origin
+      - status
+      - recorded_at
+      - deletion_epoch
+      additionalProperties: false
+      oneOf: *id021
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+          required:
+          - owner_user_id
+    MemoryPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Memory'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    MemoryRevision:
+      type: object
+      properties:
+        replacement:
+          $ref: '#/components/schemas/MemoryCreate'
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - replacement
+      additionalProperties: false
+      description: 旧factをsupersededにして新factを作成。戻り値は新fact。
+    MemorySearch:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 40
+          default: 10
+      required:
+      - query
+      additionalProperties: false
+    NoteCreate:
+      type: object
+      properties:
+        title: *id009
+        body: *id013
+        visibility: *id011
+        display_policy: *id012
+      required:
+      - title
+      - body
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    Note:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        title: *id009
+        body: *id013
+        visibility: *id011
+        display_policy: *id012
+        owner_user_id: *id006
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - title
+      - body
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+          required:
+          - owner_user_id
+    NotePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Note'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    NotePatch:
+      type: object
+      properties:
+        title: *id009
+        body: *id013
+        display_policy: *id012
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    TaskCreate:
+      type: object
+      properties:
+        title: *id009
+        due_at: *id008
+        timezone: &id022
+          type: string
+          maxLength: 80
+        assignee_user_id: *id006
+        visibility: *id011
+        display_policy: *id012
+      required:
+      - title
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    Task:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        title: *id009
+        due_at: *id008
+        timezone: *id022
+        assignee_user_id: *id006
+        visibility: *id011
+        display_policy: *id012
+        status: *id023
+        owner_user_id: *id006
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - title
+      - visibility
+      - display_policy
+      - status
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+          required:
+          - owner_user_id
+    TaskPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    TaskPatch:
+      type: object
+      properties:
+        title: *id009
+        status:
+          type: string
+          enum:
+          - open
+          - done
+          - cancelled
+        due_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    ReminderCreate:
+      type: object
+      properties:
+        title: *id009
+        due_at: *id008
+        timezone: &id024
+          type: string
+          maxLength: 80
+        delivery_target: &id025
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+              - user
+              - device
+            id:
+              type: string
+              maxLength: 128
+          required:
+          - kind
+          - id
+          additionalProperties: false
+        task_id: *id001
+        visibility: *id011
+        display_policy: *id012
+      required:
+      - title
+      - due_at
+      - timezone
+      - delivery_target
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    Reminder:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        title: *id009
+        due_at: *id008
+        timezone: *id024
+        delivery_target: *id025
+        task_id: *id001
+        visibility: *id011
+        display_policy: *id012
+        status: *id026
+        owner_user_id: *id006
+        schedule_version:
+          type: integer
+          minimum: 1
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - title
+      - due_at
+      - timezone
+      - delivery_target
+      - visibility
+      - display_policy
+      - status
+      - schedule_version
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+          required:
+          - owner_user_id
+    ReminderPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reminder'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    ReminderPatch:
+      type: object
+      properties:
+        title: *id009
+        due_at: *id008
+        timezone:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - cancelled
+      required: []
+      additionalProperties: false
+      minProperties: 1
+    ReminderSnooze:
+      type: object
+      properties:
+        due_at: *id008
+        timezone:
+          type: string
+          maxLength: 80
+        expected_version:
+          type: integer
+          minimum: 1
+      required:
+      - due_at
+      - timezone
+      - expected_version
+      additionalProperties: false
+    PushInstallationCreate:
+      type: object
+      properties:
+        fcm_token:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        platform:
+          type: string
+          enum:
+          - ios
+          - android
+        app_version:
+          type: string
+          maxLength: 40
+      required:
+      - fcm_token
+      - platform
+      - app_version
+      additionalProperties: false
+    PushInstallation:
+      type: object
+      properties:
+        id: *id001
+        platform:
+          type: string
+          enum:
+          - ios
+          - android
+        version:
+          type: integer
+          minimum: 1
+        created_at: *id008
+      required:
+      - id
+      - platform
+      - version
+      - created_at
+      additionalProperties: false
+    PushInstallationPatch:
+      type: object
+      properties:
+        fcm_token:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        app_version:
+          type: string
+          maxLength: 40
+      required:
+      - fcm_token
+      additionalProperties: false
+    Notification:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        reminder_id: *id001
+        title: *id009
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - displayed
+          - acknowledged
+          - expired
+        target_kind:
+          type: string
+          enum:
+          - user
+          - device
+        target_id:
+          type: string
+          maxLength: 128
+        expires_at: *id008
+        visibility: *id011
+        display_policy: *id012
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - reminder_id
+      - title
+      - status
+      - target_kind
+      - target_id
+      - expires_at
+      - visibility
+      - display_policy
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            visibility:
+              const: private
+          required:
+          - visibility
+        then:
+          properties:
+            display_policy:
+              type: string
+              enum:
+              - never
+              - authenticated_session
+    NotificationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    NotificationAck:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - displayed
+          - acknowledged
+      required:
+      - action
+      additionalProperties: false
+    OAuthStart:
+      type: object
+      properties:
+        scope_profile:
+          type: string
+          enum:
+          - read
+          - read_write
+        return_target:
+          type: string
+          enum:
+          - mobile
+          - web
+      required:
+      - scope_profile
+      - return_target
+      additionalProperties: false
+    OAuthAuthorization:
+      type: object
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+        expires_at: *id008
+      required:
+      - authorization_url
+      - expires_at
+      additionalProperties: false
+    Integration:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        provider:
+          type: string
+          enum:
+          - google_calendar
+          - home_assistant
+        status:
+          type: string
+          enum:
+          - active
+          - reauth_required
+          - revoked
+        owner_user_id: *id006
+        device_id: *id001
+        allowed_calendar_ids:
+          type: array
+          items:
+            type: string
+            maxLength: 1024
+          maxItems: 10
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - provider
+      - status
+      additionalProperties: false
+    IntegrationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Integration'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    IntegrationPatch:
+      type: object
+      properties:
+        allowed_calendar_ids:
+          type: array
+          items:
+            type: string
+            maxLength: 1024
+          maxItems: 10
+      required:
+      - allowed_calendar_ids
+      additionalProperties: false
+      description: 本人のGoogle Calendar連携のみ。付与済みscopeとproviderの閲覧権を検査。
+    HomeIntegrationCreate:
+      type: object
+      properties:
+        device_id: *id001
+        name: *id009
+      required:
+      - device_id
+      - name
+      additionalProperties: false
+      description: HA URL/秘密はPiのローカル設定で管理。クラウドに任意URLを渡さない。
+    HomeInventorySync:
+      type: object
+      properties:
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              external_id:
+                type: string
+                minLength: 1
+                maxLength: 255
+              label: *id009
+              domain:
+                type: string
+                enum:
+                - light
+                - climate
+              supported_actions:
+                type: array
+                items:
+                  type: string
+                  enum:
+                  - light.turn_on
+                  - light.turn_off
+                  - climate.set_temperature
+                  - climate.set_hvac_mode
+                minItems: 1
+                maxItems: 4
+                uniqueItems: true
+            required:
+            - external_id
+            - label
+            - domain
+            - supported_actions
+            additionalProperties: false
+          maxItems: 100
+      required:
+      - entities
+      additionalProperties: false
+      description: そのintegrationに束縛されたPiだけが送信。新規家電はadminがallowlistへ追加するまで実行不可。
+    CalendarTime:
+      oneOf:
+      - type: object
+        properties:
+          date_time: *id008
+          timezone:
+            type: string
+            maxLength: 80
+        required:
+        - date_time
+        - timezone
+        additionalProperties: false
+      - type: object
+        properties:
+          date:
+            type: string
+            format: date
+        required:
+        - date
+        additionalProperties: false
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 1024
+        calendar_id:
+          type: string
+          maxLength: 1024
+        summary: *id009
+        start:
+          $ref: '#/components/schemas/CalendarTime'
+        end:
+          $ref: '#/components/schemas/CalendarTime'
+        etag:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+          maxLength: 4000
+      required:
+      - id
+      - calendar_id
+      - summary
+      - start
+      - end
+      - etag
+      additionalProperties: false
+    CalendarEventPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarEvent'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    CalendarProposalCreate:
+      oneOf:
+      - type: object
+        properties:
+          action:
+            type: string
+            const: create
+          calendar_id: &id027
+            type: string
+            maxLength: 1024
+          summary: *id009
+          start: &id028
+            $ref: '#/components/schemas/CalendarTime'
+          end: &id029
+            $ref: '#/components/schemas/CalendarTime'
+          description: &id030
+            type: string
+            maxLength: 4000
+        required:
+        - action
+        - calendar_id
+        - summary
+        - start
+        - end
+        additionalProperties: false
+      - type: object
+        properties:
+          action:
+            type: string
+            const: update
+          event_id:
+            type: string
+            maxLength: 1024
+          provider_etag:
+            type: string
+            maxLength: 256
+          calendar_id: *id027
+          summary: *id009
+          start: *id028
+          end: *id029
+          description: *id030
+        required:
+        - action
+        - calendar_id
+        - event_id
+        - provider_etag
+        - summary
+        - start
+        - end
+        additionalProperties: false
+      - type: object
+        properties:
+          action:
+            type: string
+            const: delete
+          calendar_id:
+            type: string
+            maxLength: 1024
+          event_id:
+            type: string
+            maxLength: 1024
+          provider_etag:
+            type: string
+            maxLength: 256
+        required:
+        - action
+        - calendar_id
+        - event_id
+        - provider_etag
+        additionalProperties: false
+    CalendarProposal:
+      type: object
+      properties:
+        proposal_id: *id001
+        integration_id: *id001
+        action:
+          type: string
+          enum:
+          - create
+          - update
+          - delete
+        normalized_request:
+          $ref: '#/components/schemas/CalendarProposalCreate'
+        args_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        expires_at: *id008
+        status:
+          type: string
+          enum:
+          - pending
+          - confirmed
+          - executing
+          - succeeded
+          - failed
+          - outcome_unknown
+          - expired
+          - declined
+          - cancelled
+        run_id: *id001
+        tool_call_id: *id001
+        checkpoint_id: *id001
+      required:
+      - proposal_id
+      - integration_id
+      - action
+      - normalized_request
+      - args_hash
+      - expires_at
+      - status
+      additionalProperties: false
+    CalendarConfirm:
+      type: object
+      properties:
+        args_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        confirmed:
+          const: true
+      required:
+      - args_hash
+      - confirmed
+      additionalProperties: false
+    HomeAction:
+      oneOf:
+      - type: object
+        properties:
+          action:
+            type: string
+            const: light.turn_on
+          parameters:
+            type: object
+            properties:
+              brightness_pct:
+                type: integer
+                minimum: 1
+                maximum: 100
+            required: []
+            additionalProperties: false
+        required:
+        - action
+        - parameters
+        additionalProperties: false
+      - type: object
+        properties:
+          action:
+            type: string
+            const: light.turn_off
+          parameters:
+            type: object
+            properties: {}
+            required: []
+            additionalProperties: false
+        required:
+        - action
+        - parameters
+        additionalProperties: false
+      - type: object
+        properties:
+          action:
+            type: string
+            const: climate.set_temperature
+          parameters:
+            type: object
+            properties:
+              temperature_c:
+                type: number
+                minimum: 16
+                maximum: 30
+            required:
+            - temperature_c
+            additionalProperties: false
+        required:
+        - action
+        - parameters
+        additionalProperties: false
+      - type: object
+        properties:
+          action:
+            type: string
+            const: climate.set_hvac_mode
+          parameters:
+            type: object
+            properties:
+              hvac_mode:
+                type: string
+                enum:
+                - 'off'
+                - heat
+                - cool
+                - auto
+            required:
+            - hvac_mode
+            additionalProperties: false
+        required:
+        - action
+        - parameters
+        additionalProperties: false
+    CommandCreate:
+      type: object
+      properties:
+        device_id: *id001
+        target_entity_id: *id001
+        operation: &id031
+          $ref: '#/components/schemas/HomeAction'
+      required:
+      - device_id
+      - target_entity_id
+      - operation
+      additionalProperties: false
+    Command:
+      type: object
+      properties:
+        id: *id001
+        tenant_id: *id001
+        version: *id010
+        created_at: *id008
+        updated_at: *id008
+        device_id: *id001
+        target_entity_id: *id001
+        operation: *id031
+        status:
+          type: string
+          enum:
+          - queued
+          - delivered
+          - accepted
+          - running
+          - succeeded
+          - failed
+          - expired
+          - cancelled
+          - outcome_unknown
+        expires_at: *id008
+        execution_id: *id001
+        observed_state:
+          type: object
+          properties:
+            power:
+              type: string
+              enum:
+              - 'on'
+              - 'off'
+            brightness_pct:
+              type: integer
+              minimum: 0
+              maximum: 100
+            temperature_c:
+              type: number
+            hvac_mode:
+              type: string
+              enum:
+              - 'off'
+              - heat
+              - cool
+              - auto
+          required: []
+          additionalProperties: false
+        error_code:
+          type: string
+      required:
+      - id
+      - tenant_id
+      - version
+      - created_at
+      - updated_at
+      - device_id
+      - target_entity_id
+      - operation
+      - status
+      - expires_at
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            status:
+              const: succeeded
+        then:
+          required:
+          - observed_state
+    CommandPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Command'
+          maxItems: 100
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+      required:
+      - items
+      - next_cursor
+      additionalProperties: false
+    OperationCreate:
+      oneOf:
+      - type: object
+        properties:
+          kind:
+            type: string
+            const: forget_memory
+          target_id: *id001
+          expected_version:
+            type: integer
+            minimum: 1
+          source_policy:
+            type: string
+            enum:
+            - suppress_reuse
+            - delete_source
+        required:
+        - kind
+        - target_id
+        - expected_version
+        additionalProperties: false
+      - type: object
+        properties:
+          kind:
+            type: string
+            const: delete_resource
+          target_type:
+            type: string
+            enum:
+            - conversation
+            - note
+            - task
+            - reminder
+            - entity
+          target_id: *id001
+          expected_version:
+            type: integer
+            minimum: 1
+          include_derived_memories:
+            type: boolean
+            default: true
+        required:
+        - kind
+        - target_type
+        - target_id
+        - expected_version
+        additionalProperties: false
+      - type: object
+        properties:
+          kind:
+            type: string
+            const: export
+          scope:
+            type: string
+            enum:
+            - my_data
+            - visible_tenant_data
+        required:
+        - kind
+        - scope
+        additionalProperties: false
+      - type: object
+        properties:
+          kind:
+            type: string
+            const: delete_tenant
+          confirmation_name: *id009
+        required:
+        - kind
+        - confirmation_name
+        additionalProperties: false
+      - type: object
+        properties:
+          kind:
+            type: string
+            const: leave_tenant
+        required:
+        - kind
+        additionalProperties: false
+    AccountOperationCreate:
+      type: object
+      properties:
+        kind:
+          type: string
+          const: delete_account
+        confirm:
+          const: true
+      required:
+      - kind
+      - confirm
+      additionalProperties: false
+    Operation:
+      type: object
+      properties:
+        operation_id: *id001
+        kind:
+          type: string
+          enum:
+          - forget_memory
+          - delete_resource
+          - export
+          - delete_tenant
+          - leave_tenant
+          - delete_account
+          - calendar_write
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - succeeded
+          - failed
+          - outcome_unknown
+        created_at: *id008
+        updated_at: *id008
+        error_code:
+          type: string
+        download_expires_at: *id008
+      required:
+      - operation_id
+      - kind
+      - status
+      - created_at
+      - updated_at
+      additionalProperties: false
+    Usage:
+      type: object
+      properties:
+        period:
+          type: string
+          pattern: ^[0-9]{4}-[0-9]{2}$
+        turns:
+          type: integer
+          minimum: 0
+        voice_seconds:
+          type: integer
+          minimum: 0
+        remaining_turns:
+          type: integer
+          minimum: 0
+        quota_state:
+          type: string
+          enum:
+          - available
+          - limited
+          - exhausted
+      required:
+      - period
+      - turns
+      - voice_seconds
+      - remaining_turns
+      - quota_state
+      additionalProperties: false
