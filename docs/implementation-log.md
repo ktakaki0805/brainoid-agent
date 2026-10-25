@@ -2267,3 +2267,193 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/22.05秒、全9タスク成功、台帳done15/todo81。
 - 終了: 2026-10-25T21:54:33.072920+00:00。台帳・ログのみを記録コミット。
+
+## ba-iam-08-20261025t215451z
+
+- チケット: BA-IAM-08
+- 状態: done
+- 開始: 2026-10-25T21:54:51.149440+00:00
+- ブランチ / base commit: main / 989d7d82722863af3dd560e59293f1408fef1505
+- 開始時の変更: なし
+- 選択: check成功（done15/todo81）、IDなしnextで依存順の次。依存IAM05/07実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/iam08_implementation`（独立context）。
+- 実装コミット: `7990a2ceb6bfc73a7b743649818b80093f850216`
+
+### 受入条件と検証計画
+
+- device一覧/設定/失効をowner/admin限定、entity allowlist同tenant照合。member許可拡大/他tenant device・entity混入不可。
+- 許可縮小/失効は独立台帳、認可版/connection generation更新、監査。commit後旧accessの新規要求/refresh/private session拒否。
+- 再登録は旧credentialを使わず、待機commandが旧権限で開始しない。T004/API失効/縮小再送/別tenant entity/台帳故障をfake+emulatorで検証、全check/test/契約client/doc整合。
+- socket通知と60秒終了DEV03/04、local初期化/credential消去DEV02/09は対象外。追加外部前提なし。
+- IAM07任意N1: connection_generation変更はrefresh familyも無効。通常再接続時generationを進めるDEV03で資格情報更新方式と同時設計する。
+
+### 端末変更・再登録の方針
+
+- device repository/route、表示設定versionと整数認可版を分離。名前だけの変更はcredential維持、scope/entity/room変更・失効は台帳sameop再送+generation増分で旧family/保存grantを停止。entity検証はpairing確認とも共通化。端末設定/失効への追加再認証は正本が要求しないため付けない。
+- 再登録は同tenant固定、旧deviceは最新台帳committed revoked維持、同installation新pairingを明示再登録flagでowner/admin承認し新UUIDへ継承。old device履歴を残し、index旧値比較と新device/後継index更新を原子的にする。縮小後は明示revoke→再登録を要求する。
+- 親から並行再登録1結果/sameop増発なし、旧exchange receipt/refresh/access/保存commandの新ID移行拒否、DeviceTarget拡張時schema1読取/再送互換と復元停止条件を検証するよう共有。
+
+### 初回実装・互換境界
+
+- device CRUD、per-device予約/固定operation、台帳先行変更、通常version/認可version分離、共通DeviceBindingを追加。既存台帳15test成功。
+- DeviceTarget schema1は変更せず、AuthzChanges初回device DB適用時にgenerationを1回増分、sameop再送では増分なし。再登録はreplaces_device_id一致・最新台帳revoked・同tenantを要求しindexを原子的更新。
+- 未交換pairingが設定変更後に新権限を受け取らないよう確認時の版/generationを固定。親から古confirm/exchange receiptの復活拒否とrestoreの認可版/epoch/新IDによる遮断をtest/docへ含めるよう共有。
+
+### 初回setup・全test結果
+
+- setup成功（sandbox mise shim readonly後、通常権限）。mise test Python180（追加fake8）/Skill18/Node39成功。
+- fake: owner/admin/越境、名前のみcredential維持、縮小途中台帳故障・actor再認可、commit応答喪失sameop、revoke後private session/保存worker output拒否、明示再登録、未交換pairing、reapplyを確認。
+- docs/devices.md/関連doc/API/client更新済み。emulator実行中に1失敗表示があり詳細調査・修正待ち（未合格）。全check9/最終点検も残る。
+
+### Emulator初回失敗の範囲
+
+- 初回emulator59件中IAM08追加5件はすべて成功。失敗は既存IAM07 five_concurrent_guessesの応答一覧期待1件、初回ログでは詳細なし。
+- 製品を変えずassertionへ実応答一覧を付加し再実行中。親から期待を緩めずstatus/error code/counterを確認、再成功でも初回失敗と原因不明範囲を残すよう共有。
+- checkはmypy94/format/lint/docs/契約/client/互換性等成功、最終完了待ち。cursor変更・entity grant→denyのfake2負例追加後、最終全testを実行予定。
+
+### 最終test・emulator再実行途中
+
+- 最終test Python182/Skill18/Node39成功（IAM08追加fake10件）。check再実行中、mypy94/ruff/docs/互換性成功、残り待ち。
+- emulator再実行は前回不一致の5同時誤入力を含む前半を通過、全体完了待ち。期待の緩和なし。初回不一致原因は未確定で、再発時に実応答一覧を表示するassertionを保持。
+- 実装担当は差分点検済み・現在編集停止、最終コマンド完了後にreview対象を固定する。
+
+### 実装完了・最終検証
+
+- `/root/iam08_implementation` が編集停止。setup成功、最終check9/mypy94成功、test Python182/Skill18/Node39成功、emulator再実行59件70.304秒成功。期待の緩和なし、初回既存1件失敗原因は不明として保持。
+- 最後にdocs/devices.mdのETag status表記を412へ訂正。diff --check成功。新fake10/emulator5、secretを含まない診断assert追加を含む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam08_review_r1`（新規独立context）。base commit: `989d7d82722863af3dd560e59293f1408fef1505`。
+- 製品24files最新差分全体、親台帳/logのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `2c187e84e34c9fcd739a4fa8683de35aac529e42520fd389451d6979588e94ea` |
+| `docs/04-interfaces.md` | `6f34d7106b4ca082c262ab0f2ec0c442987bde515873ecdd9b4be5498b7b55f5` |
+| `docs/control-ledger.md` | `14b300b6ce0c2b8c7974fa7523afc11eb2bcb67e62b0ef564255882f8b301de6` |
+| `docs/device-pairing.md` | `e62dbb7df74f5fc1030324903a532cd83437c1ed7a281db3925407b0cecba980` |
+| `docs/devices.md` | `37185e60f6b700f195991b3d9915ee1d032291920779e706ffbb22521e5019a6` |
+| `packages/api-client/src/generated/index.d.ts` | `8c127c725b36b2172a5ab532125d1f778b8c966e3c5eed5521fd437b7bbc61c8` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b37265ce35371fd2ab230ca1b63a14d619a4db897d9f8ad4a3a5aa0150cddfc4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `f9c3d1a397c2c4d405a0c96bdd187d2c946ce0942f4453ad0d5ddcb12fae7bd6` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `d366a8bc66c7aafceccc27c391defd7bb9589186152a9c9b7ef2dd8beebe0cf0` |
+| `services/api/src/brainoid_api/app.py` | `066f93ab6a7e93dac51486a726df321103ffa77399399b09532689f348a8779a` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `d56b2d5284e2033fd2fd9022fba98ebea33c0c707d79657af2020e8543f5946e` |
+| `services/api/src/brainoid_api/repositories/authz_changes.py` | `83d4b4d58674a582748fbb1268b6fa6631c3a383d24859b5164ca1f1dce58795` |
+| `services/api/src/brainoid_api/repositories/device_credentials.py` | `ae3e442fbcdce3004af1b42d5c3f92bd17b4104cb2e07cb459686560e4a5ae26` |
+| `services/api/src/brainoid_api/repositories/devices.py` | `4191ee98a08f50f01c632e5f3064a1400cfa1673337de93e5daa1ecea2aff984` |
+| `services/api/src/brainoid_api/routes/device_pairings.py` | `5f4b4f0787c764a915d599c56c8ace5ee9c2ab4617108b1c4619305c00ddc798` |
+| `services/api/src/brainoid_api/routes/devices.py` | `b75de8b9717ef845e832e95b3b6c22f72a834e88489bbf8696b7c870d3b94b6f` |
+| `services/api/src/brainoid_api/services/__init__.py` | `a44c6d93cd2bb7e9451367f180ed856916ae33e8c81326d659a33311eb303c33` |
+| `services/api/src/brainoid_api/services/device_authorization.py` | `e108f799d23b31c6128ee3c71dc8ab9eab93abcf2ca42d6c37e1ddeec5bb14c4` |
+| `specs/openapi.yaml` | `7fa0cd7a608e4e0828729157a9f19fb0163f2be81fda5f67dfcefcf7be7e870c` |
+| `tests/emulator/test_device_pairing_integration.py` | `9d7b524cc1462358ded110db10c6f29e1fc2b9e80ea904853042e714ead172ad` |
+| `tests/emulator/test_devices_integration.py` | `00491fc73749768e5624e6424f7ce1ae6645aa1393763c119834e4374feb132f` |
+| `tests/fixtures/tenants/demo.json` | `7228ca58a03432c7e526dbe2851ce698301a42640c48b258f7ce92bdb0176048` |
+| `tests/test_device_pairing.py` | `d4b8131f2641c760e9c3887be09eeb7f154afc752157078ac8424ff46e7b96f4` |
+| `tests/test_devices.py` | `556ab2d14fcfb985815e62213eb8f70a3cf90b0e7ec0bffff5e3d753a58283c7` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/iam08_review_r1` が開始時main/base/24files全SHA一致を確認。正本・製品/試験差分を静的確認中、新fake10件を直接実行して全成功。
+- IAM07既報競合失敗についてtransaction retry上限5回の可用性要因を仮説として、同test反復emulator probeで実応答を採取予定。現時点で原因確定なし、対象編集なし。
+
+### 競合失敗の独立再現途中
+
+- reviewerの直接emulatorでIAM08追加5件すべて成功。既存IAM07同時5誤入力test15回反復の途中で成功2/失敗2を再現。
+- 応答一覧はunittest終了時出力待ち。再現可能性は確認したが原因/指摘判定はまだ未確定。
+
+### 競合失敗の独立反復結果
+
+- reviewer emulator probe: IAM08新5/5成功、IAM07同時誤入力15回中8成功/7失敗。失敗はすべて4件resource_not_found+1件temporarily_unavailable。20実行151.453秒、exit1、emulator停止。
+- この観測を初回未記録失敗の原因確定とは扱わない。基点版でも同503を再現し、phase/SDK例外/DB回数を採取して差分との関連を確認中。
+- 親から製品の認可/回数不備と正当なretryable503を扱わないtestの問題を区別し、既存由来でも必須emulator検証を安定実行できる対応条件として提示するよう依頼。
+
+### 基点比較での503原因と失効状態
+
+- reviewerが基点Repositoryでも同失敗を再現（4回目）。503 phaseはDeviceCredentialRepository._rate.admit、APIError context ValueError/cause Aborted。
+- このprobeでDB failures4/status pending、未完了1要求を再試行後は5/expired、正しいcodeもresource_expired。認可/5回上限の破りは観測されず、元からあるrate tx競合に対し初回全404を要求する試験側問題と判断。
+- R1必須P2として、503を成功扱いにせず有界再試行で5件の確定拒否/失効を検証し、対象反復と全emulator再検証を求める予定。現在版比較の終了・最終判定待ち。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/iam08_review_r1`: request_changes。製品の認可欠陥は未検出、必須検証安定化1件、任意なし。24files全差分/正本/周辺、開始/終了main/base/対象/SHA、index空/diff --check一致成功。
+- R1 P2: tests/emulator/test_device_pairing_integration.py:210。同時誤入力15回中7回が404×4+503×1。基点でもrate.admit ValueError←Aborted再現、DB4/pendingから未完了1要求再試行で5/expired・正しいcode拒否。今回回帰/認可破りではないが、正当なretryable503を有界再試行し最終5確定拒否・失効を確認するtestへ修正。503を成功扱いにするassert緩和は不可。対象反復+全emulator再検証を要求。最初の未記録失敗の原因は依然未確定。
+- ACのowner/admin/tenant/entity/room境界、予約/固定Change/deny/版generation/currentguard、旧資格情報/session/worker/output拒否、sameop増分防止、同tenant同installation新UUID再登録と旧binding不移行は確認。
+- 直接: 新fake10/既存台帳15/新emulator5成功、基点4回/現在版4回比較probe。tmp /tmp/ba-iam-08-r1-{emulator,baseline}-probe.py。emulator停止済み。setup/check9/test182+18+39/全emulator59成功は提供証跡。
+- 元実装担当へR1修正返却。
+
+### R1修正・反復途中
+
+- 初回503の要求だけ同body/keyで最大3回追加再試行、最終5件すべてresource_not_found、DB failures5に加えてstatus expired、正しいcode拒否を維持。製品/SDK retry設定変更なし。
+- 修正後check9/mypy94/test Python182/Skill18/Node39成功。対象15回反復の最初4回成功、2〜4回目で実503計6件を観測しretry経路を実行。残り反復+全emulator待ち。
+
+### R1対象反復の結果
+
+- 対象15/15回成功。6回の試行で実503計10件を観測し同要求を有界再試行。全15回で5件確定resource_not_found、DB failures5/expired、正しいcode拒否・期限境界を確認。
+- probe /tmp/ba-iam-08-r1-retry-verification.py（応答codeのみ集計、製品差替えなし）。全59件emulatorを開始。
+
+### R1修正完了・最終検証
+
+- 実装担当編集停止。r1からtest_device_pairing_integration.pyのみ変更、製品/SDK/期限/上限変更なし。対象15反復成功（実503計10件）、全emulator59件74.351秒成功・停止、check9/mypy94/test182+18+39/diff --check成功。初回未記録失敗原因は未確定のまま記録。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/iam08_review_r2`（新規独立context）。base commit: `989d7d82722863af3dd560e59293f1408fef1505`。
+- 最新差分全24filesをレビュー、修正箇所のみで終了しない。親台帳/log除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `2c187e84e34c9fcd739a4fa8683de35aac529e42520fd389451d6979588e94ea` |
+| `docs/04-interfaces.md` | `6f34d7106b4ca082c262ab0f2ec0c442987bde515873ecdd9b4be5498b7b55f5` |
+| `docs/control-ledger.md` | `14b300b6ce0c2b8c7974fa7523afc11eb2bcb67e62b0ef564255882f8b301de6` |
+| `docs/device-pairing.md` | `e62dbb7df74f5fc1030324903a532cd83437c1ed7a281db3925407b0cecba980` |
+| `docs/devices.md` | `37185e60f6b700f195991b3d9915ee1d032291920779e706ffbb22521e5019a6` |
+| `packages/api-client/src/generated/index.d.ts` | `8c127c725b36b2172a5ab532125d1f778b8c966e3c5eed5521fd437b7bbc61c8` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `b37265ce35371fd2ab230ca1b63a14d619a4db897d9f8ad4a3a5aa0150cddfc4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `f9c3d1a397c2c4d405a0c96bdd187d2c946ce0942f4453ad0d5ddcb12fae7bd6` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `d366a8bc66c7aafceccc27c391defd7bb9589186152a9c9b7ef2dd8beebe0cf0` |
+| `services/api/src/brainoid_api/app.py` | `066f93ab6a7e93dac51486a726df321103ffa77399399b09532689f348a8779a` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `d56b2d5284e2033fd2fd9022fba98ebea33c0c707d79657af2020e8543f5946e` |
+| `services/api/src/brainoid_api/repositories/authz_changes.py` | `83d4b4d58674a582748fbb1268b6fa6631c3a383d24859b5164ca1f1dce58795` |
+| `services/api/src/brainoid_api/repositories/device_credentials.py` | `ae3e442fbcdce3004af1b42d5c3f92bd17b4104cb2e07cb459686560e4a5ae26` |
+| `services/api/src/brainoid_api/repositories/devices.py` | `4191ee98a08f50f01c632e5f3064a1400cfa1673337de93e5daa1ecea2aff984` |
+| `services/api/src/brainoid_api/routes/device_pairings.py` | `5f4b4f0787c764a915d599c56c8ace5ee9c2ab4617108b1c4619305c00ddc798` |
+| `services/api/src/brainoid_api/routes/devices.py` | `b75de8b9717ef845e832e95b3b6c22f72a834e88489bbf8696b7c870d3b94b6f` |
+| `services/api/src/brainoid_api/services/__init__.py` | `a44c6d93cd2bb7e9451367f180ed856916ae33e8c81326d659a33311eb303c33` |
+| `services/api/src/brainoid_api/services/device_authorization.py` | `e108f799d23b31c6128ee3c71dc8ab9eab93abcf2ca42d6c37e1ddeec5bb14c4` |
+| `specs/openapi.yaml` | `7fa0cd7a608e4e0828729157a9f19fb0163f2be81fda5f67dfcefcf7be7e870c` |
+| `tests/emulator/test_device_pairing_integration.py` | `ac1a735b7c2acf592fbb2d92726dcc54b203500172fb6222105f32295dc8f3fa` |
+| `tests/emulator/test_devices_integration.py` | `00491fc73749768e5624e6424f7ce1ae6645aa1393763c119834e4374feb132f` |
+| `tests/fixtures/tenants/demo.json` | `7228ca58a03432c7e526dbe2851ce698301a42640c48b258f7ce92bdb0176048` |
+| `tests/test_device_pairing.py` | `d4b8131f2641c760e9c3887be09eeb7f154afc752157078ac8424ff46e7b96f4` |
+| `tests/test_devices.py` | `556ab2d14fcfb985815e62213eb8f70a3cf90b0e7ec0bffff5e3d753a58283c7` |
+
+### 独立レビュー ラウンド2 途中確認
+
+- `/root/iam08_review_r2` が開始時main/base・24files対象集合・全SHA一致を確認。AGENTSなし、CONTRIBUTING/DoD/IAM08/FR003/T004/関連設計確認済み。全コード差分/新規全文/既存認可境界を追跡中。
+
+### 独立レビュー ラウンド2 全check/test
+
+- reviewer直接check9 exit0/22.26秒mypy94、全test Python182件14.319秒/Skill18/Node39成功。全emulator59実行中。
+- 全24差分/新規全文/周辺境界確認済み、現時点で必須/任意指摘なし。R1は503のみ最大3追加retry、最終全RESOURCE_NOT_FOUND/failures5/expired/正code拒否維持を確認。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/iam08_review_r2`: approve。必須/未検証必須/任意なし、R1 P2解消。全24差分/新規/関連正本/周辺を確認、開始/終了main/base/対象集合/SHA一致、index空/diff --check成功。
+- 現owner/admin/tenant/canonical entity-room・再送認可、device永続予約/固定Change/先行deny/版generation・二重増分防止、旧資格情報/未exchange/command/private/output拒否、同tenant-installation新UUID/index原子更新/旧device維持を確認。
+- R1は503のみ同body/key最大3追加retry、5件確定RESOURCE_NOT_FOUND/DBfailures5-expired/正code拒否/期限境界を維持し、503を成功扱いしていない。
+- 直接: check9/mypy94/22.26秒、全test Python182(14.319秒)/Skill18/Node39、明示emulator59件69.908秒・停止。setupと15反復成功/実503計10は提供証跡。初回未記録失敗原因は未確定として保持。
+- レビュー2回、未解決要修正指摘ゼロ。
+
+### 完了結果 (2026-10-25T22:24:33.651238+00:00)
+
+- BA-IAM-08: owner/admin端末CRUD、権限/版generation/台帳と予約、古資格情報・private/保存command拒否、明示同tenant-installation新ID再登録、未交換pairing固定を実装。
+- setup/check9/test182+18+39/emulator59成功、独立レビュー2回・R1修正後approve。既存競合testは503有界retryで最終失効条件維持、15反復成功/実503計10。reviewerも全check/test/emulatorを直接成功確認。
+- 実装コミット: `7990a2ceb6bfc73a7b743649818b80093f850216`（feat(devices): BA-IAM-08 add permission changes and revocation）。
+- 承認済み24filesのみmainへstage、cached diff/--check/index hash、commit後対象・内容・worktree一致を確認。hook変更なし。未解決必須/任意なし。
+- 縮小後の再接続はrevoke→新pairing承認が必要。socket/60秒終了/Pi秘密消去/実復元・配備は後続。初回未記録emulator失敗原因の断定はせず、独立probeで明らかになった既存retryable503と区別して記録済み。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.93秒、全9タスク成功、台帳done16/todo80。
+- 終了: 2026-10-25T22:25:10.141244+00:00。台帳・ログのみを記録コミット。
