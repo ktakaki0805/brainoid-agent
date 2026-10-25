@@ -1244,3 +1244,117 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.88秒、全9タスク成功、台帳done7/todo89。
 - 終了: 2026-10-25T19:07:48.511628+00:00。台帳・ログのみを記録コミット。
+
+## ba-fnd-08-20261025t190813z
+
+- チケット: BA-FND-08
+- 状態: done
+- 開始: 2026-10-25T19:08:13.379889+00:00
+- ブランチ / base commit: main / 7131cd8617bb13e11160cc68e07e5da92ceac0b6
+- 開始時の変更: なし
+- 選択: check成功（done7/todo89）、IDなしnextで依存順の次。依存FND-02/03/05実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/fnd08_implementation`（独立context）。
+- 実装コミット: `e078b8e17645cb792ecfdcc8eec82cc6d9af5c78`
+
+### 受入条件と検証計画
+
+- tenant/actor/operation/keyと正規化body hashに束縛し24時間保持。同キー同bodyは同結果、異body409。
+- ETag/If-Match、欠落428・古い版412、原子的version比較更新で競合双方を成功にしない（T-012）。
+- cursorをtenant/actor/query/認可版へ束縛し、現在認可済みscopeを必須入力とする。再送でも認可を通し、別scope/失効後の結果を返さない。
+- emulatorで同時作成・応答喪失後再送・body差替え・版競合とcursor拒否を検証。全mise check/test、必要なemulator検証。
+- 各業務状態遷移は後続。token発行秘密を汎用cacheへ入れない。追加の外部前提なし。
+
+### 共通処理の境界方針
+
+- API commonへFirestore SDK transaction adapter、冪等実行、version比較更新、HMAC署名cursorを分離する方針。
+- 冪等記録と業務DB writeを同一transactionで確定し、再送/transaction再試行ごとに現在認可callbackを必須化。固定TenantContextだけでは失効を検出できないため保存scope/認可版も照合。
+- 再試行されるcallbackで外部副作用を直接実行せずDB transactionに限定する制約を文書・検証へ反映する。token発行秘密は汎用cache対象外の結果型とする。
+- 公式google-cloud-firestoreのAPI実行依存固定を検討し、公式情報・license等を記録、実emulatorで競合/応答喪失を検証予定。
+
+### 初版と認可束縛の検討
+
+- 共通処理初版を追加。現在認可callbackとprivate session期限を各試行で検査、resource scope/owner、actor認可版、session identityを束縛する方針。
+- MutationResultは成功status/resource・operation UUID/versionのみで、秘密や業務本文を受け取らない。本文取得は後続routeが再認可する。
+- google-cloud-firestore 2.34.1をAPI実行依存へuv addで固定。実装担当が公式metadataでApache-2.0/Python>=3.10/Production-Stable、google-cloud-python移管を確認。
+- 親から同sessionのidle期限更新による正当再送拒否の懸念を伝達。不変identityの束縛と現在期限の検査を分離する必要性を検討し、session交代/失効/期限更新後の再送を検証する。
+
+### 初回unit検証
+
+- 実装担当のunit10件成功。body順序/409、24h境界、tenant・actor・operation・key分離、現在認可失効、scope/owner/認可版拒否、retry/rollback、秘密型拒否、ETag、cursor改ざん/束縛/失効を確認。
+- session ID/userはhashへ残しabsolute/idle期限を除外。現在の両期限は都度検査し、同sessionの活動による期限延長後は再送/cursor成功、交代/失効は拒否するテストを追加。
+- SDK導入完了。実emulatorで同時create、T-012競合、応答喪失、認可DB失効の検証へ進む。
+
+### 初回emulator検証と再送対象の補完
+
+- 実emulator初回10件（追加7/既存seed3）成功、9.269秒。strict mypy45source成功。
+- 同時同body作成の収束/異body409、実commit後の応答喪失と新helperでの復旧、T-012 owner/admin同版更新の単一成功、認可失効・認可版・scope変更、TTL/rollback/cursorを検証。
+- 初回成功後の境界補完: create済みresourceの現在scope/deletionを再送時に確認できるよう、保存receiptを認可callbackへ渡す仕組みを追加する。初回認可→record取得→receipt対象再認可。変更後再検証が必要。
+
+### 補完後の全体検証
+
+- 実装担当からsetup成功/uv・pnpm両lock SHA256不変、mise check全工程成功（mypy45source/docsリンク0errors）、mise test Python65/Skill18/Node38全成功の報告。
+- 最終実emulator11件（追加8/既存3）が14.237秒で成功。receipt対象の現在認可を検査し、生成resourceのscope変更/削除後にcache結果を返さないことを確認。
+- 編集停止・詳細報告を受領後にreview manifestを固定する。
+
+### 実装完了と検証詳細
+
+- `/root/fnd08_implementation` が編集停止。common7module・unit10・emulator8・文書/依存/既存task説明を変更。
+- `uv add --package brainoid-api 'google-cloud-firestore==2.34.1' brainoid-contracts`: 最初sandbox DNS制限後、escalationで固定導入成功。
+- `mise run setup`: 成功、前後sha256sumで両lock不変。ruff format/check成功、mypy45source成功、unit単独10成功。
+- `mise run check`: 全工程成功、文書リンク0errors、生成差分/契約破壊なし。`mise run test`: Python65/Skill18/Node38全成功。
+- `.env.emulator.example`読込後 `mise run test-emulator`: 最終11件（追加8/既存3）成功14.237秒、自動停止を確認。diff --checkと新規10ファイル空白/最終改行成功。
+- 途中の型検査でtest module名重複/enum型/SDK未型付けconstructorを修正済み。初回emulator10成功後、receipt再認可と削除拒否を追加して11件再実行。
+- SDK公式metadata: Python>=3.10/Apache-2.0/Google保守Production-Stable。旧単独repo archiveと現行monorepo移管を文書化。[公式PyPI](https://pypi.org/project/google-cloud-firestore/2.34.1/)、[現行source](https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-firestore)、[transaction仕様](https://firebase.google.com/docs/firestore/manage-data/transactions)。
+- 本番接続/TTL policy配備/業務route/IAM本体/外部provider操作は本チケット対象外。汎用cacheは秘密・業務本文を保持せずreceiptだけを保存。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/fnd08_review_r1`（新規独立context）。base commit: `7131cd8617bb13e11160cc68e07e5da92ceac0b6`
+- 最新製品差分全体、親の台帳・ログのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `05854e122a32da2a578c46f19a8dc16bf053366c43ffd34760bf332acc9cb346` |
+| `docs/common-mutations.md` | `15755bbb8a9ed1ae88b40b9627a6ca0a5029141ec10f73fb8c18f230c0e63bb4` |
+| `docs/toolchain.md` | `426426c34357462416c84104e4e72ca5668b15d24d3f4a3b270aca35213e18c7` |
+| `mise.toml` | `b85898b81a3f40cc9830ad7c306b5c4da012d851cd69350454b61a503acef344` |
+| `services/api/pyproject.toml` | `6cb8ebe3dea3b0313a5d396ca4300b9040b42fe7b4dca34c877c0b3aada09a96` |
+| `services/api/src/brainoid_api/common/__init__.py` | `f42ada65f09d853303a7ac54bf74031b24555a29713b2def51aa26dcab6ac077` |
+| `services/api/src/brainoid_api/common/access.py` | `e250f3ddc2f32e393cded4d67eae43815b35f8eaca5b35fab53c7eb12e54280a` |
+| `services/api/src/brainoid_api/common/firestore.py` | `553d2730452129ad71c5a5eab8b1c8dc401c99fd527dbff59279b757f81424ef` |
+| `services/api/src/brainoid_api/common/idempotency.py` | `377ff1229debbb134d9ce0d22dbb6ad2be494340286eb6015051688dcfcc5a82` |
+| `services/api/src/brainoid_api/common/pagination.py` | `aadd46fd7c6a37f0cc3964627f7ba1878e58c9dbe68f8256729fa40536616708` |
+| `services/api/src/brainoid_api/common/transactions.py` | `d4786de3d25a4404f71e22a4e6c3e68b8c8573e91907ed1922ecbf6663c72a57` |
+| `services/api/src/brainoid_api/common/versioning.py` | `62004569cc5af24ed126000280e25961d61203fea9b4d977f8f45dfbf49b079d` |
+| `services/api/src/brainoid_api/errors.py` | `cb6d855715ccd38410a5af0a15e87a09bb74123372ed19a7cad4db58c63383ed` |
+| `tests/emulator/test_common_mutations_integration.py` | `e1c3d2c39ffae62d6fbebdd31dfb55bb5476346d51085d963e5b352fc59fbc33` |
+| `tests/test_common_mutations.py` | `87f580067a40e5f959244f254f914182209fb43abafb554a96009ae77ecb9e7a` |
+| `uv.lock` | `9fbc3ef641ba8286addccdd9653773a6577bc270d3be5456effcea403c3d74a5` |
+
+### 独立レビュー ラウンド1 途中経過
+
+- `/root/fnd08_review_r1` が開始時16製品ファイルhash/base/main一致を確認。作業規約、仕様、common実装、実emulator testを照合。
+- transaction内の現在認可、receipt対象再認可、秘密除外を確認。SDK retry/commit失敗境界・cursor入力境界・直接unit検証を継続中。必須指摘は未確定。
+
+### 独立レビュー ラウンド1 直接検証
+
+- common unit10件、mise check全9タスクexit0（21.89秒）を直接確認。
+- 導入済SDK2.34.1 sourceのretry/rollback、adapterの503変換を照合。lock差分はFirestore追加と推移依存のみで既存版変更なし。
+- 必須修正なしとの途中報告。実emulator/全test/setupは提供実行結果として区別し、終了時hash確認後に最終判定予定。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/fnd08_review_r1`: approve。確認済みレビュー1回、必須/任意指摘なし、開始/終了時16ファイルhash一致。
+- 24h冪等/同body同結果・異body409、If-Match428/412・原子更新、cursor認可/query束縛、再送対象再認可と削除拒否、秘密receipt除外・DB同時commit・rollbackを確認。
+- 直接検証: common unit10成功、mise check全9成功21.89秒、diff --check、SDK source/lock/関連schema確認。setup/test65+18+38/emulator11成功は提供結果とテスト内容を照合。
+- 必須受入ケース不足なし。IAM本体/業務route/TTL配備等の後続境界も文書に明示。未解決必須条件なし。
+
+### 完了結果 (2026-10-25T19:24:19.769789+00:00)
+
+- BA-FND-08: 原子的な24h冪等処理/版比較更新、現在認可に束縛したcursor・再送の共通部品。全check9タスク、test65+18+38、実emulator11成功。独立レビュー1回approve、未解決必須指摘なし。
+- 実装コミット: `e078b8e17645cb792ecfdcc8eec82cc6d9af5c78`（feat(api): BA-FND-08 add atomic mutations and bound cursors）。
+- 承認済み16ファイルのみをmainへstage、cached diff/--checkとindex hash一致を確認。commit後の対象・内容・worktree一致、hook変更なし。
+- 同時作成・異body・応答喪失・T-012・現在認可/削除/権限変更/TTL/rollbackを検証。汎用receiptは秘密/本文を保存せず、業務route/IAM/TTL配備は後続。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.87秒、全9タスク成功、台帳done8/todo88。
+- 終了: 2026-10-25T19:24:46.652148+00:00。台帳・ログのみを記録コミット。
