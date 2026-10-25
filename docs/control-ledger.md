@@ -40,7 +40,7 @@ IAM-04 で tenant/招待 API、IAM-06 で会員管理 API に同じ ledger を�
 
 初回 tenant/owner 作成（IAM-03）にはまだ台帳がない。通常稼働での導入時に限り、信頼された構成で `allow_untracked_bootstrap=True` を選べる。これは台帳が存在せず DB に authorization_operation_id/authorization_change もない主体にだけ現在の DB 権限を使う互換モードであり、追跡済み主体の台帳欠落や台帳障害を無視しない。初回の変更は DB の現在版を anchor に固定する。新規所属は存在しない状態の `expected_version=0` から始める。復元環境ではこの互換モードを使わず、既存の未記録 owner を安全とみなさない。
 
-device の台帳は認可状態だけを記録する。秘密 credential や token は復元しない。IAM-07/08 は credential/token を現在の認可版や credential generation へ束縛し、古い認証値を拒否する必要がある。OPS-07 の隔離復元では device credential と個人 session を失効させ、再登録を要求する。確定 grant の再適用は、backup 内の旧 credential を再利用してよいという証明ではない。
+device の台帳は認可状態だけを記録する。秘密 credential や token は復元しない。IAM-07 の[端末資格情報](device-pairing.md)は credential/token を現在の認可版・connection generation・独立設定のcredential epochへ束縛し、exchange/refresh/認証で最新guardを読む。IAM-08 は失効・設定変更を同じ版/generation境界へ接続する。OPS-07 の隔離復元では device credential と個人 session を失効させ、再登録を要求する。確定 grant の再適用は、backup 内の旧 credential を再利用してよいという証明ではない。
 
 ## 3. 再試行と隔離復元
 

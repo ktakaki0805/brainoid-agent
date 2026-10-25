@@ -124,25 +124,25 @@ export declare const updateAgent: <ThrowOnError extends boolean = false>(options
 /**
  * 未登録Piが短命ペアリングを開始
  *
- * 未認証endpoint。IP/installation rate limit、5分失効。poll_secretをログへ出さない。
+ * Piサービス用の未認証endpoint。IP/installation rate limit、5分失効。同installation_nonceとIdempotency-Key・本文の再送は期限内に同じ秘密応答を返す。poll_secretはPiサービスだけで保持し、ブラウザ・ログへ出さない。
  */
 export declare const createDevicePairing: <ThrowOnError extends boolean = false>(options: Options<CreateDevicePairingData, ThrowOnError>) => RequestResult<CreateDevicePairingResponses, CreateDevicePairingErrors, ThrowOnError>;
 /**
  * スマホ管理者が物理端末を確認して登録
  *
- * スマホ管理者が物理端末を確認して登録
+ * owner/adminのみ。8文字codeの前半4文字で対象を検索し後半を照合する。対象ごとに5回の照合失敗で失効。未知selectorもIP/actor制限。同一確認再送のみ同deviceを返し、既登録installationの再登録・他tenant移管は409。応答に秘密は含めない。
  */
 export declare const confirmDevicePairing: <ThrowOnError extends boolean = false>(options: Options<ConfirmDevicePairingData, ThrowOnError>) => RequestResult<ConfirmDevicePairingResponses, ConfirmDevicePairingErrors, ThrowOnError>;
 /**
  * Piがpoll_secretで一回だけ資格情報を受取る
  *
- * 未承認は409 pairing_pending。poll_secret不一致は404。期限切れ410。一回利用。
+ * 未承認は409 pairing_pending。poll_secret不一致は404。期限切れ410。一度だけ発行し、同じIdempotency-Keyとpoll_secretの再送は発行後60秒かつpairing期限内だけ同じ資格情報を返す。refresh後の旧exchangeは410。新しいキーで再発行しない。
  */
 export declare const exchangeDevicePairing: <ThrowOnError extends boolean = false>(options: Options<ExchangeDevicePairingData, ThrowOnError>) => RequestResult<ExchangeDevicePairingResponses, ExchangeDevicePairingErrors, ThrowOnError>;
 /**
  * Pi専用credentialを更新
  *
- * refresh_token自体を検証。短い同一refresh_request_id再送猶予とreuse検知を実装。
+ * refresh_token自体を検証しtenant/deviceへ束縛。accessは15分、refresh familyは初回発行から30日。各rotationは新しいrefresh_request_idとIdempotency-Keyを生成し、応答喪失時は同じ値・同じ本文を60秒未満だけ再送する。旧tokenの別要求または猶予後の再利用はfamily全体を停止する。同request-idの別本文は409。並行した別rotationは再利用として停止するためPiは直列更新する。
  */
 export declare const refreshDeviceToken: <ThrowOnError extends boolean = false>(options: Options<RefreshDeviceTokenData, ThrowOnError>) => RequestResult<RefreshDeviceTokenResponses, RefreshDeviceTokenErrors, ThrowOnError>;
 /**

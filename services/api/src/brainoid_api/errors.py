@@ -25,6 +25,7 @@ class ErrorCode(StrEnum):
     RESOURCE_NOT_FOUND = "resource_not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
     CONFLICT = "conflict"
+    PAIRING_PENDING = "pairing_pending"
     IDEMPOTENCY_CONFLICT = "idempotency_conflict"
     RESOURCE_EXPIRED = "resource_expired"
     VERSION_CONFLICT = "version_conflict"
@@ -51,6 +52,7 @@ ERRORS = {
     ErrorCode.RESOURCE_NOT_FOUND: ErrorDefinition(404, "Resource not found."),
     ErrorCode.METHOD_NOT_ALLOWED: ErrorDefinition(405, "Method not allowed."),
     ErrorCode.CONFLICT: ErrorDefinition(409, "Request conflicts with the current state."),
+    ErrorCode.PAIRING_PENDING: ErrorDefinition(409, "Pairing awaits confirmation.", True),
     ErrorCode.IDEMPOTENCY_CONFLICT: ErrorDefinition(
         409, "Idempotency key was used with another body."
     ),

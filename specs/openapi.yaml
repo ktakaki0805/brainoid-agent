@@ -621,11 +621,11 @@ paths:
     post:
       operationId: createDevicePairing
       summary: 未登録Piが短命ペアリングを開始
-      description: 未認証endpoint。IP/installation rate limit、5分失効。poll_secretをログへ出さない。
+      description: Piサービス用の未認証endpoint。IP/installation rate limit、5分失効。同installation_nonceとIdempotency-Key・本文の再送は期限内に同じ秘密応答を返す。poll_secretはPiサービスだけで保持し、ブラウザ・ログへ出さない。
       security: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功。Cache-Controlはno-store。
           content:
             application/json:
               schema:
@@ -637,7 +637,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       parameters:
-      - *id002
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+        description: 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
       requestBody:
         required: true
         content:
@@ -648,12 +655,12 @@ paths:
     post:
       operationId: confirmDevicePairing
       summary: スマホ管理者が物理端末を確認して登録
-      description: スマホ管理者が物理端末を確認して登録
+      description: owner/adminのみ。8文字codeの前半4文字で対象を検索し後半を照合する。対象ごとに5回の照合失敗で失効。未知selectorもIP/actor制限。同一確認再送のみ同deviceを返し、既登録installationの再登録・他tenant移管は409。応答に秘密は含めない。
       security:
       - userBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功。Cache-Controlはno-store。
           content:
             application/json:
               schema:
@@ -669,7 +676,14 @@ paths:
         in: path
         required: true
         schema: *id001
-      - *id002
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+        description: 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
       requestBody:
         required: true
         content:
@@ -680,11 +694,11 @@ paths:
     post:
       operationId: exchangeDevicePairing
       summary: Piがpoll_secretで一回だけ資格情報を受取る
-      description: 未承認は409 pairing_pending。poll_secret不一致は404。期限切れ410。一回利用。
+      description: 未承認は409 pairing_pending。poll_secret不一致は404。期限切れ410。一度だけ発行し、同じIdempotency-Keyとpoll_secretの再送は発行後60秒かつpairing期限内だけ同じ資格情報を返す。refresh後の旧exchangeは410。新しいキーで再発行しない。
       security: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功。Cache-Controlはno-store。
           content:
             application/json:
               schema:
@@ -700,7 +714,14 @@ paths:
         in: path
         required: true
         schema: *id001
-      - *id002
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+        description: 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
       requestBody:
         required: true
         content:
@@ -711,11 +732,11 @@ paths:
     post:
       operationId: refreshDeviceToken
       summary: Pi専用credentialを更新
-      description: refresh_token自体を検証。短い同一refresh_request_id再送猶予とreuse検知を実装。
+      description: refresh_token自体を検証しtenant/deviceへ束縛。accessは15分、refresh familyは初回発行から30日。各rotationは新しいrefresh_request_idとIdempotency-Keyを生成し、応答喪失時は同じ値・同じ本文を60秒未満だけ再送する。旧tokenの別要求または猶予後の再利用はfamily全体を停止する。同request-idの別本文は409。並行した別rotationは再利用として停止するためPiは直列更新する。
       security: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功。Cache-Controlはno-store。
           content:
             application/json:
               schema:
@@ -727,7 +748,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       parameters:
-      - *id002
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+        description: 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
       requestBody:
         required: true
         content:
@@ -3444,6 +3472,7 @@ components:
       additionalProperties: false
       minProperties: 1
     PairingCreate:
+      description: Piサービス専用。installation_nonceは起動ごとに変更せず、初回deviceとtenantへ束縛される。
       type: object
       properties:
         device_name: *id009
@@ -3456,6 +3485,7 @@ components:
       - installation_nonce
       additionalProperties: false
     Pairing:
+      description: Piサービスだけが受け取る。画面へ渡すのはuser_codeとexpires_atのみ。poll_secretをChromiumやURLへ渡さない。
       type: object
       properties:
         pairing_id: *id001
@@ -3474,6 +3504,7 @@ components:
       - expires_at
       additionalProperties: false
     PairingConfirm:
+      description: user_codeは4文字selectorと4文字secret。selector既知時のsecretは36^4通りで5回まで照合できる。
       type: object
       properties:
         user_code:

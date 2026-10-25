@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from brainoid_api.adapters.gcs_authz_ledger import GCSAuthzObjects
 from brainoid_api.adapters.local_authz_ledger import LocalAuthzObjects
 from brainoid_api.auth.context import AuthenticatedIdentity
+from brainoid_api.auth.device_tokens import DeviceIdentity, DeviceTokens
 from brainoid_api.auth.firebase_identity import (
     FirebaseIdentityVerifier,
     IdentityVerifier,
@@ -27,6 +28,7 @@ from brainoid_api.auth.profiles import FirestoreProfiles, ProfileReader
 from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
+from brainoid_api.repositories.device_credentials import DeviceCredentialRepository
 from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.tenants import Tenants
@@ -40,6 +42,7 @@ class AuthServices:
     tenants: Tenants | None = None
     invitations: Invitations | None = None
     memberships: Memberships | None = None
+    devices: DeviceCredentialRepository | None = None
 
 
 @asynccontextmanager
@@ -49,6 +52,14 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
         # Health and non-auth fake development remain available; no dummy bearer is accepted.
         yield AuthServices()
         return
+    assert settings.device_token_keyring_file is not None
+    assert settings.device_credential_epoch is not None
+    device_tokens = DeviceTokens.from_file(
+        settings.device_token_keyring_file,
+        project=settings.gcp_project_id,
+        credential_epoch=settings.device_credential_epoch,
+        test_only=settings.device_token_provider == "local-test",
+    )
     app = firebase_admin.initialize_app(
         options={"projectId": settings.gcp_project_id, "httpTimeout": 10},
         name="brainoid-api-" + str(uuid4()),
@@ -93,6 +104,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
                 code_key=settings.cursor_signing_key.get_secret_value().encode(),
             ),
             Memberships(store, tenants, ledger, cursors),
+            DeviceCredentialRepository(store, tenants, ledger, device_tokens),
         )
     finally:
         try:
@@ -127,3 +139,16 @@ async def authenticated_identity(
     ):
         raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
     return await run_in_threadpool(services.verifier.verify, token)
+
+
+async def authenticated_device(
+    request: Request, services: Annotated[AuthServices, Depends(get_auth_services)]
+) -> DeviceIdentity:
+    """Dedicated device dependency; never accepts or returns a Firebase user identity."""
+    headers = request.headers.getlist("authorization")
+    if len(headers) != 1 or services.devices is None:
+        raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+    scheme, separator, token = headers[0].partition(" ")
+    if scheme.lower() != "bearer" or not separator or not token or any(c.isspace() for c in token):
+        raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+    return await run_in_threadpool(services.devices.authenticate, token)

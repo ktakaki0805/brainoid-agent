@@ -125,6 +125,8 @@ BA-FND-08で追加したFirestore SDKはAPIの配布依存となり、gRPC、goo
 
 BA-IAM-05は既に Firebase Admin の推移依存にある Storage SDK 3.17.1 を `uv add --package brainoid-api google-cloud-storage==3.17.1` で直接依存へ固定した。新しい版・推移依存の追加はない。2026-10-26に公式配布元・導入済み metadata と source で保守先、Apache-2.0、Python 要件を確認した。明示注入した bucket にだけ object create/read/list を行い、bucket 作成・IAM 付与・credential 検索をしない。GCS 書込は[公式 SDK](https://docs.cloud.google.com/python/docs/reference/storage/latest/google.cloud.storage.blob.Blob)の generation 条件と条件付き retry を使う。配布時は既存の SDK/推移依存の license 表示を保持する。[台帳の利用契約](control-ledger.md)に実 bucket と後続 API 接続の境界を記録する。
 
+BA-IAM-07 は既存推移依存の `cryptography==50.0.2` と `pyjwt==2.15.1` を `uv add --package brainoid-api` で直接依存にした。新しい推移依存・版の追加はなく、専用RS256署名とAES-GCM receiptに使う。両者の公式API資料、実行権限・配布上の境界は[端末資格情報契約](device-pairing.md)に記録する。
+
 BA-IAM-01のFirebase Admin SDKは `uv add --package brainoid-api firebase-admin==7.7.0` で導入し、推移依存もuv.lockへ固定する。2026-10-26に公式PyPIと導入済みsourceで互換性・ライセンス・token検証経路を確認した。API配布にHTTPX、PyJWT、CacheControl、Storage SDK等が加わるため、それぞれのlicense表示も保持する。Storage・Messaging等の機能は呼ばず、今回の実行経路はAuth token検証とユーザー照会のみ。cloud IAM権限を付与せず、新しいcredentialの作成や書込も行わない。通常テストは一時RSA鍵とネットワーク代替、emulatorテストは固定loopbackを使う。[本人認証の利用契約](authentication.md)に環境境界・追加ユーザー照会・未実施の本番確認を記録する。
 
 BA-FND-04では次の既存ツールを2026-10-26の公式docs・npm/PyPI metadata・release assetで確認し固定した。

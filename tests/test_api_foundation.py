@@ -10,6 +10,7 @@ import traceback
 import unittest
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 from unittest.mock import patch
 from uuid import UUID
@@ -25,6 +26,7 @@ from starlette.testclient import TestClient
 
 LOCAL_ENV = {
     "APP_ENV": "local-fake",
+    "DEVICE_TOKEN_PROVIDER": "disabled",
     "AUTH_PROVIDER": "fake",
     "MODEL_PROVIDER": "fake",
     "GCP_PROJECT_ID": "demo-brainoid",
@@ -35,6 +37,9 @@ LOCAL_ENV = {
 CLOUD_ENV = {
     **LOCAL_ENV,
     "APP_ENV": "production",
+    "DEVICE_TOKEN_PROVIDER": "pem",
+    "DEVICE_TOKEN_KEYRING_FILE": "/run/secrets/device-keyring.json",
+    "DEVICE_CREDENTIAL_EPOCH": "00000000-0000-0000-0000-000000000001",
     "AUTH_PROVIDER": "firebase",
     "MODEL_PROVIDER": "vertex",
     "GCP_PROJECT_ID": "brainoid-test-project",
@@ -45,6 +50,11 @@ CLOUD_ENV = {
 EMULATOR_ENV = {
     **LOCAL_ENV,
     "APP_ENV": "local-emulator",
+    "DEVICE_TOKEN_PROVIDER": "local-test",
+    "DEVICE_TOKEN_KEYRING_FILE": str(
+        Path("tests/fixtures/device_tokens/local-keyring.json").resolve()
+    ),
+    "DEVICE_CREDENTIAL_EPOCH": "00000000-0000-0000-0000-000000000001",
     "AUTH_PROVIDER": "firebase",
     "FIRESTORE_EMULATOR_HOST": "127.0.0.1:8080",
     "FIREBASE_AUTH_EMULATOR_HOST": "127.0.0.1:9099",

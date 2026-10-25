@@ -137,16 +137,25 @@ export type DevicePatch = {
     name?: string;
     allowed_entity_ids?: Array<ResourceId>;
 };
+/**
+ * Piサービス専用。installation_nonceは起動ごとに変更せず、初回deviceとtenantへ束縛される。
+ */
 export type PairingCreate = {
     device_name: string;
     installation_nonce: string;
 };
+/**
+ * Piサービスだけが受け取る。画面へ渡すのはuser_codeとexpires_atのみ。poll_secretをChromiumやURLへ渡さない。
+ */
 export type Pairing = {
     pairing_id: ResourceId;
     user_code: string;
     poll_secret: string;
     expires_at: UtcTimestamp;
 };
+/**
+ * user_codeは4文字selectorと4文字secret。selector既知時のsecretは36^4通りで5回まで照合できる。
+ */
 export type PairingConfirm = {
     user_code: string;
     device_name: string;
@@ -1236,7 +1245,7 @@ export type CreateDevicePairingData = {
     body: PairingCreate;
     headers: {
         /**
-         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         * 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
          */
         'Idempotency-Key': string;
     };
@@ -1253,7 +1262,7 @@ export type CreateDevicePairingErrors = {
 export type CreateDevicePairingError = CreateDevicePairingErrors[keyof CreateDevicePairingErrors];
 export type CreateDevicePairingResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功。Cache-Controlはno-store。
      */
     201: Pairing;
 };
@@ -1262,7 +1271,7 @@ export type ConfirmDevicePairingData = {
     body: PairingConfirm;
     headers: {
         /**
-         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         * 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
          */
         'Idempotency-Key': string;
     };
@@ -1281,7 +1290,7 @@ export type ConfirmDevicePairingErrors = {
 export type ConfirmDevicePairingError = ConfirmDevicePairingErrors[keyof ConfirmDevicePairingErrors];
 export type ConfirmDevicePairingResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功。Cache-Controlはno-store。
      */
     201: Device;
 };
@@ -1290,7 +1299,7 @@ export type ExchangeDevicePairingData = {
     body: PairingExchange;
     headers: {
         /**
-         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         * 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
          */
         'Idempotency-Key': string;
     };
@@ -1309,7 +1318,7 @@ export type ExchangeDevicePairingErrors = {
 export type ExchangeDevicePairingError = ExchangeDevicePairingErrors[keyof ExchangeDevicePairingErrors];
 export type ExchangeDevicePairingResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功。Cache-Controlはno-store。
      */
     200: DeviceCredentials;
 };
@@ -1318,7 +1327,7 @@ export type RefreshDeviceTokenData = {
     body: DeviceRefresh;
     headers: {
         /**
-         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         * 操作と本文へ束縛。端末秘密応答の再送期限は各operationの説明に従う。汎用24時間キャッシュは使わない。
          */
         'Idempotency-Key': string;
     };
@@ -1335,7 +1344,7 @@ export type RefreshDeviceTokenErrors = {
 export type RefreshDeviceTokenError = RefreshDeviceTokenErrors[keyof RefreshDeviceTokenErrors];
 export type RefreshDeviceTokenResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功。Cache-Controlはno-store。
      */
     200: DeviceCredentials;
 };

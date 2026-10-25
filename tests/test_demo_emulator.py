@@ -13,6 +13,9 @@ from scripts.demo_emulator import HOSTS, ROOT, DemoEmulator, DemoError, load_fix
 
 DEMO_ENV = {
     "APP_ENV": "local-emulator",
+    "DEVICE_TOKEN_PROVIDER": "local-test",
+    "DEVICE_TOKEN_KEYRING_FILE": str(ROOT / "tests/fixtures/device_tokens/local-keyring.json"),
+    "DEVICE_CREDENTIAL_EPOCH": "00000000-0000-0000-0000-000000000001",
     "AUTH_PROVIDER": "firebase",
     "MODEL_PROVIDER": "fake",
     "GCP_PROJECT_ID": "demo-brainoid",

@@ -55,6 +55,8 @@ BA-FND-08の提供済みAPI内部helper、現在認可callback、Firestore trans
 
 BA-IAM-01の `GET /v1/users/me`、Firebase本人認証、直近再認証、未認可のtenant選択値の境界は[本人認証の利用契約](authentication.md)を参照する。membership認可はBA-IAM-02で追加する。
 
+BA-IAM-07 の[端末ペアリング・資格情報](device-pairing.md)は、上記24時間の汎用冪等処理に秘密応答を保存しない。開始応答は5分、exchange/refreshの同一要求再送は60秒未満に限り専用暗号化 receipt から返す。各refreshでは新しい request UUID と Idempotency-Key を作り、応答喪失時は同じ本文・両識別子を再送する。別の更新要求や猶予後の使用済みrefresh提示はfamilyを停止する。
+
 期限切れの冪等キーを使った新しい操作を、古い操作と同一だと仮定しない。端末コマンドのdedupは別途7日保持し、実行期限は30秒とする初期案である。provider側で結果が不明な場合は再送より先に状態を照合する。
 
 ### 2.3 共通エラー

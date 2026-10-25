@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
+from brainoid_contracts import ResourceId
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -37,6 +38,11 @@ class Settings(BaseModel):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     readiness_timeout_seconds: Annotated[float, Field(gt=0, le=30, allow_inf_nan=False)] = 2.0
     cursor_signing_key: Annotated[SecretStr, Field(min_length=32, max_length=512)] | None = None
+    device_token_provider: Literal["disabled", "local-test", "pem"]
+    device_token_keyring_file: (
+        Annotated[str, Field(min_length=2, max_length=4096, pattern=r"^/")] | None
+    ) = None
+    device_credential_epoch: ResourceId | None = None
     authz_ledger_bucket: (
         Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$")] | None
     ) = None
@@ -72,6 +78,23 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
+        if self.app_env == "local-fake":
+            if (
+                self.device_token_provider != "disabled"
+                or self.device_token_keyring_file is not None
+                or self.device_credential_epoch is not None
+            ):
+                raise ValueError("local-fake requires disabled device tokens")
+        else:
+            expected_provider = "local-test" if self.app_env == "local-emulator" else "pem"
+            if (
+                self.device_token_provider != expected_provider
+                or self.device_token_keyring_file is None
+                or self.device_credential_epoch is None
+            ):
+                raise ValueError(
+                    "explicit device token provider, keyring and credential epoch required"
+                )
         if self.app_env == "local-emulator":
             if self.authz_ledger_directory is None or self.authz_ledger_bucket is not None:
                 raise ValueError("local-emulator requires only an explicit local ledger directory")

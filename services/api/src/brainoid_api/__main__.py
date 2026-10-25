@@ -17,6 +17,7 @@ def main() -> None:
         host="127.0.0.1",
         port=8000,
         access_log=False,
+        proxy_headers=False,
         log_level="info",
         lifespan="on",
     )

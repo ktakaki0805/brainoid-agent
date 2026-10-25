@@ -184,6 +184,8 @@ BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主�
 
 未登録Piは一時pairing ID、短いuser code、十分な乱数のpoll secretを取得する。codeは画面に表示し、poll secretはPiサービスのみが保持する。初期期限5分、コード照合失敗5回で失効、作成・照合にrate limitを設ける。スマホのowner/adminがテナントと端末表示名・許可範囲を確認して承認し、Piはpoll secretを提示して一度だけ専用refresh credentialを取得する。
 
+BA-IAM-07 の[端末資格情報契約](device-pairing.md)でコードの selector/secret 構造、5回失効、IP/installation 制限、60秒の暗号化再送 receipt と再利用検知を実装する。installation は初回 tenant/device へ固定し、IAM-08 の明示失効・再登録経路ができるまでは既登録 installation の再登録を拒否する。通常再起動で保持する外部 `DEVICE_CREDENTIAL_EPOCH` は隔離復元時に必ず更新し、旧資格情報を復活させない。
+
 端末access tokenは初期15分とし、refresh credentialは暗号学的ハッシュで保存・ローテーションする。ログ、URL query、Chromiumの永続storageに入れない。OSの秘密ファイルは専用ユーザーと最小権限で管理する。再ペアリングでは古いcredential・セッションを失効する。失効は新しい接続だけでなく既存接続・待機コマンドにも適用し、オンライン反映目標は60秒以内とする。
 
 本人のスマホからPi個人セッションを開始する際、対象Pi、共有空間での表示・読み上げ、許可範囲を示す。セッションは最長5分・無操作60秒で失効する初期案とし、device・user・tenantに束縛する。セッションID単独は資格情報にしない。終了時は表示、再生キュー、ローカル一時本文を消去し、遅延した応答もsession generationで拒否する。
