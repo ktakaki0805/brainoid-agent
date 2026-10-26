@@ -1977,7 +1977,7 @@ export type ListEntitiesErrors = {
 export type ListEntitiesError = ListEntitiesErrors[keyof ListEntitiesErrors];
 export type ListEntitiesResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: EntityPage;
 };
@@ -2009,7 +2009,7 @@ export type CreateEntityErrors = {
 export type CreateEntityError = CreateEntityErrors[keyof CreateEntityErrors];
 export type CreateEntityResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     201: Entity;
 };
@@ -2038,7 +2038,7 @@ export type GetEntityErrors = {
 export type GetEntityError = GetEntityErrors[keyof GetEntityErrors];
 export type GetEntityResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Entity;
 };
@@ -2075,7 +2075,7 @@ export type UpdateEntityErrors = {
 export type UpdateEntityError = UpdateEntityErrors[keyof UpdateEntityErrors];
 export type UpdateEntityResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Entity;
 };

@@ -85,7 +85,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 
 ### 4.1 EntityとFact
 
-エンティティは `kind=person|room|appliance|activity|topic`、`label`、`aliases`、`external_refs` を持つ。Home Assistantの `entity_id` は `external_refs` に保存し、表示名から対象家電を決めない。同じ家電名が複数ある場合は部屋や端末の情報で解決し、解決不能なら利用者に選択を求める。
+エンティティは `kind=person|room|appliance|activity|topic`、`label`、`aliases`、`external_refs` を持つ。Home Assistantの `entity_id` は `external_refs` に保存し、表示名から対象家電を決めない。同じ家電名が複数ある場合は部屋や端末の情報で解決し、解決不能なら利用者に選択を求める。登録Piはdevices、家電はentitiesの別namespaceとし、person登録で本人認証やmembership付与を行わない。公開CRUD・候補検索と内部provider登録の境界は[Entity API](entities-api.md)を参照。
 
 factは以下の構造を持つ。例は架空の照明設定である。
 
@@ -186,6 +186,8 @@ ownerによる所属整理は当該テナントからの所属解除と、その
 membership/deviceの減権限・失効・owner移譲はDB外の制御bucketに認可変更台帳を先行記録し、DBに認可版を適用する。減権限は未完了の意図もdenyとして扱い、grantはDB適用確認済みのcommitted recordだけを有効にする。競合・未確定の主体はsuspendedとし、roll-forwardで整合させる。旧backupを復元した後に再ログインさせるだけでは旧権限が復活し得るため、最新台帳の再適用が終わるまでAPIを開かない。台帳は全復元可能backupより長く保持する初期30日案とする。
 
 BA-IAM-05の[独立認可台帳](control-ledger.md)は operation binding・主体ごとの連続版 slot・DB 適用確認後の committed marker を追記する。effect と確定後の status を分け、部分減権限後の active を表現する。未確定の grant は隔離復元で確定せず suspended に留める。台帳なしの初期 owner を許す通常導入時の互換モードは、復元時には使わない。tenant/招待 API は IAM-04、[会員管理 API](memberships.md) は IAM-06 で接続済み。会員変更は先行 deny 前に tenant 予約を取得し、有効 owner を保持する。[端末設定・失効と保存command/worker/outputの検査境界](devices.md)は IAM-08 で接続済み。実dispatch/socketへの接続は後続チケット、実復元 gate は OPS-07 で行う。
+
+EntityのPi読書きではapplianceにallowed_entity_ids、roomにallowed_room_idsを適用する。person/activity/topicは操作対象ではないためscope・本人所有・表示方針で検査する。本人sessionで非操作Entityを新規作成できるが、家電/部屋の新規作成に伴うallowlistの自動付与は行わない。kindのPATCH変更と公開external_refs申告は禁止する。
 
 ### 5.2 端末ペアリングと個人セッション
 

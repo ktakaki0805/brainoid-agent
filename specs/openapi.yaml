@@ -1439,13 +1439,13 @@ paths:
     get:
       operationId: listEntities
       summary: 閲覧可能なentities一覧
-      description: 閲覧可能なentities一覧
+      description: 現在閲覧可能な候補のみを返す。queryはlabel/aliasesのcasefold部分一致。同名でも統合・自動選択せず、不可視候補をcursorや件数に含めない。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1473,13 +1473,13 @@ paths:
     post:
       operationId: createEntity
       summary: Entity作成
-      description: deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+      description: deviceは本人private_sessionとmemory.writeが必須。person/activity/topicはscope・表示方針内で作成可能。appliance/roomは現在のdevice allowlistも必要で、新規IDへ自動付与しない。external_refsの申告は受け付けない。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1507,13 +1507,13 @@ paths:
     get:
       operationId: getEntity
       summary: Entity取得
-      description: Entity取得
+      description: 現在のscope・所有者・表示方針で取得。deviceのappliance/roomは対応allowlistも検証する。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1542,13 +1542,13 @@ paths:
     patch:
       operationId: updateEntity
       summary: Entity更新
-      description: Entity更新
+      description: label/aliasesのみ更新。kind・scope・外部参照は変更不可。deviceは本人sessionと現在のmemory.write・表示方針・対象allowlistが必要。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:

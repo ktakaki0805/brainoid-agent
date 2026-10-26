@@ -681,7 +681,7 @@ export const getSpeechAudio = (options) => (options.client ?? client).get({
 /**
  * 閲覧可能なentities一覧
  *
- * 閲覧可能なentities一覧
+ * 現在閲覧可能な候補のみを返す。queryはlabel/aliasesのcasefold部分一致。同名でも統合・自動選択せず、不可視候補をcursorや件数に含めない。
  */
 export const listEntities = (options) => (options.client ?? client).get({
     security: [{
@@ -699,7 +699,7 @@ export const listEntities = (options) => (options.client ?? client).get({
 /**
  * Entity作成
  *
- * deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+ * deviceは本人private_sessionとmemory.writeが必須。person/activity/topicはscope・表示方針内で作成可能。appliance/roomは現在のdevice allowlistも必要で、新規IDへ自動付与しない。external_refsの申告は受け付けない。
  */
 export const createEntity = (options) => (options.client ?? client).post({
     security: [{
@@ -721,7 +721,7 @@ export const createEntity = (options) => (options.client ?? client).post({
 /**
  * Entity取得
  *
- * Entity取得
+ * 現在のscope・所有者・表示方針で取得。deviceのappliance/roomは対応allowlistも検証する。
  */
 export const getEntity = (options) => (options.client ?? client).get({
     security: [{
@@ -739,7 +739,7 @@ export const getEntity = (options) => (options.client ?? client).get({
 /**
  * Entity更新
  *
- * Entity更新
+ * label/aliasesのみ更新。kind・scope・外部参照は変更不可。deviceは本人sessionと現在のmemory.write・表示方針・対象allowlistが必要。
  */
 export const updateEntity = (options) => (options.client ?? client).patch({
     security: [{

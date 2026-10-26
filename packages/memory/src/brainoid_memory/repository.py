@@ -18,7 +18,7 @@ from brainoid_contracts import (
     Visibility,
     normalize_utc,
 )
-from brainoid_contracts.transactions import Transaction, TransactionStore
+from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.evaluator import Evaluator
@@ -31,7 +31,7 @@ from brainoid_policy.models import (
     Subject,
     UserSubject,
 )
-from brainoid_policy.scopes import PolicyDenied, Principal
+from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, Principal
 from brainoid_policy.transactions import TransactionPolicyState, resource_state
 from pydantic import BaseModel, TypeAdapter, ValidationError, model_validator
 
@@ -115,11 +115,21 @@ class _Authority:
 
 class _GraphPolicyState(TransactionPolicyState):
     def resource(self, ref: ResourceRef) -> ResourceState | None:
-        result = super().resource(ref)
-        if result is not None and ref.kind == ResourceKind.ENTITY:
-            # Entity allowlists constrain graph reads even without an extra stored ID.
-            result = result.model_copy(update={"entity_id": ref.id})
+        document = self._transaction.get(_path(ref))
+        result = resource_state(ref, document)
+        if result is not None and document is not None and ref.kind == ResourceKind.ENTITY:
+            result = _entity_target(result, document.get("kind"))
         return result
+
+
+def _entity_target(state: ResourceState, kind: object) -> ResourceState:
+    # Control allowlists apply to appliances/rooms, not a person's name or topic.
+    # Unknown kinds remain fenced and the complete stored model must still validate.
+    if kind == "room":
+        return state.model_copy(update={"room_id": state.ref.id})
+    if kind not in ("person", "activity", "topic"):
+        return state.model_copy(update={"entity_id": state.ref.id})
+    return state
 
 
 def _validated[T: BaseModel](model: type[T], value: T) -> T:
@@ -128,6 +138,15 @@ def _validated[T: BaseModel](model: type[T], value: T) -> T:
     if not isinstance(value, model):
         raise TypeError("Expected a validated memory value")
     return model.model_validate(value.model_dump(mode="python", exclude_none=True))
+
+
+def _stored(record: Entity | Fact, *, mode: Literal["python", "json"] = "python") -> Document:
+    # owner_user_id is required even when null on shared records. Other null values
+    # stay omitted: Fact's absent object/value and qualifier fields reject explicit null.
+    return {
+        **record.model_dump(mode=mode, exclude_none=True),
+        "owner_user_id": record.owner_user_id,
+    }
 
 
 def _path(ref: ResourceRef) -> str:
@@ -171,6 +190,16 @@ class MemoryRepository:
         self._ledger = ledger
         self._now = now
         self._allow_untracked = allow_untracked_bootstrap
+
+    def entities(self, tx: Transaction, context: TenantContext) -> "EntityTransaction":
+        """Compose DB-only entity operations with the caller's transaction.
+
+        Never call store.run here. The caller must call finish after its last read,
+        before additional writes, and again after its transaction response arrives.
+        The returned object is transaction-local, not a reusable permission grant.
+        """
+        _validated(TenantContext, context)
+        return EntityTransaction(self, tx, context, self._authority(tx, context))
 
     def _ref(self, context: TenantContext, identity: ResourceId, kind: ResourceKind) -> ResourceRef:
         _validated(TenantContext, context)
@@ -257,7 +286,7 @@ class MemoryRepository:
         state = resource_state(ref, record.model_dump(mode="json"))
         assert state is not None
         if isinstance(record, Entity):
-            state = state.model_copy(update={"entity_id": record.id})
+            state = _entity_target(state, record.kind)
         scope = policy.search(ref.tenant_id, subject, ref.kind)
         if not any(item.matches(state) for item in scope.filters):
             raise PolicyDenied()
@@ -332,38 +361,9 @@ class MemoryRepository:
     def create_entity(
         self, context: TenantContext, identity: ResourceId, values: EntityInput
     ) -> Entity:
-        ref = self._ref(context, identity, ResourceKind.ENTITY)
-        values = _validated(EntityInput, values)
-
         def work(tx: Transaction) -> tuple[Entity, _Authority]:
-            authority = self._authority(tx, context)
-            policy, subject, principal = authority.policy, authority.subject, authority.principal
-            now = normalize_utc(self._now())
-            record = Entity(
-                **values.model_dump(exclude_none=True),
-                id=ref.id,
-                tenant_id=ref.tenant_id,
-                owner_user_id=principal.user_id,
-                created_by=authority.creator(),
-                created_via_device_id=authority.device_id,
-                version=1,
-                deletion_epoch=0,
-                schema_version=1,
-                deleted=False,
-                suppress_reuse=False,
-                created_at=now,
-                updated_at=now,
-            )
-            self._new(policy, subject, principal, ref, record)
-            if tx.get(_path(ref)) is not None:
-                # Re-creation never overwrites an existing record, including tombstones.
-                policy.resource(ref.tenant_id, subject, ref)
-                self._finish(authority)
-                raise AlreadyExists()
-            document = record.model_dump(mode="json", exclude_none=True)
-            self._finish(authority)
-            tx.create(_path(ref), document)
-            return record, authority
+            access = self.entities(tx, context)
+            return access.create(identity, values), access._authority
 
         return self._run(work)
 
@@ -399,7 +399,7 @@ class MemoryRepository:
                 policy.resource(ref.tenant_id, subject, ref)
                 self._finish(authority)
                 raise AlreadyExists()
-            document = record.model_dump(mode="json", exclude_none=True)
+            document = _stored(record, mode="json")
             self._finish(authority)
             tx.create(_path(ref), document)
             return record, authority
@@ -407,13 +407,9 @@ class MemoryRepository:
         return self._run(work)
 
     def get_entity(self, context: TenantContext, identity: ResourceId) -> Entity:
-        ref = self._ref(context, identity, ResourceKind.ENTITY)
-
         def work(tx: Transaction) -> tuple[Entity, _Authority]:
-            authority = self._authority(tx, context)
-            record = self._read(tx, authority.policy, authority.subject, ref, Entity)
-            self._finish(authority)
-            return record, authority
+            access = self.entities(tx, context)
+            return access.get(identity), access._authority
 
         return self._run(work)
 
@@ -453,32 +449,15 @@ class MemoryRepository:
         expected_version: Version,
         expected_deletion_epoch: Epoch,
     ) -> Entity:
-        ref = self._ref(context, identity, ResourceKind.ENTITY)
-        patch = _validated(EntityPatch, patch)
-        self._expected(expected_version, expected_deletion_epoch)
-
         def work(tx: Transaction) -> tuple[Entity, _Authority]:
-            authority = self._authority(tx, context)
-            record = self._read(
-                tx, authority.policy, authority.subject, ref, Entity, action=Action.WRITE
+            access = self.entities(tx, context)
+            record = access.update(
+                identity,
+                patch,
+                expected_version=expected_version,
+                expected_deletion_epoch=expected_deletion_epoch,
             )
-            if (record.version, record.deletion_epoch) != (
-                expected_version,
-                expected_deletion_epoch,
-            ):
-                raise VersionConflict()
-            replacement = Entity.model_validate(
-                {
-                    **record.model_dump(exclude_none=True),
-                    **patch.model_dump(exclude_none=True),
-                    "version": record.version + 1,
-                    "updated_at": normalize_utc(self._now()),
-                }
-            )
-            document = replacement.model_dump(mode="json", exclude_none=True)
-            self._finish(authority)
-            tx.set(_path(ref), document)
-            return replacement, authority
+            return record, access._authority
 
         return self._run(work)
 
@@ -513,15 +492,136 @@ class MemoryRepository:
             self._dependencies(tx, context, policy, subject, record, reuse=False)
             replacement = Fact.model_validate(
                 {
-                    **record.model_dump(exclude_none=True),
+                    **_stored(record),
                     "status": status,
                     "version": record.version + 1,
                     "updated_at": normalize_utc(self._now()),
                 }
             )
-            document = replacement.model_dump(mode="json", exclude_none=True)
+            document = _stored(replacement, mode="json")
             self._finish(authority)
             tx.set(_path(ref), document)
             return replacement, authority
 
         return self._run(work)
+
+
+class EntityTransaction:
+    """Current entity access for atomic composition with receipts/provider indexes."""
+
+    def __init__(
+        self,
+        repository: MemoryRepository,
+        tx: Transaction,
+        context: TenantContext,
+        authority: _Authority,
+    ) -> None:
+        self._repo, self._tx, self._context, self._authority = repository, tx, context, authority
+
+    @property
+    def principal(self) -> Principal:
+        return self._authority.principal
+
+    @property
+    def caller(self) -> VerifiedCaller:
+        return self._authority.caller
+
+    def finish(self) -> None:
+        self._repo._finish(self._authority)
+
+    def get(self, identity: ResourceId, *, write: bool = False) -> Entity:
+        result = self._repo._read(
+            self._tx,
+            self._authority.policy,
+            self._authority.subject,
+            self._repo._ref(self._context, identity, ResourceKind.ENTITY),
+            Entity,
+            action=Action.WRITE if write else Action.READ,
+        )
+        self.finish()
+        return result
+
+    def candidates(self, query: str | None = None) -> list[Entity]:
+        """Filter access before inspecting labels, counting or forming cursor positions."""
+        scope = self._authority.policy.search(
+            self._context.tenant_id, self._authority.subject, ResourceKind.ENTITY
+        )
+        results = []
+        for path, doc in self._tx.collection(f"tenants/{self._context.tenant_id}/entities"):
+            try:
+                identity = TypeAdapter(ResourceId).validate_python(doc.get("id"))
+                ref = self._repo._ref(self._context, identity, ResourceKind.ENTITY)
+                state = resource_state(ref, doc)
+                if state is None or path != _path(ref):
+                    continue
+                state = _entity_target(state, doc.get("kind"))
+                if not any(f.matches(state) for f in scope.filters):
+                    continue
+                record = self.get(ref.id)
+            except PolicyUnavailable:
+                raise
+            except (PolicyDenied, ValidationError):
+                continue
+            if query is None or any(
+                query.casefold() in name.casefold() for name in (record.label, *record.aliases)
+            ):
+                results.append(record)
+        self.finish()
+        return sorted(results, key=lambda item: item.id)
+
+    def create(self, identity: ResourceId, values: EntityInput) -> Entity:
+        ref = self._repo._ref(self._context, identity, ResourceKind.ENTITY)
+        values = _validated(EntityInput, values)
+        now = normalize_utc(self._repo._now())
+        record = Entity(
+            **values.model_dump(exclude_none=True),
+            id=ref.id,
+            tenant_id=ref.tenant_id,
+            owner_user_id=self.principal.user_id,
+            created_by=self._authority.creator(),
+            created_via_device_id=self._authority.device_id,
+            version=1,
+            deletion_epoch=0,
+            schema_version=1,
+            deleted=False,
+            suppress_reuse=False,
+            created_at=now,
+            updated_at=now,
+        )
+        self._repo._new(
+            self._authority.policy, self._authority.subject, self.principal, ref, record
+        )
+        if self._tx.get(_path(ref)) is not None:
+            self.get(ref.id)
+            raise AlreadyExists()
+        self.finish()
+        self._tx.create(_path(ref), _stored(record, mode="json"))
+        return record
+
+    def update(
+        self,
+        identity: ResourceId,
+        patch: EntityPatch,
+        *,
+        expected_version: Version,
+        expected_deletion_epoch: Epoch,
+    ) -> Entity:
+        patch = _validated(EntityPatch, patch)
+        self._repo._expected(expected_version, expected_deletion_epoch)
+        record = self.get(identity, write=True)
+        if (record.version, record.deletion_epoch) != (expected_version, expected_deletion_epoch):
+            raise VersionConflict()
+        replacement = Entity.model_validate(
+            {
+                **_stored(record),
+                **patch.model_dump(exclude_none=True),
+                "version": record.version + 1,
+                "updated_at": normalize_utc(self._repo._now()),
+            }
+        )
+        self.finish()
+        self._tx.set(
+            _path(self._repo._ref(self._context, identity, ResourceKind.ENTITY)),
+            _stored(replacement, mode="json"),
+        )
+        return replacement

@@ -268,25 +268,25 @@ export declare const getSpeechAudio: <ThrowOnError extends boolean = false>(opti
 /**
  * 閲覧可能なentities一覧
  *
- * 閲覧可能なentities一覧
+ * 現在閲覧可能な候補のみを返す。queryはlabel/aliasesのcasefold部分一致。同名でも統合・自動選択せず、不可視候補をcursorや件数に含めない。
  */
 export declare const listEntities: <ThrowOnError extends boolean = false>(options: Options<ListEntitiesData, ThrowOnError>) => RequestResult<ListEntitiesResponses, ListEntitiesErrors, ThrowOnError>;
 /**
  * Entity作成
  *
- * deviceは本人private_sessionの対応write scopeが必須。未認証話者の共有Piからの書込みは禁止。
+ * deviceは本人private_sessionとmemory.writeが必須。person/activity/topicはscope・表示方針内で作成可能。appliance/roomは現在のdevice allowlistも必要で、新規IDへ自動付与しない。external_refsの申告は受け付けない。
  */
 export declare const createEntity: <ThrowOnError extends boolean = false>(options: Options<CreateEntityData, ThrowOnError>) => RequestResult<CreateEntityResponses, CreateEntityErrors, ThrowOnError>;
 /**
  * Entity取得
  *
- * Entity取得
+ * 現在のscope・所有者・表示方針で取得。deviceのappliance/roomは対応allowlistも検証する。
  */
 export declare const getEntity: <ThrowOnError extends boolean = false>(options: Options<GetEntityData, ThrowOnError>) => RequestResult<GetEntityResponses, GetEntityErrors, ThrowOnError>;
 /**
  * Entity更新
  *
- * Entity更新
+ * label/aliasesのみ更新。kind・scope・外部参照は変更不可。deviceは本人sessionと現在のmemory.write・表示方針・対象allowlistが必要。
  */
 export declare const updateEntity: <ThrowOnError extends boolean = false>(options: Options<UpdateEntityData, ThrowOnError>) => RequestResult<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError>;
 /**

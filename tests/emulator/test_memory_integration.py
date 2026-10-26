@@ -9,7 +9,7 @@ from threading import Barrier
 
 from brainoid_contracts import FirebaseUid, TenantContext
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
-from brainoid_memory import CanonicalSources, EntityPatch, MemoryRepository, VersionConflict
+from brainoid_memory import CanonicalSources, EntityPatch, Fact, MemoryRepository, VersionConflict
 from brainoid_persistence.firestore import FirestoreTransactions
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.models import DeviceSubject, UserSubject
@@ -114,6 +114,23 @@ class MemoryIntegrationTests(unittest.TestCase):
                 self.db.document(path).set(document)
         self.db.document(f"tenants/{TENANT}/memberships/safe-key").update({"role": "member"})
         return subject, ctx
+
+    def test_shared_null_owner_fact_retraction_preserves_storage(self) -> None:
+        self.repo.create_fact(self.context, FACT, fact_values())
+        path = f"tenants/{TENANT}/facts/{FACT}"
+        self.db.document(path).update({"owner_user_id": None})
+        result = self.repo.update_fact(
+            self.context, FACT, status="retracted", expected_version=1, expected_deletion_epoch=0
+        )
+        document = self.db.document(path).get().to_dict()
+        assert document is not None
+        self.assertIn("owner_user_id", document)
+        self.assertIsNone(document["owner_user_id"])
+        self.assertEqual(Fact.model_validate(document), result)
+        self.assertEqual(self.repo.get_fact(self.context, FACT), result)
+        self.assertEqual((result.status, result.version), ("retracted", 2))
+        self.assertNotIn("value", document)
+        self.assertNotIn("temperature_c", document["qualifiers"])
 
     def test_member_pi_author_can_retract_from_device_and_phone(self) -> None:
         subject, ctx = self.session()

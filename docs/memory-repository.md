@@ -1,12 +1,14 @@
 # 記憶の保存モデルとrepository
 
-BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` を提供する。FR-006/T-009の保存境界であり、HTTP/toolルート、名前解決、検索、embedding、訂正API、forget処理は後続チケットで接続する。既存のagent coreのMemory型はポート用の値として維持し、この変更で実storeへ接続しない。
+BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` を提供する。FR-006/T-009の保存境界であり、EntityのHTTP・候補検索・provider登録は[BA-MEM-02](entities-api.md)で接続した。FactのHTTP/toolルート、検索、embedding、訂正API、forget処理は後続チケットで接続する。既存のagent coreのMemory型はポート用の値として維持し、この変更で実storeへ接続しない。
 
 ## 1. 保存値と更新
 
 `EntityInput` は種類・label・aliases・外部参照・scope、`FactInput` は主語・predicate・目的語またはscalar値・qualifiers・出典・有効期間・origin/statusを受け取る。型・文字数・数値範囲・目的語の厳密排他・privateとshared_displayの禁止・[predicate別許可リスト](03-data-and-authorization.md#41-entityとfact)を保存前に再検証する。boolを整数として扱わず、NaN/Infinity、nullの目的語、未知のqualifierも拒否する。
 
 保存値は `Entity` / `Fact` で、UUID、tenant、所有UID、created_by、UTC時刻、version、deletion_epoch、schema_version、deleted、suppress_reuseを持つ。privateは所有者必須。初期保存はversion 1/epoch 0でサーバー時刻を付ける。出典は1〜20件必須で、HTTP入力に出典がない場合は後続adapterが信頼できる入力出典を用意する。推測はcandidateから始め、confirmedにはできない。candidate/confirmedの取消はretractedへ遷移する。
+
+保存形式の `owner_user_id` はsharedでnullでも必須キーとして保持し、Entity編集・Fact取消で欠落させない。Factの未指定のobject/valueやqualifierは省略し、明示null禁止の入力規則を維持する。HTTPで任意のownerを省略する処理と、保存recordの必須キー保持は別の規則とする。
 
 `created_by` は現在の認可で確定した作成責任者のUIDとする。本人のPiセッション経由でも同じUIDを保存し、監査用の端末IDは `created_via_device_id` に分けて保持する。これにより共通policyの共有情報の編集条件が本人のスマホ・Piで一致し、無関係なmemberへ編集権限を与えない。両フィールドはserverが設定し、更新patchでは変更できない。
 
@@ -26,7 +28,7 @@ fact本文・出典・visibilityの上書きやconfirmedへの昇格、supersede
 
 `CurrentAuthorizer` はcontextとは独立に保持した認証済み主体から現在のcredentialsを検査し、Subjectと有効区間 `[valid_from, valid_to)` を持つ `VerifiedCaller` を返す。有効区間は検証済みtokenの発行/期限と現在の委譲期限の共通部分で、期限を証明できなければ拒否する。deviceはcredential family・generationを現在状態で確認し、family等に期限があればvalid_toへ反映する。contextのactorや申告expiryをコピーして認可済みと扱うadapterは禁止する。repositoryも現在のtenant、membership、account、device/session、台帳を検査し、contextのscope/認可版を証明として信用しない。worker専用contextは直接受け付けず、後続adapterが正本jobから認証済みinitiatorのcontextとSubjectを解決する。workerの場合も検証済みのworker資格情報・job/leaseの期限・引き続き必要なinitiatorのcredentials/委譲期限を共通部分へ含め、失効したtokenを推測で延長しない。
 
-`allow_untracked_bootstrap=True` は既存の未台帳追跡fixture/bootstrap移行専用で、既定はFalse。追跡済みの権限変更やpending denyを回避しない。Firebase UIDはopaque値として等価検索し、slashを含んでもパスへ埋め込まない。admin/ownerでも他人のprivateを取得できない。Piは現在のdisplay_policyとentity allowlistも検査する。
+`allow_untracked_bootstrap=True` は既存の未台帳追跡fixture/bootstrap移行専用で、既定はFalse。追跡済みの権限変更やpending denyを回避しない。Firebase UIDはopaque値として等価検索し、slashを含んでもパスへ埋め込まない。admin/ownerでも他人のprivateを取得できない。Piは現在のdisplay_policyも検査する。MEM-02では操作対象のapplianceにentity allowlist、roomにroom allowlistを適用し、person/activity/topicにはscope・所有者・表示方針を適用する。
 
 `SourceRef` はkind・resource UUID・versionだけを持ち、パスを指定できない。`CanonicalSources` はnoteをtenant配下から取得する。messageには、同transactionの正本から親会話UUIDを一意に解決する `MessageLocator` が必要で、locatorはパスを返せない。repository側で出典ID/tenant/version/deleted/epoch/suppress_reuseと親の現在権限を確認する。親が削除/抑止されたmessageも利用できない。message locator未設定・import未実装・存在不明・不正メタデータは拒否する。import用resolverを後続で追加する場合も同じ現在状態・正本読取の契約が必須。
 
@@ -34,7 +36,7 @@ shared factがprivate entityを参照することや、private出典からshared
 
 display_policyも元出典・参照entityから広げない。`never` の依存先からは `never` のfactだけ、`authenticated_session` の依存先からは `never` または `authenticated_session` だけを保存可能とする。取得時も同じ条件を検査する。phoneからPiへ送る後続adapterは、取得時のphone権限を転用せず送信直前にPi/sessionの現在権限・表示先を再確認する。今回の戻り値は表示先への転送許可証ではない。
 
-認可・出典・参照entity・対象版の読取はすべて書込前に同一transactionで行う。競合リトライでは再認可する。callbackは読取とDB操作だけで、provider呼出しや外部台帳への書込を行わない。`PolicyDenied`、`VersionConflict`、`AlreadyExists` は本文のない例外で、HTTPへの変換とETag/冪等性は後続adapterが担当する。保存失敗を成功通知に変換してはならない。
+認可・出典・参照entity・対象版の読取はすべて書込前に同一transactionで行う。競合リトライでは再認可する。callbackは読取とDB操作だけで、provider呼出しや外部台帳への書込を行わない。`PolicyDenied`、`VersionConflict`、`AlreadyExists` は本文のない例外で、EntityのHTTPへの変換とETag/冪等性はMEM-02 adapterが担当し、Factは後続adapterが担当する。保存失敗を成功通知に変換してはならない。
 
 最後の業務読取の後、返却/書込を行う直前にI/Oなしで現在時刻を検査する。`VerifiedCaller` の有効区間、正本から再構築したprincipalのPiセッションの絶対/idle期限、モデル用factの有効期間を使い、終端と一致した時点で拒否する。元のcontextの申告セッション期限は使わない。transaction応答の待機中に期限が来る場合も、repositoryが本文を返す前に同じ検査を行う。書込自体が期限前に認可され、commit応答だけが期限後に届いた場合は、返却を拒否しても書込が既に永続化されている可能性がある。後続adapterはこの拒否をrollbackの証明にせず、現在の認可を取り直して同じID/版・冪等性記録から結果を照合する。
 

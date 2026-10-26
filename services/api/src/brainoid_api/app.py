@@ -12,6 +12,7 @@ from brainoid_api.routes.agents import router as agents_router
 from brainoid_api.routes.conversations import router as conversations_router
 from brainoid_api.routes.device_pairings import router as device_pairings_router
 from brainoid_api.routes.devices import router as devices_router
+from brainoid_api.routes.entities import router as entities_router
 from brainoid_api.routes.invitations import router as invitations_router
 from brainoid_api.routes.memberships import router as memberships_router
 from brainoid_api.routes.private_sessions import router as private_sessions_router
@@ -89,6 +90,7 @@ def create_app(
     app.include_router(memberships_router, prefix="/v1")
     app.include_router(device_pairings_router, prefix="/v1")
     app.include_router(devices_router, prefix="/v1")
+    app.include_router(entities_router, prefix="/v1")
     app.include_router(private_sessions_router, prefix="/v1")
     app.include_router(agents_router, prefix="/v1")
     app.include_router(conversations_router, prefix="/v1")

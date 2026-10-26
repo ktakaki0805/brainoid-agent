@@ -35,6 +35,8 @@ HTTPはOpenAPI 3.1、各JSON SchemaはDraft 2020-12を採用する設計案で�
 
 データのvisibilityとdisplay_policyの条件、role、本人確認は[データ・権限設計](03-data-and-authorization.md)を適用する。unknown speakerのPiが記憶・ノート・タスクを書き込むことは認めず、対応scopeを持つ本人セッションを要求する。
 
+Entityの4操作とquery/cursorの実装、Piのkind別制限、外部ID登録の内部専用境界は[Entity API](entities-api.md)に定める。公開EntityCreateはexternal_refsを受け付けず、正規provider inventoryからの内部登録のみが外部IDを照合する。
+
 ### 2.2 版、ページング、冪等性
 
 | 項目 | 契約 |

@@ -5,7 +5,14 @@ import unittest
 from typing import Any
 
 from brainoid_contracts import DeviceActorContext, FirebaseUid, TenantContext
-from brainoid_memory import AlreadyExists, EntityPatch, MemoryRepository, VersionConflict
+from brainoid_memory import (
+    AlreadyExists,
+    EntityPatch,
+    Fact,
+    FactInput,
+    MemoryRepository,
+    VersionConflict,
+)
 from brainoid_memory.sources import CanonicalSources, ResolvedSource
 from brainoid_policy.control_ledger import Change, ControlLedger, MemberTarget
 from brainoid_policy.models import DeviceSubject, ResourceKind, ResourceRef, Role, UserSubject
@@ -176,6 +183,35 @@ class MemoryRepositoryTests(unittest.TestCase):
                 expected_deletion_epoch=0,
             )
         self.assertEqual(self.repo.get_entity(self.context, LIGHT), updated)
+
+    def test_shared_null_owner_fact_retraction_preserves_object_and_qualifier_omissions(
+        self,
+    ) -> None:
+        for identity, scalar in ((FACT, False), (OTHER_PERSON, True)):
+            with self.subTest(scalar=scalar):
+                values = fact_values().model_dump(exclude_none=True)
+                if scalar:
+                    del values["object_entity_id"]
+                    values.update(predicate="has_attribute", value=False, qualifiers={})
+                self.repo.create_fact(self.context, identity, FactInput.model_validate(values))
+                path = f"tenants/{TENANT}/facts/{identity}"
+                self.store.data[path]["owner_user_id"] = None
+                Fact.model_validate(self.store.data[path])
+                result = self.repo.update_fact(
+                    self.context,
+                    identity,
+                    status="retracted",
+                    expected_version=1,
+                    expected_deletion_epoch=0,
+                )
+                document = self.store.data[path]
+                self.assertIn("owner_user_id", document)
+                self.assertIsNone(document["owner_user_id"])
+                self.assertEqual(Fact.model_validate(document), result)
+                self.assertEqual(self.repo.get_fact(self.context, identity), result)
+                self.assertEqual((result.status, result.version), ("retracted", 2))
+                self.assertNotIn("object_entity_id" if scalar else "value", document)
+                self.assertFalse(any(v is None for v in document["qualifiers"].values()))
 
     def test_inferred_candidate_cannot_be_model_fact_but_can_be_retracted(self) -> None:
         self.save(origin="inferred", status="candidate")
@@ -422,6 +458,8 @@ class MemoryRepositoryTests(unittest.TestCase):
 
     def test_device_never_and_entity_allowlists_are_enforced(self) -> None:
         self.save(visibility="private", display_policy="never")
+        self.repo.create_entity(self.context, BEDROOM_LIGHT, entity_values())
+        self.repo.create_entity(self.context, BEDROOM, entity_values(kind="room"))
         device = LIGHT
         self.store.data[f"tenants/{TENANT}/devices/{device}"] = {
             "id": device,
@@ -444,7 +482,9 @@ class MemoryRepositoryTests(unittest.TestCase):
             ),
         )
         self.assertEqual(self.repo.get_entity(device_context, LIGHT).id, LIGHT)
-        with self.assertRaises(PolicyDenied):
-            self.repo.get_entity(device_context, PERSON)
+        self.assertEqual(self.repo.get_entity(device_context, PERSON).id, PERSON)
+        for identity in (BEDROOM_LIGHT, BEDROOM):
+            with self.assertRaises(PolicyDenied):
+                self.repo.get_entity(device_context, identity)
         with self.assertRaises(PolicyDenied):
             self.repo.get_fact(device_context, FACT)

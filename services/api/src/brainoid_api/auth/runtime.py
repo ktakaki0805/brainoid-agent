@@ -33,6 +33,7 @@ from brainoid_api.repositories.agents import Agents
 from brainoid_api.repositories.conversations import Conversations
 from brainoid_api.repositories.device_credentials import DeviceCredentialRepository
 from brainoid_api.repositories.devices import Devices
+from brainoid_api.repositories.entities import Entities
 from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.tenants import Tenants
@@ -52,6 +53,7 @@ class AuthServices:
     private_sessions: PrivateSessions | None = None
     agents: Agents | None = None
     conversations: Conversations | None = None
+    entities: Entities | None = None
 
 
 @asynccontextmanager
@@ -126,6 +128,17 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
                 Jobs(store, ledger, allow_untracked_bootstrap=settings.app_env == "local-emulator"),
                 credentials=devices,
                 sessions=sessions,
+            ),
+            Entities(
+                store,
+                tenants,
+                cursors,
+                ledger=ledger,
+                credentials=devices,
+                # Tenants.create/pairing bootstrap records are server-owned and
+                # initially untracked, as in the other HTTP repositories. Tracked
+                # records and pending ledger denies still require their fence.
+                allow_untracked_bootstrap=True,
             ),
         )
     finally:
