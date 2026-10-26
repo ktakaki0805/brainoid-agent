@@ -80,15 +80,17 @@ class CurrentPolicy:
         self.calls += 1
         try:
             policy = self.policy()
-            search = policy.search(request.context.tenant_id, self.subject, ResourceKind.MEMORY)
-            if any(
-                not any(
-                    f.visibility == scope.visibility and scope.display_policy in f.display_policies
-                    for f in search.filters
-                )
-                for scope in request.memory_scopes
-            ):
-                return Failed(code="permission_denied")
+            if request.memory_scopes:
+                search = policy.search(request.context.tenant_id, self.subject, ResourceKind.MEMORY)
+                if any(
+                    not any(
+                        f.visibility == scope.visibility
+                        and scope.display_policy in f.display_policies
+                        for f in search.filters
+                    )
+                    for scope in request.memory_scopes
+                ):
+                    return Failed(code="permission_denied")
             grant = policy.resource(
                 request.context.tenant_id,
                 self.subject,
@@ -469,6 +471,39 @@ class TextCoreTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.terminal, Failed(code="permission_denied"))
         self.assertEqual(memory.searches.history, [])
         self.assertEqual(model.calls.history, [])
+
+    async def test_empty_memory_scopes_skip_store_but_keep_conversation_authority(self) -> None:
+        device = next(
+            d for p, d in self.data.items() if "/devices/" in p and d["status"] == "active"
+        )
+        device["allowed_scopes"] = ["shared", "conversation"]
+        self.auth.subject = DeviceSubject(device_id=device["id"], connection_generation=1)
+        request = ContextInput.model_validate({**self.input().model_dump(), "memory_scopes": []})
+        memory = FakeMemoryStore(self.clock)
+        model = self.provider()
+        with patch.object(memory, "search", wraps=memory.search) as search:
+            result = await TextAgentCore(model, memory, self.auth, clock=self.clock).run(
+                request, control=self.control
+            )
+            self.assertEqual(result.terminal, Completed())
+            self.assertGreater(self.auth.calls, 3)
+            search.assert_not_called()
+        denied_model = self.provider()
+        with patch.object(memory, "search", wraps=memory.search) as search:
+            denied = await TextAgentCore(denied_model, memory, self.auth, clock=self.clock).run(
+                self.input(), control=self.control
+            )
+            self.assertEqual(denied.terminal, Failed(code="permission_denied"))
+            search.assert_not_called()
+            self.assertEqual(denied_model.calls.history, [])
+        self.conversation["deleted"] = True
+        with patch.object(memory, "search", wraps=memory.search) as search:
+            denied = await TextAgentCore(denied_model, memory, self.auth, clock=self.clock).run(
+                request, control=self.control
+            )
+            self.assertEqual(denied.terminal, Failed(code="permission_denied"))
+            search.assert_not_called()
+            self.assertEqual(denied_model.calls.history, [])
 
     async def test_cancel_or_deadline_between_snapshot_and_completion(self) -> None:
         outer = self

@@ -216,20 +216,23 @@ class TextAgentCore:
                 snapshot_message(message)
             request = request.model_copy(deep=True)
             stamp = await self._check(request, (), None, control)
-            found = await self._wait(
-                self._memory.search(
-                    MemorySearch(
-                        context=request.context,
-                        scopes=request.memory_scopes,
-                        query=request.user_text,
-                        limit=budget.memory_limit,
+            found = MemoryMatches(records=())
+            if request.memory_scopes:
+                searched = await self._wait(
+                    self._memory.search(
+                        MemorySearch(
+                            context=request.context,
+                            scopes=request.memory_scopes,
+                            query=request.user_text,
+                            limit=budget.memory_limit,
+                        ),
+                        control=control,
                     ),
-                    control=control,
-                ),
-                control,
-            )
-            if not isinstance(found, MemoryMatches):
-                raise _Stopped(found)
+                    control,
+                )
+                if not isinstance(searched, MemoryMatches):
+                    raise _Stopped(searched)
+                found = searched
             if len(found.records) > budget.memory_limit:
                 raise _Stopped(Failed(code="invalid_arguments"))
             for record in found.records:

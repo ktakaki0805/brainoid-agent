@@ -10,10 +10,11 @@ dependencies = [
     "brainoid-contracts",
     "brainoid-jobs",
     "brainoid-persistence",
-
     "brainoid-agent-core",
     "brainoid-memory",
     "brainoid-tools",
+    "brainoid-runs",
+    "brainoid-policy",
 ]
 classifiers = ["Private :: Do Not Upload"]
 
@@ -28,3 +29,5 @@ brainoid-tools = { workspace = true }
 brainoid-contracts = { workspace = true }
 brainoid-jobs = { workspace = true }
 brainoid-persistence = { workspace = true }
+brainoid-runs = { workspace = true }
+brainoid-policy = { workspace = true }

@@ -1,0 +1,17 @@
+[project]
+name = "brainoid-runs"
+version = "0.1.0"
+description = "Canonical conversation and durable text run persistence"
+requires-python = ">=3.13,<3.14"
+dependencies = ["brainoid-agent-core", "brainoid-contracts", "brainoid-jobs", "brainoid-policy", "pydantic==2.14.1"]
+classifiers = ["Private :: Do Not Upload"]
+
+[build-system]
+requires = ["uv_build==0.12.19"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+brainoid-agent-core = { workspace = true }
+brainoid-contracts = { workspace = true }
+brainoid-jobs = { workspace = true }
+brainoid-policy = { workspace = true }

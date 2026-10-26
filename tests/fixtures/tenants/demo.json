@@ -211,7 +211,12 @@
         "version": 1,
         "schema_version": 1,
         "deletion_epoch": 0,
-        "agent_id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80"
+        "agent_id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80",
+        "deleted": false,
+        "suppress_reuse": false,
+        "history_revision": 1,
+        "next_sequence": 2,
+        "active_run_id": null
       }
     },
     {
@@ -226,7 +231,13 @@
         "updated_at": "2026-10-25T10:00:00Z",
         "version": 1,
         "schema_version": 1,
-        "deletion_epoch": 0
+        "deletion_epoch": 0,
+        "conversation_id": "190ac888-c2e4-583e-9af8-5fd399dd24a8",
+        "run_id": "a7b4a5ed-c284-5fd0-8e1f-65816a444c56",
+        "sequence": 1,
+        "source_refs": [],
+        "deleted": false,
+        "suppress_reuse": false
       }
     },
     {
@@ -262,7 +273,12 @@
         "version": 1,
         "schema_version": 1,
         "deletion_epoch": 0,
-        "agent_id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80"
+        "agent_id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80",
+        "deleted": false,
+        "suppress_reuse": false,
+        "history_revision": 1,
+        "next_sequence": 2,
+        "active_run_id": null
       }
     },
     {
@@ -277,7 +293,13 @@
         "updated_at": "2026-10-25T10:00:00Z",
         "version": 1,
         "schema_version": 1,
-        "deletion_epoch": 0
+        "deletion_epoch": 0,
+        "conversation_id": "d18aec61-c030-58b4-a8c2-e9a07f290487",
+        "run_id": "f55a3e09-c510-527d-9395-9e44cc1dd2fc",
+        "sequence": 1,
+        "source_refs": [],
+        "deleted": false,
+        "suppress_reuse": false
       }
     },
     {
@@ -470,7 +492,12 @@
         "version": 1,
         "schema_version": 1,
         "deletion_epoch": 0,
-        "agent_id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b"
+        "agent_id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b",
+        "deleted": false,
+        "suppress_reuse": false,
+        "history_revision": 1,
+        "next_sequence": 2,
+        "active_run_id": null
       }
     },
     {
@@ -485,7 +512,13 @@
         "updated_at": "2026-10-25T10:00:00Z",
         "version": 1,
         "schema_version": 1,
-        "deletion_epoch": 0
+        "deletion_epoch": 0,
+        "conversation_id": "4e36a697-386b-5584-a86e-09c844899ced",
+        "run_id": "b11b4590-7654-517d-bce7-f9ea0915c702",
+        "sequence": 1,
+        "source_refs": [],
+        "deleted": false,
+        "suppress_reuse": false
       }
     },
     {
@@ -521,7 +554,12 @@
         "version": 1,
         "schema_version": 1,
         "deletion_epoch": 0,
-        "agent_id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b"
+        "agent_id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b",
+        "deleted": false,
+        "suppress_reuse": false,
+        "history_revision": 1,
+        "next_sequence": 2,
+        "active_run_id": null
       }
     },
     {
@@ -536,7 +574,13 @@
         "updated_at": "2026-10-25T10:00:00Z",
         "version": 1,
         "schema_version": 1,
-        "deletion_epoch": 0
+        "deletion_epoch": 0,
+        "conversation_id": "cb87cb14-db38-5199-9108-be50527b6a79",
+        "run_id": "ea07977e-3ed4-5b96-a593-51b3579fd9dd",
+        "sequence": 1,
+        "source_refs": [],
+        "deleted": false,
+        "suppress_reuse": false
       }
     },
     {
@@ -589,6 +633,62 @@
         "persona": "FIXTURE_PERSONA_B",
         "prompt_version": 1,
         "allowed_tools": []
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/runs/a7b4a5ed-c284-5fd0-8e1f-65816a444c56",
+      "fields": {
+        "run_id": "a7b4a5ed-c284-5fd0-8e1f-65816a444c56",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "conversation_id": "190ac888-c2e4-583e-9af8-5fd399dd24a8",
+        "status": "failed",
+        "version": 1,
+        "last_event_seq": 0,
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "error_code": "fixture_history_only"
+      }
+    },
+    {
+      "path": "tenants/51cea16f-85c3-5b21-a3bf-5fe62e091124/runs/f55a3e09-c510-527d-9395-9e44cc1dd2fc",
+      "fields": {
+        "run_id": "f55a3e09-c510-527d-9395-9e44cc1dd2fc",
+        "tenant_id": "51cea16f-85c3-5b21-a3bf-5fe62e091124",
+        "conversation_id": "d18aec61-c030-58b4-a8c2-e9a07f290487",
+        "status": "failed",
+        "version": 1,
+        "last_event_seq": 0,
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "error_code": "fixture_history_only"
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/runs/b11b4590-7654-517d-bce7-f9ea0915c702",
+      "fields": {
+        "run_id": "b11b4590-7654-517d-bce7-f9ea0915c702",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "conversation_id": "4e36a697-386b-5584-a86e-09c844899ced",
+        "status": "failed",
+        "version": 1,
+        "last_event_seq": 0,
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "error_code": "fixture_history_only"
+      }
+    },
+    {
+      "path": "tenants/257e4adc-6163-518b-b46d-d8500e7c569d/runs/ea07977e-3ed4-5b96-a593-51b3579fd9dd",
+      "fields": {
+        "run_id": "ea07977e-3ed4-5b96-a593-51b3579fd9dd",
+        "tenant_id": "257e4adc-6163-518b-b46d-d8500e7c569d",
+        "conversation_id": "cb87cb14-db38-5199-9108-be50527b6a79",
+        "status": "failed",
+        "version": 1,
+        "last_event_seq": 0,
+        "created_at": "2026-10-25T10:00:00Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "error_code": "fixture_history_only"
       }
     }
   ]

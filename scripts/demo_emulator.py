@@ -161,7 +161,7 @@ def firebase_command(mode: str) -> list[str]:
     ]
     if mode == "exec":
         command.append(
-            "uv run --all-packages --locked --offline python -B "
+            "PYTHONPATH=tests uv run --all-packages --locked --offline python -B "
             "-m unittest discover -s tests/emulator -p 'test_*.py'"
         )
     return command

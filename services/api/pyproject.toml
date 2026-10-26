@@ -6,7 +6,6 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "brainoid-jobs",
     "brainoid-persistence",
-
     "brainoid-agent-core",
     "brainoid-contracts",
     "brainoid-memory",
@@ -20,6 +19,7 @@ dependencies = [
     "pydantic==2.14.1",
     "pyjwt==2.15.1",
     "uvicorn==0.54.0",
+    "brainoid-runs",
 ]
 classifiers = ["Private :: Do Not Upload"]
 
@@ -35,3 +35,4 @@ brainoid-contracts = { workspace = true }
 brainoid-policy = { workspace = true }
 brainoid-jobs = { workspace = true }
 brainoid-persistence = { workspace = true }
+brainoid-runs = { workspace = true }

@@ -1630,7 +1630,7 @@ export type ListConversationsErrors = {
 export type ListConversationsError = ListConversationsErrors[keyof ListConversationsErrors];
 export type ListConversationsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: ConversationPage;
 };
@@ -1662,7 +1662,7 @@ export type CreateConversationErrors = {
 export type CreateConversationError = CreateConversationErrors[keyof CreateConversationErrors];
 export type CreateConversationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     201: Conversation;
 };
@@ -1691,7 +1691,7 @@ export type GetConversationErrors = {
 export type GetConversationError = GetConversationErrors[keyof GetConversationErrors];
 export type GetConversationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Conversation;
 };
@@ -1724,7 +1724,7 @@ export type UpdateConversationErrors = {
 export type UpdateConversationError = UpdateConversationErrors[keyof UpdateConversationErrors];
 export type UpdateConversationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Conversation;
 };
@@ -1756,7 +1756,7 @@ export type ListMessagesErrors = {
 export type ListMessagesError = ListMessagesErrors[keyof ListMessagesErrors];
 export type ListMessagesResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: MessagePage;
 };
@@ -1789,7 +1789,7 @@ export type CreateTurnErrors = {
 export type CreateTurnError = CreateTurnErrors[keyof CreateTurnErrors];
 export type CreateTurnResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     202: RunAccepted;
 };
@@ -1818,7 +1818,7 @@ export type GetRunErrors = {
 export type GetRunError = GetRunErrors[keyof GetRunErrors];
 export type GetRunResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Run;
 };

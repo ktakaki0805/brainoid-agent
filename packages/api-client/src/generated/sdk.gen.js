@@ -528,7 +528,7 @@ export const getConversation = (options) => (options.client ?? client).get({
 /**
  * 会話名・表示方針更新
  *
- * 会話名・表示方針更新
+ * 会話の編集権限とIf-Matchを確認して更新する。visibilityは変更不可。更新中のrunは旧source版のまま失効し、新しい設定で自動再生成しない。
  */
 export const updateConversation = (options) => (options.client ?? client).patch({
     security: [{
@@ -564,7 +564,7 @@ export const listMessages = (options) => (options.client ?? client).get({
 /**
  * 会話実行を永続化して受け付ける
  *
- * 会話実行を永続化して受け付ける
+ * 現在認可後、user message・queued run・pending jobを同一transactionで保存する。現在はtext入力とtext出力のみ受け付け、audio_input_idとspeech出力は422。同じ冪等キーは同じrunを返す。会話ごとの実行を直列化し、別のturnが進行中なら409。202後は独立workerが処理し、run GETで結果を取得する。events_pathのSSEは後続実装。
  */
 export const createTurn = (options) => (options.client ?? client).post({
     security: [{
@@ -586,7 +586,7 @@ export const createTurn = (options) => (options.client ?? client).post({
 /**
  * 実行状態を再取得
  *
- * 実行状態を再取得
+ * 現在の親会話権限で取得する。内部checkpoint・provider署名は返さない。終端jobの失敗/失効をfailedへ反映する。content_filter、空応答、未対応tool呼出しはfailedとなり成功messageを保存しない。
  */
 export const getRun = (options) => (options.client ?? client).get({
     security: [{

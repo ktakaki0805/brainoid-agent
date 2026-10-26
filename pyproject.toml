@@ -17,7 +17,7 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["services/*", "packages/agent_core", "packages/model_google", "packages/contracts", "packages/memory", "packages/tools", "packages/policy", "packages/jobs", "packages/persistence"]
+members = ["services/*", "packages/agent_core", "packages/model_google", "packages/contracts", "packages/memory", "packages/tools", "packages/policy", "packages/jobs", "packages/persistence", "packages/runs"]
 
 [tool.ruff]
 target-version = "py313"
@@ -30,4 +30,4 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["tests", "services", "packages/agent_core", "packages/model_google", "packages/contracts", "packages/memory", "packages/tools", "packages/policy", "packages/jobs", "packages/persistence", "scripts"]
+files = ["tests", "services", "packages/agent_core", "packages/model_google", "packages/contracts", "packages/memory", "packages/tools", "packages/policy", "packages/jobs", "packages/persistence", "packages/runs", "scripts"]

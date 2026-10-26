@@ -2,6 +2,8 @@
 
 BA-RUN-03 は既存の初期 agent を [Agent API](../services/api/src/brainoid_api/routes/agents.py) から共有し、[TextAgentCore](../packages/agent_core/src/brainoid_agent_core/core.py) で一回の文字生成を実行する。永続 conversation/message/run、SSE、tool 実行、実記憶検索はこの実装に含めない。
 
+後続BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は、このCoreへ現在の親会話/history/agent/credential/leaseを読むContextAuthorizerを接続し、最終保存時にも再認可する。SSE、tool実行、実記憶検索は引き続き後続範囲となる。
+
 ## 人格の取得と更新
 
 `GET /v1/tenants/{tenant_id}/agents` と `GET /v1/tenants/{tenant_id}/agents/{agent_id}` は現在の user membership または device credential を再確認する。同じ tenant/agent/version はスマホ・Pi とも同じ `name` / `persona` / `allowed_tools` になる。個別取得は `ETag` を返す。現在版だけを提供し、旧版の履歴取得は実装しない。Core の `expected_agent_version` と取得版が違えば `Failed(conflict)` でモデルを呼ばない。
@@ -13,6 +15,8 @@ BA-RUN-03 は既存の初期 agent を [Agent API](../services/api/src/brainoid_
 ## Core の注入と現在認可
 
 Core の実行依存は contracts と Pydantic のみ。`ModelProvider`、`MemoryStore`、`Clock` と必須の `ContextAuthorizer` を構成側から注入する。実 model SDK、FastAPI、Firebase、端末モジュールを import しない。`ContextInput` は認証済み context、正本から読んだ agent と期待版、認可対象 conversation の tenant/owner/scope/version/deletion epoch と内部履歴、今回の user text、要求する記憶 scope を受ける。HTTP body から内部履歴・provider state を直接構築しない。
+
+記憶利用は任意で、`ContextInput.memory_scopes=()` は検索を無効にする。この場合は `MemoryStore.search` 自体を呼ばず、会話・人格・履歴・現在権限の検査と生成は通常どおり行う。`conversation` と `memory.read` は独立した許可であり、会話だけを許可したPi個人sessionでも文字会話を実行できる。非空scopeを明示した要求は従来どおり検索前に現在認可し、不足時に空scopeへ置き換えて続行しない。実際に検索する `MemorySearch.scopes` の非空制約は維持する。
 
 [ContextAuthorizer.check](../packages/agent_core/src/brainoid_agent_core/context.py) は既存 IAM を使う信頼済み port。Core 内の scope 比較を IAM の代わりにしない。adapter は一つの現在 transaction で次を確認する。
 

@@ -31,7 +31,8 @@ class ContextInput(CoreValue):
     expected_agent_version: Version
     conversation: ConversationContext
     user_text: Annotated[str, Field(strict=True, min_length=1, max_length=32000, repr=False)]
-    memory_scopes: Annotated[tuple[Scope, ...], Field(min_length=1)]
+    # Empty explicitly disables retrieval; conversation authority is still required.
+    memory_scopes: tuple[Scope, ...]
 
 
 class ContextAuthorizer(Protocol):
@@ -46,6 +47,8 @@ class ContextAuthorizer(Protocol):
     MODEL_READ every memory AND its current source, matching tenant, owner, scope,
     version, deletion epoch, validity and suppress_reuse. Do not trust DTO fields.
     Sources of kind message/import require their owning authorized resource too.
+    Empty memory_scopes skips retrieval and its search permission, never the
+    conversation, identity, version, lease or destination checks above.
 
     Return a content-free stable receipt for this authority and exact input versions.
     A prior receipt must match; never replace revoked authority with new grants.

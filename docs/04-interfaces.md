@@ -138,6 +138,8 @@ BA-IAM-04 で `POST /tenants/{tenant_id}/invitations` と `POST /invitations:acc
 
 ## 4. 会話と音声の流れ
 
+BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は会話CRUD、message一覧、text turnの202受付とrun GETを実装する。同一会話の進行中turnは409で直列化し、独立workerが最終結果を保存する。SSE・音声・取消・確認待ちは後続実装。
+
 ### 4.1 永続実行とSSE
 
 ```mermaid

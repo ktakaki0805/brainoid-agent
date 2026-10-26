@@ -8,7 +8,7 @@ from uuid import uuid4
 from brainoid_contracts import FirebaseUid, ResourceId, UtcTimestamp, Version, normalize_utc
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.evaluator import Evaluator
-from brainoid_policy.models import Action, DeviceSubject, UserSubject
+from brainoid_policy.models import Action, DeviceSubject, Subject, UserSubject
 from brainoid_policy.scopes import PolicyDenied, Principal, ResourceGrant
 from pydantic import Field, StrictBool, ValidationError, model_validator
 
@@ -365,6 +365,23 @@ class PrivateSessions:
         replayed reads. Resource grants must originate from policy, never request/model.
         This hook performs no external effects and rechecks the supplied grant itself.
         """
+        return self.prepare_activity(tx, identity, session, activity_id, grant)()
+
+    def prepare_activity(
+        self,
+        tx: Transaction,
+        identity: DeviceIdentity,
+        session: ResourceId,
+        activity_id: ResourceId,
+        grant: ResourceGrant,
+        *,
+        output: Subject | None = None,
+    ) -> Callable[[], PrivateSession]:
+        """Read/authorize now, return DB-only writes for an atomic outbox admission.
+
+        The callback belongs to this transaction and must run after all other reads.
+        It is never retained across transactions or invoked on request replay.
+        """
         principal = self.current(tx, identity, session)
         if grant.principal.subject != principal.subject or grant.action == Action.MODEL_READ:
             raise APIError(ErrorCode.OPERATION_FORBIDDEN)
@@ -374,6 +391,7 @@ class PrivateSessions:
                 principal.subject,
                 grant.ref,
                 action=Action(grant.action),
+                output=output,
                 previous=grant,
             )
         )
@@ -391,7 +409,7 @@ class PrivateSessions:
         if receipt is not None:
             if receipt["binding"] != binding:
                 raise APIError(ErrorCode.IDEMPOTENCY_CONFLICT)
-            return self._view(record)
+            return lambda: self._view(record)
         now = normalize_utc(self._now())
         if now >= min(record.expires_at, record.idle_expires_at):
             raise APIError(ErrorCode.OPERATION_FORBIDDEN)
@@ -401,6 +419,10 @@ class PrivateSessions:
                 "idle_expires_at": min(record.expires_at, now + IDLE),
             }
         )
-        self._persist(tx, current)
-        tx.create(path, {"binding": binding, "session_id": session})
-        return self._view(current)
+
+        def write() -> PrivateSession:
+            self._persist(tx, current)
+            tx.create(path, {"binding": binding, "session_id": session})
+            return self._view(current)
+
+        return write

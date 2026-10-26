@@ -8,6 +8,7 @@ from typing import Annotated, cast
 from uuid import uuid4
 
 import firebase_admin  # type: ignore[import-untyped]
+from brainoid_jobs import Jobs
 from brainoid_policy.control_ledger import ControlLedger
 from fastapi import Depends, Request
 from google.auth.credentials import AnonymousCredentials
@@ -29,6 +30,7 @@ from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.agents import Agents
+from brainoid_api.repositories.conversations import Conversations
 from brainoid_api.repositories.device_credentials import DeviceCredentialRepository
 from brainoid_api.repositories.devices import Devices
 from brainoid_api.repositories.invitations import Invitations
@@ -49,6 +51,7 @@ class AuthServices:
     device_management: Devices | None = None
     private_sessions: PrivateSessions | None = None
     agents: Agents | None = None
+    conversations: Conversations | None = None
 
 
 @asynccontextmanager
@@ -100,6 +103,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
         store = FirestoreTransactions(client)
         tenants = Tenants(store, cursors, ledger=ledger)
         devices = DeviceCredentialRepository(store, tenants, ledger, device_tokens)
+        sessions = PrivateSessions(store, tenants, ledger, devices)
         yield AuthServices(
             FirebaseIdentityVerifier(app, settings),
             FirestoreProfiles(client),
@@ -113,8 +117,16 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
             Memberships(store, tenants, ledger, cursors),
             devices,
             Devices(store, tenants, ledger, cursors),
-            PrivateSessions(store, tenants, ledger, devices),
+            sessions,
             Agents(store, tenants, cursors, ledger=ledger, credentials=devices),
+            Conversations(
+                store,
+                tenants,
+                cursors,
+                Jobs(store, ledger, allow_untracked_bootstrap=settings.app_env == "local-emulator"),
+                credentials=devices,
+                sessions=sessions,
+            ),
         )
     finally:
         try:
