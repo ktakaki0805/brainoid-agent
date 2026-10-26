@@ -42,6 +42,8 @@ class ToolReply(CoreValue):
 class ModelMessage(CoreValue):
     role: Literal["system", "user", "assistant", "tool"]
     parts: tuple[Annotated[TextPart | ToolCall | ToolReply, Field(discriminator="type")], ...]
+    # Opaque adapter continuation data; never user input, a tool argument, or SSE output.
+    provider_state: JsonObject | None = Field(default=None, repr=False)
 
 
 class ToolDefinition(CoreValue):
@@ -71,6 +73,17 @@ class ToolRequested(CoreValue):
     call: ToolCall
 
 
+class ModelResponse(CoreValue):
+    """Complete assistant message for history, including opaque continuation state.
+
+    Consumers retain this snapshot unchanged after Completed, rather than rebuilding
+    history from text/tool deltas and losing provider-required signatures.
+    """
+
+    type: Literal["model_response"] = "model_response"
+    message: ModelMessage
+
+
 class Usage(CoreValue):
     """Cumulative totals for this invocation, not incremental token deltas.
 
@@ -84,5 +97,5 @@ class Usage(CoreValue):
 
 
 type ModelEvent = Annotated[
-    TextDelta | ToolRequested | Usage | TerminalEvent, Field(discriminator="type")
+    TextDelta | ToolRequested | ModelResponse | Usage | TerminalEvent, Field(discriminator="type")
 ]

@@ -28,13 +28,14 @@
 | `packages/jobs` | 永続job・outbox・lease・checkpoint | 同じtransactionで保存し、外部I/Oはworker handlerから行う |
 | `packages/persistence` | 構成済みFirestore transaction/page adapter | API/worker共通。credentialを暗黙に探索しない |
 | `packages/agent_core` | 会話実行とツール選択 | HTTP、Firebase SDK、Pi固有処理を持たない |
+| `packages/model_google` | Google Gen AI の ModelProvider adapter | 明示した Vertex 接続と SDK 変換。Core 最小依存には含めない。[利用・検証契約](google-model-provider.md) |
 | `packages/contracts` | ID・UTC時刻・timezone・version・scope・Contextの共通型 | 認可判断はIAM層に委ねる。[通信スキーマ対応表](contracts.md) |
 | `packages/memory` | 記憶の保存・検索・グラフ展開 | 認可済みcontextを必須にする |
 | `packages/tools` | ノート・タスク・Calendar・家電のツール | 入力検証、認可、確認、結果の正規化 |
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |
 
-表のディレクトリを作成済み。Pythonの10 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤とBA-IAM-01の[本人認証・プロフィール取得](authentication.md)は `services/api/src/brainoid_api` に配置し、membership認可・他の業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
+表のディレクトリを作成済み。Pythonの11 memberは `src/brainoid_*` 配下に公開packageを持ち、TypeScriptの4 memberは `src/index.ts` を入口とする。API基盤とBA-IAM-01の[本人認証・プロフィール取得](authentication.md)は `services/api/src/brainoid_api` に配置し、membership認可・他の業務機能は後続チケットで実装する。`infra/gcp` はTerraform用の領域であり、Python/Nodeのmemberには含めない。内部のpackage名は開発用で、OPEN-001の公開識別子を確定しない。
 
 技術リードは共通契約の変更を管理する。UI担当は画面と音声状態、API担当は認証・認可と永続化、Agent担当は記憶・推論・ツール、Device担当は実機・ローカル処理、Platform担当はGCP・CI・運用に責任を持つ。少人数チームでは兼任できるが、権限・削除・外部操作の変更は実装者以外がレビューする。
 

@@ -24,7 +24,9 @@ MemoryStore の全要求は context と閲覧 `scopes` が必須。戻り値は�
 
 ## 2. stream・取消・期限・副作用
 
-モデルは `TextDelta`、`ToolRequested`、`Usage` を返す。`Usage` は当該呼出しの累積値であり、複数の usage を加算しない。未報告の token 数は `None` とする。生成の終了理由は `Completed.finish_reason` の `stop` / `tool_calls` / `length` / `content_filter` に正規化する。
+モデルは `TextDelta`、`ToolRequested`、`Usage`、必要に応じて `ModelResponse` を返す。`Usage` は当該呼出しの累積値であり、複数の usage を加算しない。未報告の token 数は `None` とする。生成の終了理由は `Completed.finish_reason` の `stop` / `tool_calls` / `length` / `content_filter` に正規化する。
+
+BA-RUN-02 の `ModelResponse.message` は次 turn 用の完全な assistant message。`ModelMessage.provider_state` は署名等を維持する不透明な JSON（既定 `None`、repr 非表示）であり、SDK 型や権限情報を含めない。提供された場合は差分から履歴を再構成せず、この message を保持する。`Completed` を受け取るまで履歴確定・tool 実行を行わない。provider state を HTTP 入力・表示/SSE・tool 引数・検索記憶・ログへ渡さず、異なる provider 設定に移さない。[Google adapter 契約](google-model-provider.md)を参照する。
 
 stream は `Completed`、`Failed`、`Cancelled`、`TimedOut` のいずれかで一回だけ終了し、その後にイベントを返さない。終端のない EOF は成功に変換せず、`Failed(code="stream_interrupted")` とする。provider の生の例外文を `Failed` に含めない。モデル内部イベントから永続 run/SSE イベントへの変換、seq、batch、認可再確認は BA-RUN-03 の責務。
 
@@ -52,4 +54,4 @@ stream は `Completed`、`Failed`、`Cancelled`、`TimedOut` のいずれかで�
 mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_agent_core.py
 ```
 
-Google Gen AI adapter は BA-RUN-02、会話ループは BA-RUN-03、IAM・記憶・外部操作の実装は各機能チケットで追加する。今回の変更には公開 API・保存形式の移行や実 provider の導入はない。
+Google Gen AI adapter は BA-RUN-02 で [独立 member](../packages/model_google/)へ追加済み。Core 単独の依存・試験に SDK は不要。会話ループは BA-RUN-03、IAM・記憶・外部操作は各機能チケットで接続する。公開 API・保存形式の移行はなく、実 provider 疎通は OPEN-005 の外部前提確定後に行う。

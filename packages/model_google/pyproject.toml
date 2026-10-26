@@ -1,0 +1,22 @@
+[project]
+name = "brainoid-model-google"
+version = "0.1.0"
+description = "Explicitly configured Google Gen AI model adapter"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "brainoid-agent-core",
+    "google-auth==2.62.0",
+    "google-genai==2.33.0",
+    "httpx==0.28.1",
+    "jsonschema==4.26.0",
+    "pydantic==2.14.1",
+    "referencing==0.37.0",
+]
+classifiers = ["Private :: Do Not Upload"]
+
+[build-system]
+requires = ["uv_build==0.12.19"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+brainoid-agent-core = { workspace = true }

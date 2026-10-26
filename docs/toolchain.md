@@ -54,6 +54,7 @@ mise exec -- pnpm --version
 | Pythonルート | 非パッケージの開発用project。共通dev依存だけを持つ |
 | `services/api`・`worker`・`device` | uv member。`src/brainoid_api`・`brainoid_worker`・`brainoid_device` |
 | `packages/agent_core`・`memory`・`tools` | uv member。`src/brainoid_agent_core`・`brainoid_memory`・`brainoid_tools` の公開API |
+| `packages/model_google` | Google Gen AI adapter の uv member。Core の依存に追加せず SDK と HTTP transport を隔離 |
 | `packages/contracts` | uv member。`src/brainoid_contracts` の共通型。PydanticはAPIと同じ固定版を使用 |
 | `apps/mobile`・`display` | 非公開pnpm member。`src/index.ts`。UI機能はBA-UI-01以降 |
 | `packages/ui`・`api-client` | 非公開pnpm member。`exports` が `src/index.ts` だけを公開。api-clientは生成SDK・型と注入factoryを提供 |
@@ -171,3 +172,17 @@ BA-FND-06では2026-10-26に公式release metadata・source・licenseで次の�
 | jdx/mise-action 5.2.3 | workflow内だけで使用。Node 24 runtime、MIT。完全commit SHAへ固定し、mise本体もworkflowの完全版で固定。cacheとtoken永続化は無効。[source・license](https://github.com/jdx/mise-action/tree/v5.2.3)、[inputs](https://github.com/jdx/mise-action/blob/v5.2.3/action.yml) |
 
 両ActionsはUbuntu 24.04のGitHub hosted runnerで動かす定義とし、self-hosted runnerは使わない。checkoutとツール導入に必要な自動tokenは `contents: read` だけに限定する。mise・lychee・actionlintは開発環境のファイルを読む権限を使い、アプリ配布物へ含めない。lycheeは `--offline` でネットワーク要求を禁止し、文書中の外部リンクへ接続しない。通常テスト・検証にクラウドIAM・secret・有料providerの権限は追加しない。更新時はこの確認と[PR検証の負例](05-development-and-testing.md#53-pr検証と失敗の再現)を再実行する。
+
+BA-RUN-02 は Core 最小 install に SDK を加えないため `brainoid-model-google` を独立 workspace member とした。2026-10-26 に公式 PyPI JSON metadata と導入済み source/metadata を確認し、`uv add --package brainoid-model-google` で以下を完全固定した。SDK は Google が継続保守する公式 Gen AI Python library。[公式ガイド](https://googleapis.github.io/python-genai/)、[2.33.0 source](https://github.com/googleapis/python-genai/tree/v2.33.0)。
+
+| 直接依存・採用版 | 目的・互換性・ライセンス |
+| --- | --- |
+| google-genai 2.33.0 | Vertex の generateContent 非同期 stream。Python >=3.10、3.13 対応、Apache-2.0。[公式 metadata](https://pypi.org/pypi/google-genai/2.33.0/json) |
+| google-auth 2.62.0 | 呼出元が事前更新した credential から token snapshot を作成。既存固定版、Python >=3.10、Apache-2.0。[PyPI](https://pypi.org/project/google-auth/2.62.0/) |
+| HTTPX 0.28.1 | SDK の明示 HTTP transport、fake 注入、接続解放。既存固定版、Python >=3.8、BSD-3-Clause。[PyPI](https://pypi.org/project/httpx/0.28.1/) |
+| jsonschema 4.26.0 / referencing 0.37.0 | 構造化応答の検証と外部参照取得を禁止する registry。既存固定版、Python >=3.10、各 MIT。[jsonschema](https://pypi.org/project/jsonschema/4.26.0/)、[referencing](https://pypi.org/project/referencing/0.37.0/) |
+| Pydantic 2.14.1 | 型付き設定と共通 JSON 検証。既存固定版、MIT |
+
+新しい推移依存は distro 1.9.0（Apache-2.0）、sniffio 1.3.1（MIT OR Apache-2.0）、tenacity 9.1.4（Apache-2.0）、websockets 17.3（BSD-3-Clause）。SDK とこれらは adapter を配布する環境の実行依存で、license 表示と lock の hash を保持する。従来 dev 検証だけで使った JSON Schema 関連もこの member の配布依存になる。既存依存版の更新は行っていない。ライセンス値と Python 要件は各導入済み distribution metadata でも確認した。
+
+導入による IAM 付与・credential 作成・認証探索はない。モデル要求だけが明示した Vertex endpoint へ HTTPS 接続でき、外部 tool・音声・ファイル API・WebSocket API は呼ばない。SDK の HTTP retry、automatic function calling、automatic continuation、record/replay を明示無効化し、認証 refresh は構成側の事前更新に分離する。通常 check/test は HTTP fake だけを使う。実 provider の課金、モデル本文、署名、credential をログへ出さない。[adapter 契約と上限付き疎通手順](google-model-provider.md)に機能範囲、実疎通未実施理由、環境設定・後続会話層への引継ぎを記録する。
