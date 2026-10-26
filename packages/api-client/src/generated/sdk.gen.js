@@ -604,7 +604,7 @@ export const getRun = (options) => (options.client ?? client).get({
 /**
  * SSEで実行イベントを取得
  *
- * 認証header付きfetch。idはrun内のseq。24時間内は再送可能。イベント履歴消失は410。run-events.schema.json参照。
+ * 認証header付きfetch。idはrun内seq、eventはtype、dataはrun-events.schema.json。Last-Event-IDの次から再開し既読seqを再適用しない。run作成後24時間の固定期限または履歴欠損は410、未来seqは409、不正cursorは400。410ではrunと最終messageを取得する。各batch直前に現在の会話・出力先・token期限を確認し、headers送信後の失効は接続終了とする。heartbeatはseqを消費しないコメント。
  */
 export const streamRunEvents = (options) => (options.client ?? client).sse.get({
     security: [{

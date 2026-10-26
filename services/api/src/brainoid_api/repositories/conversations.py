@@ -18,6 +18,7 @@ from brainoid_policy.models import (
 )
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, Principal, ResourceGrant
 from brainoid_policy.transactions import resource_state
+from brainoid_runs.events import save_projection
 from brainoid_runs.models import (
     Conversation,
     ConversationCreate,
@@ -500,6 +501,7 @@ class Conversations:
             )
             parent = self.document(tx, tenant, conversation)
             prior = None
+            old = None
             if parent.get("active_run_id") is not None:
                 old = tx.get(run_path(tenant, parent["active_run_id"]))
                 if old is None:
@@ -550,6 +552,7 @@ class Conversations:
             record.update(
                 {
                     "tenant_id": tenant,
+                    "events_version": 1,
                     "input_message_id": message_id,
                     "input_text": body.text,
                     "input_sequence": parent.get("next_sequence", 1),
@@ -581,7 +584,8 @@ class Conversations:
             if activity is not None:
                 activity()
             if prior is not None:
-                tx.set(run_path(tenant, prior["run_id"]), prior)
+                assert old is not None
+                save_projection(tx, old, prior, now)
             tx.create(run_path(tenant, run_id), record)
             tx.create(
                 conversation_path(tenant, conversation) + "/messages/" + message_id,
@@ -632,10 +636,8 @@ class Conversations:
                 raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
             _, current = self.access(tx, identity, tenant, doc["conversation_id"], session)
             updated = failed_projection(tx, doc)
-            result = view(Run, updated)
             current.ensure_live(self.now())
-            if updated != doc:
-                tx.set(run_path(tenant, run_id), updated)
-            return result
+            save_projection(tx, doc, updated, self.now())
+            return view(Run, updated)
 
         return self.store.run(read)

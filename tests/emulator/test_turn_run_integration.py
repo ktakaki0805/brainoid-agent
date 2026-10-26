@@ -29,7 +29,7 @@ from google.api_core.exceptions import ServiceUnavailable
 from test_device_pairing_integration import DevicePairingIntegrationFixture
 
 
-class TurnRunIntegrationTests(DevicePairingIntegrationFixture):
+class TurnRunIntegrationFixture(DevicePairingIntegrationFixture):
     def setUp(self) -> None:
         super().setUp()
         self.persistence = FirestoreTransactions(self.db)
@@ -89,6 +89,8 @@ class TurnRunIntegrationTests(DevicePairingIntegrationFixture):
         assert delivery is not None
         self.worker.handle(LOCAL_AUTHORIZATION, delivery.model_dump(mode="json"))
 
+
+class TurnRunIntegrationTests(TurnRunIntegrationFixture):
     def test_competing_turns_and_same_key_recovery(self) -> None:
         conversation = self.conversation()
         results = self.concurrent(

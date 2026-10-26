@@ -145,3 +145,38 @@ export function createBrainoidClient({ baseUrl, auth, fetch }: BrainoidClientOpt
   });
   return client;
 }
+
+/** Per-run UI cursor. Validate the complete schema before applying an event here.
+ * Persist the rendered state and lastAppliedSeq together; reconnect with lastEventId.
+ * A gap requires fetching the run/final message instead of silently skipping text.
+ */
+export class RunEventCursor {
+  private sequence: number;
+  readonly runId: string;
+
+  constructor(runId: string, lastAppliedSeq = 0) {
+    if (!runId || !Number.isSafeInteger(lastAppliedSeq) || lastAppliedSeq < 0) {
+      throw new TypeError("Invalid run event cursor");
+    }
+    this.runId = runId;
+    this.sequence = lastAppliedSeq;
+  }
+
+  get lastEventId(): string {
+    return String(this.sequence);
+  }
+
+  apply<T extends { run_id: string; seq: number }>(
+    event: T,
+    render: (event: T) => undefined,
+  ): boolean {
+    if (event.run_id !== this.runId || !Number.isSafeInteger(event.seq) || event.seq < 1) {
+      throw new TypeError("Invalid run event sequence");
+    }
+    if (event.seq <= this.sequence) return false;
+    if (event.seq !== this.sequence + 1) throw new Error("Run event sequence gap");
+    render(event);
+    this.sequence = event.seq;
+    return true;
+  }
+}

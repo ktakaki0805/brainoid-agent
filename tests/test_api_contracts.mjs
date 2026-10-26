@@ -739,3 +739,45 @@ test("SSE with an already aborted signal completes without starting transport", 
   assert.deepEqual(fixture.errors, []);
   assert.equal(fixture.requests, 0);
 });
+
+test("run cursor applies a seq once across explicit reconnect and preserves failed rendering", () => {
+  const cursor = new sdk.RunEventCursor(runStarted.run_id);
+  const rendered = [];
+  assert.equal(
+    cursor.apply(runStarted, (event) => {
+      rendered.push(event);
+    }),
+    true,
+  );
+  assert.equal(
+    cursor.apply(runStarted, () => assert.fail("duplicate")),
+    false,
+  );
+  assert.equal(cursor.lastEventId, "1");
+  assert.throws(() => cursor.apply({ ...runStarted, seq: 3 }, () => {}), /gap/);
+  assert.throws(() => cursor.apply({ ...runStarted, run_id: "other" }, () => {}), /sequence/);
+  assert.throws(
+    () =>
+      cursor.apply({ ...runStarted, seq: 2 }, () => {
+        throw new Error("render failed");
+      }),
+    /render failed/,
+  );
+  assert.equal(cursor.lastEventId, "1");
+  const reconnected = new sdk.RunEventCursor(runStarted.run_id, Number(cursor.lastEventId));
+  assert.equal(
+    reconnected.apply(runStarted, () => assert.fail("replayed")),
+    false,
+  );
+  assert.equal(
+    reconnected.apply({ ...runStarted, seq: 2 }, (event) => {
+      rendered.push(event);
+    }),
+    true,
+  );
+  assert.deepEqual(
+    rendered.map((event) => event.seq),
+    [1, 2],
+  );
+  assert.equal(reconnected.lastEventId, "2");
+});

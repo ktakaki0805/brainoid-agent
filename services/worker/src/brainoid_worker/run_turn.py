@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 from uuid import UUID, uuid5
 
 from brainoid_agent_core.context import ContextInput
-from brainoid_agent_core.core import RunBudget, TextAgentCore
+from brainoid_agent_core.core import RunBudget, TextAgentCore, TextRunResult
 from brainoid_agent_core.ports import CallControl, Clock, ModelProvider
 from brainoid_agent_core.types import (
     Completed,
@@ -33,11 +33,13 @@ from brainoid_jobs import AuthorizationUnavailable, Job, Jobs, LeaseLost
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.models import Record
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
+from brainoid_runs import events
 from brainoid_runs.models import Message
 from brainoid_runs.state import RunState, conversation_path, run_path
 from pydantic import Field, JsonValue
 
 from brainoid_worker.entry import Execution, Worker
+from brainoid_worker.run_event_writer import RunEventWriter, WriteBridge
 
 
 class SystemClock:
@@ -165,6 +167,7 @@ class RunTurn:
     ) -> None:
         self.jobs, self.model, self.clock = jobs, model, clock or SystemClock()
         self.reader = ReadBridge()
+        self.writer = WriteBridge()
         self.budget = (budget or RunBudget()).model_copy(
             update={
                 "max_output_characters": min(8000, (budget or RunBudget()).max_output_characters)
@@ -184,6 +187,15 @@ class RunTurn:
                 raise LeaseLost()
             run, _, request, _ = self.state.check(tx, job)
             if run["status"] == "queued":
+                events.append(
+                    tx,
+                    run,
+                    events.Started(
+                        run_id=job.operation_id,
+                        seq=run.get("last_event_seq", 0) + 1,
+                        occurred_at=self.jobs.now(),
+                    ),
+                )
                 tx.set(
                     run_path(job.tenant_id, job.operation_id),
                     {**run, "status": "running", "version": run["version"] + 1},
@@ -198,13 +210,25 @@ class RunTurn:
         def invoke(key: str) -> JsonValue:
             authorizer = Authorizer(self.jobs, self.state, job, self.reader)
             core = TextAgentCore(self.model, EmptyMemory(), authorizer, clock=self.clock)
-            result = asyncio.run(
-                core.run(
-                    request,
-                    control=CallControl(NoCancellation(), None),
-                    budget=self.budget,
-                )
-            )
+            writer = RunEventWriter(self.jobs, self.state, job, self.clock, self.writer)
+
+            async def generate() -> TextRunResult:
+                writer.start()
+                try:
+                    return await core.run(
+                        request,
+                        control=CallControl(NoCancellation(), None),
+                        budget=self.budget,
+                        on_text=writer.add,
+                    )
+                finally:
+                    await writer.close()
+
+            result = asyncio.run(generate())
+            if isinstance(writer.error, (AuthorizationUnavailable, PersistenceUnavailable)):
+                raise writer.error
+            if writer.error is not None:
+                raise PolicyDenied()
             # Core's public errors deliberately normalize exceptions. Preserve the
             # infrastructure category outside Core so Worker can defer/reconcile it.
             if authorizer.unavailable is not None:
@@ -262,6 +286,20 @@ class RunTurn:
             "updated_at": self.jobs.now().isoformat(),
         }
         if outcome.status == "completed":
+            prefix = run.get("streamed_text", "")
+            if not outcome.text.startswith(prefix):
+                raise PolicyDenied()
+            events.append_text(tx, updated, outcome.text[len(prefix) :], self.jobs.now())
+            events.append(
+                tx,
+                updated,
+                events.Completed(
+                    run_id=job.operation_id,
+                    seq=updated.get("last_event_seq", 0) + 1,
+                    occurred_at=self.jobs.now(),
+                    payload=events.CompletedPayload(message_id=message_id),
+                ),
+            )
             message = Message(
                 id=message_id,
                 role="assistant",
@@ -289,6 +327,16 @@ class RunTurn:
             )
         else:
             updated["error_code"] = outcome.error_code or "execution_failed"
+            events.append(
+                tx,
+                updated,
+                events.Failed(
+                    run_id=job.operation_id,
+                    seq=updated.get("last_event_seq", 0) + 1,
+                    occurred_at=self.jobs.now(),
+                    payload=events.FailedPayload(error_code=updated["error_code"]),
+                ),
+            )
         tx.set(run_path(job.tenant_id, job.operation_id), updated)
         tx.set(conversation_path(job.tenant_id, job.grant.ref.id), changes)
 

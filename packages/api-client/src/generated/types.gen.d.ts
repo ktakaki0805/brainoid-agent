@@ -1848,7 +1848,7 @@ export type StreamRunEventsErrors = {
 export type StreamRunEventsError = StreamRunEventsErrors[keyof StreamRunEventsErrors];
 export type StreamRunEventsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 永続イベントを順序どおり配送。終端まで取得した接続は終了。
      */
     200: string;
 };

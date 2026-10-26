@@ -70,7 +70,7 @@ class StrictStore(JobStore):
             return result
 
 
-class TurnRunTests(DevicePairingFixture):
+class TurnRunFixture(DevicePairingFixture):
     def setUp(self) -> None:
         with patch("test_device_pairing.MemoryStore", StrictStore):
             super().setUp()
@@ -151,6 +151,8 @@ class TurnRunTests(DevicePairingFixture):
     def get_run(self, run: ResourceId) -> Any:
         return self.client.get(f"/v1/tenants/{self.tenant}/runs/{run}")
 
+
+class TurnRunTests(TurnRunFixture):
     def test_accept_replay_completion_and_signed_history_are_separate(self) -> None:
         conversation = self.conversation()
         self.store.retry_once = True

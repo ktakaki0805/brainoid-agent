@@ -1,6 +1,6 @@
 # 会話・message・永続文字run
 
-BA-RUN-04 は [Conversation API](../services/api/src/brainoid_api/routes/conversations.py) から会話の作成・一覧・取得・設定更新、message一覧、turn受付とrun取得を提供する。入力と出力は現在 `text` のみ。音声・SSE・取消・確認待ち・tool実行は後続チケットで、`events_path` は将来の経路を返す。API応答後の背景処理には依存しない。
+BA-RUN-04 は [Conversation API](../services/api/src/brainoid_api/routes/conversations.py) から会話の作成・一覧・取得・設定更新、message一覧、turn受付とrun取得を提供する。入力と出力は現在 `text` のみ。BA-RUN-05は`events_path`から認証付きSSEを提供する。音声・取消・確認待ち・tool実行は後続チケット。API応答後の背景処理には依存しない。
 
 ## 受付と会話内の順序
 
@@ -53,4 +53,24 @@ set +a
 mise run test-emulator
 ```
 
-外部distributionの追加はなく、workspace memberだけを追加する。既存DBの移行は不要で、新規会話は内部sequence/history metadataを作る。配布demo fixtureも現在形式へ更新した。旧fixtureが残るemulatorはreset/seedして、履歴用failed runとmessage sequenceを揃える。切戻しではrun受付と対応worker/dispatcherを停止し、既存message/run/job/checkpointを保持する。started不明を削除して再生成しない。本番Tasks/索引/負荷、実provider/端末、SSE・音声・tool結果照合はこの検証範囲に含まない。
+外部distributionの追加はなく、workspace memberだけを追加する。既存DBの移行は不要で、新規会話は内部sequence/history metadataを作る。配布demo fixtureも現在形式へ更新した。旧fixtureが残るemulatorはreset/seedして、履歴用failed runとmessage sequenceを揃える。切戻しではrun受付と対応worker/dispatcherを停止し、既存message/run/job/checkpointを保持する。started不明を削除して再生成しない。本番Tasks/索引/負荷、実provider/端末、音声・tool結果照合はこの検証範囲に含まない。
+
+## SSEの差分・再開・保持
+
+BA-RUN-05の[配送入口](../services/api/src/brainoid_api/routes/run_events.py)は `GET /v1/tenants/{tenant_id}/runs/{run_id}/events` を提供する。user/device bearerはAuthorization headerで送り、Pi個人sessionは `X-Private-Session` も必要。本文は[run-events.schema.json](../specs/run-events.schema.json)に一致し、SSE `id` はseq、`event` はtype、`data` はJSON。初回はseq 1から、`Last-Event-ID`指定時はその次から配送する。未来seqは409、不正形式は400。run内seqは1ずつ増加し、heartbeatは15秒目安のSSEコメントでseqを消費しない。
+
+[専用writer](../services/worker/src/brainoid_worker/run_event_writer.py)はCoreが採用した表示文字だけを受け取り、最初の未保存文字から250ms、またはUTF-8で1KiBを目安に確定batchを保存する。providerが次のtokenを返さなくてもtimerがflushする。Unicode code pointを分断せず、各eventは1KiB以下かつschemaの2000文字以下。1provider eventが大きい場合も複数batchへ分割する。tokenごとのDB書込みは行わない。1batch保存のrun metadata更新でversionも進み、GET ETagが変わる。
+
+各writeはlive lease/世代、固定入力、現在の会話・account・credential family・session・出力先認可を同じtransactionで確認する。read-only bridgeとは別の最大1件のwrite bridgeを使い、停止済みcallbackはwrite前に拒否する。待機取消はdefault executor終了を待たない。すでに送信されたSDK commit自体をPythonから取り消す保証はなく、並行失効・旧leaseはtransaction競合と再検査で防ぐ。未確定応答を成功とはみなさず、started checkpointの不明結果は従来どおり再生成しない。
+
+最終成功commitは保存済みprefixを最終文字列と照合し、残る文字、最終message、`run.completed`、run/job終端を原子的に保存する。checkpoint replayでも同じ処理を使い、commit応答喪失後にseqやmessageを増やさない。失敗は`run.failed`だけを確定し、成功messageを作らない。handler前にjobがobsolete/failedとなる場合も、認可済みrun GET・次turn受付・SSEのreconcileがrun終端と失敗eventを同時に確定する。
+
+差分は暫定表示であり、`run.completed`まで成功回答とは扱わない。`length`終端は上限内の部分回答を最終messageとして保存し、配信文字の連結と一致する。失敗・timeout・失効・tool未対応では暫定表示を破棄する。終端前のEOFは成功を意味せず、明示再接続またはrun GETで確認する。Core内部のModelResponse、provider_state、署名、tool候補は公開eventにしない。音声/tool/取消の未実装イベントは発行しない。
+
+配送はイベント1個を1batchとし、保存eventの読取り後に新しいtransactionで読者の現在の会話認可と保存済み出力先の現在認可を確認する。認証token期限、private session期限、会話削除、membership/control ledger、device family/接続generation、出力sessionの失効を既存接続にも適用する。正常完了で会話versionが進んだ後の履歴には現在の読取権限を用い、生成時の古い入力版を配送認可に流用しない。共有会話の他の現在memberも会話権限に従って閲覧できる。初回の拒否はheaders前に4xx/503を返す。送信開始後の拒否・基盤障害は本文errorを追加せず接続を終了し、再接続時にHTTP状態を返す。GET/SSE/heartbeat/replayはsession idle期限を延長しない。
+
+履歴期限はrun作成時刻から24時間で固定し、各eventにFirestore TTL用の`expires_at`を保存する。TTL物理掃除の遅延にかかわらずAPIで期限を強制する。期限切れ・次seq欠損・SSE実装前の履歴は410。クライアントはrun GETとmessage一覧で`final_message_id`を取得して表示を置換する。ポーリングで期限を更新しない。TTL設定と本番負荷の調整は配備工程で行う。現在の単純pollは100msごとに認可付き読取を行うため、本番容量を計測せず高負荷保証とはしない。
+
+TypeScript clientの`RunEventCursor`はschema検証済みeventを受け、同じrunの既読seqを無視し、欠番と別runを拒否する。同期描画に成功してからcursorを進める。UIは描画状態と最後のseqを一緒に保存し、その`lastEventId`を再接続headerへ使う。自動retryはなく、401/403では再認証・表示破棄を利用者導線へ反映する。wrapperのdecoded dataは引き続きunknownで、cursorは完全なschema検証の代替ではない。
+
+[T-023/T-032試験](../tests/test_run_events.py)は固定tokenstreamの保存回数、Unicode/schema、時間flush、最終一致、切断再開、期限/欠損、現在認可・token期限、heartbeat、遅延write、checkpoint/commit応答喪失を確認する。切戻しではSSE routeと新規受付を停止し、既存のevents/run/message/jobを保持する。旧runに架空の途中差分を生成しない。

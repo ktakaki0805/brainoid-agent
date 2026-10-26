@@ -2,7 +2,7 @@
 
 BA-RUN-03 は既存の初期 agent を [Agent API](../services/api/src/brainoid_api/routes/agents.py) から共有し、[TextAgentCore](../packages/agent_core/src/brainoid_agent_core/core.py) で一回の文字生成を実行する。永続 conversation/message/run、SSE、tool 実行、実記憶検索はこの実装に含めない。
 
-後続BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は、このCoreへ現在の親会話/history/agent/credential/leaseを読むContextAuthorizerを接続し、最終保存時にも再認可する。SSE、tool実行、実記憶検索は引き続き後続範囲となる。
+後続BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は、このCoreへ現在の親会話/history/agent/credential/leaseを読むContextAuthorizerを接続し、最終保存時にも再認可する。BA-RUN-05は任意の非同期`on_text` observerへ採用済み文字差分だけを渡す。observer待機にも同じ期限と有限cleanupを適用する。tool実行、実記憶検索は引き続き後続範囲となる。
 
 ## 人格の取得と更新
 

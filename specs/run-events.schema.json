@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Brainoid Agent run SSE event data",
-  "description": "Brainoid Agent v0.2.0 proposed contract, 2026-10-25.",
+  "description": "Brainoid Agent v0.2.0 contract, 2026-10-26. id equals seq and event equals type. Apply each (run_id, seq) at most once; text is provisional until run.completed. On failure discard provisional text; fetch the run and final message after HTTP 410.",
   "oneOf": [
     {
       "$ref": "#/$defs/started"

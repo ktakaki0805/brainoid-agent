@@ -819,9 +819,60 @@ class TextCoreTests(unittest.IsolatedAsyncioTestCase):
         finally:
             loop.slow_callback_duration = old
 
+    async def test_text_observer_receives_only_accepted_text_and_never_snapshot(self) -> None:
+        observed: list[str] = []
+
+        async def observe(text: str) -> None:
+            observed.append(text)
+
+        result = await self.core(self.provider()).run(
+            self.request,
+            control=self.control,
+            budget=RunBudget(max_output_characters=7),
+            on_text=observe,
+        )
+        self.assertEqual(observed, ["FIXTURE"])
+        self.assertEqual(result.text, "FIXTURE")
+        self.assertEqual(result.terminal, Completed(finish_reason="length"))
+        self.assertIsNone(result.response)
+
+    async def test_blocked_observer_is_bounded_collected_and_errors_hide_text(self) -> None:
+        released = []
+        before = asyncio.all_tasks()
+
+        async def observe(text: str) -> None:
+            try:
+                await asyncio.Event().wait()
+            finally:
+                released.append(True)
+
+        result = await self.core(self.provider()).run(
+            self.request,
+            control=self.control,
+            on_text=observe,
+            budget=RunBudget(timeout_seconds=1),
+        )
+        self.assertEqual(result.terminal, TimedOut())
+        self.assertEqual(result.text, "")
+        self.assertEqual(released, [True])
+        self.assertEqual(asyncio.all_tasks(), before)
+
+        async def broken(text: str) -> None:
+            raise RuntimeError("PRIVATE_OBSERVER_ERROR")
+
+        result = await self.core(self.provider()).run(
+            self.request,
+            control=self.control,
+            on_text=broken,
+        )
+        self.assertEqual(result.terminal, Failed(code="invalid_arguments"))
+        self.assertNotIn("PRIVATE_OBSERVER_ERROR", result.model_dump_json())
+        self.assertEqual(asyncio.all_tasks(), before)
+
     def test_core_imports_without_framework_or_sdk(self) -> None:
         code = """
 import sys
+
 class Guard:
     def find_spec(self, fullname, path=None, target=None):
         if fullname.split('.')[0] in ('fastapi', 'firebase_admin', 'google', 'brainoid_api'):

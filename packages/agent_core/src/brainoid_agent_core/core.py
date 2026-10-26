@@ -1,7 +1,7 @@
 """One bounded text turn. No HTTP, persistence, device SDK or tool execution."""
 
 import asyncio
-from collections.abc import AsyncGenerator, Awaitable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Annotated
 
 from pydantic import Field
@@ -194,6 +194,7 @@ class TextAgentCore:
         *,
         control: CallControl,
         budget: RunBudget | None = None,
+        on_text: Callable[[str], Awaitable[None]] | None = None,
     ) -> TextRunResult:
         budget = budget or RunBudget()
         deadline = self._clock.monotonic() + budget.timeout_seconds
@@ -273,7 +274,10 @@ class TextAgentCore:
                             )
                         if isinstance(event, TextDelta):
                             available = budget.max_output_characters - len(text)
-                            text += event.text[:available]
+                            accepted = event.text[:available]
+                            text += accepted
+                            if accepted and on_text is not None:
+                                await self._wait(on_text(accepted), control)
                             if len(event.text) > available:
                                 return TextRunResult(
                                     text=text,
