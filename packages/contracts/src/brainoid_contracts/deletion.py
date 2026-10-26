@@ -59,3 +59,16 @@ def exportable(
         and type(current.get("deletion_epoch")) is int
         and current["deletion_epoch"] == 0
     )
+
+
+def purge_barrier_path(tenant: ResourceId) -> str:
+    return f"tenants/{tenant}/purge_barriers/history"
+
+
+def purge_epoch(tx: Transaction, tenant: ResourceId) -> int:
+    """Admission ordering only; never an authorization grant or wall-clock fence."""
+    document = tx.get(purge_barrier_path(tenant))
+    epoch = 0 if document is None else document.get("epoch")
+    if type(epoch) is not int or epoch < 0:
+        raise ValueError("Invalid purge admission epoch")
+    return epoch

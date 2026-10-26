@@ -1,6 +1,6 @@
 # 忘却受付と独立削除台帳
 
-BA-MEM-07はFR-006/FR-013の忘却受付を提供する。`POST /v1/tenants/{tenant_id}/operations` は現在 `kind=forget_memory` のみ実装し、`target_id`、`expected_version`、`Idempotency-Key` を必要とする。`source_policy` の既定は `suppress_reuse`。`202` と `status=pending` は検索・モデル再利用停止の受付確定を表し、物理消去完了ではない。本人は同じtenantのoperation GETで状態を確認できる。他のkind、物理purge、復元時の一括台帳適用、UIは後続チケットである。
+BA-MEM-07はFR-006/FR-013の忘却受付を提供する。`POST /v1/tenants/{tenant_id}/operations` は現在 `kind=forget_memory` のみ実装し、`target_id`、`expected_version`、`Idempotency-Key` を必要とする。`source_policy` の既定は `suppress_reuse`。`202` と `status=pending` は検索・モデル再利用停止の受付確定を表し、物理消去完了ではない。本人は同じtenantのoperation GETで状態を確認できる。物理purgeはBA-MEM-08が提供し、他のkind、復元時の一括台帳適用、UIは後続チケットである。
 
 ## 受付と障害復旧
 
@@ -28,6 +28,8 @@ APIは既存 `AUTHZ_LEDGER_DIRECTORY` / `AUTHZ_LEDGER_BUCKET` の独立制御sto
 
 成功時は同じforget transactionで、当該run/effect/operationに束縛した本文なし証拠を保存し、検査済みの旧memory snapshots・tool bindings・continuationを除去、抑止後のhistory hashを設定する。以後モデルを呼ばず、独立operationと自己effect証拠を再検査した固定の受付通知で終端する。同effect再試行も再束縛後の現在状態を通常検査する。外部forgetを受けた他runの古いcontextには例外を設けない。
 
+snapshot除去と同じtransactionで、全消費Factのtenant/run/ID/version/deletion epochを本文なし `purge_dependencies` に保持する。別Factの忘却処理が、このrunのmodel checkpoint・既にstreamした本文の消去根拠を失わないための記録であり、モデル再利用や通常Jobsの認可を許可しない。旧runの不明依存、部分receiptの移行、複数operationの消去確認は[物理消去の互換契約](memory-purge.md#実行と権限)に従う。
+
 通知は「再利用停止・消去処理待ち」を示し、完了や完全に同じ事実を知り得なくなる保証をしない。忘却以前に既にUIへstreamしたprefixは取り消せないためその表示を保ち、追記する通知には忘却内容を再記載しない。最終assistant message全体を再利用抑止し、保存済みprefixや応答を後続モデルへ再提示しない。台帳/DBが未確定なら成功通知を生成しない。
 
 ## Purge引継ぎ・互換・切戻し
@@ -43,3 +45,5 @@ HTTP/toolの既存request shapeを保持した追加実装である。新しい�
 ## 検証
 
 `tests/test_memory_forget.py` はT-011/T-022の台帳前後/DB前後障害、応答喪失、同キー再試行、独立台帳からの同ID復旧、権限・scope・intent負例、即時検索/summary/history抑止、固定tool終端を検証する。`tests/emulator/test_forget_integration.py` は実Firestore transactionの競合・予約とimmutable local ledgerの組合せを確認する。GCS transportは課金接続を使わず既存のSDK HTTP fakeで検証する。
+
+物理消去の提供済み範囲、専用executor、ページ再開、cache/export hookと監視は[忘却の物理消去と再開](memory-purge.md)を参照する。受付済みoperationは関連する原本・派生情報の確認が終わるまでpending/runningのままで、MEM-08 workerがsucceededへ更新する。

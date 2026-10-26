@@ -64,6 +64,7 @@ from brainoid_tools.registry import Invocation
 from brainoid_tools.results import HandlerResult
 from brainoid_tools.reuse import receipt
 
+from brainoid_worker.memory_erasure import capture
 from brainoid_worker.run_event_writer import memory_write
 
 if TYPE_CHECKING:
@@ -715,6 +716,7 @@ class MemoryRuntime:
                     # continuation may reuse the old input; only a fixed notice follows.
                     updated = {
                         **run,
+                        "purge_dependencies": capture(run, complete=True).model_dump(mode="json"),
                         "forget_operation_id": operation.operation_id,
                         "history_hash": history_hash(docs[:-1], messages[:-1]),
                         "memory_records": [],

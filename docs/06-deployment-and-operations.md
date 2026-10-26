@@ -171,7 +171,7 @@ Firestore backupは元DBと同じlocationに置かれ、復元先は新しいDB�
 
 台帳は初期30日保持とし、常に全復元可能backupの期間より長く保つ。backup保持を延ばす変更では台帳保持も先に見直す。APIは追記のみ、復旧専用identityは読取、台帳の期限管理は別の管理権限に分ける。台帳の消失・不整合時は復旧gateを開けない。
 
-purgeは原本、会話messages、factの出典、要約、vector、job payload、cache、通知preview、連携credentialを対象別に処理する。削除対象の子コレクションを明示的に列挙・再帰処理する。Firestore documentの通常削除はsubcollectionを自動削除しない。[公式削除仕様](https://firebase.google.com/docs/firestore/manage-data/delete-data#delete_documents)
+purgeは原本、会話messages、factの出典、要約、vector、job payload、cache、通知preview、連携credentialを対象別に処理する。提供済みforget workerの保存先inventory、専用queue、bounded pageと再開、cache/export hook、24時間超の監視状態および未提供サービスとの境界は[忘却の物理消去と再開](memory-purge.md)を参照する。削除対象の子コレクションを明示的に列挙・再帰処理する。Firestore documentの通常削除はsubcollectionを自動削除しない。[公式削除仕様](https://firebase.google.com/docs/firestore/manage-data/delete-data#delete_documents)
 
 通常queryからの拒否はtombstone保存直後、primary/derivedのpurgeは24時間以内を設計目標とする。offline端末は再接続時に削除epochを同期するまで古いprivate cacheを利用しない。backupの残存期間とprovider側の保持は利用者向け説明で区別する。
 

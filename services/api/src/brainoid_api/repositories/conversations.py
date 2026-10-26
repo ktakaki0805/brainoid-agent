@@ -6,7 +6,7 @@ from functools import partial
 from uuid import uuid4
 
 from brainoid_contracts import DisplayPolicy, FirebaseUid, ResourceId, Scope, Visibility
-from brainoid_contracts.deletion import fenced_document
+from brainoid_contracts.deletion import fenced_document, purge_epoch
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_jobs import Jobs
 from brainoid_policy.models import (
@@ -520,7 +520,10 @@ class Conversations:
                 if prior["status"] in ("queued", "running", "waiting_confirmation"):
                     raise APIError(ErrorCode.CONFLICT)
             definition = policy_call(lambda: agent(tx, tenant, parent["agent_id"]))
-            _, _, history_digest = policy_call(lambda: history(tx, tenant, conversation))
+            prior_messages, _, history_digest = policy_call(
+                lambda: history(tx, tenant, conversation)
+            )
+            admission_epoch = purge_epoch(tx, tenant)
             policy_call(
                 lambda: self.jobs._policy(tx).resource(
                     tenant, principal.subject, grant.ref, action=Action.MODEL_READ, output=output
@@ -579,6 +582,10 @@ class Conversations:
                     "agent": definition.model_dump(mode="json"),
                     "history_revision": parent.get("history_revision", 0),
                     "history_hash": history_digest,
+                    "purge_epoch": admission_epoch,
+                    "history_run_ids": sorted(
+                        {d["run_id"] for d in prior_messages if d["role"] != "user"}
+                    ),
                     "memory_scopes": [s.model_dump(mode="json") for s in scopes],
                     "credential": None
                     if isinstance(identity, AuthenticatedIdentity)

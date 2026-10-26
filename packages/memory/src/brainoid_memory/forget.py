@@ -7,7 +7,7 @@ from uuid import UUID, uuid5
 
 from brainoid_contracts import ResourceId, Scope, UtcTimestamp, Version, Visibility
 from brainoid_contracts.access import fingerprint
-from brainoid_contracts.deletion import tombstone_path
+from brainoid_contracts.deletion import purge_barrier_path, purge_epoch, tombstone_path
 from brainoid_contracts.errors import APIError, ErrorCode
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_jobs.models import Job, job_id
@@ -312,6 +312,17 @@ class ForgetMemories:
                 status="waiting",
                 attributes={"dispatch_queue": "memory_purge"},
             )
+            # Bound derived history at acceptance, not at the earlier ledger intent.
+            # Turn admission/completion updates these parents, so concurrent changes
+            # conflict with this transaction and force a fresh upper bound.
+            admission_epoch = purge_epoch(tx, tenant) + 1
+            purge_bounds = {}
+            for target in targets:
+                if target.kind == "message":
+                    parent = tx.get(f"tenants/{tenant}/conversations/{target.parent_id}")
+                    sequence = None if parent is None else parent.get("next_sequence")
+                    if type(sequence) is int and sequence > 0:
+                        purge_bounds[str(target.parent_id)] = sequence - 1
             replacements = {}
             for path, source in sources:
                 replacement = {**source, "suppress_reuse": True, "version": source["version"] + 1}
@@ -329,6 +340,7 @@ class ForgetMemories:
                 }
             )
             current.finish()
+            tx.set(purge_barrier_path(tenant), {"epoch": admission_epoch})
             tx.set(f"tenants/{tenant}/facts/{record.id}", _stored(updated, mode="json"))
             for path, replacement in replacements.items():
                 tx.set(path, replacement)
@@ -342,6 +354,9 @@ class ForgetMemories:
                     **saved,
                     "intent": intent.model_dump(mode="json"),
                     "operation": operation.model_dump(mode="json"),
+                    "purge_bounds": purge_bounds,
+                    "purge_admission_epoch": admission_epoch,
+                    "purge_accepted_at": operation.updated_at.isoformat(),
                 },
             )
             write_extra()
