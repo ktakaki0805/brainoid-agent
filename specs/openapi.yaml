@@ -510,13 +510,13 @@ paths:
     get:
       operationId: listAgents
       summary: 利用可能な人格一覧
-      description: 利用可能な人格一覧
+      description: 現在の会員権限または端末credential・任意private sessionを再確認し、同じ共有agent設定を返す。cursorは現在認可と設定版に束縛する。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -544,13 +544,13 @@ paths:
     get:
       operationId: getAgent
       summary: 人格取得
-      description: 人格取得
+      description: 現在の会員権限または端末credentialを再確認し、保存済みagentを返す。ETagは現在版。旧版の履歴取得は提供しない。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -579,12 +579,12 @@ paths:
     patch:
       operationId: updateAgent
       summary: 共有人格更新
-      description: 共有人格更新
+      description: owner/adminのuser bearer限定。If-Matchで現在版を比較し、name/personaのみ更新する。allowed_toolsやprompt文は実行権限を付与しない。冪等再送も現在管理権限を再確認し現在のAgentを返す。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:

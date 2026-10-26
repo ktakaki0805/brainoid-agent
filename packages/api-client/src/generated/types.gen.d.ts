@@ -1184,7 +1184,7 @@ export type ListAgentsErrors = {
 export type ListAgentsError = ListAgentsErrors[keyof ListAgentsErrors];
 export type ListAgentsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: AgentPage;
 };
@@ -1213,7 +1213,7 @@ export type GetAgentErrors = {
 export type GetAgentError = GetAgentErrors[keyof GetAgentErrors];
 export type GetAgentResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Agent;
 };
@@ -1246,7 +1246,7 @@ export type UpdateAgentErrors = {
 export type UpdateAgentError = UpdateAgentErrors[keyof UpdateAgentErrors];
 export type UpdateAgentResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Agent;
 };

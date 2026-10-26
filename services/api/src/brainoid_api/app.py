@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from brainoid_api.auth.runtime import authentication_lifespan
 from brainoid_api.errors import RequestContextMiddleware, install_error_handlers, logger
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
+from brainoid_api.routes.agents import router as agents_router
 from brainoid_api.routes.device_pairings import router as device_pairings_router
 from brainoid_api.routes.devices import router as devices_router
 from brainoid_api.routes.invitations import router as invitations_router
@@ -86,4 +87,5 @@ def create_app(
     app.include_router(device_pairings_router, prefix="/v1")
     app.include_router(devices_router, prefix="/v1")
     app.include_router(private_sessions_router, prefix="/v1")
+    app.include_router(agents_router, prefix="/v1")
     return app

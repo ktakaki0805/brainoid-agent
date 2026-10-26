@@ -53,6 +53,8 @@ BA-FND-03のPython共通型とOpenAPI/JSON Schemaの対応、日時の保存プ�
 
 BA-FND-08の提供済みAPI内部helper、現在認可callback、Firestore transaction、再送用receiptの制約とcursor鍵の扱いは[共通処理の利用契約](common-mutations.md)を参照する。業務routeへの接続は各機能チケットで行う。
 
+BA-RUN-03 の agent 一覧・取得は user/device が同じ設定版を共有し、更新は owner/admin の user bearer に限定する。人格文は実行権限を付与しない。[人格設定と文字 Core](text-agent-core.md)に現在認可・ETag・冪等再送と内部履歴の境界を定義する。
+
 BA-IAM-01の `GET /v1/users/me`、Firebase本人認証、直近再認証、未認可のtenant選択値の境界は[本人認証の利用契約](authentication.md)を参照する。membership認可はBA-IAM-02で追加する。
 
 BA-IAM-07 の[端末ペアリング・資格情報](device-pairing.md)は、上記24時間の汎用冪等処理に秘密応答を保存しない。開始応答は5分、exchange/refreshの同一要求再送は60秒未満に限り専用暗号化 receipt から返す。各refreshでは新しい request UUID と Idempotency-Key を作り、応答喪失時は同じ本文・両識別子を再送する。別の更新要求や猶予後の使用済みrefresh提示はfamilyを停止する。

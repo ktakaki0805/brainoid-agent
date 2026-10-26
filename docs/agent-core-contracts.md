@@ -28,7 +28,7 @@ MemoryStore の全要求は context と閲覧 `scopes` が必須。戻り値は�
 
 BA-RUN-02 の `ModelResponse.message` は次 turn 用の完全な assistant message。`ModelMessage.provider_state` は署名等を維持する不透明な JSON（既定 `None`、repr 非表示）であり、SDK 型や権限情報を含めない。提供された場合は差分から履歴を再構成せず、この message を保持する。`Completed` を受け取るまで履歴確定・tool 実行を行わない。provider state を HTTP 入力・表示/SSE・tool 引数・検索記憶・ログへ渡さず、異なる provider 設定に移さない。[Google adapter 契約](google-model-provider.md)を参照する。
 
-stream は `Completed`、`Failed`、`Cancelled`、`TimedOut` のいずれかで一回だけ終了し、その後にイベントを返さない。終端のない EOF は成功に変換せず、`Failed(code="stream_interrupted")` とする。provider の生の例外文を `Failed` に含めない。モデル内部イベントから永続 run/SSE イベントへの変換、seq、batch、認可再確認は BA-RUN-03 の責務。
+stream は `Completed`、`Failed`、`Cancelled`、`TimedOut` のいずれかで一回だけ終了し、その後にイベントを返さない。終端のない EOF は成功に変換せず、`Failed(code="stream_interrupted")` とする。provider の生の例外文を `Failed` に含めない。モデル内部イベントから永続 run/SSE イベントへの変換、seq、batch、配送直前の認可再確認は BA-RUN-04/05 の責務。BA-RUN-03 は内部の文字生成と返却直前の認可を扱う。
 
 `CallControl` は呼出しごとに明示する。`deadline` は adapter に注入した Clock と同じ単調時計上の絶対秒数で、現在値と等しい場合も期限切れ。`None` は期限なし。`Cancellation.cancelled` は呼出し中に変化する live signal で、provider へ serialize しない。両方が dispatch 前に成立した場合は取消を優先する。実 adapter は I/O 待機中も取消と期限に応答し、終了時に SDK stream 等を解放する。
 
@@ -54,4 +54,4 @@ stream は `Completed`、`Failed`、`Cancelled`、`TimedOut` のいずれかで�
 mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_agent_core.py
 ```
 
-Google Gen AI adapter は BA-RUN-02 で [独立 member](../packages/model_google/)へ追加済み。Core 単独の依存・試験に SDK は不要。会話ループは BA-RUN-03、IAM・記憶・外部操作は各機能チケットで接続する。公開 API・保存形式の移行はなく、実 provider 疎通は OPEN-005 の外部前提確定後に行う。
+Google Gen AI adapter は BA-RUN-02 で [独立 member](../packages/model_google/)へ追加済み。Core 単独の依存・試験に SDK は不要。BA-RUN-03 の[人格設定と文字 Core](text-agent-core.md)は現在認可 port と予算を使って一回の文字生成を実行する。永続会話・記憶・外部操作は後続チケットで接続する。実 provider 疎通は OPEN-005 の外部前提確定後に行う。

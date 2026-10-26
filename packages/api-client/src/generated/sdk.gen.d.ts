@@ -106,19 +106,19 @@ export declare const acceptInvitation: <ThrowOnError extends boolean = false>(op
 /**
  * 利用可能な人格一覧
  *
- * 利用可能な人格一覧
+ * 現在の会員権限または端末credential・任意private sessionを再確認し、同じ共有agent設定を返す。cursorは現在認可と設定版に束縛する。
  */
 export declare const listAgents: <ThrowOnError extends boolean = false>(options: Options<ListAgentsData, ThrowOnError>) => RequestResult<ListAgentsResponses, ListAgentsErrors, ThrowOnError>;
 /**
  * 人格取得
  *
- * 人格取得
+ * 現在の会員権限または端末credentialを再確認し、保存済みagentを返す。ETagは現在版。旧版の履歴取得は提供しない。
  */
 export declare const getAgent: <ThrowOnError extends boolean = false>(options: Options<GetAgentData, ThrowOnError>) => RequestResult<GetAgentResponses, GetAgentErrors, ThrowOnError>;
 /**
  * 共有人格更新
  *
- * 共有人格更新
+ * owner/adminのuser bearer限定。If-Matchで現在版を比較し、name/personaのみ更新する。allowed_toolsやprompt文は実行権限を付与しない。冪等再送も現在管理権限を再確認し現在のAgentを返す。
  */
 export declare const updateAgent: <ThrowOnError extends boolean = false>(options: Options<UpdateAgentData, ThrowOnError>) => RequestResult<UpdateAgentResponses, UpdateAgentErrors, ThrowOnError>;
 /**

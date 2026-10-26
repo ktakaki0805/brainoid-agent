@@ -128,8 +128,21 @@ class DeviceManagementIntegrationTests(DevicePairingIntegrationFixture):
             )
 
         results = self.concurrent(replace, replace)
+        # An aborted read/commit can surface as retryable 503. Reconcile the SAME
+        # logical request; a new key could conceal duplicate replacement effects.
+        for index, result in enumerate(results):
+            for _ in range(3):
+                if result != ErrorCode.TEMPORARILY_UNAVAILABLE:
+                    break
+                try:
+                    result = replace()
+                except APIError as error:
+                    result = error.code
+            results[index] = result
+        self.assertTrue(all(isinstance(result, Device) for result in results))
         self.assertEqual(results[0], results[1])
         replacement = replace()
+        self.assertEqual(replacement, results[0])
         self.assertNotEqual(replacement.id, self.device.id)
         new = self.exchange(pairing)
         self.repo.authenticate(new.access_token)

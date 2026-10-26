@@ -146,5 +146,6 @@ class ManagementAction(StrEnum):
     REMOVE_MEMBER = "remove_member"
     TRANSFER_OWNER = "transfer_owner"
     MANAGE_DEVICES = "manage_devices"
+    MANAGE_AGENTS = "manage_agents"
     DELETE_TENANT = "delete_tenant"
     DELETE_ACCOUNT = "delete_account"

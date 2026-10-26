@@ -232,6 +232,8 @@ BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaと�
 
 BA-FND-07の [AgentCoreのportとfake](agent-core-contracts.md) はprovider非依存のPython型、論理時計、モデル・記憶・tool・音声のscripted fakeを提供する。`tests/test_agent_core.py` は差し替えたfakeで通常完了・tool要求・usage・取消・timeout・途中停止と呼出し履歴を検証する。権限外候補は故障fixtureとしてのみ再現し、認可や会話ループの実装・検証は後続チケットで行う。
 
+BA-RUN-03 の[文字 Core と人格 API 試験](text-agent-core.md)は同じ agent/version のスマホ・Pi 相当入力、現在認可と出典版、権限外記憶候補のモデル入力前拒否、時間・出力予算、署名保持と取消を fake で検査する。agent の競合更新と冪等再送は Firestore emulator でも検査する。
+
 BA-RUN-01 の[永続job試験](jobs.md)は固定時計・fake queueでenqueue前後、leaseとcheckpoint、現在認可を検査し、Firestore emulatorでは別processの再起動後回収と同時leaseを確認する。業務handlerと本番Tasks配備は後続チケットで接続する。
 
 BA-IAM-07 の[端末ペアリング試験](device-pairing.md)は fake clock で5分/60秒/15分の境界、5回失敗、専用 token と秘密再送を確認し、Firestore emulatorで同時交換・同時rotation・commit応答喪失を検証する。APIの端末provider/keyring/epochは同文書に従って明示し、合成鍵をstaging/productionへ持ち込まない。

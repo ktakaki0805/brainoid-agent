@@ -24,7 +24,7 @@ SDK 自動 function calling と automatic continuation を無効化し、`HttpRe
 
 正常完了時、`ModelResponse(message=...)` を `Completed` の直前に返す。`ModelMessage.provider_state` は SDK 型を含まない不透明な JSON で、model/project/region の binding、元の part 配列（thought signature を含む）、call key 対応を持つ。次 turn では **この assistant message を変更せず履歴へ戻す**。差分だけから履歴を再構成すると署名が失われる。署名だけの part や思考用 part の順序も保ち、再入力時に visible parts と binding を照合する。provider state は認可済み内部履歴専用で、HTTP 入力・SSE・tool 引数・ログ・検索記憶へ渡さない。`repr` からも除外する。
 
-BA-RUN-03 は `Completed(stop/tool_calls)` 後に限り snapshot を確定し、候補を検証して tool 応答へ進む。candidate/snapshot と Completed の間にも取消・期限は成立し得るため、それ以前の候補を実行しない。異なる model/region/project に state を再利用しない。署名往復は fake で検証済みであり、特定実モデルの利用可能性・品質の認定ではない。[Google の thinking 仕様](https://ai.google.dev/gemini-api/docs/thinking)では generateContent の署名は各 part に付随するため、この保存境界を設けた。
+BA-RUN-03 は `Completed(stop/tool_calls)` と現在認可の再確認後に限り snapshot を確定する。今回の文字 Core は tool 候補を実行せず、BA-RUN-06 が schema・現在権限・確認・冪等性を検証して tool 応答へ進む。candidate/snapshot と Completed の間にも取消・期限は成立し得るため、それ以前の候補を実行しない。異なる model/region/project に state を再利用しない。署名往復は fake で検証済みであり、特定実モデルの利用可能性・品質の認定ではない。[Google の thinking 仕様](https://ai.google.dev/gemini-api/docs/thinking)では generateContent の署名は各 part に付随するため、この保存境界を設けた。
 
 `response_schema` 指定時は終端まで buffer し、JSON 構文と Draft 2020-12 schema の確認後に一つの `TextDelta` を返す。不正出力を途中表示しない。入力の tool 引数・tool 応答・schema・provider state と SDK 応答では、ネストを含む `NaN` / `Infinity` / `-Infinity` および `1e400` 等の数値 overflow を拒否する。JSON serialization 前と文字列 parse 後に有限数を検査し、不正値を省略・`null` へ置換して通過させない。入力は HTTP dispatch 前、構造化応答は表示・履歴確定前に非再試行の `invalid_arguments` で終了する。外部 `$ref` / `$dynamicRef` を禁止し、ローカル参照にも外部取得不能 registry を使う。schema/参照不正も非再試行の失敗。応答の SDK JSON 合計が 8 MiB を超えても失敗する。tool 宣言 schema も dispatch 前に検査する。
 

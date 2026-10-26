@@ -225,7 +225,7 @@ export const acceptInvitation = (options) => (options.client ?? client).post({
 /**
  * 利用可能な人格一覧
  *
- * 利用可能な人格一覧
+ * 現在の会員権限または端末credential・任意private sessionを再確認し、同じ共有agent設定を返す。cursorは現在認可と設定版に束縛する。
  */
 export const listAgents = (options) => (options.client ?? client).get({
     security: [{
@@ -243,7 +243,7 @@ export const listAgents = (options) => (options.client ?? client).get({
 /**
  * 人格取得
  *
- * 人格取得
+ * 現在の会員権限または端末credentialを再確認し、保存済みagentを返す。ETagは現在版。旧版の履歴取得は提供しない。
  */
 export const getAgent = (options) => (options.client ?? client).get({
     security: [{
@@ -261,7 +261,7 @@ export const getAgent = (options) => (options.client ?? client).get({
 /**
  * 共有人格更新
  *
- * 共有人格更新
+ * owner/adminのuser bearer限定。If-Matchで現在版を比較し、name/personaのみ更新する。allowed_toolsやprompt文は実行権限を付与しない。冪等再送も現在管理権限を再確認し現在のAgentを返す。
  */
 export const updateAgent = (options) => (options.client ?? client).patch({
     security: [{

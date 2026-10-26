@@ -569,8 +569,9 @@
         "deletion_epoch": 0,
         "id": "4a5f91dd-75ab-50bf-94dd-97ae419ede80",
         "name": "Fixture Agent A",
+        "persona": "FIXTURE_PERSONA_A",
         "prompt_version": 1,
-        "enabled_tools": []
+        "allowed_tools": []
       }
     },
     {
@@ -585,8 +586,9 @@
         "deletion_epoch": 0,
         "id": "755eb6a6-da20-5c4a-93d1-ab8eeb24705b",
         "name": "Fixture Agent B",
+        "persona": "FIXTURE_PERSONA_B",
         "prompt_version": 1,
-        "enabled_tools": []
+        "allowed_tools": []
       }
     }
   ]
