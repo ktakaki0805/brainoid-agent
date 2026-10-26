@@ -5822,3 +5822,256 @@ FR004/006、T010/T011。会話要約jobに元message集合・version・scope・d
 
 - done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy212/docs1409/生成差分なし/契約互換性成功、real22.14秒。raw `/tmp/ba-mem-06-parent-check.log`。
 - 台帳done31/todo65/blocked0、変更は台帳・作業ログのみ。記録2ファイルだけを別commitへ含め、製品未記録変更がないことを確認する。
+
+## ba-mem-07-20261026t124743z
+
+- チケット: BA-MEM-07
+- 状態: done
+- 開始: 2026-10-26T12:47:43.839065+00:00
+- ブランチ: main
+- base commit: 1ec1cae27c23baf66b3ef1b86ed89e9e48e9cbee
+- 開始時の変更: staged / unstaged / untracked ともなし
+- 選択: planner check成功後、IDなしnextで依存順先頭を選択。MEM03/RUN01/RUN06のdone・実装commitのHEAD祖先を確認。
+- 親担当: /root、実装担当: /root/mem07_implementation（次に起動）、独立レビューはラウンドごとに新規担当。
+- 実装コミット: 3baee378926be0b7f9af71bc00b1b31df4c763c3
+
+### 変更範囲と検証計画
+
+FR006/013、T011/T022。忘却要求の認可/対象版確認→独立削除台帳へ意図先行記録→tombstone/operation/purge job commit。suppress_reuse/delete_sourceを扱い、sourceのspanまたは安全なmessage全体抑止、同operation IDで途中失敗から再構築、model toolに明確な利用者意図を要求する。query/context/要約/後続export hookへ接続する。物理purge/復元適用(MEM08/OPS07)、利用者画面(UI04)は対象外。追加外部前提なし、fake/emulator検証。
+
+| 受入条件 | 検証予定 | 結果 |
+| --- | --- | --- |
+| 台帳失敗503、両永続化前に202を返さない | ledger前/後・DB commit前/後障害、同キー/operation再送、台帳先行intentの認可・抑止 | 未実施 |
+| 受付後検索/model contextから除外、UI履歴保持と区別 | Fact/vector/current context/summary/履歴への即時fence、span不明時message抑止、export判定hook | 未実施 |
+| 他人source削除・共有範囲越forget拒否 | private/tenant/owner/shared creator/reader/output境界、delete_source許可、明示tool意図の正負例 | 未実施 |
+| 既存契約と回帰 | setup/check/test、実Firestore関連integration、独立全差分レビュー | 未実施 |
+
+### 実装担当開始・設計境界
+
+- 新規独立 `/root/mem07_implementation`（fork none）を起動。親がmetadata/commit/レビュー、製品の書き手は同担当のみ。開始時main/cleanと依存のdone/祖先を確認。
+- 初期設計: memory packageの忘却専用Deletions/immutable intent、authzと別deletion/v1 prefix、既存Objectsのlocal/GCS transport再利用。認可＋target/source版のDB reservation（期限なし）→独立intent→同reservation/intentからtombstone/source抑止/operation/memory_purge専用outboxを同TX確定。同actor/keyの安定operation IDで途中失敗/応答喪失を再試行する。未実装/未検証の計画。
+- SourceRefにspan証明がないためmessage全体抑止を採用予定。typed forgetはcanonical direct-user明示命令と現在scopeを要求し、旧Factを提示せず本文なしpending operation receiptを返す。HTTPは既存body expected_version/既定suppress_reuse、別kindのdelete/export/leaveは今回実装しない。MEM04/05/06の実契約を利用するため必要な実依存を正本詳細/一覧へ追記予定。
+- 親はreservation～ledger～確定中の並行revise/forget/source更新と既存writerのfence、失効したactor/key/body/target binding再検査、旧memory_records/summary/history復活防止、source削除権限をforgetから新規付与しないことを確認事項として提示。
+
+### 親の追加設計確認
+
+- 既存LocalAuthzObjectsはauthz/v1 path限定、GCSはgeneration=0/create-only・固定timeout/retry。deletion namespace再利用時に既存authzのpath/immutability契約を緩めないことが確認点。現Settingsの独立台帳設定も直接確認。
+- `/tmp/ba-mem-07-review-checklist.md`を作成（計画だけ、合格証跡でない）。台帳/DB障害境界・reservation並行writer・原認可/権限・tombstone/抑止の全利用経路・操作status/queue・実SDK/local parity・rollbackを確認予定。
+- typed forgetではsource_policyもcanonical利用者意図に結び付けるよう実装担当へ依頼。単なる忘却命令からmodelのdelete_source引数で元出典削除へ広げない。HTTPの明示body選択とは別に、toolの明示削除文法/確認済み意図または初版suppress限定等で守る。
+
+### 初期HTTP/tool検証と継続設計
+
+- `/tmp/ba-mem-07-targeted-1.log` は9件0.653秒/errors6で失敗。tool arguments等のValidationErrorを含む。原因・修正の正式説明はhandoff待ち、失敗raw保持。
+- `/tmp/ba-mem-07-targeted-2.log` 親raw確認:9件1.347秒OK、elapsed2.09秒。HTTP7（台帳前後/DB応答喪失/復元DBから同operation再構成/本人source delete/scope・版・失効）とworker2（forget固定ack、quote/question/negation/wrongtarget/delete拡大拒否）。コマンド・exitの最終照合はhandoff待ち。
+- 実装担当はtool intentを対象UUIDまでcanonical発話に束縛し、delete_sourceに追加の明示句を要求。自己forgetと同TXで現runの旧memory_records/continuationを除去し、抑止後history digestと同run/effect/operationの本文なし証拠を記録、モデル再実行なしのpending固定ackへ進む設計。
+- 親が本文付きFactのdeleted/epochだけでなく、docs03の独立deletion_tombstonesと再作成/現利用fenceを確認依頼。実装担当はcontracts型とpolicy/Fact再作成/CanonicalSources/history/summary/exportへの同TX永続fence追加を進めると報告。未完成・未検証の中間報告。
+- memory_purgeはwaiting+専用queueの非activation envelope。MEM08の専用削除executorがoperation/intent/tombstoneから狭くactivationし、deleted targetや元actor失効を通常Fact grantで再認可して削除を阻まない契約を文書化する。物理purgeは今回行わない。
+
+### tombstone接続の初期再検証・source抑止権限確認
+
+- `ba-mem-07-targeted-3.log`:12件1.821秒/errors1（PolicyDenied）、失敗raw保持。`targeted-4.log`:13件2.167秒OK/elapsed3.08秒を親raw確認。台帳失敗時に成功ack/モデル再開しない負例、同runのsource抑止を同TX忘却だけでhistory再束縛する正例を追加。原因・修正の正式説明はhandoffで照合予定。
+- 親が途中prepareのdefault suppress_reuseでsource authorityをREADだけ検査する点を確認依頼。AがBのshared出典から自分のshared Factを作りforgetすることで、同visibilityでもBのsource全体へ共通抑止を書けるならREADからsource変更への昇格となる。WRITE/本人範囲の根拠と、shared同scope・別creator・memberによるsuppress負例を要求。まだ正式review findingではなく実装中の確認。
+- 共通policy/history等へ独立tombstoneを接続するため、最終全check/testに加えて実Firestore全integrationを実施するよう担当へ依頼済み。
+
+### source抑止権限・tombstone対応と全検証開始
+
+- 実装担当報告: source抑止にも親Action.WRITEを必須化、message全体抑止は本人author（新created_by/旧canonical run+job証明）に限定。同scope別creatorのmember拒否を追加。noteはsource自身WRITE、delete_sourceは更に本人author必須。
+- 独立tombstoneで古いFact/source再配置とFact purge後同ID再作成の拒否をテスト済みとの報告。正式対象/command/countはhandoff照合予定。
+- 親raw確認 `ba-mem-07-setup.log`: locked/frozen setup成功、elapsed0.65秒（担当exit0報告）。`check-1.log`: 全9タスク完了、mypy218files成功、elapsed22.96秒。`test-1.log`通常全suiteは実行中。
+- 最終check/test/全Firestoreは同snapshotで進め、成功・失敗の確定結果を待つ。
+
+### 初回全通常テスト成功
+
+- `/tmp/ba-mem-07-test-1.log` 親raw確認: Python564件74.308秒、Skill18件0.067秒、Node40件15.055秒全pass、elapsed1:33.77。担当の最終command/exit/snapshot確認はhandoffで照合する。
+- `emulator-1.log` はdemo-brainoid Auth/Firestore全integrationを実行中、同時点でエラー表示なし。完了成功とはまだ扱わない。
+
+### 最終自己確認での追加強化計画
+
+- 実装担当は全check/test exit0を確認、全Firestore進行中のsnapshotを変更していないと報告。
+- emulator終了後に、ledger.getの遅延後append直前の元deadline再確認、他人private target reservationへの権限確認を409比較より前へ移すこと、forget命令messageのdirect_user明示確認を追加予定。追加負例と最終check/test/emulator再実行を行う。
+- これらはまだ未反映/未検証の計画。先の全suite成功は修正前として区別し、最新差分の確認を待つ。
+
+### 初回全Firestore成功・追加強化の関連結果
+
+- `emulator-1.log` 親raw確認: Auth/Firestore全152件284.340秒OK、Script exit0、全emulator正常shutdown。追加強化前snapshotの全suite証跡として保存。
+- `targeted-5.log`:追加強化後18件2.608秒でfailures2、elapsed3.57秒。`targeted-6.log`:18件2.723秒OK/elapsed3.70秒。原因/修正の詳細はhandoffで照合予定、失敗rawを保持。
+- 追加強化を含む最終check/test/全Firestore結果待ち。
+
+### 最終全検証・実装引継ぎ
+
+- `/root/mem07_implementation`は編集停止。親がhandoff/rawと全30製品path SHAを直接照合。`/tmp/ba-mem-07-handoff.md`、`product-snapshot.json`、`snapshot-final.log`を保存。
+- 最終 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache /usr/bin/time mise run check` exit0、全9タスク23.87秒（mypy218/生成差分なし/契約互換成功）。raw `ba-mem-07-check-final.log`。
+- 最終同env `mise run test` exit0、Python569件72.755秒・Skill18件0.081秒・Node40件15.825秒すべて成功、total93.28秒。raw `ba-mem-07-test-final.log`。TestClient/Nodeの既知sandbox動作のためescalation。
+- 最終 `.env.emulator.example` をset-aでsourceしdemo-brainoidのみの `mise run test-emulator` exit0、全152件278.273秒/total288.16秒。raw `ba-mem-07-emulator-final.log`。Auth/Firestore/hub/logging正常shutdown、5ports ECONNREFUSED（ports-final.log）。同snapshot検証後の製品変更なし。
+- 初期失敗の説明をhandoffで確認: targeted1はworker fixtureのToolCall.arguments_json誤り、targeted3はsummary fixtureの参照LIGHT未作成。targeted5はdirect_user import漏れにより成功toolがfail-closedとなり2失敗、importとterminal projectionを修正。targeted6で18件、targeted7で19件（2.632秒/total3.56秒）成功。失敗rawを保持。
+- source delete時UI履歴から個別messageを除外し、suppress時は表示維持。独立tombstoneで古いsource再配置も非表示の回帰を追加。実cloud/課金provider/physicalpurge/restore rolloutなし。
+- 次に全30pathsを固定し、新規独立R1へ渡す。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/mem07_review_r1`（新規独立context）。base commit: `1ec1cae27c23baf66b3ef1b86ed89e9e48e9cbee`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `89522f1888df79ad6ab2a1f2df5a9a3422036a04fb10df77a30d28274151e09b` |
+| `docs/08-implementation-tickets.md` | `8ec45c8dda812fd30607eb6bcc24d8b3511c1f126513ad90611cd92d3a90b1a6` |
+| `docs/memory-forgetting.md` | `4eec40dee3cfd44fcb4ac9f6c793ed66e6fec19839d3fa62be3c0a6c6b50020d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `99b747ca47826121a168abe14215e7be3161d1dc35cb0509eb76e5d6cfd7aa91` |
+| `packages/api-client/src/generated/sdk.gen.js` | `72ef7f2d983803bc14da8693f5dcf9a1e4a691ac93a41eaeae80114eba71617b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `acf2596247870a980f7132678633fae443bd7372e7efa03ec22822767e2f054c` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `685e090531d7e0a76ed257e5e521cc2531591aa8c923b451cf9a100c5622010b` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `0c001794df3db4cba82a0485402b27ab29e25ff61d123071ad08f15796ae56dd` |
+| `packages/memory/src/brainoid_memory/forget.py` | `4a1be71c9078a268f71f2805eb04c1bc86d036b2cad8480d9d9b5fa0b3c00c7a` |
+| `packages/memory/src/brainoid_memory/repository.py` | `0f37209ad092c110955c148e65cfd7e18f4c0bdff068cae93615be98b23b37c5` |
+| `packages/memory/src/brainoid_memory/sources.py` | `f4522148ce2688af6e1ad00219b505d029253d6909b5953934f260c1a1fefe45` |
+| `packages/memory/src/brainoid_memory/summaries.py` | `8f77267e45271c868ce482e7df3831a1ec17df541c990424b93d8403ea5f2ac1` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `6fb64f6882acc385a0e53ab53f880cde97da823c454d6725e57c60b4eaaab2e3` |
+| `packages/runs/src/brainoid_runs/state.py` | `de89b7640662d9e2f9153694647e2a592064ddc0b1c17f6f2b26e733b163638b` |
+| `packages/tools/src/brainoid_tools/memory.py` | `dc4da77fb52c3d947de04ff135be2a5df8e1411bca16e193fd3ed33107b531c1` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `920d9fc335fa1b039bf50a36459dff656d9d492fc5dd9d14cb758979847d22e5` |
+| `services/api/src/brainoid_api/adapters/local_authz_ledger.py` | `5afbcf83ef7ad142f92bb50df58d2fd792ffac88dbc971c424cf143d4bead255` |
+| `services/api/src/brainoid_api/app.py` | `9c249ecd68f13f64e01219c7aa3e31c8eb54eb6938523d2a6d6c836bfcc1d4d6` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `aab51be17575b1b2db1d9ac3a7bcbaff376e6f1d625823a056c8e7ce35d2862f` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `f383249081151ab9beb7bb2c0e77e7508491c3afc3ee542123106364aeefa5fa` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `6895d1f561230f97e37676c542f7d35229572e0f61c103a3cf559f94ce2c8e07` |
+| `services/api/src/brainoid_api/routes/operations.py` | `433180f57452a54a1b6f71e7304bc0c5d332261af0ddc1d50b3f644b22c65f04` |
+| `services/worker/src/brainoid_worker/memory.py` | `a4c8b6b5c5426731101cc8ede170f0daf7f83f639319e6a16107cb09398d80ea` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `24b954d270488b123831bbfc755e5e789e87faa72d549e375ef63223bf865cf4` |
+| `specs/openapi.yaml` | `0dadb6164ef80299933e6e3825ff0351879b9826c0ccdbf217941195a0f1169d` |
+| `specs/tool-contracts.schema.json` | `920d9fc335fa1b039bf50a36459dff656d9d492fc5dd9d14cb758979847d22e5` |
+| `tests/emulator/test_forget_integration.py` | `71b5f3ef47d8562627fb556b44a680c385e35a6753ed5c396603d2f2e9c7645a` |
+| `tests/emulator/test_memories_integration.py` | `b83abbf4a0b85917e51ddedb57792d097c0bdc375a27854bc45148c8bcb97bc4` |
+| `tests/test_gcs_authz_ledger.py` | `edc037ef104d3e64e1422b71886bdb5e69906ff6e8b33f667263f922817151a6` |
+| `tests/test_memory_forget.py` | `18ae74bae44955404df3fe0c0f3c0ebbabb522413ad1e355b9a79dcd45e5f758` |
+
+### R1開始監査・独立検証中
+
+- `/root/mem07_review_r1`報告: main/base/index空/30path集合/全SHA/diffcheck成功。全差分を一巡し、既存policy/RunStateまで追跡。提供suite rawと正常shutdownも直接確認。
+- noteのsuppress_reuseは既存共有WRITEとmessage本人限定の違いを評価し、現時点で必須findingではない。外部forgetと同run競合、immutable台帳binding、古いmarker復元時のUI/model/export境界を独自検証中。最終判定前。
+
+### R1独自境界検証の中間結果
+
+- 親raw確認 `/tmp/ba-mem-07-review-r1-boundaries.log`:10件0.035秒OK。台帳後期限切れ/Fact・source変更/marker不整合/ledger schema/別author note/member・owner/opaqueUID・shared null owner/通常purge配送拒否を含む。
+- Fact suppress markerのUI/export可否は挙動観測であり、そのまま安全性合格を意味しない。生成経路と復元契約を含むreviewer判定を待つ。
+- 独自worker probe初回は `ModuleNotFoundError: scripts` で収集失敗（worker.log）。repo rootとtestsのPYTHONPATH調整後、別rawで再実行予定。製品の失敗とは未判定、元raw保持。
+
+### R1競合再現（正式判定前）
+
+- 独自worker probeのPYTHONPATH補完後 `/tmp/ba-mem-07-review-r1-worker-2.log`:1件0.219秒FAIL。親rawを確認。
+- runがFact A/Bを参照してBのforgetを実行、そのledger I/O中に別要求がAをforget。A消去後の通常RunState.checkはPolicyDeniedなのに、B受付commitがmemory_recordsを全クリアしてrun completedへ進む。モデル要求は1回、本文の新規漏洩はこの再現では観測されていない。
+- 同run/effect限定の例外が別operation失効を吸収する経路としてreviewerが出力境界/必須性を調査中。製品freeze継続、正式全差分結果後に元実装担当へ渡す。
+
+### R1正式結果・修正へ移行
+
+- 新規独立 `/root/mem07_review_r1` は **request_changes**、必須1件 `MEM07-R1-01` P2。正式 `/tmp/ba-mem-07-review-r1-report.md` とfinal-audit.logを親全文確認。全30paths/全SHA/main/base/空index/diffcheck一致、未確認必須範囲なし。
+- finding: `services/worker/src/brainoid_worker/memory.py:584` のforget全結果検査省略と`:712`の証跡全消去により、別Aの外部forgetで通常RunState.checkがPolicyDeniedになったrunがB自己forgetでcompletedになる。A本文の新規送信/2回目モデル呼出しは未観測、自己effect限定とcurrent検査の制御回帰。B commit前の全依存検査を維持し、無関係失効を消去で隠さない修正と回帰を要求。
+- 直接検証:既存23件3.293秒、独自境界10件0.035秒、生成中の実forget→embedding/summary obsolete・未保存2件0.019秒、7890文字prefix+71文字通知1件0.206秒成功。race1件0.219秒失敗が必須finding。初回worker import失敗/出力7990文字probeがCore7900制限でtool未実行だった結果も保持し、成功検証に数えない。
+- 任意C1: 現fenceはFact suppress markerをUI/exportに残すが、正規writerはFact delete固定、到達する正規経路未発見。共通marker型/Fact delete限定による強化を提案。元実装担当に対応または見送り根拠を求め、次reviewへ含める。
+- 元実装担当へR1報告・再現script/rawを返す。台帳in_progress、確認済み独立review_rounds=1。fresh R2を修正後の最新全差分で実施する。
+
+### R1修正方針
+
+- 元実装担当はforget opened()の `check_results=False` 例外を撤去し、予約時・ledger後commit時の通常state.checkを維持する方針。B自身はcommit前に現行、commit後は同TX証拠で再束縛されるためsameeffect retryも全検査可能と説明。外部A forget/訂正/期限切れ/toolbinding失効の負例を追加予定。
+- 任意C1はFactのsuppress markerを保持sourceとして扱わない最小強化を採用予定。共通fenceの変更を含むため最終全check/test/Firestore全integrationを再実行。現時点は計画、完了結果ではない。
+
+### R1修正・元再現と追加回帰成功
+
+- 元R1 probeを変更せず最新製品へ実行: `/tmp/ba-mem-07-r1fix-original-probe.log` 1件0.210秒OK/total0.95秒。親raw確認。外部A deleted、B未deleted、通常check拒否、run内部runningでcompletedにならず、旧memory_records保持、model1回。公開projectionではfailedとなる追加assertは新回帰で検査。
+- `/tmp/ba-mem-07-r1fix-regression-after-2.log`:5件1.652秒OK/total2.41秒。外部A forget/revise/期限切れ、search binding保持、searched-B sameeffect retry+既stream prefixの正例。
+- 初回 `regression-before.log`:5件0.962秒/5FAIL（total1.70秒）。clock fixtureがworker実時計と不一致で競合hook未到達、prefix期待も未flush部分を含むため有効な修正前再現とは扱わない。`regression-after-1.log`:5件1.631秒/4FAIL（total2.39秒）は内部rawrun runningに対し公開projection failedを直接期待したfixture誤り。raw保持、後者修正後5件成功。
+- 最小製品修正はforget opened()の通常state.check維持、C1 retained markerをmessages/notes限定。関連doc/test込みR1以降5paths変更（新規test1）、全31pathsのSHAを `/tmp/ba-mem-07-r1fix-product-snapshot.json` に固定したと担当報告。Ruff/mypy219files成功、setup exit0/1.05秒。最終全check/test/全Firestore開始、製品編集停止。
+
+### R1修正後の全check・通常テスト
+
+- `/tmp/ba-mem-07-r1fix-check-final.log`:全9check成功/mypy219files、total22.65秒。担当exit0報告、親raw確認。
+- `/tmp/ba-mem-07-r1fix-test-final.log`:Python575件72.070秒/Skill18件0.060秒/Node40件14.375秒すべて成功、total90.80秒を親raw確認。最終exit/snapshot確認はhandoff照合待ち。
+- 同snapshotの実Firestore全suite進行中。未完了を成功扱いしない。
+
+### R1修正後の全Firestore成功
+
+- `/tmp/ba-mem-07-r1fix-emulator-final.log` 親raw確認:全152件276.754秒OK、total286.45秒、Script exit0。Auth/Firestore/hub/logging正常shutdown。R1修正後の31paths snapshotでの全suite結果。
+- 親が31pathsの現在SHAとfix product snapshot一致、main/base不変/index空を確認。正式handoffとportsを確認後fresh R2へ渡す。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/mem07_review_r2`（新規独立context）。base commit: `1ec1cae27c23baf66b3ef1b86ed89e9e48e9cbee`。
+- 未追跡を含む最新全31files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `89522f1888df79ad6ab2a1f2df5a9a3422036a04fb10df77a30d28274151e09b` |
+| `docs/08-implementation-tickets.md` | `8ec45c8dda812fd30607eb6bcc24d8b3511c1f126513ad90611cd92d3a90b1a6` |
+| `docs/memory-forgetting.md` | `642cb9d456a7114ef229bfe739e17044f6fab8431c26896c1d4ed286d37b7294` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `99b747ca47826121a168abe14215e7be3161d1dc35cb0509eb76e5d6cfd7aa91` |
+| `packages/api-client/src/generated/sdk.gen.js` | `72ef7f2d983803bc14da8693f5dcf9a1e4a691ac93a41eaeae80114eba71617b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `acf2596247870a980f7132678633fae443bd7372e7efa03ec22822767e2f054c` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `bb73060081c7d8455d437a0e54b1928357c32d8d0dba8212bba2892144afe5bc` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `0c001794df3db4cba82a0485402b27ab29e25ff61d123071ad08f15796ae56dd` |
+| `packages/memory/src/brainoid_memory/forget.py` | `4a1be71c9078a268f71f2805eb04c1bc86d036b2cad8480d9d9b5fa0b3c00c7a` |
+| `packages/memory/src/brainoid_memory/repository.py` | `0f37209ad092c110955c148e65cfd7e18f4c0bdff068cae93615be98b23b37c5` |
+| `packages/memory/src/brainoid_memory/sources.py` | `f4522148ce2688af6e1ad00219b505d029253d6909b5953934f260c1a1fefe45` |
+| `packages/memory/src/brainoid_memory/summaries.py` | `8f77267e45271c868ce482e7df3831a1ec17df541c990424b93d8403ea5f2ac1` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `6fb64f6882acc385a0e53ab53f880cde97da823c454d6725e57c60b4eaaab2e3` |
+| `packages/runs/src/brainoid_runs/state.py` | `de89b7640662d9e2f9153694647e2a592064ddc0b1c17f6f2b26e733b163638b` |
+| `packages/tools/src/brainoid_tools/memory.py` | `dc4da77fb52c3d947de04ff135be2a5df8e1411bca16e193fd3ed33107b531c1` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `920d9fc335fa1b039bf50a36459dff656d9d492fc5dd9d14cb758979847d22e5` |
+| `services/api/src/brainoid_api/adapters/local_authz_ledger.py` | `5afbcf83ef7ad142f92bb50df58d2fd792ffac88dbc971c424cf143d4bead255` |
+| `services/api/src/brainoid_api/app.py` | `9c249ecd68f13f64e01219c7aa3e31c8eb54eb6938523d2a6d6c836bfcc1d4d6` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `aab51be17575b1b2db1d9ac3a7bcbaff376e6f1d625823a056c8e7ce35d2862f` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `f383249081151ab9beb7bb2c0e77e7508491c3afc3ee542123106364aeefa5fa` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `6895d1f561230f97e37676c542f7d35229572e0f61c103a3cf559f94ce2c8e07` |
+| `services/api/src/brainoid_api/routes/operations.py` | `433180f57452a54a1b6f71e7304bc0c5d332261af0ddc1d50b3f644b22c65f04` |
+| `services/worker/src/brainoid_worker/memory.py` | `e82f1d34ee3ee60937198d388cddfb5ae6f4294e8bfa9426cbb3169c746d89df` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `24b954d270488b123831bbfc755e5e789e87faa72d549e375ef63223bf865cf4` |
+| `specs/openapi.yaml` | `0dadb6164ef80299933e6e3825ff0351879b9826c0ccdbf217941195a0f1169d` |
+| `specs/tool-contracts.schema.json` | `920d9fc335fa1b039bf50a36459dff656d9d492fc5dd9d14cb758979847d22e5` |
+| `tests/emulator/test_forget_integration.py` | `71b5f3ef47d8562627fb556b44a680c385e35a6753ed5c396603d2f2e9c7645a` |
+| `tests/emulator/test_memories_integration.py` | `b83abbf4a0b85917e51ddedb57792d097c0bdc375a27854bc45148c8bcb97bc4` |
+| `tests/test_forget_context_revalidation.py` | `bf5ba21e9582b90c3e048d7926a1613733e1e9334fb7d38a7ec7e5c4c39d8b85` |
+| `tests/test_gcs_authz_ledger.py` | `edc037ef104d3e64e1422b71886bdb5e69906ff6e8b33f667263f922817151a6` |
+| `tests/test_memory_forget.py` | `fd51813931784ac3fb122142c675483c4c4b6739954bc1324293be6d0d8a010d` |
+
+### R1修正正式引継ぎ・fresh R2
+
+- `/tmp/ba-mem-07-r1fix-handoff.md`の最終値を親確認。全check22.65秒/通常575+18+40件90.80秒/実Firestore152件286.45秒すべて担当exit0。ports-final.logは5portすべてECONNREFUSED、snapshot-final.logは31SHA/R1から5path変更/main/base/index空/diffcheck一致。
+- MEM07-R1-01は通常state.checkへ復帰。C1はFact retained mode拒否を採用し、全面的共通marker型の設計変更は現writer到達性なし・scope過大のため見送り。future restore writerには全metadata検証が必要という境界を維持。
+- 新規独立 `/root/mem07_review_r2`へ最新全31pathsを固定して引き継ぐ。R1finding/rawと修正後の検証事実を渡し、前担当の自己評価を承認根拠にせず全差分を再確認する。
+
+### R2開始監査
+
+- `/root/mem07_review_r2`報告: main/base/index空/pathset31/全SHA/diffcheck一致。仕様・R1正式結果を直接確認し、全差分/既存current state/ReleaseGuardを追跡中。
+- audit初回はMISE_TRUSTED_CONFIG_PATHS未指定によるtrust errorで未実行、設定後の開始audit成功。製品の失敗ではなく環境呼出し修正としてrawを保持。
+
+### R2直接再現・限定回帰成功（中間）
+
+- `/root/mem07_review_r2`報告: 元R1 probeを直接再実行して1件0.226秒成功。実hook到達/通常state.check拒否/A deleted/B非deleted/旧memory_records保持/model1回を独立確認。
+- 現追加testを含む関連29件5.158秒成功との報告。raw/commandは正式reportで照合予定。
+- 全31path差分読了。独自hookで予約前・ledger後・commit直前/応答後とtool-only bindingを追加評価中。最終判定前。
+
+### R2追加境界と回帰の直接成功
+
+- 親raw確認 `review-r2-races-2.log`:5件1.314秒OK。予約前外部A forgetでB intent無し、ledger後外部AでB未commit/intent残存、toolbindingのみ改変で証拠保持/拒否、terminal最終読取中にA期限切れで全B書込拒否、commit応答後lease失効でB受理確定維持・ack/finalmessage無し。最後のrawrun runningは既存lease失効状態でcompletedではない。
+- `review-r2-boundaries.log`:10件0.030秒OK、C1のFact suppress markerは最新拒否期待へ合わせUI/export/model拒否を確認。`review-r2-derived.log`:2件0.019秒OK（実forget受付を生成中hookへ挿入してvector/summary未保存）。
+- `review-r2-related-regressions.log`:MEM04 ReleaseGuard/自己訂正/ResultUse/MEM06等46件8.472秒OK。
+- `review-r2-aftercommit.log`:1件0.220秒の観測。期限内B原子commit後にAのみ期限切れだと固定ackでcompleted/model1回。reviewerはcommit前全検査後に旧contextを閉じたreceipt応答と、未commit時点で失効を吸収したR1問題を区別して評価中。観測成功だけを安全性の結論としていない。
+
+### R2最終承認
+
+- 新規独立 `/root/mem07_review_r2`: **approve**、必須未解決0、新規必須0、新規任意なし。正式 `/tmp/ba-mem-07-review-r2-report.md` / final-audit.logを親全文確認。MEM07-R1-01とC1の修正を独立再確認。
+- 直接検証は元再現1+限定29+競合5+境界10+派生2+関連46=93件成功。別途postcommit観測1件は安全性合格assertに数えず、期限内に旧contextを閉じた後の現在認可された固定receipt応答として許容と評価。初回probe2失敗は存在しないreply field参照とlease後rawrunの誤期待、修正後5成功。startup trust設定漏れも製品失敗と区別しraw保持。
+- 終了監査main/base/index空/pathset31/全SHA/diffcheck成功。R2 manifest自身のSHAは `be76bfd579aa4acb498e89579f18be1ee6b6a7212612fca78b6fc4e0d79be39d`。実装担当のproduct-snapshot JSONとは包みの形式が異なるためmanifest自体のSHAは別、全31製品file内容は一致。
+- 最新全check/通常575+18+40/全Firestore152は修正後snapshot。未実施は実cloud/GCS IAM・retention/課金provider/実機/電源断/physicalpurge/restore/UIで、docs08§1と本ticket範囲外を維持。親がstage直前snapshotを再照合して31pathsだけcommitする。
+
+### 実装コミットと完了条件
+
+- mainへ `3baee378926be0b7f9af71bc00b1b31df4c763c3`（feat(memory): BA-MEM-07 accept ledger-backed memory forgetting）を作成。stage前・index・commit後の全31pathsとSHAがR2承認snapshot一致。cached全diff `/tmp/ba-mem-07-staged.diff`。
+- FR006/013・T011/T022: 独立immutable deletion intent→現在認可/版再検査→tombstone/source抑止/operation/waiting専用purge job原子commit、障害時同ID復旧、明示intent付きtyped forget、query/context/summary/履歴/export判定fenceを実装。source抑止と削除をUI保持でも区別し、他人source削除・scope拡大を拒否。
+- R1必須1件を修正、R2全差分approve/必須0/追加任意0。直接93件成功とpostcommit観測1件を区別。C1の最小強化採用、全面共通marker型は現到達性とscopeから見送り。最新全check/通常575+18+40/全Firestore152成功、全5port閉鎖。
+- 実cloud/課金provider/physicalpurge/全台帳restore/UI/電源断試験は未実施で本ticket完了範囲外。旧版切戻しは台帳/予約/tombstone保持・model/worker停止、MEM08は受理済みintentに狭く束縛した削除executorを実装する。受付pendingを消去完了と表示しない。
+- 完了更新: 2026-10-26T14:18:29.763966+00:00。done metadata更新後の親最終checkと記録コミットへ進む。
+
+### 親の最終検証
+
+- done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy219/docs1416/生成差分なし/契約互換成功、real22.08秒。raw `/tmp/ba-mem-07-parent-check.log`。
+- 台帳done32/todo64/blocked0。変更は台帳・作業ログのみ、記録2ファイルを別commitへ含める。
