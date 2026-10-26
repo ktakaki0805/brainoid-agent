@@ -3081,3 +3081,214 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/22.00秒、全9タスク成功、台帳done19/todo77。
 - 終了: 2026-10-26T00:14:14.224651+00:00。台帳・ログのみを記録コミット。
+
+## ba-run-03-20261026t001509z
+
+- チケット: BA-RUN-03
+- 状態: done
+- 開始: 2026-10-26T00:15:09.043787+00:00
+- ブランチ / base commit: main / 1a8f7b987a89b100f585d55451c52e38172eb216
+- 開始時の変更: なし
+- 選択: check成功（done19/todo77）、IDなしnext。依存FND07/IAM03/RUN02実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/run03_implementation`（独立context）。
+- 実装コミット: c9d458583638d7acdc909aab84b6f9cf8a747ad8
+
+### 受入条件と検証計画
+
+- 初期agentの取得/一覧、管理者のETag/冪等key付き版更新、同じagent版をスマホ/Pi相当から共有。
+- 認可済み会話/設定/MemoryStore出力をcontext builderへ、権限外候補をモデル入力へ含めない。persona内権限拡張は権限へ反映せず、member管理拒否。
+- ModelProvider/MemoryStore/Clockを注入し文字生成/時間・出力予算/終了理由を扱うSDK・HTTP・Firebase・実端末非依存Core。RUN02の署名付き最終ModelResponseをCompleted後だけ内部履歴へ確定し公開eventへ漏らさない。
+- fake provider入力捕捉/T005人格共有/負例、API fake/emulator・全setup/check/test・契約client整合。
+- 永続run/messageはRUN04、tool実行RUN06、実記憶検索MEM04へ分離。外部前提なし。
+
+### 初期設計・権限境界
+
+- 実装担当がAgentPatchのname/personaのみを確認、allowed_toolsはHTTP管理入力から変更不可。user/device取得は共通現在認可、更新はMANAGE_AGENTS action（owner/admin）＋既存ETag/冪等基盤を使う方針。
+- CoreはSDK追加なし、注入する現在認可portでconversation/memory/source版を再照合。人格本文・allowed_toolsを権限付与として扱わず、実tool実行は後続。
+
+### agent API初稿・Core現在認可
+
+- agent repository/routesとMANAGE_AGENTSを追加（検証前）。Coreに必須ContextAuthorizer.checkを注入し、開始時stampを固定、検索結果→prompt直前/各event前/最終確定前で同stampを要求する設計。
+- stamp変更はpermission_denied、失効時出力/内部snapshot破棄。会話・出典保存形式への本番port接続はRUN04/MEM04責務、試験は実IAMEvaluatorを背後に持つfakeで確認する。
+
+### Core実装・初期lint
+
+- 時間/文字/token報告/event数の上限、故障memory拒否、署名snapshotのCompleted後確定を実装中。初回ruffはdefault RunBudget()のB008を検出、修正する。外部依存追加なし。API/fake回帰とmypyへ進む。
+
+### 初回個別試験のfixture整合修正
+
+- 既存demo.jsonのagentがpersona欠落/enabled_tools旧fieldで、Agent DTO 500/Core KeyErrorを検出。IAM03新規作成は現persona/allowed_tools形式のためdemo fixtureを揃える。
+- 新test冪等keyが共通最小16文字未満で400、mypyはFirebaseUid2箇所を検出。fixture/key/typeを修正して再検証する。
+
+### Core/API個別試験成功
+
+- Core12/Agent API6件成功。認可fakeのMemoryTransactionがcopyを保持して現在更新を見なかったfixture、期待412/credential-family更新先のtest誤りを修正。
+- emulator競合更新/応答喪失/user-device共通読取、待機中取消/署名非漏出、文書/生成物を仕上げる。親から最初の認可checkでmemory_scopesを現在policy.search範囲へ束縛し、未知Pi/private等を無検証で検索portへ渡さない契約と負例を追加確認。
+
+### Core互換・検索scope境界
+
+- 初回認可checkでmemory_scopesをpolicy.search filtersと照合し未知Pi private負例を追加。FND07の任意ModelResponse契約を親から確認し、snapshotなしTextDelta→Completedはresponse=Noneで成功、無snapshot tool_callsは候補を非公開/非実行のまま終端理由のみ返す。署名snapshotを合成しない。
+- snapshot提供時は完全一致を検査しそのまま確定。Core15/mypy127成功、API session/emulator3件を追加。
+- 親からasync with aclosing内returnのcleanup待機中に失効/取消/期限が起きる境界を確認し、cleanup後返却直前の再検査と負例を依頼。後続配送時再認可は別途必要。
+
+### cleanup境界・全検証途中結果
+
+- aclose後返却直前に同receipt/取消/期限を再確認、cleanup内失効/取消/timeout負例を追加。
+- 最終候補setup/client生成/check9/mypy127/Python268/Skill18成功、Node実行中。
+- emulator初回は.env.emulator.example未sourceの設定不足で即時終了。明示設定source後に再実行する（実接続へfallbackなし）。
+
+### emulator回帰の切り分け
+
+- 全testのNode39件も成功。emulator全76件は新規Agent3件を含む75件成功、既存端末置換競合 `test_revoke_and_concurrent_explicit_replacement_keep_old_device_dead` の一方が503となり失敗。
+- 同一版の全体再実行も同じ1件だけ失敗（76件/90.635秒）。期待値変更なし、両実行のemulatorは停止済み。ログにはtransaction lock競合があるが、原因の確定は単独試験とbase比較で行う。
+- 実装担当が単独検証中。無変更の全体再試行は増やさず、再試行契約と現仕様を照合する。
+
+### 端末置換競合の比較結果
+
+- 現行版の該当試験単独は1件/3.594秒で成功。開始baseを/tmpへarchive展開し別venvにlocked/offline同期して既存73件を比較実行、該当置換試験は成功。
+- base全体は別のmembership生成client試験で、比較環境のNode依存未同期によるeventsource-parser不足が1件発生したため全成功とは扱わない。root環境は変更なし。
+- 現行全体2回でのみ503、単独/基点では成功する間欠的失敗。固定エラー型の一時harnessで原因を採取し、503時のみ同一body/keyを最大3回再送する試験の最小修正を検討する。両呼出しの同じDevice・置換件数・旧credential拒否の期待は維持する。
+
+### 503の型連鎖と最小試験修正
+
+- 実装担当の一時診断harnessで再現、本文を含めず型のみ採取: `APIError → PersistenceUnavailable → Aborted → _MultiThreadedRendezvous`。Firestore Abortedの503正規化を確認した。max5 exhaustionのValueErrorではなく、その原因とは断定しない。
+- 該当既存試験だけ、同一replace closure/body/keyで503限定・上限3回の再送へ調整する。両結果がDeviceかつ同一、後続再送も同一、DB置換1件、旧device拒否のassertを維持・補強する。
+- 一時harness初回はscripts import path不足で失敗後に修正。base Node環境追加同期はoffline cache不足で中止し、比較環境の拡大は行わない。
+
+### 競合試験修正後の検証
+
+- 最終候補check全9/mypy127、全test Python268/Skill18/Node39成功。新規API7/Core16/emulator3件。
+- 既存端末置換試験は503同一key最大3回再送、全結果Device/同一結果・後続再送一致を追加。既存DB件数と旧credential拒否条件は維持。RUN04/05/06の責務説明も文書間で整合。
+- emulator76件を最終候補で実行中、完走と全停止後にレビュー対象を固定する。
+
+### 最終候補の全検証と停止
+
+- 最終emulator76件全成功（92.936秒）。Auth/Firestore/hub/logging/UI停止ログと8080/9099/4400/4500/9150の閉鎖を確認。git diff --check成功。実装担当は製品・テスト・文書の編集停止。
+- setup/client生成は先行成功、最終check全9/Python268/Skill18/Node39/emulator76成功。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run03_review_r1`（新規独立context）、base commit: `1a8f7b987a89b100f585d55451c52e38172eb216`。
+- 未追跡ファイルを含む最新全22files。親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `35ce2ab7ed9a3b6701126d448117cd1297bd9b74454db767aa2b37aa08529928` |
+| `docs/05-development-and-testing.md` | `c77105a2ca810710bf9ffd662e02603ec361b225337811b2b601d55c7c74208f` |
+| `docs/agent-core-contracts.md` | `7e17c999db724987ebde1727ce4829df95e0adcf340f23f269f3f185f3d44ff2` |
+| `docs/google-model-provider.md` | `dc017fa9830da7c45f6e205b0940fc34edb6f9f484e284b81d523865481bb94f` |
+| `docs/text-agent-core.md` | `de03c798b6813796d7377e0b41df6b84f31c649c24e756152ccda8d6b511de53` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `9c1773a479747f0d6701ce041f27dca342e8090403b543ae37a173f2c57aa707` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `3f55b7d14ae007f69f7a9b2406eb2e89317b993dd2d24a5db1deb980f5815614` |
+| `packages/agent_core/src/brainoid_agent_core/definition.py` | `cc079c29b896fa66747f736d4c81330bd5dcf0acf9a3a569228ac3ba7afbdb54` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `d3779b980f883e2a772cc39e237f5921a4304bec05f5764e997bf82d6f3b5da4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `0d7f8c9bca63f29f49acc2a2908f0ee2ff100850e51c62b593733f8818654c03` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `2d30608b6d100a854895607805ab7be7e1e27e57a59b44cfc895a52ed0c0c3a8` |
+| `packages/policy/src/brainoid_policy/models.py` | `ad8027335d27b26591381f308ce1d118fdbe2ad469aa614415ad412f42b188a8` |
+| `services/api/src/brainoid_api/app.py` | `59d1d8c58f1b69ec414efd45ebe3e5c573b5ca32b1bb871ba13f18c400bd0534` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `82b0ad45d7afffd3ed73dbc39c8b3dc4266e0929e7dbb891d3e86f2b4b12ea68` |
+| `services/api/src/brainoid_api/repositories/agents.py` | `13856b75ff6df660ac088717d90cad90ab8d7be56dea7bdab448d52b86545897` |
+| `services/api/src/brainoid_api/routes/agents.py` | `ee3abee1179c2965bbb86c9ad3067a9dc84b2b84f44f975f35a8f6fadc22429e` |
+| `specs/openapi.yaml` | `125f1cb72edafb2d839f1596c7d342dfabb2ef448bc38fecd0a5e974cb2b751f` |
+| `tests/emulator/test_agents_integration.py` | `9bdbf2966d29ed0b7eaa024c70adbe4beba95126a9c1d75e3c17edc2dc9ec4d3` |
+| `tests/emulator/test_devices_integration.py` | `fa967d94bd439a8d86f0805929da1331146f668c992f207a8cbb016fd1c68986` |
+| `tests/fixtures/tenants/demo.json` | `00babf14663d739d38772f68dcbe94ed10b00dd843e5b38d0c3ee4a14b482904` |
+| `tests/test_agents.py` | `b2f9bc92af6f7b189d6a1b9afbd7b3833db6181240cdf018e22b3789dd8aa3cd` |
+| `tests/test_text_agent_core.py` | `64ec3333ddddc2e8b84b9844440ebda91553942e3d1a3a9f32ad1fe1af299286` |
+
+### 独立レビュー ラウンド1 開始確認
+
+- `/root/run03_review_r1` がmain/base/22files集合・全SHA一致、適用AGENTSなしを確認。共通DoD/RUN03受入条件を直接読み、Core認可・終端とAgent APIのIAM/冪等契約を検証中。
+
+### 独立レビュー ラウンド1 cleanup待機の再現
+
+- reviewerはAPI版/role/現在再認可、T005/権限外候補の試験対応を確認。直接Core16/API7成功。
+- core.py:194 aclosing終了待機が_wait監視外。Completed後finallyでawait Event.wait()する取消協調的fakeでは、注入Clockをdeadline超過/取消signalを立ててもrun未完了、外側task.cancelで解放することを再現。時間予算/取消がcleanup待機へ適用されない必須修正候補。
+- 最新差分全体のレビューを続行中。製品編集は停止を維持する。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run03_review_r1`: request_changes、R1-01/P2一件、任意なし。全22files/仕様/周辺を確認、開始終了main/base/集合/全SHA一致、編集なし。
+- R1-01 core.py:194/107: aclosing/acloseと_wait取消後gatherが無期限。Completed後finallyでEvent.waitするprovider、生成中deadline取消後同cleanupの2経路でrunが戻らず、外側task.cancelでは解放。通常完了/途中取消双方のcleanup・子task回収を有限にする。TimedOut/Cancelled、本文/snapshot破棄、資源解放、残存taskなしの検証が必要。
+- 他の受入・API/認可/範囲/契約・device同key再送修正は対応確認。直接Core16/API7・再現2経路・diff check成功、全check/test/emulatorは提供証跡と区別。
+- 元実装担当へ修正を戻す。
+
+### R1-01 修正方針
+
+- stream.acloseをturn期限/取消と短い専用cleanup期限で監視。_wait finallyの無期限gatherを除き、cancel→注入Clockによる有限猶予→再cancel→有限回収猶予の2段階とする。
+- 協調的providerのfinally待機を再cancelで解放し、通常完了後close/生成取消後finallyの両経路で停止終端・本文/snapshot破棄・残taskなしを検証する。繰返し取消無視の非協調的adapterへの無限保証はせず、猶予超過で無期限awaitしない契約を明記する。
+- Task repr/never-retrievedログへpayload/例外本文を戻さない既存設計を維持する。
+
+### R1-01 実装と個別検証途中
+
+- close専用0.25秒期限、子task2段階回収各0.25秒へ変更、無期限gatherを除去。既存Core16件成功。
+- 正常close待機、close中取消/期限、生成取消後finally待機、Python task取消伝播の4負例を追加中。初回ruffはtestのループclosure B023を検出しfake共通化で修正する。CancelledErrorがcleanupのTimedOutへ置換されない境界も検証する。
+
+### R1-01 個別負例成功
+
+- Core21件（既存16+新規5）成功。正常close専用期限、close中live取消/turn期限、生成取消後finally再cancel、Python二重取消伝播、cleanup例外のasyncio debug非漏出を検査し、協調的経路は資源解放/all_tasks差分ゼロ。
+- r1からcore/test_text_agent_core/docの3filesのみ変更。API/永続化/認可/schema/fixtureに変更がなくemulator76成功の再実行は不要と判断、全check/testを実行中。
+- 親からcaller_cancelled時のclose一般例外がCancelledErrorを置換し得る境界を追加確認依頼。静的候補であり未確定。
+
+### Python取消とcleanup例外の重なり
+
+- 親指摘の境界を専用負例で修正前に再現（CancelledError not raised）。event後認可待機でtask取消→suspend中generatorをclose→cleanup一般例外で元取消が置換された。
+- caller_cancelled=Trueの場合だけcloseの通常Exceptionも抑止し元CancelledErrorを伝播。Core22件（既存16+新規6）成功、同負例で資源解放/残taskゼロ/log非漏出を確認。
+- 直前版全check/test成功後の追加修正なので、最終全check/testを再実行する。
+
+### R1-01 最終検証
+
+- 修正後最終check全9/mypy127、全test Python274/Skill18/Node39成功、git diff --check成功。編集停止。
+- r1対象と比較し変更はcore/test_text_agent_core/docの3filesのみ。API・永続化・emulator未変更、CoreはHTTP/Firestoreへ未接続のためemulator再起動は不要と判断し、直前76件成功/停止の証跡を適用。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/run03_review_r2`（新規独立context）、base commit: `1a8f7b987a89b100f585d55451c52e38172eb216`。
+- R1-01と取消+cleanup例外修正を含む最新全22files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `35ce2ab7ed9a3b6701126d448117cd1297bd9b74454db767aa2b37aa08529928` |
+| `docs/05-development-and-testing.md` | `c77105a2ca810710bf9ffd662e02603ec361b225337811b2b601d55c7c74208f` |
+| `docs/agent-core-contracts.md` | `7e17c999db724987ebde1727ce4829df95e0adcf340f23f269f3f185f3d44ff2` |
+| `docs/google-model-provider.md` | `dc017fa9830da7c45f6e205b0940fc34edb6f9f484e284b81d523865481bb94f` |
+| `docs/text-agent-core.md` | `02b0e9839159c685c28a6d753d4ba21dec53b7d1dc67451c3bf8db028b76c7e1` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `9c1773a479747f0d6701ce041f27dca342e8090403b543ae37a173f2c57aa707` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `f3e9c88263ac6b2cc405b7bace17c6265ebdfc866c2341a6dd7d43513698bde5` |
+| `packages/agent_core/src/brainoid_agent_core/definition.py` | `cc079c29b896fa66747f736d4c81330bd5dcf0acf9a3a569228ac3ba7afbdb54` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `d3779b980f883e2a772cc39e237f5921a4304bec05f5764e997bf82d6f3b5da4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `0d7f8c9bca63f29f49acc2a2908f0ee2ff100850e51c62b593733f8818654c03` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `2d30608b6d100a854895607805ab7be7e1e27e57a59b44cfc895a52ed0c0c3a8` |
+| `packages/policy/src/brainoid_policy/models.py` | `ad8027335d27b26591381f308ce1d118fdbe2ad469aa614415ad412f42b188a8` |
+| `services/api/src/brainoid_api/app.py` | `59d1d8c58f1b69ec414efd45ebe3e5c573b5ca32b1bb871ba13f18c400bd0534` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `82b0ad45d7afffd3ed73dbc39c8b3dc4266e0929e7dbb891d3e86f2b4b12ea68` |
+| `services/api/src/brainoid_api/repositories/agents.py` | `13856b75ff6df660ac088717d90cad90ab8d7be56dea7bdab448d52b86545897` |
+| `services/api/src/brainoid_api/routes/agents.py` | `ee3abee1179c2965bbb86c9ad3067a9dc84b2b84f44f975f35a8f6fadc22429e` |
+| `specs/openapi.yaml` | `125f1cb72edafb2d839f1596c7d342dfabb2ef448bc38fecd0a5e974cb2b751f` |
+| `tests/emulator/test_agents_integration.py` | `9bdbf2966d29ed0b7eaa024c70adbe4beba95126a9c1d75e3c17edc2dc9ec4d3` |
+| `tests/emulator/test_devices_integration.py` | `fa967d94bd439a8d86f0805929da1331146f668c992f207a8cbb016fd1c68986` |
+| `tests/fixtures/tenants/demo.json` | `00babf14663d739d38772f68dcbe94ed10b00dd843e5b38d0c3ee4a14b482904` |
+| `tests/test_agents.py` | `b2f9bc92af6f7b189d6a1b9afbd7b3833db6181240cdf018e22b3789dd8aa3cd` |
+| `tests/test_text_agent_core.py` | `57e740e2204f9db334db999e856ba19371abf556e45ba1aea7db2583d51ed9d6` |
+
+### 独立レビュー ラウンド2 途中確認
+
+- `/root/run03_review_r2` 開始main/base/22files集合/全SHA一致、適用AGENTSなし、共通DoD/正本を確認。
+- Core/API/新規test全体を直接確認。検索前/モデル入力前/各event/cleanup後認可、owneradmin更新、device/session現在検査を確認。R1の無期限gather廃止とclose専用期限/二段階回収を確認し、関連契約と直接試験を継続中。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/run03_review_r2`: approve、必須/任意なし、R1-01解消。全22files/新規全文/仕様・周辺を直接確認、開始終了main/base/集合/全SHA一致、編集なし。
+- close専用0.25秒/二段階有限回収、取消+cleanup一般例外でCancelledError保持、認可と予算・snapshot境界を確認。
+- 直接Core22（0.447秒）/API7（0.605秒）成功、実時間Clock追加確認でCompleted後finally待機を0.254秒でTimedOut、資源解放・本文/snapshot破棄・残taskゼロ。diff check成功。
+- setup/client/check9/Python274/Skill18/Node39/emulator76は提供証跡と区別。3filesのみ修正・Core未接続によるemulator再実行不要判断を確認。
+- 独立レビュー2回、未解決必須ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み22filesの作業/index/commit全SHA一致、main/base/対象集合/cached diff --check確認済み。
+- 実装コミット: `c9d458583638d7acdc909aab84b6f9cf8a747ad8`。独立レビュー2回、R1-01解消、最終approve/未解決必須なし。
+- 初期agent共有/owneradmin版更新、現在認可付き文字Core/時間出力予算/有限cleanupをfakeとAPI/emulatorで検証。実provider/deviceは対象外、後続canonical履歴/記憶/配送/保存の接続責務を明記。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.98秒、全9タスク成功、mypy127/docs1330errors0、台帳done20/todo76。
+- 終了: 2026-10-26T00:58:55.580002+00:00。台帳・ログのみを記録コミット。
