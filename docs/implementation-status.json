@@ -308,7 +308,13 @@
       "implementation_commit": "75aaf84abebcec21ef2a6adab1f4b44b4433d2e1"
     },
     "BA-MEM-09": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "a77c28f5e81971dcec4d8728c8f8b7b3b86da255",
+      "updated_at": "2026-10-26T20:34:38.369131+00:00",
+      "log_anchor": "ba-mem-09-20261026t193134z",
+      "review_rounds": 2,
+      "implementation_commit": "efe71692b544b48b6a805af1a87cfdfc4b20b095"
     },
     "BA-APP-01": {
       "status": "todo"
