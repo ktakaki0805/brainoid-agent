@@ -302,6 +302,20 @@ requires-dist = [
 name = "brainoid-tools"
 version = "0.1.0"
 source = { editable = "packages/tools" }
+dependencies = [
+    { name = "brainoid-agent-core" },
+    { name = "brainoid-contracts" },
+    { name = "jsonschema" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-agent-core", editable = "packages/agent_core" },
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "jsonschema", specifier = "==4.26.0" },
+    { name = "pydantic", specifier = "==2.14.1" },
+]
 
 [[package]]
 name = "brainoid-worker"

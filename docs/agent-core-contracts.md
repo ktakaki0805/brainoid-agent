@@ -18,7 +18,7 @@ port は構造的な `Protocol`。adapter は継承を必要とせず、同じ�
 
 `ResourceId`、`FirebaseUid`、`Scope`、`TenantContext`、`UtcTimestamp`、`Version` は [共通型](contracts.md) を再利用する。モデルへ渡すメッセージ・tool 宣言には認可済みの内容のみを選び、`TenantContext` や credential を含めない。モデルの `ToolCall.call_key` は会話内の tool 応答用の不透明な対応キーであり、永続リソースの UUID ではない。後続の会話実行層が UUID の `tool_call_id`、認可済み context、冪等性キーを結び付けて `ToolExecution` を作る。
 
-`ToolCall.arguments_json` は未検証の文字列で、不正 JSON や許可外の tool 名も候補として表せる。ToolExecutor はその候補を直接外部 provider へ中継せず、現在の schema・権限・確認・冪等性を検証する。ここでは業務ごとの検証器や実行処理は実装しない。
+`ToolCall.arguments_json` は未検証の文字列で、不正 JSON や許可外の tool 名も候補として表せる。ToolExecutor はその候補を直接外部 provider へ中継せず、現在の schema・権限・確認・冪等性を検証する。BA-RUN-06 の[型付き実行層](tool-execution.md)が共通検証と永続相関を提供し、業務ごとの handler は後続チケットで登録する。
 
 MemoryStore の全要求は context と閲覧 `scopes` が必須。戻り値は出典・版・scope・有効期間・状態を含む。実 store は現在の権限と削除状態を照合し、許可された記録だけを返す。`MemoryContent` は内部の記憶内容 DTO であり、永続化・HTTP 入力の完全な validator ではない。predicate ごとの qualifiers 検証、出典・owner の検査と認可は後続の store が担う。`MemoryForgetAccepted` は永続 operation の受付を表し、物理削除完了を表さない。
 
@@ -34,7 +34,7 @@ stream は `Completed`、`Failed`、`Cancelled`、`TimedOut` のいずれかで�
 
 返す stream は `aclose()` を持つ `AsyncGenerator`。利用者は早期終了時も `contextlib.aclosing` で閉じる。Python task 自体の `CancelledError` は解放後に伝播し、業務の `Cancelled` イベントと区別する。Speech の取消後は新しい音声を返さず、利用側は既に受け取った再生待ち buffer も破棄する。端末の再生キューやマイク制御はこの port の外にある。
 
-取消・timeout は実行済み副作用の rollback を意味しない。外部操作が実行された可能性がある場合、ToolExecutor は `outcome_unknown` と operation/command ID を返し、照合まで再実行しない。確認待ちは proposal ID を必須とする。`succeeded`、`Failed`、`waiting_confirmation`、`outcome_unknown` を区別する。fake は副作用を実行せず、これらを設定した応答として再現する。
+取消・timeout は実行済み副作用の rollback を意味しない。外部操作が実行された可能性がある場合、ToolExecutor は `outcome_unknown` と operation/command ID を返し、照合まで再実行しない。確認待ちは proposal ID を必須とする。`ToolResult` は `succeeded`、明示失敗の `failed`（固定 `error_code`）、`waiting_confirmation`、`outcome_unknown` を区別する。実行前の検証・認可拒否は共通 `Failed`。実行中に権限を失った場合の `Failed` も副作用取消の証拠ではない。fake は副作用を実行せず、これらを設定した応答として再現する。
 
 ## 3. 決定的な fake
 

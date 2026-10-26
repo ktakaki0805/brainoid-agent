@@ -21,14 +21,17 @@ class ToolResult(CoreValue):
 
     type: Literal["tool_result"] = "tool_result"
     tool_call_id: ResourceId
-    status: Literal["succeeded", "waiting_confirmation", "outcome_unknown"]
+    status: Literal["succeeded", "failed", "waiting_confirmation", "outcome_unknown"]
     result: JsonObject
+    error_code: Literal["rejected", "not_found", "conflict", "unavailable"] | None = None
     operation_id: ResourceId | None = None
     command_id: ResourceId | None = None
     proposal_id: ResourceId | None = None
 
     @model_validator(mode="after")
     def validate_correlation(self) -> Self:
+        if (self.status == "failed") != (self.error_code is not None):
+            raise ValueError("Only explicit failure requires an error_code")
         if self.status == "waiting_confirmation" and self.proposal_id is None:
             raise ValueError("Confirmation requires a durable proposal_id")
         if (
