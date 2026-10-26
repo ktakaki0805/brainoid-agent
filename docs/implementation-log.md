@@ -3725,3 +3725,452 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/22.02秒、全9タスク成功、mypy145/docs1349errors0、台帳done23/todo73。
 - 終了: 2026-10-26T02:58:16.497665+00:00。台帳・ログのみ記録コミット。
+
+## ba-run-07-20261026t025858z
+
+- チケット: BA-RUN-07
+- 状態: done
+- 開始: 2026-10-26T02:58:58.727625+00:00
+- ブランチ: main
+- base commit: b1d0aedb42da02bee40bfa55a459879271fcb31f
+- 開始時変更: staged/unstaged/untrackedなし。ID指定なしplannerで選択、依存3件done/祖先を確認。
+- 親担当: /root。実装担当: /root/run07_implementation。レビュー担当は各round新規起動。
+- 実装コミット: ee4fbea900c26a97f10965c66d98cb9ecb1c0c83
+
+### 受入条件と検証計画
+
+- run取消APIと生成/tool開始前/batch配送前の取消検査。実行済み副作用のrollbackと混同しない。
+- run/tool_call/proposal/checkpointを永続化しwaiting_confirmationでworker leaseを解放。再起動後、確認結果の原子的状態遷移+resume jobから再開。
+- 確認/結果/resume再送によるtool二重消費禁止。現在認可/session/削除/確定済み結果を再検査し否認/期限/取消を規定終端へ。
+- T-007/T-037の重複確認/確認と取消競合/session失効をfakeと必要な永続化emulatorで検証。setup/check/test、独立レビュー。
+- Calendar固有confirm/reject HTTPと外部書込、読み上げ停止は対象外。追加外部前提なし。RUN04/05の文字経路/署名非公開/現在lease/unknown再生成禁止を維持。
+
+### 開始時の統合境界確認
+
+- 親からcancel認可境界を確認依頼: 会話READだけで他memberのrun停止を許さず、WRITEのみでは本人確認なしPiの自己runを止められない。保存initiator/出力先/sessionと現在認可をどう結ぶかを実装・試験・文書で明確化する。
+- resume別jobの導入ではRunState/failed_projection/SSEの現在job参照を整合し、終了済み初回jobを新しいworkerのauthorityへ流用しない。
+
+### 実装構成方針
+
+- 実装担当はcanonical run_turn job IDを維持し、新waiting状態でleaseなし停止、確認TXで同じjobをpendingへ戻してdispatch世代更新する方式。SSE/failed_projectionの参照先を維持する。
+- 内部checkpointへmodel response/tool call/resultを保持しCore continuationへ接続。Executorのwaiting→ready→startedを一回claimし、unknown既存markerを再実行しない。
+- 取消は現在会話POST権限と保存initiator subject一致。同一userは本人端末間、deviceは同一device/session。run.cancelledは生成/未実行分の停止であり副作用rollbackでないことを表す。
+- 親から旧dispatch/leasefence、waitingのrecover再送禁止、continuation段階別model checkpoint、正常resumeとfailure retry budgetの区別を確認依頼。
+
+### 初稿の接続と履歴表現
+
+- run取消/API、job waiting/pending、generic proposal/期限回収入口、段階別model checkpoint、tool readyの一回claimを追加中。
+- 取消済みSSEはseqを飛ばさず接続終了し、run GETでcancelled終端を確認する方針。
+- 公開1assistant messageへ内部model_messages配列(assistant/tool/assistant)を保存し、各署名snapshotを維持して次turn履歴へ展開する。
+- CAL03/04正本の外部calendar_write結果→checkpoint→resume契約を親が確認。内部decideへ確定ToolResultの注入経路を追加し、外部job済みならhandler再実行なしでresumeするfake試験を含める。
+
+### 初稿read-only確認: 内部結果と一時障害
+
+- 親からdecideの内部ToolResult受取にも有限JSON/size/型・snapshot/effect-kind一意相関と再送decision/result binding検査を依頼。
+- RunToolAuthority/Confirmations.expireのPolicyDenied catchはsubclass PolicyUnavailableを含むため、一時ledger障害をpermission_denied/obsoleteへ変換しないよう確認依頼。既存RUN04同様、workerへAuthorizationUnavailable/PersistenceUnavailableを保持しdeferする経路を試験する。
+
+### 初回fake検証
+
+- 新fake6件は5成功/競合試験のIdempotency-Keyが16字未満というfixture不備で1失敗、修正中。
+- 既存RUN04 subset16件で追加同期read由来の3回帰を検出し初期snapshot再利用へ修正、再実行予定。型検査は新test fakeStore cast等4点の修正が残る。
+- decide内部結果をcorrelateで有限JSON/64KiB/型/snapshot/effect-kind検査し、decision+result一致の再送bindingを追加。
+- 残検証: private/session/削除、取消watcher/infra負例、emulator別process再開/競合、docs/schemaと全setup/check/test。
+
+### 継続生成の全体出力上限
+
+- 親read-onlyで各model段階のtextをcompleted_textへ加算する実装を確認。段階ごと8000文字を許すと最終Message/Outcome上限を超えるため、残文字予算を差し引きSSE/final/DTO上限を一致させる試験を依頼。token/time予算の全run/一段階境界も文書化する。
+
+### 回帰復旧とemulator開始
+
+- 既存RUN04 16件再実行成功、新checkpoint fake11件成功。Pi/session取消・blocked model取消も追加し全体testで検証予定。
+- setup成功、Firestore emulator全体検証を開始。
+- model段階の残文字はcompleted_textを差引き、確認終端通知100字も予約。時間/tokenは段階ごとの予算、最大8段階/各8toolを明記する方針。
+- 旧単一snapshot messageのhistory hash形式は維持し既存未完runのmigration不要。
+- 親から60秒job leaseを複数段階で超える正常処理のrenew/currentcheck境界とfakeclock正例を確認依頼。
+
+### ModelProvider任意snapshotの互換確認
+
+- 親read-onlyでModelResponse任意の既存port契約に対し、responseなしToolRequested+Completed(tool_calls)がtools_not_supportedへ落ちる初稿分岐を確認依頼。提供Responseは厳密保持し、無い場合のみ確定候補から署名なし内部messageを作る等でgeneric providerと整合する正例を依頼。
+
+### emulator全体成功・最終検証中
+
+- Firestore emulator全体91件成功（新規4件）、正常停止ログ確認。setupとgenerate-client成功、全check/test実行中。
+- model/個々tool前lease renew、ResponseなしToolRequested providerの署名なしfallbackと正例追加。提供ModelResponseはそのまま保持。
+- conversations-and-runs/tool-execution/jobs/interfaces文書、cancelRun OpenAPIと生成clientを更新。
+- 親からlease renew等がemulator実行後の差分なら、最終版で影響run/checkpoint subset再検証とport閉鎖確認を依頼（全91反復は不要）。
+
+### 初稿全検証成功と追加の確認待ち経路
+
+- setup/generate-client/check成功。最終fulltest Python353（追加18）/Skill18/Node40成功。全emulator91成功に加え製品最終版turn_run/checkpoint subset11件成功。2回の正常停止と8080/9099/9150/4400/4500閉鎖確認。最終doc check/diff check成功。
+- 途中の同期read既存3回帰、optional ModelResponse契約1回帰、短い冪等key fixtureを修正済み。
+- 汎用確認待ちはRun GET pollのstatus/waiting_proposal_id/checkpoint_versionで検知し、calendar_write限定confirmation.requiredはCAL03/UI08接続境界に記載。
+- 編集停止報告後、親がsuspendのauthority.confirmation=waiting限定条件を確認。Authority.not_requiredでhandler自身がproposalを作成しwaiting_confirmationを返す一般の正例を追加確認するよう同実装担当へfollowup。manifest/独立レビューはまだ開始しない。
+
+### handler生成proposalの再現と修正方針
+
+- 新fakeでAuthority.not_requiredのhandlerが永続business proposalを作りwaiting_confirmationを返すと、初稿suspendでrun.failedになることを実装担当が再現。
+- proposalに再開方式を固定する方針。合成waitingは未実行効果のready claim、handler生成proposalは外部確定ToolResult必須とし元handlerを再実行しない。後者は元Authorityを保持し通常Executor再送で確定結果を回収する。
+
+### handler生成proposal修正後の検証
+
+- checkpoint19件成功。新正例: handlerが永続proposal作成→waiting、結果なしconfirm拒否→外部結果注入→restart/resumeで作成一回。
+- proposalへresume_mode=execute/resultを保存し、handler生成proposalは確定結果必須/元Authority保持に修正。Firestoreにも同経路を追加し、最終全check/testとrun/checkpoint emulator subset12件を実行中。
+
+### 追加修正後の最終版・編集停止
+
+- handler生成proposalのresume_mode=result修正とfake/実Firestore正例を追加し編集停止。確定ToolResult必須/元Authority保持、重複確認・再配送後もproposal作成一回を検証。
+- 最終 `mise run check` 全成功、`mise run test` Python354/Skill18/Node40成功、run/checkpoint emulator subset12件成功。先行版全emulator91件も成功。
+- diff check成功、emulator正常停止/8080/9099/9150/4400/4500閉鎖確認。setup/generate-clientも本ticketで成功済み。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run07_review_r1`（新規独立context）。base commit: `b1d0aedb42da02bee40bfa55a459879271fcb31f`。
+- 未追跡を含む最新全28files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `dfc59c742c1dd0483e8289addab66840788ba6b7fc69ec2ef3a0e10c99a37eef` |
+| `docs/05-development-and-testing.md` | `2c67b127630af340879efe9526014f328b63a8d53ec1ad8059ad2a09d006b622` |
+| `docs/conversations-and-runs.md` | `82f070e4a14043da038bf6d657bc673f984f74bd41b527c737dcdcfff21c86bc` |
+| `docs/jobs.md` | `b67cc008d5cfa0beed37876ed387c34e872cf135036da7adfc619d292627ed92` |
+| `docs/tool-execution.md` | `dc4ed9c122663e5ebb99b7a035a687188ee180188bc2fbf562cad5e484a23d89` |
+| `packages/agent_core/src/brainoid_agent_core/checkpoints.py` | `ede860486ff0cac06cdd8421d7e3e5293439aecd00ea3df23cd553e4efb7f6c1` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `a662e19a7eb8cab08782b09cfe0694bf94805a20bffba731ab0f8deae821df88` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `068aa3620e9db3b9191a724ce99167a22a42932642ff9e2a7f5735db6f36121e` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `fa526028491c7be454a576acea0472787c9d44e7966b454df2b3a0c70e356d21` |
+| `packages/api-client/src/generated/sdk.gen.js` | `1323dcb4d0bf2cec47d174382125c59eac28690d59fce61d298996fb54e22245` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `c777e8d87f611a976431f978a6348ec09d6cd0043f1a1b56290fd775d9a4917e` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `3e6e5b25440e77ee1b5d98c3104bec6b9c4ac521d3996f3511c6f868ba5fa7c2` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `259c28ded5694fec34dc84e177b5cfe0fe00d876ded39ee6a94efa864c121bdd` |
+| `packages/runs/src/brainoid_runs/control.py` | `f7761c711f39b8bb3adb403bb1e8d7f1151d999903ce126d94f7a311bc225354` |
+| `packages/runs/src/brainoid_runs/events.py` | `c555d83792662be3a61c6b17e1a64e7d62ecd168a78a4e0ffa1b28f96e536313` |
+| `packages/runs/src/brainoid_runs/models.py` | `c8e4832f7febd31572574b1b8307216af0ddecf9f84c4c4d28ef34955ae0d754` |
+| `packages/runs/src/brainoid_runs/state.py` | `16d805cc5ac63bf54ecf02c63990da6f940f5bebd69c10db65af5569c8e80283` |
+| `packages/tools/src/brainoid_tools/executor.py` | `94158ef094ff186f1f894828d874f067a242283575e1d45aeddbeec023a3993b` |
+| `packages/tools/src/brainoid_tools/registry.py` | `dae4307ad7678c0e3fc449740da9c209bb0bfee675cc2d086df79c858a555fda` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `05576049a8ae64d1631e32ba664678cd827c098ff8b919ba3506ad7a3287ea7b` |
+| `services/api/src/brainoid_api/routes/conversations.py` | `0fa5ef74d148f98244f09dc00383efd122151a5326303767eb37cd626923b97c` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `cef14efceaebd682430b4b4926b370a0c753e2a0af73c2ac7e6255173bdb827a` |
+| `services/worker/src/brainoid_worker/resume_run.py` | `beb6890e71dd52450adaa113021958f50c30747d8d6c63e9e298147a6b62a194` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `7f87bb1738f84eb7b587046c9dafce39f12d802fb3200cfc64fdbe09f238c576` |
+| `specs/openapi.yaml` | `36acdd8dbe2749653a21ab0b6dc92205ca199d20ecbf9e585b349d83c43b4205` |
+| `tests/emulator/test_run_checkpoint_integration.py` | `4e9a5e595020f09e00689060da03fb49582785b6bdfc0b989862d4e590147bcc` |
+| `tests/fakes/run_confirmation.py` | `f22a742f3085a791da6f5169f97d97a5f98f0f3432c349949d2eb4938044b63b` |
+| `tests/test_run_checkpoint.py` | `3c561d2458b130d8dfb387671e9262216a8b2751765fb51e74c16dcbc1d6bc00` |
+
+### 独立レビュー ラウンド1 開始確認
+
+- `/root/run07_review_r1`: main/HEAD=base、対象28paths/全SHA一致、祖先/配下AGENTSなし。共通DoDとticket境界を確認しcancel/confirmation/workerのTX・復旧を独立追跡中。提供検証と直接検証を区別。
+
+### 独立レビュー ラウンド1 途中追跡
+
+- reviewerは確認結果+canonical job再投入の同TX、waitingのlease解放、署名を維持した履歴連結を確認中。現時点mustfix未確定。
+- sandboxで直接run/checkpoint/events試験が無出力停止しプロセス終了、適切なescalationで再実行予定。複数tool/複数確認の復旧を独立probeする。
+
+### 独立レビュー ラウンド1 回帰試験と継続結果の追跡
+
+- reviewer直接 test_run_checkpoint/test_turn_run/test_run_events 53件成功。
+- 複数段階確認probeで、以前のmodel段階のconsume済tool結果をcontinuationへ保持して別tool確認待ちする場合、再開時に以前のtool対象の削除/認可を再検査するか追跡中。まだ確定指摘ではないため製品変更せずレビュー最終判定を待つ。
+
+### 独立レビュー ラウンド1 再現済み候補（最終判定待ち）
+
+- reviewer独立probe `/tmp/ba-run-07-stale-continuation-probe.py`（PYTHONPATH=tests:.）: step0 tool A consume→step1別tool B確認待ち→A正本note deleted=True→B確認/再起動でrun completed、3回目modelへAの古いToolReplyを送信。観測 model_calls=3/effect_calls=2/stale_result_in_last_request=True。
+- run_turn.py:441-443のconsume済continuation再利用と、その段階toolだけの認可を指摘候補として追跡。再開時削除/確定済結果照合に関わるためreviewerはrequest_changes予定、全体最終判定待ち。実装担当へ編集停止継続を通知。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run07_review_r1`: request_changes、必須2件、任意なし。開始終了main/base/全28paths/全SHA一致、製品/index/metadata編集なし。
+- R1-01/P1 run_turn.py:441: 前段階consume済tool結果をcontinuationから無条件再利用し、後段階確認待ち中の対象削除/権限変更を再開時検査しない。独立probeでstale ToolReplyを3回目modelへ送信。全継続結果の固定call/result一致と現在業務対象/出典認可を副作用なしで再検査すること。保存済model_messagesの次turn展開も確認する。再現 `/tmp/ba-run-07-stale-continuation-probe.py`。
+- R1-02/P2 resume_run.py:196/331: _accountsのAccountUnavailableを失効として処理せず、account deleting/301秒後expireで例外伝播、job waiting/proposal pendingのままページ中断。開始者/出力先失効を拒否/obsoleteへ正規化し、基盤障害の再試行と区別。後続proposal処理も検証。再現 `/tmp/ba-run-07-expiry-account-probe.py`。
+- 直接検証: run_checkpoint/turn_run/run_events53件成功、同一段階2確認/別段階2確認/再起動/効果各1回/完了cancel維持/次turnprobe2件成功。mustfix再現probe各1失敗/エラー。diff check成功。
+- setup/client生成/check/全Python354/Skill18/Node40/emulator先行91・最終subset12は提供証跡と区別。現在段階cancel/lease/同TX/二重消費防止/署名維持は確認したが上記2件で承認不可。
+- 同実装担当へ修正と追加回帰を依頼し、全差分は新規reviewer r2で確認する。
+
+### R1-01修正時の次turn境界
+
+- 親から、完了済み前runのactive leaseを再利用条件にしないよう確認依頼。固定call/resultの真正性と現在対象/出典の利用権限をread-onlyで検査し、現在turn読者/出力先を含める。共有会話の別memberへ旧実行者権限を借用させない。
+- 実行権限と過去結果利用権限の業務hook責務、正常次turn/削除/現在読者scope差の正負例を文書・検証へ含める。
+
+### R1修正構成方針
+
+- consume済toolの固定request/resultをrunと最終内部messageへ保存し、RunState read-only hookで全継続/過去message bindingを検査する。
+- 業務Authorizerへ実行checkとは別のcheck_resultを設け、現在consumer run/contextの読者・出力先と対象/出典の利用権限を検査。旧run active leaseは要求せず元実行marker/result一致を照合。hook未提供のtool履歴はfail closed。
+- source receiptをCore認可stampへ含めて生成中の変化も検知する。
+- R1-02はAccountUnavailable→PolicyDeniedへ正規化しexpiryで後続proposal処理を継続。一時的な基盤障害と区別する。
+
+### R1独立再現probeの修正後結果
+
+- 実装担当が独立probe2本の修正後成功を報告。R1-01: 削除後resumeはrun.failed、model_calls=2/effect_calls=1、第三model入力/B効果開始なし。R1-02: account deleting時expiryはjob.obsolete/proposal.expired。
+- 通常複数段階、前段削除/権限変更、次turn現在読者/出力先、account失効ページ継続の回帰を追加し、既存checkpoint/型検査を実行中。
+
+### R1修正の回帰27件成功
+
+- checkpoint27件成功。前段deleted/suppress_reuse/private権限変更、正常2段階/次turn署名、次turn対象削除/別読者private拒否/出力Pi notes scope不足、固定binding改変/hook欠落を確認。
+- 失効accountを含む同page後続proposal処理、DB障害再試行を確認。output UserSubjectは現policy上initiatorと同一userのため、実際に許可された同一user出力でaccount失効を検証。
+- Firestore負例追加と最終全check/testへ進む。
+
+### R1修正版の全体試験とFirestore負例
+
+- 全test Python362/Skill18/Node40成功。Firestore run/checkpoint subset15件成功（新3: 前段削除resume拒否、次turn別読者private拒否、失効accountを含むexpiry page継続）。
+- 全checkは新emulator試験のOptional型2点で失敗、修正後check:types成功。最終全check再実行/port閉鎖/diff確認を待つ。
+
+### R1修正完了・編集停止
+
+- R1-01: ResultAuthorizer.check_result/ResultReuseで固定request/resultと現在読者/出力先/対象/出典の利用権限を全継続・過去messageで検査。旧lease/旧実行者権限を流用せず副作用なし、hook未提供/binding不一致は拒否。
+- R1-02: AccountUnavailableを確定拒否へ正規化、expiryはobsolete/expired化して後続proposal処理を継続。台帳/DB障害は再試行可能状態を保持。
+- 最終: 独立review probe2件成功、mise run check成功、全test Python362/Skill18/Node40成功、run/checkpoint emulator15件成功、diff check成功、正常停止と8080/9099/9150/4400/4500閉鎖確認。fixture参照/型注釈不備も修正再検証済み。製品編集停止。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/run07_review_r2`（新規独立context）。base commit: `b1d0aedb42da02bee40bfa55a459879271fcb31f`。
+- 未追跡を含む最新全31files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `dfc59c742c1dd0483e8289addab66840788ba6b7fc69ec2ef3a0e10c99a37eef` |
+| `docs/05-development-and-testing.md` | `2c67b127630af340879efe9526014f328b63a8d53ec1ad8059ad2a09d006b622` |
+| `docs/conversations-and-runs.md` | `157b2a376a28697b44404a25bd898757950ef0912c2023a8211101532b82b69d` |
+| `docs/jobs.md` | `b67cc008d5cfa0beed37876ed387c34e872cf135036da7adfc619d292627ed92` |
+| `docs/tool-execution.md` | `4b65c58d82df2f268ecb410b70e9632fa2f57811f83c4d083f9d714dbb5cd2c7` |
+| `packages/agent_core/src/brainoid_agent_core/checkpoints.py` | `ede860486ff0cac06cdd8421d7e3e5293439aecd00ea3df23cd553e4efb7f6c1` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `a662e19a7eb8cab08782b09cfe0694bf94805a20bffba731ab0f8deae821df88` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `068aa3620e9db3b9191a724ce99167a22a42932642ff9e2a7f5735db6f36121e` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `fa526028491c7be454a576acea0472787c9d44e7966b454df2b3a0c70e356d21` |
+| `packages/api-client/src/generated/sdk.gen.js` | `1323dcb4d0bf2cec47d174382125c59eac28690d59fce61d298996fb54e22245` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `c777e8d87f611a976431f978a6348ec09d6cd0043f1a1b56290fd775d9a4917e` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `3e6e5b25440e77ee1b5d98c3104bec6b9c4ac521d3996f3511c6f868ba5fa7c2` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `259c28ded5694fec34dc84e177b5cfe0fe00d876ded39ee6a94efa864c121bdd` |
+| `packages/runs/src/brainoid_runs/control.py` | `f7761c711f39b8bb3adb403bb1e8d7f1151d999903ce126d94f7a311bc225354` |
+| `packages/runs/src/brainoid_runs/events.py` | `c555d83792662be3a61c6b17e1a64e7d62ecd168a78a4e0ffa1b28f96e536313` |
+| `packages/runs/src/brainoid_runs/models.py` | `c8e4832f7febd31572574b1b8307216af0ddecf9f84c4c4d28ef34955ae0d754` |
+| `packages/runs/src/brainoid_runs/state.py` | `fe434aa92deb633b09b4281d4f3532de9600d2df19dfbf6e3ae2b0ee7fe44ef1` |
+| `packages/tools/src/brainoid_tools/__init__.py` | `8c0f0707e06dcf154c67ce6ad78a0a9eab64833029ca433fa559bc365b959b7d` |
+| `packages/tools/src/brainoid_tools/executor.py` | `685f13babf67f5b79a80686f58b1fb244ba7eae36dccda762a8ae53b40959eb0` |
+| `packages/tools/src/brainoid_tools/registry.py` | `dae4307ad7678c0e3fc449740da9c209bb0bfee675cc2d086df79c858a555fda` |
+| `packages/tools/src/brainoid_tools/reuse.py` | `ae9a3f1db0d98193bf0865d885261c975e23c2eab662e4bb101ed6442e6332e2` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `05576049a8ae64d1631e32ba664678cd827c098ff8b919ba3506ad7a3287ea7b` |
+| `services/api/src/brainoid_api/routes/conversations.py` | `0fa5ef74d148f98244f09dc00383efd122151a5326303767eb37cd626923b97c` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `cef14efceaebd682430b4b4926b370a0c753e2a0af73c2ac7e6255173bdb827a` |
+| `services/worker/src/brainoid_worker/result_reuse.py` | `fc6e066bf3e2148423c2c4f79c0e02f07c8e42fea81943a9165cd5ab98ce8f7b` |
+| `services/worker/src/brainoid_worker/resume_run.py` | `0372b7667e0bdaa304783e72333fbd0a9da3f14f828c3a5af9db73f4daf2d7fa` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `8ca5144c3b64e10816cb5f855d104c9fab7fcb5c643cda0572f1a22e262fabf7` |
+| `specs/openapi.yaml` | `36acdd8dbe2749653a21ab0b6dc92205ca199d20ecbf9e585b349d83c43b4205` |
+| `tests/emulator/test_run_checkpoint_integration.py` | `4f151861822607c477a652df93696c403b3b02a36882289333e2132c2518a544` |
+| `tests/fakes/run_confirmation.py` | `0aef5970b5a62d3a854fa74e2f203dd477469aefffd08ccbe51df859a1a2a111` |
+| `tests/test_run_checkpoint.py` | `ea953eabb34d2a2ab04caaa85cedf95abbdc05d3eacf1e2714b1b94efe09b01b` |
+
+### 独立レビュー ラウンド2 開始確認
+
+- `/root/run07_review_r2`: main/HEAD=base、manifest31paths全SHA一致/余分欠落なし、祖先配下AGENTSなし。主要制御/再開/全result再利用境界と全差分を通読中。
+- R1-01の全継続/次turn現在読者検査、R1-02のaccount失効正規化構造を確認。直接run/checkpoint/turn/events試験実行中、確定新mustfixなし。
+
+### 独立レビュー ラウンド2 直接検証
+
+- reviewer直接checkpoint/turn/events61件成功、r1probe2本再実行成功（前段削除はmodel2回で停止、account失効はobsolete/expired）。全31files/関連worker・認可・契約読了。
+- shared会話にprivate tool由来本文が保存された場合の公開history/SSE境界を追加確認中。次turn MODEL_READのhook拒否は確認できているが、公開読者側との整合の最終判定を待つ。
+
+### 独立レビュー ラウンド2 追加再現（最終判定待ち）
+
+- reviewerが `/tmp/ba-run-07-shared-result-disclosure-probe.py` で、shared会話にowner private noteの確定ToolResult本文を現ConfirmationAuthority/check_resultが認可し、model回答後に別memberがmessages/SSE両方で取得するケースを再現。history_discloses=True/sse_discloses=True、拒否期待assert失敗。
+- 現在reader/outputだけでなく保存先会話の共有範囲へ結果を流せるかの認可契約/実装/fixtureが必要との候補。最終判定まで製品編集停止を実装担当へ通知。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/run07_review_r2`: request_changes、必須1件/任意なし。開始終了main/base/manifest31paths/全SHA一致、全差分・関連正本読了、製品/index/metadata編集なし。
+- R1-01解消: 全継続/次turn固定bindingと現在読者/出力先/出典の再検査、旧lease不使用。直接probeは削除後model2回/effect1回で停止。R1-02解消: AccountUnavailable正規化・obsolete/expired・page継続・infra再試行を直接probe含め確認。
+- R2-01/P1 result_reuse.py:106 / tools reuse.py:41 / tests fakes run_confirmation.py:137: 結果読者/指定出力先だけでなく、回答保存先会話のvisibility/owner/display policyとの整合が不足。shared会話でowner private noteの確定結果を認可するとモデル回答を共有message/SSEへ保存し別memberへ公開する。tool明示組成時の指摘、既定未登録構成ではない。
+- 独立probe `/tmp/ba-run-07-shared-result-disclosure-probe.py`: shared会話→owner private note確認待ち→private本文結果受領→model回答completed→別memberがmessages/SSE取得。history_discloses=True/sse_discloses=True、期待拒否assert失敗。
+- 必要修正: 保存先会話の共有範囲を結果利用認可に含め、private結果→shared会話をmodel入力/差分/finalへ流さない。業務hook/fixtureを整合。本人private/適合shared正例と別member/共有Pi messages・SSE非漏出を検証。
+- 直接検証: run_checkpoint/turn_run/run_events61件成功、前回probe2成功、新probe1失敗再現、diffcheck成功。全check/362/18/40/emulator15・先行91/setup/client/停止は提供証跡と区別。
+- 同実装担当へR2-01修正を依頼し、最新全差分を新規reviewer r3で再確認する。
+
+### R2-01修正構成方針
+
+- ResultConsumerへ正本会話ID/visibility/owner/display policyを追加。業務check_resultは現在sourceのscope/ownerを含む型付き利用許可を返す契約へ変更。
+- 共通層でprivate→shared、private owner不一致、display公開範囲拡大を拒否し、現在reader/outputだけの許可ではconsumeしない。fixtureも実source grant scopeを返す。
+- 漏出probeはmodel再開前の拒否と別member/共有Piのmessages/SSE本文非取得まで確認する。
+
+### R2-01修正の回帰33件と漏出probe
+
+- ResultConsumerへ正本conversation id/scope/owner、ResultUseへ全ResultSource(scope/owner)を追加。共通層でprivate→shared/private owner不一致/display拡大を拒否。
+- checkpoint33件成功（追加6: private→shared、display2負例、owner不一致、本人private正例、適合shared正例）。member/匿名共有Piのmessages/SSEは負例で本文なし、適合shared正例は取得可能。
+- 元review probeは保持し、completed前提のみfailedへ変えた `/tmp/ba-run-07-shared-result-disclosure-fixed-probe.py` はhistory_discloses=False/sse_discloses=Falseで成功。
+- check初回fake import順1件失敗→修正、型検査成功。残り全check/test、R1probe再実行、emulator18件。
+
+### R2-01修正完了・最終検証・編集停止
+
+- setup/check成功、全test Python368/Skill18/Node40成功。最新run/checkpoint emulator subset18件成功、正常shutdown/8080/9099/9150/4400/4500閉鎖確認。
+- R1probe2本成功。元R2probeを保持し、終端期待のみfailedへ更新した別probeも成功(history_discloses=False/sse_discloses=False)。
+- r2snapshotから製品8paths変更、main/base維持、製品編集停止。最新全差分をr3へ渡す。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/run07_review_r3`（新規独立context）。base commit: `b1d0aedb42da02bee40bfa55a459879271fcb31f`。
+- 未追跡を含む最新全31files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `dfc59c742c1dd0483e8289addab66840788ba6b7fc69ec2ef3a0e10c99a37eef` |
+| `docs/05-development-and-testing.md` | `2c67b127630af340879efe9526014f328b63a8d53ec1ad8059ad2a09d006b622` |
+| `docs/conversations-and-runs.md` | `136818b157eee184cf2c7ee1f49154f5d8796266fc0fb7a9cb92c043843d894a` |
+| `docs/jobs.md` | `b67cc008d5cfa0beed37876ed387c34e872cf135036da7adfc619d292627ed92` |
+| `docs/tool-execution.md` | `11f9ac2cb82c11a9b2b2af7a9941020b9feb0b6339b5239ee7d0957087352649` |
+| `packages/agent_core/src/brainoid_agent_core/checkpoints.py` | `ede860486ff0cac06cdd8421d7e3e5293439aecd00ea3df23cd553e4efb7f6c1` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `a662e19a7eb8cab08782b09cfe0694bf94805a20bffba731ab0f8deae821df88` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `068aa3620e9db3b9191a724ce99167a22a42932642ff9e2a7f5735db6f36121e` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `fa526028491c7be454a576acea0472787c9d44e7966b454df2b3a0c70e356d21` |
+| `packages/api-client/src/generated/sdk.gen.js` | `1323dcb4d0bf2cec47d174382125c59eac28690d59fce61d298996fb54e22245` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `c777e8d87f611a976431f978a6348ec09d6cd0043f1a1b56290fd775d9a4917e` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `3e6e5b25440e77ee1b5d98c3104bec6b9c4ac521d3996f3511c6f868ba5fa7c2` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `259c28ded5694fec34dc84e177b5cfe0fe00d876ded39ee6a94efa864c121bdd` |
+| `packages/runs/src/brainoid_runs/control.py` | `f7761c711f39b8bb3adb403bb1e8d7f1151d999903ce126d94f7a311bc225354` |
+| `packages/runs/src/brainoid_runs/events.py` | `c555d83792662be3a61c6b17e1a64e7d62ecd168a78a4e0ffa1b28f96e536313` |
+| `packages/runs/src/brainoid_runs/models.py` | `c8e4832f7febd31572574b1b8307216af0ddecf9f84c4c4d28ef34955ae0d754` |
+| `packages/runs/src/brainoid_runs/state.py` | `fe434aa92deb633b09b4281d4f3532de9600d2df19dfbf6e3ae2b0ee7fe44ef1` |
+| `packages/tools/src/brainoid_tools/__init__.py` | `5c7fe4da92de5ea7e8b53ae6512799513d9d518b3feab54b320a4f64d7dc40f9` |
+| `packages/tools/src/brainoid_tools/executor.py` | `685f13babf67f5b79a80686f58b1fb244ba7eae36dccda762a8ae53b40959eb0` |
+| `packages/tools/src/brainoid_tools/registry.py` | `dae4307ad7678c0e3fc449740da9c209bb0bfee675cc2d086df79c858a555fda` |
+| `packages/tools/src/brainoid_tools/reuse.py` | `7d70e6485a56aa1e3ec6eb03df95c58ad816261dc7bdcf615350c29c2e5f399b` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `05576049a8ae64d1631e32ba664678cd827c098ff8b919ba3506ad7a3287ea7b` |
+| `services/api/src/brainoid_api/routes/conversations.py` | `0fa5ef74d148f98244f09dc00383efd122151a5326303767eb37cd626923b97c` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `cef14efceaebd682430b4b4926b370a0c753e2a0af73c2ac7e6255173bdb827a` |
+| `services/worker/src/brainoid_worker/result_reuse.py` | `8026386679bde4a23c88b621d16c0b5ad3cbdc09a4ff6f60a07c27d4623c70de` |
+| `services/worker/src/brainoid_worker/resume_run.py` | `0372b7667e0bdaa304783e72333fbd0a9da3f14f828c3a5af9db73f4daf2d7fa` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `8ca5144c3b64e10816cb5f855d104c9fab7fcb5c643cda0572f1a22e262fabf7` |
+| `specs/openapi.yaml` | `36acdd8dbe2749653a21ab0b6dc92205ca199d20ecbf9e585b349d83c43b4205` |
+| `tests/emulator/test_run_checkpoint_integration.py` | `46fcded28a668a2a2692621634b617d43ad531a93ef3dd0b1ea534ff313160e3` |
+| `tests/fakes/run_confirmation.py` | `05ea2701a1458633ec0be62c68f567b86389005a58a621655c7543d4a8e29792` |
+| `tests/test_run_checkpoint.py` | `f156e59dd976dd63c417994a0a613d4b5ad0ae853e39fffd0f33d882ee5052a8` |
+
+### 独立レビュー ラウンド3 開始と外部結果の確認
+
+- `/root/run07_review_r3`: main/HEAD=base、31paths/全SHA一致、祖先配下AGENTSなし。ResultReuse→ResultConsumer→receipt共通境界のprivate/owner/display拡大拒否を確認中。
+- 親からCAL04の外部write failed/conflict/outcome_unknownとRUN07内部結果受取/expiryの整合を追加観点として依頼。reviewerはdecideがsucceeded/failedのみ許可し期限終端が未実行を断定する初稿分岐を確認、result-mode fake再現で影響を検証中。最終指摘は未確定、製品編集停止を維持。
+
+### 独立レビュー ラウンド3 外部結果の再現（最終判定待ち）
+
+- reviewer `/tmp/ba-run-07-r3-external-outcome-probe.py`（PYTHONPATH=tests:.）で2ケース再現: result-modeのoutcome_unknown受取→PolicyDenied、外部成功結果を301秒後受取→PolicyDenied。
+- 両ケースexpire/resume後run=completed/tool=failedで「確認待ちの操作は実行しませんでした」を保存。外部開始/結果をgeneric expiryが否定する候補。result-modeの結果なしconfirmも拒否するため、外部開始前に原子的claimへ移す内部経路なし。
+- reviewer直接fake67件成功、残差分確認後の最終判定待ち。実装担当へ編集停止維持を通知。
+
+### 独立レビュー ラウンド3 前回指摘の再確認
+
+- R1-01/R1-02/R2-01 probeを最新固定差分へ直接再実行し成功。削除後model_calls2/effect_calls1でfailed、account失効jobobsolete/proposalexpired、公開history/SSE漏出false。
+- 全新規/最新差分読了、既存67fakeとSSEseq/prefix/finalで現時点他mustfixなし。result-modeのexpiryとunknown受渡しを別修正要件として最終報告予定。
+
+### 独立レビュー ラウンド3 最終判定
+
+- `/root/run07_review_r3`: request_changes、必須2件/任意なし。開始終了main/base/31paths全SHA一致、全差分・正本/周辺読了、製品/index/metadata編集なし。R1-01/R1-02/R2-01は直接probeで解消確認。
+- R3-01/P1 resume_run.py:238/248, run_turn.py:259: result方式の外部結果到着期限と未実行proposal確認期限を混同。5分後の成功結果を拒否し、事前の結果なし確認経路もないため、expiryが外部成功済みをfailed/rejected＋「実行しませんでした」と確定する。未確認/未開始と確認済/外部開始/結果待ちを永続状態で区別し、未開始証拠がある場合だけ期限回収で未実行とする。開始済み遅延結果を保持/照合し不明を未実行と断定しない。
+- R3-02/P2 resume_run.py:242: 内部結果受取がsucceeded/failed限定で正当なoutcome_unknownをPolicyDenied、waitingのままにする。固定tool/effect binding付きでunknownを冪等保存し、handler再実行なくunknown終端/照合待ちへ進め、成功/明示失敗に置き換えない。
+- 再現 `/tmp/ba-run-07-r3-external-outcome-probe.py`: ProposalCreatingEffect result方式、期限内unknownと301秒後successの2ケースで拒否→expire/resume→runcompleted/toolfailed/未実行断定message。実外部書込なし。
+- 直接run_checkpoint/turn_run/run_events67件成功、前回probe3件成功、新probe2ケース再現、diffcheck成功。全368/18/40・emulator18/先行91・setup/check/client生成は提供証跡と区別。
+- 同実装担当へR3-01/02修正を依頼し、新規reviewer r4で最新全差分を確認する。
+
+### R3修正構成方針
+
+- result方式へ一回限りの内部start claim、pending→external_startedをtool marker/proposal同TXへ保存、jobはwaitingでlease保持しない。重複claimは新実行許可を返さず、cancel/expiry先行なら拒否、claim先行ならexpiryは未実行へ変えない。
+- 結果受取を別関数へ分離しclaim/tool/effect/fingerprint固定でsuccess/明示failed/unknownを冪等保存。現在run認可時だけresumeを同TXへ保存、取消runを復活させない。unknownは元handler/model再実行なくfailed(outcome_unknown)終端、他statusへの置換拒否方針。
+- start claimはgeneric確認fence、業務target認可/外部job outbox同TX hookを整理。
+- 親から、失効/削除後の事実保存は本文・派生データ再保存と分離するよう確認依頼。固定status/effect ID等の内容なし記録、現在source/account/session認可に基づく本文/再開可否を区別。claimのserver-only信頼境界、unknown後の遅い確定事実のbusiness照合先も文書化する。
+
+### R3初回回帰41件成功
+
+- start_external: prepare hookで現在業務target検査/canonical business outboxとproposal/tool startedを同TXへ保存。重複claimはhookを呼ばない。
+- receive_external: 今回受領結果の現在source/result利用hookも検査、対象削除/account失効なら固定status/IDのみ保存し再開なし。unknown保存後run failed(outcome_unknown)、success/明示failedへの置換拒否。
+- expiry後success、claim前後cancel、未claim expiry、偽claim、基盤障害retryを含む41件成功。suppress_reuse/session失効追加、R3probe改訂版/Firestoreはこれから。
+- 旧R2試験3件は拒否後worker dispatch前提で失敗。受領時obsolete/no-dispatchへ早期拒否する仕様となったため期待を更新し成功（本文非漏出条件は維持）。
+
+### R3改訂probeとfake42件成功
+
+- 元probeを保持しstart_external→receive_externalを使う `/tmp/ba-run-07-r3-external-outcome-fixed-probe.py` 成功。unknownはaccepted/runfailed/tooloutcome_unknown、301秒後successはaccepted/runcompleted/toolsucceeded、未実行断定文なし。
+- R2改訂probeもhistory_discloses=False/sse_discloses=False。
+- 今回source deleted/suppress_reuse/account/session失効時の本文破棄、台帳/DB障害時started維持/retryを含むfake42件成功。全check/testとFirestore22件を実行中。
+
+### R3全体testとFirestore22件
+
+- 全test Python377/Skill18/Node40成功、R1probe2本も成功。
+- 最終fixtureでFirestore22件成功、正常停止/8080/9099/9150/4400/4500閉鎖。
+- 初回emulator2失敗は301秒進めた時計の別process未引継ぎとhandler jobsucceeded/runfailedの期待混同。時計/proposal authorizer設定を明示引継ぎしてlate success別process再開/unknown追加model0回を確認。
+- 最終emulator fixture変更後のsetup/check/test再確認中、編集停止はまだ。
+
+### R3修正完了・最終版検証・編集停止
+
+- R3-01: start_externalでcurrent認可/期限/cancel/binding、業務outbox作成、proposal/tool started同TX。重複はoutbox非再作成。開始済は確認expiry対象外、301秒後成功受領可能。
+- R3-02: receive_externalでclaim付きunknownを冪等保存、model/元handler再実行なくrun failed(outcome_unknown)。別statusへの置換/元handler reconcile拒否。
+- 取消/account/session失効/対象削除/suppress_reuse後は本文なし固定status/IDだけ記録しresumeなし。台帳/DB障害はstarted維持/retry。
+- 最終setup/check成功、全test Python377/Skill18/Node40、checkpoint42件、run/checkpoint emulator22件成功。R1probe2/R2改訂probe/R3事前claim版probe成功、未実行断定なし。
+- emulator停止と8080/9099/9150/4400/4500閉鎖、diffcheck成功。r3から8paths変更、製品編集停止。実Calendar/provider/配備は対象外。
+
+### 独立レビュー ラウンド4 対象固定
+
+- 担当 `/root/run07_review_r4`（新規独立context）。base commit: `b1d0aedb42da02bee40bfa55a459879271fcb31f`。
+- 未追跡を含む最新全31files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `dfc59c742c1dd0483e8289addab66840788ba6b7fc69ec2ef3a0e10c99a37eef` |
+| `docs/05-development-and-testing.md` | `2c67b127630af340879efe9526014f328b63a8d53ec1ad8059ad2a09d006b622` |
+| `docs/conversations-and-runs.md` | `eb6127e16ed196de71a7495c1710aa717a694bc428c4da2f6626a42f301f4251` |
+| `docs/jobs.md` | `b67cc008d5cfa0beed37876ed387c34e872cf135036da7adfc619d292627ed92` |
+| `docs/tool-execution.md` | `7f66c51b920723c0e13d1036adff871dd946b4ce2fad47002204c14189088da6` |
+| `packages/agent_core/src/brainoid_agent_core/checkpoints.py` | `ede860486ff0cac06cdd8421d7e3e5293439aecd00ea3df23cd553e4efb7f6c1` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `a662e19a7eb8cab08782b09cfe0694bf94805a20bffba731ab0f8deae821df88` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `068aa3620e9db3b9191a724ce99167a22a42932642ff9e2a7f5735db6f36121e` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `fa526028491c7be454a576acea0472787c9d44e7966b454df2b3a0c70e356d21` |
+| `packages/api-client/src/generated/sdk.gen.js` | `1323dcb4d0bf2cec47d174382125c59eac28690d59fce61d298996fb54e22245` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `c777e8d87f611a976431f978a6348ec09d6cd0043f1a1b56290fd775d9a4917e` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `3e6e5b25440e77ee1b5d98c3104bec6b9c4ac521d3996f3511c6f868ba5fa7c2` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `259c28ded5694fec34dc84e177b5cfe0fe00d876ded39ee6a94efa864c121bdd` |
+| `packages/runs/src/brainoid_runs/control.py` | `f7761c711f39b8bb3adb403bb1e8d7f1151d999903ce126d94f7a311bc225354` |
+| `packages/runs/src/brainoid_runs/events.py` | `c555d83792662be3a61c6b17e1a64e7d62ecd168a78a4e0ffa1b28f96e536313` |
+| `packages/runs/src/brainoid_runs/models.py` | `c8e4832f7febd31572574b1b8307216af0ddecf9f84c4c4d28ef34955ae0d754` |
+| `packages/runs/src/brainoid_runs/state.py` | `fe434aa92deb633b09b4281d4f3532de9600d2df19dfbf6e3ae2b0ee7fe44ef1` |
+| `packages/tools/src/brainoid_tools/__init__.py` | `5c7fe4da92de5ea7e8b53ae6512799513d9d518b3feab54b320a4f64d7dc40f9` |
+| `packages/tools/src/brainoid_tools/executor.py` | `8a8876ffec5ce30ba30eba70390c03645cf04e2a3d8511d22c71e895eaa83a53` |
+| `packages/tools/src/brainoid_tools/registry.py` | `dae4307ad7678c0e3fc449740da9c209bb0bfee675cc2d086df79c858a555fda` |
+| `packages/tools/src/brainoid_tools/reuse.py` | `7d70e6485a56aa1e3ec6eb03df95c58ad816261dc7bdcf615350c29c2e5f399b` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `05576049a8ae64d1631e32ba664678cd827c098ff8b919ba3506ad7a3287ea7b` |
+| `services/api/src/brainoid_api/routes/conversations.py` | `0fa5ef74d148f98244f09dc00383efd122151a5326303767eb37cd626923b97c` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `cef14efceaebd682430b4b4926b370a0c753e2a0af73c2ac7e6255173bdb827a` |
+| `services/worker/src/brainoid_worker/result_reuse.py` | `8026386679bde4a23c88b621d16c0b5ad3cbdc09a4ff6f60a07c27d4623c70de` |
+| `services/worker/src/brainoid_worker/resume_run.py` | `9c51ed4cbe2304c9cf99004fd80c328a7547f79712557e2f36da7cb9cb6c4ff0` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `6121c8c82d2292608a4e019502c8dd559b9728f2fc5c52ce4fae7563e44d5deb` |
+| `specs/openapi.yaml` | `36acdd8dbe2749653a21ab0b6dc92205ca199d20ecbf9e585b349d83c43b4205` |
+| `tests/emulator/test_run_checkpoint_integration.py` | `daca159c0202f15c60cf7fc568216c8e3103e994c7cc32f5ca9da770d06392d3` |
+| `tests/fakes/run_confirmation.py` | `7f25e70bce43ced15c2bfeae6077b5dd49e36af3306c4309db67ec1a960c3cd4` |
+| `tests/test_run_checkpoint.py` | `04dd9f72dcbf519b03d42b7453a943d2c81a51aa68e4bef0d3a5fa7795303161` |
+
+### 独立レビュー ラウンド4 開始確認
+
+- `/root/run07_review_r4`: main/HEADbase/31paths全SHA一致、祖先/対象配下AGENTSなし。CONTRIBUTING/RUN07共通条件を確認、全製品差分・新規実装を読みcheckpoint/result claim/current認可/再送副作用を周辺実装と照合中。確定新mustfixはまだなし。
+
+### 独立レビュー ラウンド4 直接検証
+
+- reviewer直接run_checkpoint/turn_run/run_events76件成功（checkpoint42含む）。新規test/fake/emulatorコード全件を読了し前回5件の経路再確認中。
+- claim後late result/unknown、cancel時本文破棄の整合を確認。追加独立境界probeと終了時SHAを待つ。
+
+### 独立レビュー ラウンド4 probe再確認
+
+- reviewer直接で前回5件改訂probe成功: R1削除はmodel2/effect1でfailed、accountはobsolete/expired、R2 history/SSE漏出false、R3 unknown受領failed/unknown・301秒late success completed/succeededで未実行断定なし。
+- 同一model段階2確認と別段階2確認の独立probeも成功。新mustfixなしとの途中報告、最終静的整合/SHA照合と正式判定待ち。
+
+### 独立レビュー ラウンド4 最終判定
+
+- `/root/run07_review_r4`: approve、必須/任意なし。開始終了main/base/31paths全SHA一致、全最新差分・正本/周辺を確認、製品/index/metadata/.git編集なし。
+- waiting/lease解放、確認結果とresume同TX、一回claim/固定tool ID/世代fence、全continuation/次turn結果の現在consumer/source認可・公開範囲検査、cancel後生成/tool/batch抑止を確認。
+- 外部開始と結果受領の分離、開始済みexpiry除外、取消後本文なし事実保存、unknown終端、account/session失効とinfra再試行の区別を確認。
+- R1-01/R1-02/R2-01/R3-01/R3-02の5件は直接probeで解消。未解決必須ゼロ、独立レビュー4回。
+- 直接run_checkpoint/turn_run/run_events76件成功、前回改訂probe・同一/別model段階複数確認probe成功、diffcheck/全SHA再照合成功。署名/seq/prefix/final/旧文字回帰確認。
+- 全377/18/40・setup/check・最終emulator22等は提供証跡と区別。実provider/Calendar固有HTTP書込/音声/本番Schedulerは対象外。
+
+### 実装コミットと完了確認
+
+- 承認済み31pathsのworking/index/commit全SHA一致、main/base/対象集合/cached diff --checkを確認。
+- 実装コミット: `ee4fbea900c26a97f10965c66d98cb9ecb1c0c83`。独立レビュー4回、最終approve、5件の指摘を解消、未解決必須ゼロ。
+- 取消/leaseなし確認待ち/永続resume/重複防止/現在結果再利用認可/会話公開範囲/外部開始と遅延・unknown結果をfake・Firestore・独立probeで検証。Calendar実業務接続/音声/配備は後続。
+
+### 親側最終検証と記録確定
+
+- 台帳done更新後の親 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit 0、22.05秒、全9タスク成功。mypy153・format153・文書1360行errors0、台帳done24/todo72。
+- 記録対象は台帳と作業ログのみ。完了日時: 2026-10-26T04:50:31.289690+00:00。
