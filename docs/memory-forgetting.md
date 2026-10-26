@@ -1,6 +1,6 @@
 # 忘却受付と独立削除台帳
 
-BA-MEM-07はFR-006/FR-013の忘却受付を提供する。`POST /v1/tenants/{tenant_id}/operations` は現在 `kind=forget_memory` のみ実装し、`target_id`、`expected_version`、`Idempotency-Key` を必要とする。`source_policy` の既定は `suppress_reuse`。`202` と `status=pending` は検索・モデル再利用停止の受付確定を表し、物理消去完了ではない。本人は同じtenantのoperation GETで状態を確認できる。物理purgeはBA-MEM-08が提供し、他のkind、復元時の一括台帳適用、UIは後続チケットである。
+BA-MEM-07はFR-006/FR-013の忘却受付を提供する。`POST /v1/tenants/{tenant_id}/operations` は忘却として `kind=forget_memory` を実装し、`target_id`、`expected_version`、`Idempotency-Key` を必要とする。`source_policy` の既定は `suppress_reuse`。`202` と `status=pending` は検索・モデル再利用停止の受付確定を表し、物理消去完了ではない。本人は同じtenantのoperation GETで状態を確認できる。物理purgeはBA-MEM-08が提供し、退出・account・tenant削除の受付は[BA-IAM-10](account-deletion.md)が提供する。復元時の一括台帳適用、UIは後続チケットである。
 
 ## 受付と障害復旧
 

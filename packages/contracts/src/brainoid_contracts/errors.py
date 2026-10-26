@@ -12,6 +12,7 @@ class ErrorCode(StrEnum):
     RESOURCE_NOT_FOUND = "resource_not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
     CONFLICT = "conflict"
+    OWNERSHIP_TRANSFER_REQUIRED = "ownership_transfer_required"
     PAIRING_PENDING = "pairing_pending"
     IDEMPOTENCY_CONFLICT = "idempotency_conflict"
     RESOURCE_EXPIRED = "resource_expired"

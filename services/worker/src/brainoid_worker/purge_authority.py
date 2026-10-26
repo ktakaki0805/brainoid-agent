@@ -15,7 +15,10 @@ from brainoid_jobs import AuthorizationUnavailable, Delivery, Job, Jobs, Lease, 
 from brainoid_jobs.models import Reason
 from brainoid_memory.deletion_ledger import DeletionIntent, DeletionLedger
 from brainoid_memory.forget import operation_path
-from brainoid_policy.control_ledger import LedgerError
+from brainoid_memory.lifecycle import KIND as LIFECYCLE_KIND
+from brainoid_memory.lifecycle import audit_grant, scope_fence
+from brainoid_memory.lifecycle import marker as lifecycle_marker
+from brainoid_policy.control_ledger import LedgerError, subject_key
 from pydantic import ValidationError
 
 KIND = "memory_purge"
@@ -54,16 +57,61 @@ class PurgeJobs(Jobs):
         return job
 
     def accepted(self, tx: Transaction, job: Job) -> tuple[DeletionIntent, Document]:
-        if job.kind != KIND or job.attributes != {"dispatch_queue": KIND} or job.output is not None:
+        if (
+            job.kind not in (KIND, LIFECYCLE_KIND)
+            or job.attributes != {"dispatch_queue": job.kind}
+            or job.output is not None
+        ):
             raise ValueError("Invalid purge envelope")
         try:
             intent = self.deletion_ledger.get(job.operation_id)
         except LedgerError:
             raise AuthorizationUnavailable() from None
         saved = tx.get(operation_path(job.tenant_id, job.operation_id))
+        if job.kind == LIFECYCLE_KIND:
+            if (
+                intent is None
+                or intent.kind == "forget_memory"
+                or intent.tenant_id != job.tenant_id
+                or saved is None
+                or saved.get("intent") != intent.model_dump(mode="json")
+                or saved.get("tenant_id") != job.tenant_id
+                or saved.get("request_hash") != intent.request_hash
+                or saved.get("operation", {}).get("operation_id") != intent.operation_id
+                or saved.get("operation", {}).get("kind") != intent.kind
+                or job.account_stamps
+                or job.grant
+                != audit_grant(intent.tenant_id, intent.operation_id, saved["requested_by"])
+            ):
+                raise ValueError("Unaccepted lifecycle deletion")
+            for scope in intent.scopes:
+                if intent.kind == "leave_tenant":
+                    assert scope.tenant_id is not None
+                    latest = self.ledger.latest(
+                        subject_key(scope.tenant_id, "membership", saved["requested_by"])
+                    )
+                    if (
+                        latest is not None
+                        and latest.change.authorization_version > scope.version + 1
+                    ):
+                        raise ValueError("A later membership incarnation cannot be purged")
+                fence = tx.get(scope_fence(scope))
+                inherited = (
+                    intent.kind == "delete_account"
+                    and scope.kind == "member"
+                    and fence is not None
+                    and fence.get("mode") == "delete"
+                    and fence.get("scope", {}).get("kind") == "member"
+                    and fence.get("scope", {}).get("resource_id") == scope.resource_id
+                    and fence.get("scope", {}).get("tenant_id") == scope.tenant_id
+                )
+                if not inherited and fence != lifecycle_marker(intent, scope):
+                    raise ValueError("Changed lifecycle fence")
+            return intent, saved
         if (
             intent is None
             or intent.tenant_id != job.tenant_id
+            or intent.kind != "forget_memory"
             or saved is None
             or saved.get("intent") != intent.model_dump(mode="json")
             or saved.get("tenant_id") != job.tenant_id
@@ -123,7 +171,7 @@ class PurgeJobs(Jobs):
     def activate(self, tenant: ResourceId, identity: ResourceId) -> bool:
         def work(tx: Transaction) -> bool:
             job = self._read(tx, tenant, identity)
-            if job is None or job.kind != KIND or job.status != "waiting":
+            if job is None or job.kind not in (KIND, LIFECYCLE_KIND) or job.status != "waiting":
                 return False
             reason = self._invalid_reason(tx, job)
             if reason is not None:
@@ -140,7 +188,7 @@ class PurgeJobs(Jobs):
         def work(tx: Transaction) -> bool:
             job = self._read(tx, tenant, identity)
             now = normalize_utc(self.now())
-            if job is None or job.kind != KIND or job.checkpoints:
+            if job is None or job.kind not in (KIND, LIFECYCLE_KIND) or job.checkpoints:
                 return False
             expired = (
                 job.status == "running"
@@ -183,7 +231,12 @@ class PurgeJobs(Jobs):
 
         def work(tx: Transaction) -> bool:
             job = self._read(tx, tenant, identity)
-            if job is None or job.kind != KIND or job.status != "succeeded" or job.checkpoints:
+            if (
+                job is None
+                or job.kind not in (KIND, LIFECYCLE_KIND)
+                or job.status != "succeeded"
+                or job.checkpoints
+            ):
                 return False
             _, saved = self.accepted(tx, job)
             state = saved.get("purge", {})
@@ -225,7 +278,7 @@ class PurgeJobs(Jobs):
     def prepare_dispatch(
         self, tenant: ResourceId, identity: ResourceId, *, queue_name: str | None = None
     ) -> Delivery | None:
-        if queue_name not in (None, KIND):
+        if queue_name not in (None, KIND, LIFECYCLE_KIND):
             return None
         self.recover_expired(tenant, identity)
         return super().prepare_dispatch(tenant, identity, queue_name=queue_name)
@@ -242,7 +295,7 @@ class PurgeJobs(Jobs):
             job = self._read(tx, lease.tenant_id, lease.job_id)
             if (
                 job is None
-                or job.kind != KIND
+                or job.kind not in (KIND, LIFECYCLE_KIND)
                 or job.lease_generation != lease.generation
                 or job.status != "pending"
                 or job.reason != reason

@@ -31,7 +31,9 @@ class ForgetCreate(MemoryValue):
 
 class Operation(MemoryValue):
     operation_id: ResourceId
-    kind: Literal["forget_memory"] = "forget_memory"
+    kind: Literal["forget_memory", "leave_tenant", "delete_tenant", "delete_account"] = (
+        "forget_memory"
+    )
     status: Literal["pending", "running", "succeeded", "failed", "outcome_unknown"] = "pending"
     created_at: UtcTimestamp
     updated_at: UtcTimestamp

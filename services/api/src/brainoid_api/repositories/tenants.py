@@ -239,6 +239,12 @@ class Tenants:
         def authorize(tx: Transaction, replay: MutationResult | None) -> AuthorizedScope:
             user = self.authorize_user(tx, identity)
             principal = self._principal(tx, identity, tenant_id, manage=True)
+            # Lifecycle acceptance freezes the confirmed tenant version/name and
+            # membership set across independent-ledger I/O. Participate in that
+            # reservation in every idempotency phase, including the write tx.
+            document = tx.get(f"tenants/{tenant_id}")
+            if document is not None and document.get("membership_mutation") is not None:
+                raise APIError(ErrorCode.CONFLICT)
             if replay is not None and replay.resource_id != tenant_id:
                 raise APIError(ErrorCode.OPERATION_FORBIDDEN)
             return AuthorizedScope(

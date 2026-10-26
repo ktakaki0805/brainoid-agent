@@ -16,6 +16,7 @@ from brainoid_contracts import (
     Version,
     Visibility,
 )
+from brainoid_contracts.deletion import lifecycle_member_path
 from brainoid_policy.control_ledger import (
     Change,
     ControlLedger,
@@ -214,6 +215,11 @@ class Invitations:
         tenant = tx.get(f"tenants/{tenant_id}")
         if tenant is not None and tenant.get("membership_mutation") is not None:
             raise APIError(ErrorCode.CONFLICT)
+        fence = tx.get(lifecycle_member_path(tenant_id, uid))
+        if fence is not None:
+            saved = tx.get(f"tenants/{tenant_id}/operations/{fence.get('operation_id')}")
+            if saved is None or saved.get("operation", {}).get("status") != "succeeded":
+                raise APIError(ErrorCode.CONFLICT)
         doc = self._member(tx, tenant_id, uid)
         latest = self._ledger.latest(subject_key(tenant_id, "membership", uid))
         if change is not None and not isinstance(change.target, MemberTarget):

@@ -26,10 +26,11 @@ class FirestorePurgePages:
                 )
                 page = next(pager.pages)
                 return [parent + "/" + name for name in page.collection_ids], page.next_page_token
-            owner, name = parent.rsplit("/", 1)
+            owner, _, name = parent.rpartition("/")
+            owner_path = prefix + owner if owner else prefix.rstrip("/")
             documents = self.client._firestore_api.list_documents(
                 request={
-                    "parent": prefix + owner,
+                    "parent": owner_path,
                     "collection_id": name,
                     "page_size": limit,
                     "page_token": token,

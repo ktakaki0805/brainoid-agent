@@ -27,17 +27,68 @@ class DeletionTarget(MemoryValue):
         return self
 
 
+class LifecycleScope(MemoryValue):
+    kind: Literal["account", "member", "tenant"]
+    resource_id: ResourceId
+    tenant_id: ResourceId | None = None
+    version: Version
+    deletion_epoch: Annotated[int, Field(strict=True, ge=1)] = 1
+
+    @model_validator(mode="after")
+    def binding(self) -> Self:
+        if (self.kind == "account") != (self.tenant_id is None):
+            raise ValueError("Invalid lifecycle scope")
+        if self.kind == "tenant" and self.resource_id != self.tenant_id:
+            raise ValueError("Invalid tenant scope")
+        return self
+
+
 class DeletionIntent(MemoryValue):
     schema_version: Literal[1] = 1
+    kind: Literal["forget_memory", "leave_tenant", "delete_tenant", "delete_account"] = Field(
+        default="forget_memory", exclude_if=lambda value: value == "forget_memory"
+    )
+    scopes: tuple[LifecycleScope, ...] = Field(default=(), exclude_if=lambda value: not value)
     operation_id: ResourceId
     tenant_id: ResourceId
     request_hash: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
     source_policy: Literal["suppress_reuse", "delete_source"]
     created_at: UtcTimestamp
-    targets: Annotated[tuple[DeletionTarget, ...], Field(min_length=1, max_length=21)]
+    targets: Annotated[tuple[DeletionTarget, ...], Field(max_length=21)]
 
     @model_validator(mode="after")
     def bindings(self) -> Self:
+        if self.kind != "forget_memory":
+            if self.targets or not self.scopes or self.source_policy != "delete_source":
+                raise ValueError("Lifecycle deletion has exact scopes, not source targets")
+            scope_keys = [(s.kind, s.tenant_id, s.resource_id) for s in self.scopes]
+            if len(scope_keys) != len(set(scope_keys)):
+                raise ValueError("Duplicate lifecycle scope")
+            if self.kind == "delete_tenant":
+                if (
+                    len(self.scopes) != 1
+                    or self.scopes[0].kind != "tenant"
+                    or self.scopes[0].tenant_id != self.tenant_id
+                ):
+                    raise ValueError("Single tenant required")
+            elif self.kind == "leave_tenant":
+                if (
+                    len(self.scopes) != 1
+                    or self.scopes[0].kind != "member"
+                    or self.scopes[0].tenant_id != self.tenant_id
+                ):
+                    raise ValueError("Single membership required")
+            elif (
+                self.scopes[0].kind != "account"
+                or self.scopes[0].resource_id != self.tenant_id
+                or any(
+                    s.kind != "member" or s.resource_id != self.tenant_id for s in self.scopes[1:]
+                )
+            ):
+                raise ValueError("Account and its own memberships required")
+            return self
+        if self.scopes or not self.targets:
+            raise ValueError("Forget requires targets only")
         keys = [(t.kind, t.parent_id, t.resource_id) for t in self.targets]
         if (
             self.targets[0].kind != "fact"

@@ -2921,12 +2921,12 @@ paths:
     post:
       operationId: createTenantOperation
       summary: forget/delete/export/退出を受け付ける
-      description: 現在はforget_memoryのみ実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。delete/export/退出は後続実装。
+      description: forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。delete_resourceとexportは未提供。
       security:
       - userBearer: []
       responses:
         '202':
-          description: 忘却受付済み。物理消去完了ではない
+          description: 削除台帳とtombstoneを保存して受付済み。物理消去や認証provider失効の完了ではない
           content:
             application/json:
               schema:
@@ -2958,7 +2958,7 @@ paths:
       - userBearer: []
       responses:
         '200':
-          description: 現在の認可を検査した本人の忘却操作状態
+          description: 現在の認可を検査した本人の忘却操作状態。退出・tenant削除の受付後は同じ本人の該当operation状態だけを参照できる
           content:
             application/json:
               schema:
@@ -3017,7 +3017,7 @@ paths:
       - userBearer: []
       responses:
         '202':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（local-emulatorと明示fake構成。実環境の受付は未公開）
           content:
             application/json:
               schema:
@@ -3040,12 +3040,12 @@ paths:
     get:
       operationId: getAccountOperation
       summary: 本人アカウント処理状態
-      description: 削除中の既存認証は当該status参照だけに限定。削除確定でFirebase認証も失効し、以後は401/404になる。
+      description: 削除中の既存認証は当該status参照だけに限定。最終処理後は404となる。現在のlocal-emulatorと明示fake構成は実Firebase認証を失効させない。実provider失効adapterは未提供。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（local-emulatorと明示fake構成。実環境の受付は未公開）
           content:
             application/json:
               schema:

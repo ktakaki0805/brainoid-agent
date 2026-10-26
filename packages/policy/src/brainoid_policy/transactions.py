@@ -5,7 +5,12 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from brainoid_contracts import FirebaseUid, ResourceId, Scope
-from brainoid_contracts.deletion import fenced_document
+from brainoid_contracts.deletion import (
+    fenced_document,
+    lifecycle_account_path,
+    lifecycle_tenant_path,
+    membership_deletion_pending,
+)
 from brainoid_contracts.transactions import Document, Transaction
 from pydantic import ValidationError
 
@@ -89,6 +94,8 @@ class TransactionPolicyState:
             raise PolicyDenied() from None
 
     def tenant(self, tenant_id: ResourceId) -> TenantState | None:
+        if self._transaction.get(lifecycle_tenant_path(tenant_id)) is not None:
+            raise PolicyDenied()
         return self._parse(TenantState, self._transaction.get(f"tenants/{tenant_id}"))
 
     def membership(self, tenant_id: ResourceId, user_id: FirebaseUid) -> Membership | None:
@@ -97,7 +104,13 @@ class TransactionPolicyState:
         if len(documents) > 1:
             raise PolicyDenied()
         document = documents[0] if documents else None
-        return self._fence(self._parse(Membership, document), document)
+        parsed = self._parse(Membership, document)
+        if parsed is not None and (
+            self._transaction.get(lifecycle_account_path(user_id)) is not None
+            or membership_deletion_pending(self._transaction, tenant_id, user_id)
+        ):
+            return parsed.model_copy(update={"status": "revoked"})
+        return self._fence(parsed, document)
 
     def device(self, tenant_id: ResourceId, device_id: ResourceId) -> DeviceState | None:
         document = self._transaction.get(f"tenants/{tenant_id}/devices/{device_id}")

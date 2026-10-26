@@ -40,6 +40,7 @@ from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.memories import Memories
 from brainoid_api.repositories.tenants import Tenants
+from brainoid_api.services.deletion_requests import DeletionRequests
 from brainoid_api.services.private_sessions import PrivateSessions
 from brainoid_api.settings import Settings
 
@@ -58,6 +59,7 @@ class AuthServices:
     conversations: Conversations | None = None
     entities: Entities | None = None
     memories: Memories | None = None
+    deletion_requests: DeletionRequests | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]
@@ -160,6 +162,11 @@ async def authentication_lifespan(
                 vector_search=(vector_search_factory(client) if vector_search_factory else None),
                 deletion_ledger=DeletionLedger(objects),
             ),
+            # Lifecycle provider finalization is explicitly composed by local tests.
+            # No production admission until its provider/cache/export worker is wired.
+            DeletionRequests(store, DeletionLedger(objects), ledger)
+            if settings.app_env == "local-emulator"
+            else None,
         )
     finally:
         try:

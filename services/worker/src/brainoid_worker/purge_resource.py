@@ -11,11 +11,17 @@ from brainoid_jobs import AuthorizationUnavailable, Job, LeaseLost, RetryableErr
 from brainoid_jobs.models import job_id
 from brainoid_memory.deletion_ledger import DeletionIntent
 from brainoid_memory.forget import operation_path, target_path
+from brainoid_memory.lifecycle import KIND as LIFECYCLE_KIND
 from brainoid_policy.control_ledger import LedgerError
 from pydantic import JsonValue
 
 from brainoid_worker.dispatcher import Dispatcher, JobPages, Queue, RecoveryPage
 from brainoid_worker.entry import Execution
+from brainoid_worker.lifecycle_handlers import (
+    DEVICE_GLOBALS,
+    LifecycleHandlers,
+    ProfileParentUnknown,
+)
 from brainoid_worker.purge_authority import KIND, PurgeJobs
 from brainoid_worker.purge_handlers import VECTOR, Decision, ForgetHandlers, LegacyProvenanceMissing
 
@@ -47,6 +53,12 @@ class Invalidation(Protocol):
         are invalidated. Implementations must fence concurrent creation with the same
         tombstones, including export downloads. Never return a signed URL or body.
         """
+        ...
+
+
+class AccountFinalizer(Protocol):
+    def finalize(self, user: str, *, key: str) -> str:
+        """Idempotently delete/revoke the identity after all application erasure."""
         ...
 
 
@@ -82,10 +94,12 @@ class PurgeResource:
         handlers: ForgetHandlers | None = None,
         page_size: int = 50,
         step_budget: int = 1000,
+        account_finalizer: AccountFinalizer | None = None,
     ) -> None:
         if set(hooks) != {"cache", "export"} or not 1 <= page_size <= 100 or step_budget < 1:
             raise ValueError("Explicit cache/export adapters and bounded pages required")
         self.jobs, self.pages, self.hooks = jobs, pages, dict(hooks)
+        self.account_finalizer = account_finalizer
         self.handlers = handlers or ForgetHandlers()
         self.handlers.verified_operation = self._verified_operation
         self.page_size, self.step_budget = page_size, step_budget
@@ -119,8 +133,18 @@ class PurgeResource:
             return None
         return intent
 
-    @staticmethod
-    def _stack(intent: DeletionIntent) -> list[Document]:
+    def _stack(self, intent: DeletionIntent, saved: Document | None = None) -> list[Document]:
+        if intent.kind != "forget_memory":
+            scopes = [
+                frame(f"tenants/{s.tenant_id}") for s in intent.scopes if s.tenant_id is not None
+            ]
+            if intent.kind == "delete_account":
+                # Bounded show_missing discovers unknown global parents too. The
+                # account handler selects only this canonical UID, never a path guess.
+                scopes.append(frame("users"))
+            if intent.kind == "delete_tenant":
+                scopes.extend(frame(collection) for collection in DEVICE_GLOBALS)
+            return scopes
         # LIFO: derived scan first, original targets last. Sources are available
         # during the first scan; their cutoffs are retained for later verification.
         targets = [
@@ -136,6 +160,12 @@ class PurgeResource:
         if job is None:
             raise LeaseLost()
         intent, saved = self.jobs.accepted(tx, job)
+        if intent.kind != "forget_memory" and not isinstance(self.handlers, LifecycleHandlers):
+            raise ValueError("Lifecycle handler composition required")
+        if intent.kind == "forget_memory" and isinstance(self.handlers, LifecycleHandlers):
+            raise ValueError("Forget handler composition required")
+        if intent.kind == "delete_account" and self.account_finalizer is None:
+            raise ValueError("Account provider finalizer required")
         if saved.get("purge", {}).get("schema_version", 1) != 1:
             raise ValueError("Unsupported purge progress schema")
         if "schema_version" not in saved.get("purge", {}):
@@ -154,7 +184,7 @@ class PurgeResource:
                     cutoffs[parent] = min(cutoffs.get(parent, sequence), sequence)
             saved["purge"] = {
                 "schema_version": 1,
-                "stack": self._stack(intent),
+                "stack": self._stack(intent, saved),
                 "cutoffs": cutoffs,
                 "processed": 0,
                 "pages": 0,
@@ -174,6 +204,9 @@ class PurgeResource:
     ) -> bool:
         cutoffs = saved["purge"]["cutoffs"]
         path = item["path"]
+        if intent.kind != "forget_memory":
+            assert isinstance(self.handlers, LifecycleHandlers)
+            return self.handlers.bound(tx, path, intent, item["force"])
         base = f"tenants/{intent.tenant_id}"
         if path == base and not item["force"]:
             return True
@@ -241,10 +274,15 @@ class PurgeResource:
     ) -> Decision:
         try:
             return self.handlers.decide(tx, path, doc, intent, state["cutoffs"])
-        except LegacyProvenanceMissing:
+        except LegacyProvenanceMissing as error:
             # Continue bounded discovery so another unknown run cannot prevent
             # this operation's own accepted cleanup. Unknown scopes are untouched.
             state["legacy_pending"] = True
+            state["legacy_reason"] = (
+                "profile_parent_unknown"
+                if isinstance(error, ProfileParentUnknown)
+                else "legacy_provenance_missing"
+            )
             return Decision()
 
     def step(self, execution: Execution) -> bool:
@@ -270,7 +308,7 @@ class PurgeResource:
                     if saved["purge"] != progress:
                         raise LeaseLost()
                     saved["purge"].update(
-                        stack=self._stack(current),
+                        stack=self._stack(current, saved),
                         pass_changes=0,
                         passes=progress["passes"] + 1,
                         legacy_pending=False,
@@ -303,6 +341,33 @@ class PurgeResource:
                 self.jobs.store.run(record)
                 return False
 
+            if (
+                intent.kind == "delete_account"
+                and not progress.get("legacy_pending", False)
+                and "identity" not in progress["receipts"]
+            ):
+                execution.check(renew=True)
+                assert self.account_finalizer is not None
+                try:
+                    receipt = self.account_finalizer.finalize(
+                        snapshot["requested_by"], key=f"{intent.operation_id}:identity:v1"
+                    )
+                    if not isinstance(receipt, str) or not 1 <= len(receipt) <= 100:
+                        raise ValueError("Invalid identity receipt")
+                except Exception:
+                    self._reason(execution, "identity_finalization_failed")
+                    raise RetryableError() from None
+
+                def identity_receipt(tx: Transaction) -> None:
+                    job, _, saved = self._read(tx, execution)
+                    if saved["purge"] != progress:
+                        raise LeaseLost()
+                    saved["purge"]["receipts"]["identity"] = receipt
+                    self._save(tx, job, saved)
+
+                self.jobs.store.run(identity_receipt)
+                return False
+
             def verified(tx: Transaction) -> None:
                 job, current, saved = self._read(tx, execution)
                 if saved["purge"] != progress:
@@ -311,7 +376,9 @@ class PurgeResource:
                 saved["purge"].update(
                     locally_verified=True,
                     verified=not blocked,
-                    retry_reason="legacy_provenance_missing" if blocked else None,
+                    retry_reason=progress.get("legacy_reason", "legacy_provenance_missing")
+                    if blocked
+                    else None,
                 )
                 if blocked:
                     # Only the positively bound cleanup and its hooks are verified.
@@ -319,7 +386,7 @@ class PurgeResource:
                     # resolve, and retries rescan from the beginning without resets
                     # of processed counts or completed invalidation receipts.
                     saved["purge"].update(
-                        stack=self._stack(current),
+                        stack=self._stack(current, saved),
                         legacy_pending=False,
                         pass_changes=0,
                         passes=progress["passes"] + 1,
@@ -373,7 +440,9 @@ class PurgeResource:
                     if item["force"]:
                         if (
                             doc is not None
-                            and doc.get("tenant_id", current.tenant_id) != current.tenant_id
+                            and current_path.startswith("tenants/")
+                            and doc.get("tenant_id", current_path.split("/")[1])
+                            != current_path.split("/")[1]
                         ):
                             raise ValueError("Child tenant mismatch")
                         for target in current.targets:
@@ -391,6 +460,7 @@ class PurgeResource:
                             or decision.selected
                             or (
                                 decision.children
+                                and len(current_path.split("/")) > 2
                                 and VECTOR.fullmatch(current_path.split("/")[2]) is not None
                             )
                             or decision.replacement is not None
@@ -417,7 +487,9 @@ class PurgeResource:
                     if item["force"]:
                         if (
                             doc is not None
-                            and doc.get("tenant_id", current.tenant_id) != current.tenant_id
+                            and current_path.startswith("tenants/")
+                            and doc.get("tenant_id", current_path.split("/")[1])
+                            != current_path.split("/")[1]
                         ):
                             raise ValueError("Child tenant mismatch")
                         for target in current.targets:
@@ -451,6 +523,10 @@ class PurgeResource:
                     dependency_run,
                 )
                 state["pass_changes"] += 1
+            if (erase or (item.get("selected") and not item["force"])) and isinstance(
+                self.handlers, LifecycleHandlers
+            ):
+                self.handlers.record_selection(tx, current_path, current)
             if erase:
                 tx.delete(current_path)
             elif replacement is not None:
@@ -479,19 +555,33 @@ class PurgeResource:
         raise RetryableError()
 
     def commit(self, tx: Transaction, job: Job, result: JsonValue) -> None:
-        _, saved = self.jobs.accepted(tx, job)
+        intent, saved = self.jobs.accepted(tx, job)
         state = saved.get("purge", {})
         if (
             result != {"purged": True}
             or not state.get("verified")
             or state.get("stack")
-            or set(state.get("receipts", {})) != set(self.hooks)
+            or set(state.get("receipts", {}))
+            != (set(self.hooks) | ({"identity"} if intent.kind == "delete_account" else set()))
         ):
             raise ValueError("Unverified purge")
+        tenant_path = f"tenants/{intent.tenant_id}"
+        tenant = tx.get(tenant_path) if intent.kind == "delete_tenant" else None
         saved["operation"].update(
             status="succeeded", updated_at=normalize_utc(self.jobs.now()).isoformat()
         )
         saved["purge"]["retry_reason"] = None
+        if intent.kind == "delete_account":
+            saved["provider_finalized"] = True
+        if tenant is not None:
+            tx.set(
+                tenant_path,
+                {
+                    k: v
+                    for k, v in tenant.items()
+                    if k in {"id", "tenant_id", "status", "policy_version", "deletion_epoch"}
+                },
+            )
         tx.set(operation_path(job.tenant_id, job.operation_id), saved)
 
     def monitor(
@@ -503,7 +593,12 @@ class PurgeResource:
 
             def update(tx: Transaction, path: str = path) -> bool:
                 saved = tx.get(path)
-                if saved is None or saved.get("operation", {}).get("kind") != "forget_memory":
+                if saved is None or saved.get("operation", {}).get("kind") not in {
+                    "forget_memory",
+                    "leave_tenant",
+                    "delete_tenant",
+                    "delete_account",
+                }:
                     return False
                 intent = DeletionIntent.model_validate(saved["intent"])
                 late = saved["operation"]["status"] != "succeeded" and normalize_utc(
@@ -526,14 +621,19 @@ class PurgeResource:
 class PurgeDispatcher:
     def __init__(self, handler: PurgeResource, pages: JobPages, queue: Queue) -> None:
         self.handler, self.pages = handler, pages
-        self.dispatcher = Dispatcher(handler.jobs, pages, queue, queue_name=KIND)
+        self.dispatcher = Dispatcher(
+            handler.jobs,
+            pages,
+            queue,
+            queue_name=LIFECYCLE_KIND if isinstance(handler.handlers, LifecycleHandlers) else KIND,
+        )
 
     def recover(
         self, tenant: ResourceId, *, after: str | None = None, limit: int = 100
     ) -> RecoveryPage:
         documents = self.pages.page(f"tenants/{tenant}/jobs", after=after, limit=limit)
         for location, document in documents:
-            if document.get("kind") == KIND:
+            if document.get("kind") == self.dispatcher.queue_name:
                 identity = ResourceId(location.rsplit("/", 1)[-1])
                 if document.get("status") == "waiting":
                     self.handler.jobs.activate(tenant, identity)

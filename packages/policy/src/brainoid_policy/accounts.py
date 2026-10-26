@@ -5,6 +5,7 @@ import json
 
 from brainoid_contracts import FirebaseUid
 from brainoid_contracts.accounts import UserProfile
+from brainoid_contracts.deletion import lifecycle_account_path
 from brainoid_contracts.transactions import Transaction
 from pydantic import ValidationError
 
@@ -23,6 +24,8 @@ def fingerprint(value: object) -> str:
 
 
 def account_stamp(tx: Transaction, user_id: FirebaseUid) -> str:
+    if tx.get(lifecycle_account_path(user_id)) is not None:
+        raise AccountUnavailable()
     documents = tx.find("users", "user_id", user_id)
     if len(documents) > 1:
         raise AccountUnavailable(malformed=True)

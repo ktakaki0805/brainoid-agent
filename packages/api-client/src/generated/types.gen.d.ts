@@ -3288,7 +3288,7 @@ export type CreateTenantOperationErrors = {
 export type CreateTenantOperationError = CreateTenantOperationErrors[keyof CreateTenantOperationErrors];
 export type CreateTenantOperationResponses = {
     /**
-     * 忘却受付済み。物理消去完了ではない
+     * 削除台帳とtombstoneを保存して受付済み。物理消去や認証provider失効の完了ではない
      */
     202: Operation;
 };
@@ -3311,7 +3311,7 @@ export type GetTenantOperationErrors = {
 export type GetTenantOperationError = GetTenantOperationErrors[keyof GetTenantOperationErrors];
 export type GetTenantOperationResponses = {
     /**
-     * 現在の認可を検査した本人の忘却操作状態
+     * 現在の認可を検査した本人の忘却操作状態。退出・tenant削除の受付後は同じ本人の該当operation状態だけを参照できる
      */
     200: Operation;
 };
@@ -3360,7 +3360,7 @@ export type CreateAccountOperationErrors = {
 export type CreateAccountOperationError = CreateAccountOperationErrors[keyof CreateAccountOperationErrors];
 export type CreateAccountOperationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（local-emulatorと明示fake構成。実環境の受付は未公開）
      */
     202: Operation;
 };
@@ -3382,7 +3382,7 @@ export type GetAccountOperationErrors = {
 export type GetAccountOperationError = GetAccountOperationErrors[keyof GetAccountOperationErrors];
 export type GetAccountOperationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（local-emulatorと明示fake構成。実環境の受付は未公開）
      */
     200: Operation;
 };

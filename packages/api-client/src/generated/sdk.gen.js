@@ -1465,7 +1465,7 @@ export const cancelDeviceCommand = (options) => (options.client ?? client).post(
 /**
  * forget/delete/export/退出を受け付ける
  *
- * 現在はforget_memoryのみ実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。delete/export/退出は後続実装。
+ * forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。delete_resourceとexportは未提供。
  */
 export const createTenantOperation = (options) => (options.client ?? client).post({
     security: [{
@@ -1529,7 +1529,7 @@ export const createAccountOperation = (options) => (options.client ?? client).po
 /**
  * 本人アカウント処理状態
  *
- * 削除中の既存認証は当該status参照だけに限定。削除確定でFirebase認証も失効し、以後は401/404になる。
+ * 削除中の既存認証は当該status参照だけに限定。最終処理後は404となる。現在のlocal-emulatorと明示fake構成は実Firebase認証を失効させない。実provider失効adapterは未提供。
  */
 export const getAccountOperation = (options) => (options.client ?? client).get({
     security: [{

@@ -4,6 +4,7 @@ from typing import Protocol
 
 from brainoid_contracts import FirebaseUid
 from brainoid_contracts.accounts import UserProfile as UserProfile
+from brainoid_contracts.deletion import lifecycle_account_path
 from google.api_core.exceptions import GoogleAPICallError, RetryError
 from google.cloud.firestore_v1 import Client, FieldFilter
 from pydantic import ValidationError
@@ -21,6 +22,8 @@ class FirestoreProfiles:
 
     def get(self, user_id: FirebaseUid) -> UserProfile:
         try:
+            if self._client.document(lifecycle_account_path(user_id)).get(timeout=10).exists:
+                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
             # UIDs are opaque strings, including '/'. Never concatenate them into a path.
             # Equality lookup preserves legacy users/{uid} fixture documents and works
             # with safely assigned document keys for future profile provisioning.

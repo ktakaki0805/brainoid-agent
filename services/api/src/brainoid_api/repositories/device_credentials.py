@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 from uuid import uuid4
 
 from brainoid_contracts import ResourceId, UtcTimestamp, Version
+from brainoid_contracts.deletion import lifecycle_tenant_path
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.models import ManagementAction, UserSubject
 from pydantic import BaseModel, ConfigDict, Field
@@ -158,6 +159,7 @@ class DeviceCredentialRepository:
         key = _key(key)
         self._rate("create", ip, body.installation_nonce, 20, 5)
         request = fingerprint(body.model_dump(mode="json"))
+        installation_key = self._tokens.digest("installation", body.installation_nonce)
         receipt_path = "device_pairing_requests/" + self._tokens.digest(
             "create", body.installation_nonce + "\0" + key
         )
@@ -178,8 +180,19 @@ class DeviceCredentialRepository:
                 code: str = code,
                 selector_path: str = selector_path,
             ) -> Pairing | ErrorCode:
+                # A confirmed installation remains bound even after physical
+                # device erasure. Fence both new receipts and exact-key replay
+                # in the same transaction as their read/write boundary.
+                installation = tx.get("device_installations/" + installation_key)
+                if installation is not None and (
+                    installation.get("status") == "revoked"
+                    or tx.get(lifecycle_tenant_path(installation["tenant_id"])) is not None
+                ):
+                    return ErrorCode.RESOURCE_EXPIRED
                 saved = tx.get(receipt_path)
                 if saved:
+                    if saved.get("status") == "expired":
+                        return ErrorCode.RESOURCE_EXPIRED
                     if saved["request"] != request:
                         return ErrorCode.IDEMPOTENCY_CONFLICT
                     if saved["epoch"] != self._tokens.epoch or self._now() >= saved["expires_at"]:
@@ -201,9 +214,7 @@ class DeviceCredentialRepository:
                         "status": "pending",
                         "failures": 0,
                         "expires_at": pairing.expires_at,
-                        "installation": self._tokens.digest(
-                            "installation", body.installation_nonce
-                        ),
+                        "installation": installation_key,
                     },
                 )
                 tx.set(
@@ -265,9 +276,9 @@ class DeviceCredentialRepository:
             if not pairing:
                 return ErrorCode.RESOURCE_NOT_FOUND
             if (
-                pairing["epoch"] != self._tokens.epoch
+                pairing["status"] == "expired"
+                or pairing["epoch"] != self._tokens.epoch
                 or self._now() >= pairing["expires_at"]
-                or pairing["status"] == "expired"
             ):
                 return ErrorCode.RESOURCE_EXPIRED
             if not hmac.compare_digest(
@@ -436,6 +447,8 @@ class DeviceCredentialRepository:
         def exchange(tx: Transaction) -> DeviceCredentials | ErrorCode:
             path = "device_pairings/" + pairing_id
             pairing = tx.get(path)
+            if pairing and pairing.get("status") == "expired":
+                return ErrorCode.RESOURCE_EXPIRED
             if not pairing or not hmac.compare_digest(
                 pairing["poll_hash"], _hash(body.poll_secret)
             ):

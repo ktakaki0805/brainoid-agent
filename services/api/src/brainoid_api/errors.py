@@ -32,6 +32,9 @@ ERRORS = {
     ErrorCode.REAUTH_REQUIRED: ErrorDefinition(403, "Recent authentication required."),
     ErrorCode.RESOURCE_NOT_FOUND: ErrorDefinition(404, "Resource not found."),
     ErrorCode.METHOD_NOT_ALLOWED: ErrorDefinition(405, "Method not allowed."),
+    ErrorCode.OWNERSHIP_TRANSFER_REQUIRED: ErrorDefinition(
+        409, "Ownership transfer or tenant deletion required."
+    ),
     ErrorCode.CONFLICT: ErrorDefinition(409, "Request conflicts with the current state."),
     ErrorCode.PAIRING_PENDING: ErrorDefinition(409, "Pairing awaits confirmation.", True),
     ErrorCode.IDEMPOTENCY_CONFLICT: ErrorDefinition(
