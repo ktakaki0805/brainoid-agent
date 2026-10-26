@@ -4575,3 +4575,200 @@ BA-FND-01 独立レビュー第1回
 
 - 台帳done更新後の親 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0、全9check成功22.05秒。mypy170/format170/docs1372/errors0、台帳done26/todo70。rawlog `/tmp/ba-mem-01-parent-check.log`。
 - 記録対象は台帳と作業ログのみ。完了日時: 2026-10-26T06:24:53.719314+00:00。
+
+## ba-mem-02-20261026t062723z
+
+- チケット: BA-MEM-02
+- 状態: done
+- 開始: 2026-10-26T06:27:23.386377+00:00
+- ブランチ: main
+- base commit: d196fb460c3d395a0cb96b48b8c94010bcc990ba
+- 開始時の変更: staged / unstaged / untracked ともなし、適用AGENTSなし。
+- 選択: planner check成功done26/todo70、IDなしnextで先頭。BA-MEM-01/BA-FND-08のdoneと履歴内実装を確認。
+- 実装担当: `/root/mem02_implementation`。親は選択・記録・commit担当。
+- 実装コミット: 21ded40ba4a85932a4c91dc1c183b73b3d0a8001
+
+### 範囲と検証計画
+
+- FR006/011 Entity作成・一覧・取得・更新を共通冪等性/version検査で実装。alias/外部ID解決、Pi deviceと家電entityを区別、曖昧labelは候補を返し非認可候補/alias非公開。
+- 受入: 2部屋同名照明を1台へ決めない、同外部ID再登録重複なし/別tenant分離、privateの存在を共有一覧/検索候補に出さない。T001/T009同名・部屋・tenant・private、外部ID再登録競合、ETag/idem/cursor・現在認可・期限をunit/fake/Firestoreで検証。
+- HA実一覧取得/syncはDEV06、人の本人認証/membership付与は範囲外。追加外部前提なし。setup/check/test、関連Firestore、独立全差分レビューを実施。
+
+### 初期設計と接続方針
+
+- 実装担当がMEM01 repository/共通HTTP認可・idemを確認。公開EntityCreate/PATCHにexternal_refsを追加せず、server注入canonical inventory resolver必須の内部登録へ分離。
+- memoryに同TX合成可能なEntity操作を追加、API idem receiptとentity/external indexを同時commit。最終read後/commit応答後の期限gateを維持。
+- 許可entityだけから検索とcursor fingerprintを作り、hidden entityの変更でcursorが変わらない設計。親からPolicyUnavailableをPolicyDeniedとして非表示skipしないこと、external index再登録のprivate/削除等の上書き・共有化防止を確認依頼。
+
+### device新規Entity作成の制約調査
+
+- 実装担当がMEM01新規Entity作成はdevice allowlistに新UUIDがないと拒否される点を検出。自動allowlist付与はせず、現policy維持を提案。
+- 親は公開device POSTが実質常時失敗なら対応済みと数えないよう依頼。docs03 allowlist適用とdocs04/OpenAPI device作成契約を突合し、必要機能かphone作成→既存許可entity参照の境界か、正規device作成経路があれば検証で示すことを要求。独立レビューへも明示予定。
+- この判断に依存しないuser CRUD/候補/外部ID/idemを続行。未解決仕様制約を成功やblockerとして早合点しない。
+
+### device作成の分類方針確定
+
+- docs03§5.1/§8でallowlist明示は照明/空調、IAM02は明示room_id/entity_id metadataを制限。MEM01がperson/activity/topicにもentity_idを無条件付与した根拠が見当たらず、本人private読書き/共有表示scopeの正本と整合させる局所分類修正へ。
+- `_GraphPolicyState`/new/candidate metadataはappliance→entity_id、room→room_id、person/activity/topic→scope/owner/display/current-sessionで制限。新規家電/roomへのallowlist自動付与はしない。本人session person/topic新規HTTP作成・本人phone/Pi編集正例、allowlist外appliance/room拒否を追加予定。
+- 実装担当の初回「MEM01 allowlist testはapplianceのみ」は訂正: 旧`test_device_never_and_entity_allowlists_are_enforced`にPERSON拒否assertも存在。この期待値を仕様根拠付きで変更する事実を独立レビューへ明示し、家電/room拒否で境界を保持する。
+- 親は方針を採用し、kind PATCH不可、canonical appliance外部登録/integration binding、device/Entity namespace分離、非操作kindで家電権限を得られない負例を依頼。
+
+### 初稿と検証開始
+
+- Entity CRUD/list検索と内部external登録を実装、主要12試験初回実行中。Entity/external index/idemは同TX、再登録で既存private/削除/epoch/抑止を上書きしない設計。
+- MEM01既存external_refsにindexがなくても同一IDを検出してindex採用、重複/hidden時は増殖させない。memory transaction finish・API共通idem scope期限・commit応答後finishを接続。公開HTTP構造変更なし。
+- 親spec由来確認表 `/tmp/ba-mem-02-review-checklist.md` を共有。結果待ちの試験は合格扱いにしない。
+
+### 初回検証ログの直接確認
+
+- 親がrawlog末尾を直接確認: `/tmp/ba-mem-02-entities-test.log` entities12件成功0.972秒、`/tmp/ba-mem-02-memory-test.log`既存memory32件成功0.326秒。
+- `/tmp/ba-mem-02-types.log`はtest_entities fixtureのdict union/変数annotation3件で失敗（174files）。`/tmp/ba-mem-02-lint.log`はloop変数keyのB023が残る。実装担当へ伝達、修正/最終合格待ち。
+
+### 共通検証途中とruntime bootstrap整合
+
+- setup/generate成功、全check成功（mypy175/docs1377/互換・生成一致）。全testはPython440/Skill18成功、Nodeとfull emulatorは続行中。rawlog `/tmp/ba-mem-02-{setup,generate,check,test,emulator}.log`。
+- 自己確認: Tenants.createの正規bootstrap membershipは未追跡、既存APIはserver構成でallow_untracked_bootstrap=True。Entitiesをlocal-emulatorのみTrueにした初稿ではproduction新規tenantを全拒否するため既存APIと同じserver bootstrap設定へ修正。MemoryRepository/Entities既定Falseは維持、tracked/pending denyは拒否、bootstrap/tracked負例を追加して最新diffを再検証予定。
+- これまでの共通成功とruntime修正後の最終結果を区別して記録する。
+
+### 初回全体test完了
+
+- 初回fulltest exit0: Python440/Skill18/Node40。bootstrap+tracked境界1件追加後の最新check/testは再実行中。full emulatorも実行中。
+- schema構造変更なし、説明のみをclient3生成物へ反映。初回checkで互換no breaking/generated一致を確認。最終runtime整合後の結果待ち。
+
+### 初回Firestore全件と最終自己修正
+
+- full emulator exit0: 119件168.616秒、Auth/Firestore/hub/logging正常shutdown。raw `/tmp/ba-mem-02-emulator.log`。
+- 追加自己修正: 正規shared owner_user_id=NoneはHTTP optional欄として省略し、Page必須next_cursor:nullは保持。idem scope stampに対象deletion_epochを結び、epoch進行後同IDへの旧receipt再利用を拒否。CASは現在epochを同TX読取しmemory expected_epochで検査。
+- 境界追加後の最終check/testは`/tmp/ba-mem-02-*-complete.log`、最新emulator subset6は`/tmp/ba-mem-02-emulator-final.log`で実行中。sandbox ssがnetlink権限で失敗したため、最終shutdown後require_escalatedでports閉鎖確認予定。失敗したssを停止証拠には扱わない。
+
+### 実装完了と最終検証
+
+- `/root/mem02_implementation` が編集停止。最新17製品paths、親metadata編集なし。
+- setup/generate/check/testすべてexit0。check全9成功23.01秒、mypy175/docs1377/生成一致/互換no breaking。test Python442・Skill18・Node40成功。raw `/tmp/ba-mem-02-{setup,generate,check-complete,test-complete}.log`。
+- full emulator119件成功後、最終変更後Entity subset6件成功10.142秒exit0、Auth/Firestore正常shutdown。`/tmp/ba-mem-02-emulator-final.log` と `/tmp/ba-mem-02-ports-final.log` の末尾を親も直接確認、8080/9099/9150/4400/4500全closed。
+- 最新check/test末尾も直接確認。HTTP構造/保存schema_versionを維持、HA同期adapterはDEV06、tenant collection走査の負荷/実機は未実施。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/mem02_review_r1`（新規独立context）。base commit: `d196fb460c3d395a0cb96b48b8c94010bcc990ba`。
+- 未追跡を含む最新全17files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `35241dcfaf8f06a3e34c29252b3dd19d6b935a18d284281c644f97b06f976284` |
+| `docs/04-interfaces.md` | `71d919673b0ffe8437520b07c7c79dbd9f618a1728b6976124afdfd26107ec80` |
+| `docs/entities-api.md` | `c31bf9adb71c2d615b1a878bf9824ac7892ec2c99e25cd3e0da3f8e95c04c4a0` |
+| `docs/memory-repository.md` | `cdf770f956dd8e6e440f8c830d49aad2e4f1ff1d928dc1db02876f05452c8ef5` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `fb41c5632b797c2aa49e307cbcc0d701a3f4bf573aafa549c33f1ec6f74d537b` |
+| `packages/api-client/src/generated/sdk.gen.js` | `29186cb7a2bbb0ffd3adb432e9a90414fae5dfaa07756420f5e2471f25a655e0` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `ea36f4c96f0c4e21a80d2993929a4f0746a0c12a5b524c92042d9c6650159e06` |
+| `packages/memory/src/brainoid_memory/entity_resolver.py` | `c84c6f361688c513f07ba6a676c7ec970e48bc5fe6e0de2b8b74f2cf3cda7bab` |
+| `packages/memory/src/brainoid_memory/repository.py` | `f4f0ccc6d6621d5c34686d34a6d4216f5e300bb9cf2289059d6fce7ccd4046fb` |
+| `services/api/src/brainoid_api/app.py` | `9cc21cb5abb35ba3dd6341e05bff9d0c5069c1d60cd690afe98afa669a3d4fbd` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `61ee36379725db6d5214339c4feca10b189c1bde5e36b9682fb6be6587b5144d` |
+| `services/api/src/brainoid_api/repositories/entities.py` | `acd3d5045422b2daeca53b3e5c235e5c8e8ca4c47707cdd5e6096aa25fafd839` |
+| `services/api/src/brainoid_api/routes/entities.py` | `8336b1f9598b46bc939fc93ab82c86a95015a3ef501d0a5456d809de23b05ec6` |
+| `specs/openapi.yaml` | `33043d3908eb7d5bfa73f96f949497cf69e30ffed9df19b5cec39ea15dfcfb42` |
+| `tests/emulator/test_entities_integration.py` | `0b2e8a0d78c6c897365f7dcba0afbddcc876eca8a3368fc0328f1f263087fd77` |
+| `tests/test_entities.py` | `8b89c27374a89a584777cbe7e06e4698cc60b762241a66ca5d95c982268f4b9e` |
+| `tests/test_memory_repository.py` | `896ca2336929ca10a9a64bc32b83567f7fd4606aee4e29bd93a3bd6b4b9b4280` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/mem02_review_r1` 開始時main/HEADbase/17paths全SHA一致を直接確認。正本とAPI/保存合成/外部ID resolverを追跡済み、現時点確定必須なし。共通policy/idem、新規unit/emulator全文、kind分類・hidden cursor・終端期限を継続確認。
+- 親がrawlogからPython442件41.647秒、Skill18件0.058秒、full emulator119件168.616秒も直接確認しreviewerへ共有。
+
+### レビュー実行基盤の一時中断
+
+- R1担当が `Selected model is at capacity` で一時終了。正式判定未了のため同じ担当へfollowupし同一ラウンドを再開、モデル変更・ラウンド加算・製品変更なし。コードや検証の失敗として扱わない。
+
+### 独立レビュー ラウンド1 反証
+
+- reviewer独立probeで正規shared Entity owner_user_id=NoneのGET200に対しPATCH500を再現。`EntityTransaction.update`の`record.model_dump(exclude_none=True)`で必須nullable保存欄を除去し再validate失敗。保存version1のまま。親もprobe/log/sourceを直接確認。
+- 反証原本 `/tmp/ba-mem-02-review-r1-probe.py`、raw `/tmp/ba-mem-02-review-r1-probe.log`。旧MEM01にも類似処理はあるが、新公開PATCHが正規shared record更新に使うため本件mustfix。全差分レビュー完了まで編集停止、原本保持。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/mem02_review_r1`: request_changes、必須1件/任意なし。開始終了main/base/17paths全SHA/集合一致、全tracked差分/新規全文/周辺契約確認。
+- MEM02-R1-01 P2: memory repository.py:607/616、shared owner=NoneのPATCH再構築と保存でrequired nullable欄消失→500/再読取不可。モデル再構築とDB保存で欄を保持し、PATCH/version増加/GET/list/同key再送/保存後canonical validationを要求。HTTP None省略は維持可能。
+- 同名候補/tenant/private/hidden cursor、PolicyUnavailable再送出、外部ID同TX/namespace/旧record採用/現在権限、共通idem/ETag/CAS/epoch/終端期限、Pi分類仕様整合/操作kind限定、Fact保存回帰を確認。他mustfixなし。
+- reviewer直接Entity18件1.310秒 `/tmp/ba-mem-02-review-r1-unit-escalated.log`、MemoryRepository20件0.064秒 `/tmp/ba-mem-02-review-r1-memory.log` 成功。初回sandbox TestClient停止は中断してescalatedで成功。全体check/test/emulatorは提供rawlogの直接確認と区別。
+- 反証原本SHA `20371b060251ae1e8fa25bc5236e90d55a4fb07814389bda0c7d2cf2c1fd6ae8`、raw SHA `847e25540e8d981629b345784da6e79440a872cb6d34c88b85088bcbae5a1c30` を保持。元実装担当へ修正・回帰確認を委譲。
+
+### R1修正方針
+
+- 元実装担当がEntity更新に加え同一StoredMetadataを使うFact取消にもowner=None欠落を確認。保存record専用helperでexclude_noneを維持しつつ必須nullable owner_user_idのみ保持、Entity/Factのcreate保存・update再構築/保存へ局所適用する方針。
+- FactInput/Qualifiers/patch入力の明示null禁止・object/value XORは変更しない。Entity HTTP/FirestoreとFact object/value両形/Firestore回帰を追加予定。同一保存不変条件の修正として親承認、R2へ全差分明示。
+
+### R1修正と再現条件維持
+
+- 保存record専用`_stored`が必須nullable ownerだけ保持。Entity/Factの保存と更新再構築に使用、入力null禁止・省略/XORは変更なし。Entity HTTP/Fact object-value両形unit/Entity・Fact Firestore回帰追加。
+- 原本とcmp一致の別ファイル `/tmp/ba-mem-02-r1fix-probe.py` でGET200/PATCH200/version2を直接確認、raw `/tmp/ba-mem-02-r1fix-probe.log`。全check/testとEntity+memory emulator14件を実行中、結果待ち。
+
+### R1修正後の最終検証
+
+- `/root/mem02_implementation` 修正/検証完了、編集停止。修正6paths: memory repository/doc、unit2+emulator2。親metadata/原本probe/log/index/commit操作なし。
+- `mise run check` exit0、mypy175/docs1377/生成一致/互換成功。`mise run test` exit0、Python444/Skill18/Node40。raw `/tmp/ba-mem-02-r1fix-{check,test}.log`。
+- Entity7+memory7のFirestore subset14件14.291秒exit0、正常shutdown、5ports全closed。raw `/tmp/ba-mem-02-r1fix-{emulator,ports,diff-check}.log`。親も各raw結果と原本probe cmp一致を直接確認。最新変更後full emulator全件は再実行せず、変更対象2suiteを実行。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/mem02_review_r2`（新規独立context）。base commit: `d196fb460c3d395a0cb96b48b8c94010bcc990ba`。
+- 未追跡を含む最新全18files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `35241dcfaf8f06a3e34c29252b3dd19d6b935a18d284281c644f97b06f976284` |
+| `docs/04-interfaces.md` | `71d919673b0ffe8437520b07c7c79dbd9f618a1728b6976124afdfd26107ec80` |
+| `docs/entities-api.md` | `c31bf9adb71c2d615b1a878bf9824ac7892ec2c99e25cd3e0da3f8e95c04c4a0` |
+| `docs/memory-repository.md` | `3970deb5b55697991c02dc1444b7b187e8c3883b103483798e2d48b87250279d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `fb41c5632b797c2aa49e307cbcc0d701a3f4bf573aafa549c33f1ec6f74d537b` |
+| `packages/api-client/src/generated/sdk.gen.js` | `29186cb7a2bbb0ffd3adb432e9a90414fae5dfaa07756420f5e2471f25a655e0` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `ea36f4c96f0c4e21a80d2993929a4f0746a0c12a5b524c92042d9c6650159e06` |
+| `packages/memory/src/brainoid_memory/entity_resolver.py` | `c84c6f361688c513f07ba6a676c7ec970e48bc5fe6e0de2b8b74f2cf3cda7bab` |
+| `packages/memory/src/brainoid_memory/repository.py` | `edcf09fb66a391ae899578cedf0dc47636e067c6391e79f1d17bf63e71571334` |
+| `services/api/src/brainoid_api/app.py` | `9cc21cb5abb35ba3dd6341e05bff9d0c5069c1d60cd690afe98afa669a3d4fbd` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `61ee36379725db6d5214339c4feca10b189c1bde5e36b9682fb6be6587b5144d` |
+| `services/api/src/brainoid_api/repositories/entities.py` | `acd3d5045422b2daeca53b3e5c235e5c8e8ca4c47707cdd5e6096aa25fafd839` |
+| `services/api/src/brainoid_api/routes/entities.py` | `8336b1f9598b46bc939fc93ab82c86a95015a3ef501d0a5456d809de23b05ec6` |
+| `specs/openapi.yaml` | `33043d3908eb7d5bfa73f96f949497cf69e30ffed9df19b5cec39ea15dfcfb42` |
+| `tests/emulator/test_entities_integration.py` | `37f45dcbeb13cb66738d400ba4ef9407b41ac453a9a9b5c15360d01ba10509d7` |
+| `tests/emulator/test_memory_integration.py` | `1367f3ba05c24d41beb3ff9d41236eac9c1d42ec832c6f56d2b7530686e779e3` |
+| `tests/test_entities.py` | `edfbf26d65319f8e6ba94b13400fae4e9a31140f269a7a79122ed7a88ca85157` |
+| `tests/test_memory_repository.py` | `ed7a663247eceaa6d726a5e34a6a2c3a2860558b2af54d33bb92e42bc90ab326` |
+
+### 受入条件と検証の対応
+
+| 条件 | 検証根拠 | 結果 |
+| --- | --- | --- |
+| 同名照明/別室を勝手に統合・決定しない | `test_same_names_aliases_and_two_tenants_are_candidates_never_merge`、emulator `test_ambiguous_private_tenant_and_cursor_boundaries` | UUID別候補、alias/tenant分離成功 |
+| 同外部ID再登録の重複防止・tenant分離 | unit provider namespace/legacy index採用、emulator `test_concurrent_external_references_converge_and_integrations_are_distinct` | 同TX競合収束、tenant/integration分離成功 |
+| private存在を共有一覧/候補へ出さない | hidden private変更cursor/alias試験、同emulator候補試験 | 本文/ID/別名/件数/cursorから除外成功 |
+| 公開CRUD/共通条件更新 | HTTP schema/ETag/idem/currentauth/epoch/終端期限、lost commit/Firestore CAS | 最新全test444/18/40と対象emulator14成功 |
+| R1必須nullable保存修正 | 原本cmp一致probe、ownerなし共有Entity PATCH/replay/get/list/canonical再検証、Fact両値形/Firestore | PATCH200/version2、保存owner=None保持、明示null禁止維持 |
+
+- 最終独立承認はR2判定待ち。実HA同期・本人認証・membership付与は対象外、実機/負荷/本番索引検証は未実施。
+
+### 独立レビュー ラウンド2 直接検証
+
+- `/root/mem02_review_r2` 開始時main/base/18paths全SHA/集合一致。全18paths差分を読了。R1原本SHA/cmp一致probeを直接再実行、GET200/PATCH200/保存version2。raw `/tmp/ba-mem-02-review-r2-probe.log`。
+- Entity/MemoryRepository/MemoryModelsの関連44件を直接実行し1.594秒全成功、raw `/tmp/ba-mem-02-review-r2-tests.log`。最新全check/test/Firestore14 rawも確認。周辺policy/idem/期限/provider indexの最終照合中、現時点新必須なし。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/mem02_review_r2`: approve、必須/未検証必須/任意ゼロ。最新18paths全差分/関連契約確認、開始終了main/base/対象集合/全SHA/index空を確認。終了照合 `/tmp/ba-mem-02-review-r2-final-manifest-check.json`。
+- MEM02-R1-01解消。保存専用_storedがrequired nullable ownerを保持、Entity更新/Fact取消へ適用。Fact object/value排他・明示null禁止・qualifier省略を維持。原本probe SHA/cmp維持でGET200/PATCH200/version2。
+- 直接unit44件1.594秒・原本probe・追加境界probe（label編集後外部ID再登録、未確認Pi private非表示、複数旧external_refs無変更拒否）成功。raw `/tmp/ba-mem-02-review-r2-{tests,probe,boundaries}.log`、diffcheck成功。親もunit/probe raw末尾を直接確認。
+- 同名候補/tenant分離/private除外/同TX競合/共通idem/ETag/CAS/現在認可/epoch/PolicyUnavailable/終端期限/Fact出典scope/Pi分類を確認。全check/test444/18/40・最新Firestore14は提供raw確認と区別。全119はR1修正前の証拠、liveHA/実機/負荷は範囲外。
+- レビュー2回、最終approve、必須指摘1件解消・未解決ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み18paths working/index/commit SHA・集合一致、main/base/cached差分検査成功。差分 `/tmp/ba-mem-02-staged.diff`。
+- 実装コミット: `21ded40ba4a85932a4c91dc1c183b73b3d0a8001`。独立レビュー2回、最終approve、必須1件解消・未解決ゼロ。
+- Entity公開CRUD・alias候補・tenant/private分離・外部ID原子登録・現在認可/期限・null保存をunit/Firestore/独立probeで確認。対象外と未実施検証は上記と保存文書に明記。
+
+### 親側最終検証と記録確定
+
+- 台帳done更新後 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0、全9check成功22.07秒。mypy175/format175/docs1377/errors0、台帳done27/todo69。raw `/tmp/ba-mem-02-parent-check.log`。
+- 記録対象は台帳と作業ログのみ。完了日時: 2026-10-26T07:18:15.087683+00:00。
