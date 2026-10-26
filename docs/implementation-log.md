@@ -4772,3 +4772,151 @@ BA-FND-01 独立レビュー第1回
 
 - 台帳done更新後 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0、全9check成功22.07秒。mypy175/format175/docs1377/errors0、台帳done27/todo69。raw `/tmp/ba-mem-02-parent-check.log`。
 - 記録対象は台帳と作業ログのみ。完了日時: 2026-10-26T07:18:15.087683+00:00。
+
+## ba-mem-03-20261026t072017z
+
+- チケット: BA-MEM-03
+- 状態: done
+- 開始: 2026-10-26T07:20:17.704702+00:00
+- ブランチ: main
+- base commit: 1cca8cc18619b4d503b2e42ec2f916927fbebf59
+- 開始時の変更: staged/unstaged/untrackedなし、repo/祖先に適用AGENTSなし。
+- 選択: planner check成功done27/todo69、IDなしnextで選択。依存BA-MEM-02/BA-RUN-01のdoneと実装commit履歴を確認。
+- 実装担当: `/root/mem03_implementation`。親は選択/記録/commit担当。
+- 実装コミット: 9dacbd63f587565baa6cad5ab0e633cb701cbfa4
+
+### 範囲と検証計画
+
+- FR006/T008/T010 明示記憶の一覧/ID取得/保存/版付き訂正。source・subject/objectの現在権限/存在、server origin/status、fact+索引job+idemの原子保存、旧fact superseded+新fact/関連/jobの同TX訂正。
+- 受入: commit前成功なし/索引待たずID取得、古いIf-Match412/旧内容を現行扱いしない、架空/他人private出典拒否。即時再取得/同時訂正/出典権限差/共有scope制約/現在認可・期限/HTTP契約をunit・Firestoreで確認。
+- docs04§6.2はフォーム直接入力のsource_refs空配列を認め、本人/記録時刻を出典に示す。MEM01 min1保存型との接続を明示的に整合、架空message生成禁止。MEM01 predicate別qualifier制約もHTTP保存に適用。
+- model tool/context接続はMEM04、embedding処理は後続、推測確定/忘却は対象外。追加外部前提なし、fake/emulatorで完了可能。setup/check/test・関連Firestore・独立全差分レビューを実施。
+
+### 初期設計と索引jobの境界
+
+- 元担当: FactTransactionを同TX prepare/read/writeへ拡張、旧fact依存とscope/owner/display継承検査後に旧superseded+新fact保存。正本conversation/messageをTX内で照合し親を一意に解決。
+- 索引jobは新fact自体のversion/epochへbinding、MEM05 handler導入までwaitingで保持してunknown_handler恒久失敗を避ける。既存Jobs.add_pending契約は保持し、未保存factを限定read overlayへ置く新source専用経路を検討、共通policy/現在account/不存在を確認しsource+jobを同TX保存。
+- 親はoverlayが他path/権限正本を置換できない境界、memory側canonical create認可済みrecord限定、waiting activation時の版/epoch/status/認可再検査を要求。docs05 T010の訂正vs索引競合をfakehandler/共通Jobs経路で検証する方針。仕様確認表 `/tmp/ba-mem-03-review-checklist.md` を共有（pass証拠ではない）。
+
+### 索引job新規source経路の設計更新
+
+- 実装担当はread overlay案を採用せず`Jobs.add_created_memory`限定経路へ。memory adapterが同TXで完全Fact/依存/訂正fenceをprepareし、Jobsがkind memory/MODEL_READ/version1/epoch0/user_explicit confirmed/creator/grantとsource metadata一致を検査。共通policy.searchの現在principal・memory.write/scope/owner/display、source/job不存在・accountを確認し最後の期限gate後にFact+waiting jobをcreate、旧fact/receipt保存へ。既存add_pendingは未変更。
+- 親はFact本体job grantだけでsource_refs/subject/objectの現在権限・validity・suppressを保証しない点を確認依頼。後続waiting activation/handler取得/最終commitでMemory側の依存再評価が必要（参照先変更でもFact自身versionが不変の場合がある）。rawdoc入口とadapter prepareの責務を独立レビューへ明示予定。
+
+### 初稿の保存path整合確認
+
+- 親read-onlyで初稿Jobs.add_created_memoryとFactTransaction.candidatesがHTTP名`memories`を保存collectionとして固定している点を検出。既存ResourceKind.MEMORYは`facts`、MEM01正本/testsもfacts。元担当へref.kind/_pathで正本を統一するよう連絡。まだ実装途中の指摘であり独立レビュー回数には加算しない。
+
+### 暗黙有効開始時刻の境界確認
+
+- 親read-onlyで初稿Memories._mutateがvalid_to検査とbody.fact既定valid_fromに別々のnow()を使う点を確認。2読取の間で終端到来するとValidationError→500になり得るため、conversion用timestampを1回取得して検査/既定値に共用するよう元担当へ連絡。明示過去有効期間を禁止する要求ではない。
+
+### 初稿テストと既存契約の回帰修正
+
+- 実装担当: API/fake HTTP14ケース/emulator5ケース追加、focused第3回実行中。HTTP memoriesとDB factsの混同を修正、Jobsはref.kind、一覧もResourceKind.MEMORY正本に統一。暗黙valid_from/valid_toはrecorded=now()1回取得で統一。
+- focused初回: message fixtureの必須run_id不足を修正。2回目: MEM01不正model_construct入力をTX開始前に拒否する既存契約が後退していたためcreate_fact事前検証を復元。raw `/tmp/ba-mem-03-focused-{01,02,03}.log`、第3回結果待ち。
+- 次はsetup/check/test・実Firestore・doc/generatedclient整合を実施予定。初回失敗を成功と混同せず最新結果を追記する。
+
+### 初回emulator検証
+
+- 親がsetup raw正常完了を確認 `/tmp/ba-mem-03-setup.log`。
+- `/tmp/ba-mem-03-emulator-01.log`: 5件9.747秒、1件失敗（temporarily_unavailableと期待resource_not_foundの不一致）、script exit1、正常shutdown。元担当へ実原因確認を依頼、権限拒否とinfra失敗を混同して許容しない方針。成功扱いせず修正/再実行を待つ。
+
+### 初回emulator失敗の原因
+
+- 元担当がfirestore-debug.logのTransaction lock timeoutを確認。testが保存TXのsource読取ロックを保持したcallback内で別SDK writeを同期実行/完了待ちし自己競合。アプリ認可変換バグではなくfixture競合と特定。
+- 期待404を維持し、実SDK abort/rollback完了→retryの間に正本を更新する決定的fixtureへ変更。retry再認可とFact/job/receipt未作成assertを維持するよう親から確認。他の実SDK並行create/reviseを含む4件は初回成功。
+
+### 初回共通check修正とFirestore再検証
+
+- 親raw直接確認: check01は新test型17件で失敗、check02は新emulator test整形で失敗。修正後 `/tmp/ba-mem-03-check-03.log` 全9成功3.37秒、mypy180/format180/docs1383/errors0、互換no breaking/生成一致。
+- `/tmp/ba-mem-03-emulator-02.log` 5件8.365秒成功、script exit0、正常shutdown。元の404期待を維持したretry試験のfixture修正後。最新fulltest/ports確認/編集停止は待機中。
+
+### 全体test初回と契約copy修正
+
+- 元担当報告: fulltest01 Python458件39.575秒、1件失敗はtool-contracts正本とpackaged copyのdescription未同期。正本からcopyを同期しfulltest02実行中。挙動testの期待値は変更しない。
+- new memories/MEM01 memory/MEM02 entities/job recoveryの実SDK関連4moduleも実行中。docs/memories-api.mdに直接入力/出典、訂正scope-owner継承、waiting activation/handlerで依存current再検証が必要な後続契約を記述。親も文書とOpenAPI差分を読了。
+
+### 全体test再実行と最終check途中
+
+- 親raw直接確認 `/tmp/ba-mem-03-test-02.log`: Python458件39.085秒/Skill18件0.059秒/Node40成功。関連Firestore `/tmp/ba-mem-03-emulator-related.log` script exit0/正常shutdown、`ports.log`指定5ports全closed。
+- focused-final47件1.721秒成功。check-finalは追加test callbackのloop変数capture lint1件で失敗、元担当へ伝達、修正後の最終check待ち。過去check03成功と最新check失敗は区別する。
+
+### 実装完了と最新検証
+
+- `/root/mem03_implementation` 全編集停止、親metadata/index/commit操作なし。最新追加はJobs新source入口の異kind/version不一致/既存source上書き拒否と原子性確認、callback loopcaptureを修正。
+- `/tmp/ba-mem-03-check-final-02.log` 全9check exit0/3.469秒、mypy180/互換破壊なし/generated一致。`focused-final-02.log` 47件1.745秒exit0。親もraw末尾を直接確認。
+- fulltest02 Python458/Skill18/Node40成功は上記追加test前、追加後focused47+全check成功。関連Firestore4module memories/memory/entities/job_recovery計27件26.935秒exit0、raw `emulator-related.log`、5portsclosed。全emulator全件は今回未実行、変更対象とjob回復の関連suiteを実行。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/mem03_review_r1`（新規独立context）。base commit: `1cca8cc18619b4d503b2e42ec2f916927fbebf59`。
+- 未追跡を含む最新全20files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `d04c46336fc2930d7e7b33414bc3e3a891da51e653318d28b5acc7c68bac1061` |
+| `docs/memories-api.md` | `e0ba06381ed23294363658061851e6900fcaf83bddc75c7a13277cf37ab55643` |
+| `docs/memory-repository.md` | `75f53e0340198d6270455945a39a4649611087ce384700b2974006b5a4d3fc3b` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `28300f7c7de47139db5d35b86eb504be3316d01f4754a15d0531550019786cc8` |
+| `packages/api-client/src/generated/sdk.gen.js` | `6f2eb7c4d9071d834509bef7e6257a55e229b1e89a25f1dae37e2a86369cd063` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `880e0c65540e982241a6e3c0b7cdd896d571574080005a4a6668fd2bfb485dc1` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `3da79b793996fb614a4695fe68ae57fb90ca071037ca036c8df0b71103165431` |
+| `packages/memory/src/brainoid_memory/models.py` | `f7287155a8b3211adaec343353671c309d5c68960aefe2e5902cd2234920ddf1` |
+| `packages/memory/src/brainoid_memory/repository.py` | `5c34b8fa4d58e7ab37bddac24acfb3c9abb6d2cfe20a0b57444fd0d442c0d230` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `6641162da99e12bd631be6049c4ccc07dcbf107752d8ebf5bdddd9c37db19c14` |
+| `services/api/src/brainoid_api/app.py` | `e2f46788374336882b5e760253c5a6842107412cf9d228c118f21a4e566d2fe4` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `63f1ee6a477882dafe36591bfd4cd2cdef69e86f23ea52792e9e5d1094725169` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `5296e9b7dc2fed387019452e4fdca7923051c26ff6e2a8ddd9804cceb263ec49` |
+| `services/api/src/brainoid_api/repositories/memory_sources.py` | `26cd6186b9784faad2795cc659d3a3e0664090546221019ab017c608365090bf` |
+| `services/api/src/brainoid_api/routes/memories.py` | `b07cc2343af996ba2c484ec660bd07677a3918ea9af06544998c22d2c60eb975` |
+| `specs/openapi.yaml` | `98934f07a80057b7b766240ba9edd015bbe8ec518f86198b35bee0be9377dfda` |
+| `specs/tool-contracts.schema.json` | `6641162da99e12bd631be6049c4ccc07dcbf107752d8ebf5bdddd9c37db19c14` |
+| `tests/emulator/test_memories_integration.py` | `23f63e8de6b38d2e0148889b6aafd14e3cdfb1b8fb6f4b82c7c8cc50860a0add` |
+| `tests/test_memories.py` | `8fd55dd309fe0c92d65ede742075af1c6228bf7b759e05e368a323f7cb07732b` |
+| `tests/test_memory_models.py` | `a2324a7d7321110433c563e6b516fd87103930e26d3d3c76826e3718b454b87f` |
+
+### 独立レビュー ラウンド1 開始確認
+
+- `/root/mem03_review_r1` 開始時main/HEADbase/20path集合/全SHA一致。仕様docs08 MEM03/docs03/04と新API/FactTransaction/Jobs新入口を直接読了。共通認可/idem/出典resolverとテストを照合中、現時点必須指摘未確定。製品編集停止を維持。
+
+### 受入条件の検証対応
+
+| 条件 | 検証根拠 | 結果 |
+| --- | --- | --- |
+| commit前成功なし/索引なし即時ID取得 | unit immediate_get/direct_provenance・commitfailure、emulator concurrent_create/immediate_get・lostresponse | 初期全test/関連Firestore成功 |
+| 古いIf-Match412/旧factを現行扱いしない | unit revision_history/stale/replay/confirmed_list、emulator concurrent revision CAS | 同時訂正/履歴状態/新fact原子保存を検証 |
+| 架空/他人private出典を採用しない | unit nonexistent/crossTenant/private・message actualparent/currentversion/suppress、emulator source変更retry/get/list/replay | 拒否と部分保存なしを検証 |
+| T010 stale索引job再保存禁止 | unit old_index_completion、emulator old_index_work_after_atomic_revision | 共通Jobs最終commitの旧版拒否を検証 |
+| 共通権限/期限/cursor/保存型 | devicefamily/session/noidle、finaljobread/commitdeadline、hidden cursor/outage、nullableowner/revisionlink、Jobs新入口負例 | 最新focused47/check成功 |
+
+- 正式独立判定はR1継続中。実索引handler/待機有効化MEM05、tool/contextMEM04、推測確定/忘却は後続。実provider/cloud/実機/負荷未実施。
+
+### 独立レビュー ラウンド1 直接unit検証
+
+- reviewer直接memories/models/repository/entities/jobs関連79件3.324秒成功、raw `/tmp/ba-mem-03-review-r1-unit.log`。提供setup/check/fulltest/関連Firestore27 rawも直接確認。
+- 既存add_pending維持、新memory入口のcurrentprincipal/scope/account/metadata/不存在/finaldeadlineをコードで確認。hidden cursor/auth変更/epoch/実SDKretry fixture境界を継続確認。
+
+### 独立レビュー ラウンド1 追加probe
+
+- reviewer直接追加probe4件0.312秒成功。`/tmp/ba_mem_03_r1_probe.py`、raw `/tmp/ba-mem-03-review-r1-probe.log`。hidden追加/編集cursor非干渉、membership revoked/追跡済missing ledgerのGET/list/replay拒否、正epochのreplay/revision拒否、admin訂正owner保持/creator更新を実測。
+- 終了時main/base/20paths全SHA一致、diffcheck成功。現時点必須なし、正式approve判定待ち。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/mem03_review_r1`: approve、必須指摘/必須未検証なし。詳細 `/tmp/ba-mem-03-review-r1-result.md`。開始終了main/base/20paths集合/全SHA一致、diffcheck成功、製品/index/台帳/log変更なし。
+- commit後成功/索引なし即時GET、Fact/job/receipt/訂正前後の原子保存、stale IfMatch412、旧superseded表示と一覧除外、旧job書戻し拒否を確認。
+- source実在/現在権限/版、scope-display-owner継承、revisionlink、replay認可/epoch/期限、Jobs既存入口維持/newmemory制約を確認。待機jobの後続再検査契約を文書化、未実装索引/tool/context等と区別。
+- 直接79unit+独立4probe成功、提供setup/check/fulltest/Firestore27/shutdown/ports rawを確認。SDKretry fixtureは導入済み公式SDKの実Aborted再実行経路と照合済み。親も4probe rawを直接確認。
+- 独立レビュー1回、最終approve、未解決必須ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み20paths working/index/commit SHA・集合一致、main/base/cached差分検査成功。保存diff `/tmp/ba-mem-03-staged.diff`。
+- 実装コミット: `9dacbd63f587565baa6cad5ab0e633cb701cbfa4`。独立レビュー1回、approve、必須/任意ゼロ。
+- 明示記憶一覧/ID取得/保存/版付き訂正、出典実在と現在権限、原子的job/receipt、旧jobfence、直接入力provenanceをunit/Firestore/独立probeで確認。後続範囲と未実施検証は上記・保存文書に明記。
+
+### 親側最終検証と記録確定
+
+- 台帳done更新後 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0、全9check成功22.05秒。mypy180/format180/docs1383/errors0、台帳done28/todo68。raw `/tmp/ba-mem-03-parent-check.log`。
+- 記録対象は台帳と作業ログのみ。完了日時: 2026-10-26T07:57:21.404316+00:00。
