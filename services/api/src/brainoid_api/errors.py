@@ -100,7 +100,11 @@ def error_response(scope: Scope, code: ErrorCode, status: int | None = None) -> 
             retryable=definition.retryable,
         )
     )
-    return JSONResponse(body.model_dump(mode="json"), status_code=status or definition.status)
+    return JSONResponse(
+        body.model_dump(mode="json"),
+        status_code=status or definition.status,
+        headers={"Retry-After": "60"} if code == ErrorCode.RATE_LIMITED else None,
+    )
 
 
 def install_error_handlers(app: FastAPI) -> None:

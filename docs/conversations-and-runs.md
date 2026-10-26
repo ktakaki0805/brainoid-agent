@@ -114,3 +114,5 @@ runに固定model段階、サーバー採番tool ID列、内部continuation、ch
 consume時には固定request/resultの`tool_bindings`もrunと内部assistant messageへ保存する。[ResultReuse](../services/worker/src/brainoid_worker/result_reuse.py)が現在段階だけでなく全ての前段continuationと過去の`model_messages`を検査し、現在の消費run・読者・出力先に対する業務のread-only結果利用hookを呼ぶ。現在RunStateの各検査（生成前/生成中/stream保存/最終commit）に組み込み、前段の対象が別proposalの確認待ち中に削除・失効した場合も、新しいモデル入力や出力へ使わない。結果の現在読者/指定outputに加え、保存先会話のvisibility/owner/display policyへ結果を流せることを検査する。private sourceは本人のprivate会話だけで使い、shared会話への投入やdisplay policyの拡大はモデル再開前に拒否するため、別member/共有Piのmessage/SSEにも本文を出さない。業務hookが全出典の現在scopeを返し、共通境界で保存範囲を照合する（[結果利用契約](tool-execution.md#保存済み結果の利用権限)）。旧runのleaseや旧実行者の権限を次turnへ流用しない。bindingがない古いtool履歴は推測で復元せず拒否する。
 
 確認/期限回収のaccount検査は非active・不正accountを確定拒否へ正規化する。期限回収はそのjob/proposalをobsolete/expiredへ進め、同じページの後続proposalを処理する。accountを読むDBやcontrol ledgerの利用不能は確定失効と区別し、waiting/pendingを保って再試行する。現在policyではUserSubjectの出力先は識別済み開始者と同じuserに限るため、そのaccount失効は開始者と出力の双方を止める。
+
+BA-RUN-08の[利用量予約・精算](usage.md)はturn受付と全model段へ接続する。確認待ちは同時run枠を保持し、再開でも各段の資源予算を再検査する。hard期限と取消・異常終了の照合はusage ledgerを保持したままrun/jobをfenceする。

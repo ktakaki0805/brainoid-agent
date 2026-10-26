@@ -3065,12 +3065,12 @@ paths:
     get:
       operationId: getUsage
       summary: 本人に許可された利用量・残枠
-      description: owner/adminはtenant総量、memberは本人分。価格見積りを確定請求額と表示しない。
+      description: owner/adminはtenant総量、memberは本人分。UTC当月集計。音声秒は未確定予約を含み、残要求数は本人とtenantの枠の小さい方。queryによる他人の明細選択は不可。価格見積りを確定請求額と表示しない。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:

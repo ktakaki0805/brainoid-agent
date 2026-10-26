@@ -3400,7 +3400,7 @@ export type GetUsageErrors = {
 export type GetUsageError = GetUsageErrors[keyof GetUsageErrors];
 export type GetUsageResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Usage;
 };

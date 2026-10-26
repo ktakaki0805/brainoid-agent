@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from brainoid_contracts.transactions import Transaction
 from brainoid_jobs import (
@@ -59,6 +59,11 @@ class Handler(Protocol):
         ...
 
 
+@runtime_checkable
+class Reconciles(Protocol):
+    def reconcile(self, job: Job) -> None: ...
+
+
 class Worker:
     def __init__(
         self, jobs: Jobs, verifier: CallerVerifier, handlers: Mapping[str, Handler]
@@ -91,6 +96,8 @@ class Worker:
 
     def _execute(self, execution: Execution) -> None:
         lease = execution.lease
+        job = None
+        handler = None
         try:
             job = execution.check()
             handler = self.handlers[job.kind]
@@ -106,3 +113,6 @@ class Worker:
         except Exception:
             # Persist a fixed reason only. Provider exception strings may contain secrets.
             self.jobs.fail(lease)
+        finally:
+            if job is not None and isinstance(handler, Reconciles):
+                handler.reconcile(job)

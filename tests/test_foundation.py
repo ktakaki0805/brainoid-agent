@@ -15,7 +15,7 @@ class WorkspaceTests(unittest.TestCase):
         source = "\n".join(
             [
                 "import brainoid_api, brainoid_worker, brainoid_device",
-                "import brainoid_jobs, brainoid_persistence",
+                "import brainoid_jobs, brainoid_persistence, brainoid_usage",
                 "from brainoid_worker.entry import Worker",
                 "from brainoid_worker.cloud_tasks import CloudTasksQueue, GoogleCaller",
                 "import brainoid_agent_core, brainoid_memory, brainoid_tools, brainoid_policy",

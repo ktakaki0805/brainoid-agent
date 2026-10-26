@@ -40,6 +40,7 @@ from brainoid_runs.state import (
     run_path,
     view,
 )
+from brainoid_usage import QuotaExceeded, UsageLedger
 from pydantic import JsonValue
 
 from brainoid_api.auth.context import AuthenticatedIdentity
@@ -58,6 +59,8 @@ from brainoid_api.services.private_sessions import PrivateSessions
 def policy_call[T](work: Callable[[], T]) -> T:
     try:
         return work()
+    except QuotaExceeded:
+        raise APIError(ErrorCode.RATE_LIMITED) from None
     except PolicyUnavailable:
         raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
     except PolicyDenied as error:
@@ -79,6 +82,7 @@ class Conversations:
         self.store, self.tenants, self.cursors, self.jobs = store, tenants, cursors, jobs
         self.credentials, self.sessions, self.now = credentials, sessions, now
         self.idempotency = Idempotency(store, now=now)
+        self.usage = UsageLedger(store, now=now)
 
     def principal(
         self,
@@ -575,12 +579,24 @@ class Conversations:
             message = Message(
                 id=message_id, role="user", text=body.text, run_id=run_id, created_at=now
             )
+            reserve_usage = policy_call(
+                lambda: self.usage.prepare_admit(
+                    tx,
+                    tenant,
+                    run_id,
+                    user=principal.user_id,
+                    device=principal.subject.device_id
+                    if isinstance(principal.subject, DeviceSubject)
+                    else None,
+                )
+            )
             # add_pending performs the last reads before any business/session writes.
             policy_call(
                 lambda: self.jobs.add_pending(
                     tx, operation_id=run_id, kind=KIND, grant=grant, output=output
                 )
             )
+            reserve_usage()
             if activity is not None:
                 activity()
             if prior is not None:
@@ -637,6 +653,12 @@ class Conversations:
             _, current = self.access(tx, identity, tenant, doc["conversation_id"], session)
             updated = failed_projection(tx, doc)
             current.ensure_live(self.now())
+            release = (
+                self.usage.prepare_release(tx, tenant, run_id)
+                if updated["status"] in ("completed", "failed", "cancelled")
+                else lambda: None
+            )
+            release()
             save_projection(tx, doc, updated, self.now())
             return view(Run, updated)
 

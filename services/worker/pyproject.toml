@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Asynchronous worker package"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "brainoid-usage",
     "fastapi==0.162.0",
     "google-auth[requests]==2.62.0",
     "pydantic==2.14.1",
@@ -31,3 +32,4 @@ brainoid-jobs = { workspace = true }
 brainoid-persistence = { workspace = true }
 brainoid-runs = { workspace = true }
 brainoid-policy = { workspace = true }
+brainoid-usage = { workspace = true }

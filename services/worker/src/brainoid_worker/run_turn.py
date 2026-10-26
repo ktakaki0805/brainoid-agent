@@ -42,12 +42,15 @@ from brainoid_runs.models import Message
 from brainoid_runs.state import RunState, conversation_path, run_path
 from brainoid_tools import Executor, Registry, ResultBinding
 from brainoid_tools.executor import Authorizer as ToolAuthorizer
+from brainoid_usage import Amounts, QuotaExceeded, Settlement, UsageLedger
 from pydantic import Field, JsonValue
 
 from brainoid_worker.entry import Execution, Worker
+from brainoid_worker.metered_model import MeteredModel
 from brainoid_worker.result_reuse import ResultReuse
 from brainoid_worker.resume_run import Confirmations, RunToolAuthority
 from brainoid_worker.run_event_writer import RunEventWriter, WriteBridge
+from brainoid_worker.usage_reconciler import UsageReconciler
 
 
 class SystemClock:
@@ -201,6 +204,7 @@ class RunTurn:
         if (tool_registry is None) != (tool_authorizer is None):
             raise ValueError("Both tool registry and business authorizer are required")
         self.tool_registry, self.tool_authorizer = tool_registry, tool_authorizer
+        self.usage = UsageLedger(jobs.store, now=jobs.now)
         self.reader = ReadBridge()
         self.writer = WriteBridge()
         self.budget = (budget or RunBudget()).model_copy(
@@ -428,9 +432,33 @@ class RunTurn:
     def _generate(
         self, execution: Execution, job: Job, request: ContextInput, run: Document
     ) -> JsonValue:
+        step = run.get("model_step", 0)
+        usage_key = "model" if step == 0 else f"model.{step}"
+
         def invoke(key: str) -> JsonValue:
+            def reserve(tx: Transaction) -> int:
+                if self.jobs._live(tx, execution.lease) is None:
+                    raise LeaseLost()
+                policy = self.usage.policy(tx, job.tenant_id)
+                self.usage.reserve(
+                    tx,
+                    job.tenant_id,
+                    job.operation_id,
+                    usage_key,
+                    Amounts(
+                        input_tokens=policy.model_input_tokens,
+                        output_tokens=self.budget.max_output_tokens,
+                    ),
+                )
+                return policy.model_input_tokens
+
+            try:
+                input_limit = self.jobs.store.run(reserve)
+            except QuotaExceeded:
+                return Outcome(status="failed", error_code="rate_limited").model_dump(mode="json")
+            metered = MeteredModel(self.model, input_limit)
             authorizer = Authorizer(self.jobs, self.state, job, self.reader)
-            core = TextAgentCore(self.model, EmptyMemory(), authorizer, clock=self.clock)
+            core = TextAgentCore(metered, EmptyMemory(), authorizer, clock=self.clock)
             writer = RunEventWriter(self.jobs, self.state, job, self.clock, self.writer)
             writer.persisted = run.get("completed_text", "")
             cancellation = LiveCancellation(self, job)
@@ -465,7 +493,27 @@ class RunTurn:
                     await asyncio.gather(watcher, return_exceptions=True)
                     await writer.close()
 
-            result = asyncio.run(generate())
+            result: TextRunResult | None = None
+            try:
+                result = asyncio.run(generate())
+            finally:
+                actual = Settlement()
+                if not metered.started:
+                    actual = Settlement(input_tokens=0, output_tokens=0, voice_seconds=0)
+                elif (
+                    result is not None
+                    and metered.completed
+                    and isinstance(result.terminal, Completed)
+                ):
+                    actual = Settlement(
+                        input_tokens=result.usage.input_tokens,
+                        output_tokens=result.usage.output_tokens,
+                        voice_seconds=0,
+                    )
+                self.usage.settle(
+                    job.tenant_id, job.operation_id, usage_key, actual, observed=metered.observed
+                )
+            assert result is not None
             if cancellation.error is not None:
                 raise cancellation.error
             if isinstance(writer.error, (AuthorizationUnavailable, PersistenceUnavailable)):
@@ -521,6 +569,9 @@ class RunTurn:
         step = run.get("model_step", 0)
         return execution.effect("model" if step == 0 else f"model.{step}", invoke)
 
+    def reconcile(self, job: Job) -> None:
+        UsageReconciler(self.jobs).reconcile(job.tenant_id, job.operation_id, provider_stopped=True)
+
     def commit(self, tx: Transaction, job: Job, result: JsonValue) -> None:
         outcome = Outcome.model_validate(result)
         try:
@@ -534,6 +585,8 @@ class RunTurn:
         existing = tx.get(message_path)
         if existing is not None:
             raise PolicyDenied()
+        release_usage = self.usage.prepare_release(tx, job.tenant_id, job.operation_id)
+        release_usage()
         updated = {**run, "status": outcome.status, "version": run["version"] + 1}
         changes = {
             **parent,

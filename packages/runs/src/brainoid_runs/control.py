@@ -6,6 +6,7 @@ from brainoid_jobs import Job, Jobs
 from brainoid_jobs.models import job_id
 from brainoid_jobs.repository import path as job_path
 from brainoid_policy.scopes import PolicyDenied
+from brainoid_usage import UsageLedger
 
 from brainoid_runs import events
 from brainoid_runs.state import KIND, conversation_path, run_path
@@ -41,6 +42,8 @@ def cancellation(tx: Transaction, jobs: Jobs, run: Document) -> Document:
     )
     if run["status"] in ("completed", "failed", "cancelled"):
         return run
+    release = UsageLedger(jobs.store, now=jobs.now).prepare_release(tx, tenant, identity)
+    release()
     updated = {**run, "status": "cancelled", "version": run["version"] + 1}
     updated.pop("waiting_proposal_id", None)
     events.append(

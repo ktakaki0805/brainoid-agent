@@ -22,6 +22,7 @@ from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.models import Action, ResourceKind
 from brainoid_policy.scopes import PolicyDenied
 from brainoid_policy.transactions import transaction_policy
+from brainoid_usage import QuotaExceeded, live_run
 from pydantic import BaseModel
 
 from brainoid_runs.models import CredentialBinding, Message, Run
@@ -207,6 +208,10 @@ class RunState:
             not in (("waiting_confirmation",) if waiting else ("queued", "running"))
         ):
             raise PolicyDenied()
+        try:
+            live_run(tx, job.tenant_id, job.operation_id, now=self.now())
+        except QuotaExceeded:
+            raise PolicyDenied() from None
         view(Run, run)
         if run.get("credential") is not None:
             binding = CredentialBinding.model_validate(run["credential"])

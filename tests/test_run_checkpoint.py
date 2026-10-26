@@ -15,6 +15,7 @@ from brainoid_jobs.models import job_id
 from brainoid_policy.models import UserSubject
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from brainoid_runs.state import KIND
+from brainoid_usage import Policy, scope_key
 from brainoid_worker.dispatcher import Dispatcher
 from brainoid_worker.entry import Worker
 from brainoid_worker.local import LOCAL_AUTHORIZATION, LocalCaller, LocalQueue
@@ -1188,3 +1189,19 @@ class CheckpointTests(TurnRunFixture):
         self.confirmations.expire(self.tenant, cast(JobStore, self.store))
         self.execute(run)
         self.assertEqual(self.get_run(run).json()["status"], "completed")
+
+    def test_waiting_keeps_slot_and_resume_checks_next_model_stage_quota(self) -> None:
+        _, run = self.setup_run()
+        self.execute(run)
+        slot = f"tenants/{self.tenant}/usage_slots/{scope_key('tenant')}"
+        self.assertEqual(self.store.data[slot]["active"], 1)
+        proposal = self.proposal(run)
+        self.assertEqual(self.decision(run, proposal), "confirmed")
+        policy = Policy().model_dump()
+        policy["tenant"]["tokens"] = 263168
+        self.store.data[f"tenants/{self.tenant}/usage_policy/current"] = policy
+        self.execute(run)
+        self.assertEqual(len(self.model.requests), 1)
+        self.assertEqual(self.get_run(run).json()["error_code"], "rate_limited")
+        self.assertEqual(self.store.data[slot]["active"], 0)
+        self.assertEqual(len([p for p in self.store.data if "/usage_reservations/" in p]), 1)

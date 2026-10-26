@@ -1543,7 +1543,7 @@ export const getAccountOperation = (options) => (options.client ?? client).get({
 /**
  * 本人に許可された利用量・残枠
  *
- * owner/adminはtenant総量、memberは本人分。価格見積りを確定請求額と表示しない。
+ * owner/adminはtenant総量、memberは本人分。UTC当月集計。音声秒は未確定予約を含み、残要求数は本人とtenantの枠の小さい方。queryによる他人の明細選択は不可。価格見積りを確定請求額と表示しない。
  */
 export const getUsage = (options) => (options.client ?? client).get({
     security: [{

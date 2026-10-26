@@ -77,3 +77,5 @@ queue.drain(worker)
 既存DBの移行は不要。新規jobはschema_version=1で保存する。切戻し時はdispatcher/workerを停止してjobを保持し、本文・grantをログへ出さず固定理由を運用で確認する。互換性のないjobを旧workerに処理させない。本番Tasks/OIDC/IAM、Scheduler、索引・負荷検証、業務handlerの結果照合はこのローカル合格の範囲に含めない。
 
 BA-RUN-07の確認待ちは`waiting` jobとしてleaseを解放し、通常recover/acquireは配送しない。内部確認transactionが同じcanonical jobをpendingへ戻し、dispatch/lease世代を進める。正常な待機移行は失敗attemptを消費しない。業務toolは`execution.effect`と同等のstart/result fenceを持つExecutorを利用し、モデルcheckpointとは別に一回開始・結果再利用を保証する。詳細は[確認checkpointと再開](conversations-and-runs.md#確認checkpointと再開)を参照。
+
+BA-RUN-08の[利用量照合](usage.md)はworker終端と周期的sweepで実行する。queue詰まり・worker強制終了はrunのhard期限で停止し、未知のprovider消費量を予約額のまま保持する。

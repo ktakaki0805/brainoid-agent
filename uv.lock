@@ -16,6 +16,7 @@ members = [
     "brainoid-policy",
     "brainoid-runs",
     "brainoid-tools",
+    "brainoid-usage",
     "brainoid-worker",
 ]
 
@@ -154,6 +155,7 @@ dependencies = [
     { name = "brainoid-policy" },
     { name = "brainoid-runs" },
     { name = "brainoid-tools" },
+    { name = "brainoid-usage" },
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "firebase-admin" },
@@ -174,6 +176,7 @@ requires-dist = [
     { name = "brainoid-policy", editable = "packages/policy" },
     { name = "brainoid-runs", editable = "packages/runs" },
     { name = "brainoid-tools", editable = "packages/tools" },
+    { name = "brainoid-usage", editable = "packages/usage" },
     { name = "cryptography", specifier = "==50.0.2" },
     { name = "fastapi", specifier = "==0.162.0" },
     { name = "firebase-admin", specifier = "==7.7.0" },
@@ -286,6 +289,7 @@ dependencies = [
     { name = "brainoid-contracts" },
     { name = "brainoid-jobs" },
     { name = "brainoid-policy" },
+    { name = "brainoid-usage" },
     { name = "pydantic" },
 ]
 
@@ -295,6 +299,7 @@ requires-dist = [
     { name = "brainoid-contracts", editable = "packages/contracts" },
     { name = "brainoid-jobs", editable = "packages/jobs" },
     { name = "brainoid-policy", editable = "packages/policy" },
+    { name = "brainoid-usage", editable = "packages/usage" },
     { name = "pydantic", specifier = "==2.14.1" },
 ]
 
@@ -318,6 +323,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "brainoid-usage"
+version = "0.1.0"
+source = { editable = "packages/usage" }
+dependencies = [
+    { name = "brainoid-contracts" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "pydantic", specifier = "==2.14.1" },
+]
+
+[[package]]
 name = "brainoid-worker"
 version = "0.1.0"
 source = { editable = "services/worker" }
@@ -330,6 +350,7 @@ dependencies = [
     { name = "brainoid-policy" },
     { name = "brainoid-runs" },
     { name = "brainoid-tools" },
+    { name = "brainoid-usage" },
     { name = "fastapi" },
     { name = "google-auth", extra = ["requests"] },
     { name = "pydantic" },
@@ -345,6 +366,7 @@ requires-dist = [
     { name = "brainoid-policy", editable = "packages/policy" },
     { name = "brainoid-runs", editable = "packages/runs" },
     { name = "brainoid-tools", editable = "packages/tools" },
+    { name = "brainoid-usage", editable = "packages/usage" },
     { name = "fastapi", specifier = "==0.162.0" },
     { name = "google-auth", extras = ["requests"], specifier = "==2.62.0" },
     { name = "pydantic", specifier = "==2.14.1" },
