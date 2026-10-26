@@ -7557,3 +7557,296 @@ FR007/AC007、T001/T012。ノートの作成・一覧/検索・取得・版付�
 
 - done更新後に親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9系統成功、exit0、whole22.118秒。raw/result `/tmp/ba-app-01-parent-record-check.{log,json}`。台帳36/96完了、型260sources/契約/生成物/文書整合を確認。
 - 記録commitはdocs/implementation-status.jsonとdocs/implementation-log.mdの2filesだけ。実装35paths/blobSHAと423全製品SHAの一致を確認済み。
+
+## ba-app-02-20261026t214923z
+
+- チケット: BA-APP-02
+- 状態: in_progress
+- 開始: 2026-10-26T21:49:23.435083+00:00
+- ブランチ: main
+- base commit: 37660a6f0ef81a2d2e4c0b99474da13d61283ec6
+- 開始時の変更: staged / unstaged / untracked ともなし。
+- 選択: APP01両commit/clean/祖先/check後、IDなしnextで選択。依存RUN06/FND08のdoneと実装commitのHEAD祖先を確認。
+- 親担当: /root。実装担当は新規独立context、レビューは毎ラウンド新規独立context。
+- 実装コミット: 未作成。
+
+### 変更範囲と検証計画
+
+FR008/AC008、T012。API/tool共通serviceでタスク作成・一覧・取得・版付き編集、open/done/cancelledを保存する。同tenant担当者/期限/現在認可/If-Matchを検査し、完了・取消は明示された操作と永続結果で返す。通知/スヌーズAPP03/04・UI06は対象外。追加外部前提なし、docs08§1のfake/emulator範囲で実施する。
+
+| 受入条件 | 検証予定 | 結果 |
+| --- | --- | --- |
+| 期限・状態が再取得と一致、保存失敗で成功を返さない | actual API/default tool、永続失敗/unknown commit回復、モデル文章だけでは変更されない負例 | 未実施 |
+| 担当者・private・現在認可 | 別tenant担当者、他人private、sharedcreator/admin、device本人scope、現在失効 | 未実施 |
+| 完了/取消の再送と競合 | 同key再送のeffect/event一意、両者編集権あり同時更新、stale If-Match412、同run一覧から更新 | 未実施 |
+| 新producer統合・回帰 | 公開export manifest/削除・lifecycle/result/history、setup/check/test/実Firestore、新規独立全差分レビュー | 未実施 |
+
+### 初期調査の引継ぎ
+
+- 親read-only prep /tmp/ba-app-02-parent-prep.md と具体的担当依頼を引き継ぐ。既存tasks.create/list/update/deleteとgeneric delete_resource/taskの契約を確認し、完了/取消はstatus更新で扱う。保存内容と公開DTO、冪等性/版/現在認可を共通化する。
+- APP01最終commitの修正済み境界を参照。新task producerがMEM09公開export/manifestとpurge/lifecycle/typed resultへ接続する範囲を直接確認し、内部データraw dumpやnote/message source型への無根拠castを避ける。計画段階で、実装・成功の根拠ではない。
+
+### 新規実装担当と依存境界の確認
+
+- 新規fork none `/root/app02_implementation` を起動。唯一の製品writer、main/base/親metadata除外/実cloud未操作/最終全検証とfreezeを引継ぎ。具体的依頼 /tmp/ba-app-02-implementation-instructions.md。
+- 親read-onlyで既存export_projectionの公開field、ManifestEntry.kind、worker収集collectionにtasks追加が必要なこと、lifecycleのPRIVATEにはtasksがあるが新effect/controlは別途確認が必要なことを共有。TaskPatchでdue_atを消したときの公開optional非null/required next_cursor契約を確認。
+- DeletionTargetへtaskを追加するときは旧forget source許容をnote/messageのまま維持し、task削除と混同しない観点を共有。APP01のunsupported task拒否fixtureは対象追加に合わせ元の未提供type拒否の意味を維持するよう依頼。未検証の観点を/tmp/ba-app-02-parent-review-checklist.mdへ保存し、独立findingの代用にはしない。
+
+### タスク固有処理と共通化の設計
+
+- Writer方針: Notesのtransaction境界を型付きDirectResourcesへ抽出し、Tasksは限定DTO・同tenant現在member/account検査を追加。TaskPatchは既存title/status/nullable due_atだけ。notes/tasksのtool runtime共通部も抽出し、task_update markerで消費済み入力退役と固定確定通知を原子的に結ぶ。taskをmemory source_refsへ入れない。
+- DeleteTaskは別要求型、既存DeleteNote受付を明示kindで必要範囲に拡張。旧immutable intent JSONを維持しforget sourcesはnote/messageに明示限定。task effects/内容なしtask依存をpurge/export/lifecycleへ接続する方針。
+- 状態イベントは同TXの実status変化・版・actorへ結び、同key再送/no-op/別状態への遷移を区別して検証・文書化するよう依頼。共通化でnotes/tasksのkind/DTO/markerが混線しない負例と既存APP01回帰を先に検証する。まだ実装・検証中で成功扱いしない。
+
+### 初期型検証
+
+- 親がtypes-r1 raw/JSONを確認。`mise exec -- uv run --all-packages --locked --offline mypy` はforget.py:89のf-string構文エラー1件でexit2、.145秒、他ファイル検査前に停止。実装途中の結果を保全し修正中。成功結果として扱わない。
+
+### 共通化後の初期ノート回帰
+
+- types-r2は構文修正後267sourcesを検査し、NotesRuntime.UPDATE_ACKのclass参照に対する型エラー2件（既存test2files）でexit1/1.695秒。元raw/JSONを保持して修正中。
+- notes-regression-r1は/tmp runnerのPYTHONPATH不足でfakes import失敗、実test前5errors/0秒、whole.708秒/exit1。実行環境を訂正したr2は98件23.460秒、whole24.932秒、1failure。残りはAPP01時点のtarget_type=task未提供422期待が、APP02追加後の別kind正本なし404となる対照fixture。未提供target拒否の意味を維持した更新が必要で、まだ成功として扱わない。
+- artifacts /tmp/ba-app-02-types-r2.{json,log}、/tmp/ba-app-02-notes-regression-r1.{json,log}、r2.{json,log}。
+
+### タスク初期重点検証と型検査成功
+
+- 親raw/JSON確認: types-r3は268sourceで型エラーなし、exit0/.563秒。共有runtimeの型修正を含む途中結果。
+- task重点r1は12件4.044秒、whole4.986秒/exit1、1failure。commit応答喪失注入のHTTP期待503に対し500/internal_error。保存失敗で成功しない/同keyで回復するassertを維持し、shared persistence例外とAPI wrapperの差、製品欠落かfixture注入かを区別して修正根拠を残すよう依頼。
+- HTTPの既存status queryが初稿に未配線だった点を親が共有し、status filter/invalid enum/cursor query bindingを含めるよう依頼。実装途中の観点で、独立レビューfindingや成功とは扱わない。
+
+### 重点110件成功と注入境界の訂正
+
+- Writer説明と親test確認: HTTP fakeへshared PersistenceUnavailableを直投げすると、本番API Firestore adapterのAPIError503変換を通らない。fixtureのafter_commitをadapter相当のTEMPORARILY_UNAVAILABLE注入へ訂正し、同key回復で正本1件/成功偽装なしのassertを維持。実SDK commit後ServiceUnavailable注入のemulator検証も追加（この時点では未実行）。製品の例外許容を緩めていない。
+- APP01の未提供target拒否対照をtask→reminderへ更新。新task型の提供後も未提供typeを422にする元の意味を維持。HTTP status query/filter/cursor bindingを追加。
+- 親raw/JSON確認: focused-r3はtasks/notes/notes回帰/forget/purge/exportの110件27.816秒OK、whole29.382秒/exit0。/tmp/ba-app-02-focused-r3.{json,log}。最終freeze前の重点結果であり全suite/新規レビューは未完了。
+
+### 追加会話・lifecycle回帰の失敗を保全
+
+- 親raw/JSON確認: task追加回帰r1は10件5.569秒、whole6.455秒/exit1、1failure+1error。同run tasks.list→deleteでrun failedとなるケース、別一覧itemを準備するfixtureでTaskCreateへbodyを渡すvalidation errorを検出。製品経路とfixtureを区別して修正中、成功扱いしない。
+- types-r4は270sources/.380秒成功、追加lifecycle fixture後types-r5は271sources中lambda型推論2errors/.375秒失敗。元結果を保持し、最終全scopeで再検証する。
+
+### 一覧後削除の終端処理を修正
+
+- Writerの追跡では、list→delete失敗は削除/独立ledger/operation/tool成功は確定した後、前段modelのcompleted_text/streamed_textが残り固定削除ACKとprefix整合しないためrun commitがhandler_errorになっていた。
+- 共通direct-resource削除の終端callbackで、消費済みmemory/tool/continuationと同じTXで両textも退役する修正。親はnotesにも同変更が及ぶため、前段textを持つactual notes.list→deleteを明示回帰へ追加し、内容なし消去依存・current guard/proof・unknown非再実行を維持するよう依頼。別item fixtureはbody→titleへ訂正。まだ再検証中。
+- Writerがtask/notesの実Firestore重点8件を開始。元失敗結果を保全し、成功完了は実結果待ち。
+
+### 追加回帰・実Firestore重点成功
+
+- 親raw/JSON確認: regressions-r2はtask同run更新/削除とlifecycleの10件7.143秒OK、whole8.397秒/exit0。前回のlist→delete失敗とfixture validation errorが解消。
+- emulator-focused-r1は実Auth/Firestoreのtask/notes8件40.661秒OK、whole48.165秒/exit0、正常shutdown。actual SDK commit応答喪失、両者認可済みCAS、一意status event、exact task削除で同ID別kind note保持、actual default list→completeを検証。raw/result /tmp/ba-app-02-emulator-focused-r1.{log,json}。最終全suite/独立レビューは未完了。
+
+### 最終整形前の診断・型チェックを保全
+
+- 同run削除の診断probe-r1は/tmp scriptのPYTHONPATHにworkspace rootが不足しscripts import前でexit1/.815秒。r2はtests:.へ訂正してexit0/1.194秒、fake run/tool/operationを表示してprefix不一致を観測した診断であり、受入テスト成功とは扱わない。
+- lint-fix-r1は20件中18件を自動修正し、fixture closure変数捕捉/広すぎるException assertの2件が残りexit1/.060秒。format-r1は17files整形/.057秒、r2は271files変更なし/.052秒。
+- types-r6/r7は共通generic Patchのdisplay_policy属性参照1件が残りexit1（271sources、.835秒/.409秒）。最終型成功まで修正継続。全初回結果を/tmp/ba-app-02-各phase.{json,log}に保持。
+
+### 追加ケースを含む重点122件・型/lint成功
+
+- 親raw/JSON確認: focused-finalはtasks/追加回帰/lifecycle/notes/旧forget/purge/exportの122件34.568秒OK、whole36.238秒/exit0。独立削除台帳復元、旧forgetへのtask source拒否、前段textがあるnotes/tasks削除の回帰を含む。
+- types-r8は271sources/エラー0、.380秒/exit0。lint-r2も全成功/.054秒。freeze前の整形format-r3は1file整形/.050秒。これから最終freeze/setup/check/全suiteで同じ差分を検証する。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/app02_review_r1`（新規独立context）。base commit: `37660a6f0ef81a2d2e4c0b99474da13d61283ec6`。
+- 未追跡を含む最新全35files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `fb5cd465194f0ad42d4dc80c2e9a20f99bcbbd8641a70ec349e36416f22f65b9` |
+| `docs/04-interfaces.md` | `e35b7013d9c2cf5b8c36a9a2ab51ed6bee43a1af625f0b55fa6641b267ef0a3f` |
+| `docs/notes.md` | `8a7f2e4c35aa12ca22b3e4c7571c21dc5dfe16d7a6823610514cc7923094eb19` |
+| `docs/tasks.md` | `a3afdb0f281f85eb6ac96ad65276fe5e6c48f1f01b8538eca9f723e0989227fc` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `52bdba5377cd8b13acb82db131c45df03d79ace14916f85aff4e9fb915a5afb7` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `92c5ca239d1b5b5f07f170df2893f2028a259de07d104c88b2ed959e6eb6138f` |
+| `packages/memory/src/brainoid_memory/direct_resources.py` | `2ee78d975650f28dd51d601e39d1b93b8d1b7cf08f3f19922ead1ae3301d380c` |
+| `packages/memory/src/brainoid_memory/export_manifest.py` | `d44a31042899640e3c993a59bd4ecfb74c22270298d788e8b4dc8aa40b4c974c` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `0ed074922450fc77f670496552a7318ec28cff8da0b619e9c4acd32625b00e9f` |
+| `packages/memory/src/brainoid_memory/forget.py` | `62ba4ea90ba5f6cf3199d64b4f25bbe3294bccc0f8c61fc6ccfa48b071de0f6d` |
+| `packages/memory/src/brainoid_memory/notes.py` | `0209119c73be794f19238fbed4c14efeac310c92d96da992cca831b3715ceb35` |
+| `packages/memory/src/brainoid_memory/tasks.py` | `47ec1048ecdb5c7da329f7fddc4e290f88877c0d202fa6dd0edf6e025090eaa8` |
+| `packages/tools/src/brainoid_tools/notes.py` | `d249a714e9b2c48207ff22631c10e744ba5ee3ef8543c17ce6455d804690b3ef` |
+| `packages/tools/src/brainoid_tools/tasks.py` | `091c08a08992efbdf3a6eaa1a32d533f0df9dfb92fae0494190bf907b31adec8` |
+| `services/api/src/brainoid_api/app.py` | `03ee559b31b4176b3909e65ce5c64b59bc105ebdc964efae82a2ad499ec758a5` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `6b59f617e1ac2dd330d88de59472af9ca949c4253f208e99820ec8ec93c8dae3` |
+| `services/api/src/brainoid_api/repositories/tasks.py` | `7a5f84772c0ef4f570d8d4d7f345801442d27ca18d6947dcc79f23abcda30aee` |
+| `services/api/src/brainoid_api/routes/operations.py` | `6e2da06631ad337470b3b8128e2635c494d70dd7b46034dc984cc1ee69031e92` |
+| `services/api/src/brainoid_api/routes/tasks.py` | `26f0be847153dfea1db67b00b9299d1ef59f18eb24b138426d71cf5b80aca9e3` |
+| `services/worker/src/brainoid_worker/direct_resources.py` | `e93afada7f69749f1c6201818022bc7de9e1e717de996dde12e27cc870d67160` |
+| `services/worker/src/brainoid_worker/export_data.py` | `5d879cbf38a087d30e7c2fa4ac890742815845f32691d03f237e814167605b68` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `4d73173c6c382a5def1e7fb7c6de1af1548a410eb73542b17f748d6f53adfe3f` |
+| `services/worker/src/brainoid_worker/memory.py` | `2f9020dbabe507c019af923237fe832c96f71490e41fd85db58c6af2fa81df6b` |
+| `services/worker/src/brainoid_worker/memory_erasure.py` | `c17032d975fd15b58d06558dadaea3655fd5a77f87afd67dfbad86ff4ae33361` |
+| `services/worker/src/brainoid_worker/note_erasure.py` | `dc972840da23726ad58bed8197fb4999f0d4b123bf85e10fce35e65ac729d384` |
+| `services/worker/src/brainoid_worker/notes.py` | `41e6f1f6bdfadfead2854bf3027bc739f07d53362a9563854690a70e56c67f03` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `ea934b2aa4301ba045fa7417d33c1cc0f5ffdf7ed99e954b73e13320a28dd1af` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `808227b647773b00001ccdb0c846ad610609c3491a7872bf832729d29f70b620` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `3fa3ae76cb089d2013b34ff13183c199b457844863093aeda4ba994f2ce6148f` |
+| `services/worker/src/brainoid_worker/tasks.py` | `661cd21702949db9fec79b51e76eb873c5dc6a469d8018e1a34c4f83aa1df46f` |
+| `tests/emulator/test_tasks_integration.py` | `db3f3f31a362dcdb50b6db331d386ee0b435cbc97be2c951450c919c3b9a7991` |
+| `tests/test_notes.py` | `12084388ec6c05ae8183161b0792c33fbec1ea145ce2425f4d7c3bf91d31e6dc` |
+| `tests/test_task_lifecycle.py` | `c1492e0da8258280f0b729c187945b346a92b9faa2056aae65f635732295b022` |
+| `tests/test_task_regressions.py` | `4a8a11ec7ddd8b3014c043a69b6636adddd79d5fe964245f5d3a2afb1ae20d2b` |
+| `tests/test_tasks.py` | `c4ef569babc3b17173c423ef6788f966f08d65bb5f13fb2f2f71d845f6ccb1fe` |
+
+### 最終freeze・setup/checkと独立レビューR1開始
+
+- 最後のmodel成功文のみ/現在assignee ledger追加後のtask重点は13件4.289秒OK、whole5.182秒/exit0。types-r9は271sources/.388秒成功。
+- 最終freeze /tmp/ba-app-02-freeze.json は35changed/435all SHA、file SHA0743778d67b628a65f70ff0eb95a8ebf4d291f4bd2bd86a81416b7dde487f327、aggregate2161ab9e7bd8dfe1bcbed620a125c58fe732d8eea70125a72a968f8c376de445。setup-final .565秒/check-final3.336秒exit0、全9系統/271Python/TS・契約・生成物・文書整合成功。前後SHA一致。
+- 親22:10:26Z audit /tmp/ba-app-02-parent-freeze-audit.json で435全SHA・正確35paths・main/base/index空/diffcheck0を独自確認。writer製品編集停止。新規fork none `/root/app02_review_r1` が全差分/共通化したnotes/周辺consumerを独立レビュー開始。
+- 同SHA fulltest/full emulatorをwriterが実行、正式handoff/終了auditを含む全終了と承認までcommitしない。親metadataのみ更新。今回runnerの実JSON fieldsはargv/start/end/exit/runtime_seconds/counts/rawで各結果保存。
+
+### 独立レビューR1の必須候補を再現
+
+- 新規reviewerが別人作成shared taskのadmin削除で、HTTP202受理後purgeがrunningのまま正本を保持する問題を独立再現。対照admin note/creator taskはsucceeded・物理消去成功。3件.641秒/1failure、whole1.888秒/exit1。親raw/JSONと該当purge_handlers.original()分岐を直接確認。
+- 現originalのdelete_resource所有者確認特例はnoteのみで、taskはcreated_by == requested_byの旧source author確認へ落ちる。元の受理済み権限に基づくexact task消去へ修正が必要な候補。report正式確定前で、製品編集は停止を維持。writerへ候補を通知し全suite/handoffを継続。
+- 原probe /tmp/ba-app-02-review-r1-probe-admin-purge.{py,json,log}。初回/tmp import不足は別import-failure artifactへ保存。R1全差分/他境界レビューは継続中、承認なし。
+
+### 初回freezeの通常全suite成功
+
+- 親raw/JSON確認: 実artifact名は/tmp/ba-app-02-fulltest-final.{json,log}。`mise run test` 2026-10-26T22:09:56.997Z〜22:13:38.633Z、whole221.649秒/exit0。Python739件196.994秒、Skill18件.088秒、Node40件17.098176382秒、失敗/skip0。
+- 通常全suite成功は独立admin task purge失敗の解消を意味しない。全emulator/正式R1/handoff監査後に修正を返し、修正版で全検証と新規独立レビューをやり直す。
+
+### R1の周辺境界・互換性検証
+
+- Reviewerは35path全差分/新規全文と共通化前notesを対照し、追加独立probeで旧forget/note intent JSON byte互換、退役task履歴消去後の新ZIPにsentinelが残らないこと/無関係task保持、task由来証拠欠損でlegacy_provenance_missing拒否を確認。
+- boundary初回5件3.603秒/whole4.724秒/exit1は4PASS、unknown再送fixtureが終端jobにprepare_dispatchを要求してNoneとなった1FAIL。元deliveryの再送へ/tmp fixtureのみ訂正中で、製品findingと混同しない。原source/raw保全。
+- admin task purge未完了がExportDataの未完delete_resource待機にも及ぶ可能性をreviewerが指摘。親は正確な待機範囲/行の根拠をformalへ残すよう依頼。OpenAPI tasks4応答の旧未提供文言は文書修正候補として、schema形状と区別する。
+
+### R1追加probe成功と影響範囲の確認
+
+- 訂正後boundary独立probeは5件3.838秒OK、whole5.008秒/exit0。元deliveryをWorker.handleへ再送してtask/effect各1・handler execute1回を直接確認。task→note marker差替拒否は期限変化を除いてkind証拠を分離。元のfixture失敗source/rawは別名保全。
+- ReviewerはExportData._runのtenants/{tenant}/operations走査がユーザー/manifest絞込み前にdelete_resource未完了をRetryableErrorへすること（export_data.py:64,90-99）を確認。admin task purgeが止まると当該tenant全体の新規exportが待機する。正式findingの影響へ含める。
+
+### 初回freezeの全emulator成功と親終了監査
+
+- full emulatorは183件523.222秒OK、whole532.791秒/exit0。2026-10-26T22:10:12.423Z〜22:19:05.189Z、正常shutdown。実argv `bash /tmp/ba-app-02-emulator-final.sh` から専用process envでmise run test-emulator。raw/result /tmp/ba-app-02-emulator-final.{log,json}。
+- 親22:19:51Z host audit /tmp/ba-app-02-parent-final-audit.json で435全製品SHA不変、main/base/index空、setup/check/fulltest/emulator全exit0、8080/9099/9150/4400/4500閉鎖(connect_ex111)を確認。working snapshot helperでも35path/SHA不変。
+- 独立admin task purge失敗は未解決。全既存suite成功と区別し、R1正式終了後に修正と新規R2を実施する。現在承認・commitなし。
+
+### 独立レビュー ラウンド1 確定・修正返却
+
+- 新規 /root/app02_review_r1 の正式判定 **request_changes**。必須R1-001/P1が1件、任意R1-N01/P3が1件。report SHA499f34c642b3486b9dca9f5ec682ab5885112d3feb3e88add930f830d9ee93f7、/tmp/ba-app-02-review-r1-report.md。親が全文を確認。
+- R1-001: purge_handlers.original():545のnote限定所有者確認がtaskを旧source本人著者制約へ落とし、他者作成shared taskの正当admin削除を受理後に恒常拒否。独立3件1FAIL/対照2成功。同tenant新export待機への波及はexport_data.py:63,87-97の静的追跡と明確に区別。accepted jobのcreator/owner bindingへ限定して修正し、旧forget本人source規則を維持する。
+- R1-N01: OpenAPI tasks4成功responseの旧「未提供」説明。公開schema形状の不整合ではない。今回の修正と合わせ文書・必要な生成注釈を同期する方針。
+- R1終了audit22:21:39Zは435全SHA/35paths/main/base/index空/diff0、正式writer handoff/終了audit、全4suiteのexit0/自probe session終了を独立確認。正式handoff SHA31e405279363854fbe27c85075bd1cc4bde6a66f903567fb0a0474032552dde9、writer audit SHA570023eb21cafb8a59d52c67fc7ca412e86a95c93cde22076d7580b9b873b9c1。
+- 元freeze/handoff/audit/report/scope/独立probe各版/最終suite計27fileのSHAを /tmp/ba-app-02-parent-r1-evidence-sha.json に固定。上書きせず、修正版はr1fix別名で検証・新freeze・新規R2へ。台帳in_progress/review_rounds1、元writerへ修正を返す。
+
+### R1修正着手
+
+- Writerは開始時の元27証拠SHA不変をevidence-startで確認、exit0/.020秒。親read-only差分ではoriginal()のdelete_resource所有者照合をnote/taskに限定して共有し、旧source author分岐は維持。まだ修正版テスト前。
+- R1-N01説明修正後generate-clientはexit0/.851秒。元初回freeze/全suite/正式reportを上書きせずr1fix別名で記録を継続。
+
+### 元R1再現probeが修正後成功
+
+- 親raw/JSON確認: 元admin-purge probe sourceを変更せず実行して3件.494秒OK、whole1.371秒/exit0。admin taskも202→succeeded・正本消去、admin note/creator task対照も成功。元boundaries5件も2.669秒OK、whole3.605秒/exit0。親が元27証拠SHA不変を再確認。
+- 新test_task_purge初回r1は4tests/.303秒・4failure+1error、whole1.116秒/exit1。短い冪等keyによるHTTP400とtarget_path import誤りのfixtureを訂正。r2は4tests/2.142秒・4error、whole2.954秒/exit1で、所有者/旧source著者改変の負例が期待どおりValueErrorを返すものをfixtureで未捕捉。元失敗を保全しassert境界を訂正中。製品の拒否規則を緩める成功ではない。
+
+### 管理者削除・export回復の追加回帰成功
+
+- 新test_task_purge r3は4件2.228秒OK、whole3.107秒/exit0。Writer報告: actual shared admin受付→normal membership失効→正本/effect/event/run/assistant消去→同tenant待機export回復、owner成功/member/private拒否、creator/owner改変拒否、旧forget note/message著者改変拒否を確認。親は実raw/JSONを確認し、新規R2でも内容を独立評価する。
+- format-r1はexit0/.603秒。types-r1は272sources中新fixture2errors/.510秒/exit1、修正後types-r2はPython272と全TS型成功、2.725秒/exit0。関連focusedと実Firestore task/notes9件は実行中。
+
+### 修正版実Firestore重点9件成功
+
+- 親raw/JSON確認: r1fix-emulator-focusedはtask/notesの9件49.873秒OK、whole59.852秒/exit0、正常shutdown。新admin task削除の受理後membership失効ケースを実Firestoreで追加し、旧creator/notes/競合/応答喪失回帰も成功。
+- 親が新test_task_purgeのactual HTTP作成→list/update→admin削除→grant失効→export待機→purge→同export再送/download/ZIPという経路をread-only確認。same ID noteの不変と無関係task保持、対象コピー非残存もassertしている。新規R2による独立評価はこれから。
+
+### 修正後重点131件成功・freeze候補の整形失敗を保全
+
+- r1fix-focused-finalは131件62.666秒OK、whole64.543秒/exit0。tasks/notes/忘却/purge/history/export/lifecycleの関連回帰を含む。
+- Writerは凍結候補のsetup後、check:formatで新test result_pathsの改行1箇所の漏れを検出。まだR2未開始。候補freezeをr1fix-freeze-candidate-r1へ保全し、整形だけ修正後に新freeze/setup/checkを別phaseで実行するよう確認。旧check-final失敗を成功へ上書きせず保持。正式成功通知まで親review snapshotは作成しない。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/app02_review_r2`（新規独立context）。base commit: `37660a6f0ef81a2d2e4c0b99474da13d61283ec6`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `fb5cd465194f0ad42d4dc80c2e9a20f99bcbbd8641a70ec349e36416f22f65b9` |
+| `docs/04-interfaces.md` | `e35b7013d9c2cf5b8c36a9a2ab51ed6bee43a1af625f0b55fa6641b267ef0a3f` |
+| `docs/notes.md` | `8a7f2e4c35aa12ca22b3e4c7571c21dc5dfe16d7a6823610514cc7923094eb19` |
+| `docs/tasks.md` | `1e1f2e0a702af0e487da3b2dc3b6fb047d72a84aa523fb7b452d320edfb0b460` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `92f95f7811763a92a7b29de7cdb54360fac9f9904cd98f7b7815ce5b850854c9` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `52bdba5377cd8b13acb82db131c45df03d79ace14916f85aff4e9fb915a5afb7` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `92c5ca239d1b5b5f07f170df2893f2028a259de07d104c88b2ed959e6eb6138f` |
+| `packages/memory/src/brainoid_memory/direct_resources.py` | `2ee78d975650f28dd51d601e39d1b93b8d1b7cf08f3f19922ead1ae3301d380c` |
+| `packages/memory/src/brainoid_memory/export_manifest.py` | `d44a31042899640e3c993a59bd4ecfb74c22270298d788e8b4dc8aa40b4c974c` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `0ed074922450fc77f670496552a7318ec28cff8da0b619e9c4acd32625b00e9f` |
+| `packages/memory/src/brainoid_memory/forget.py` | `62ba4ea90ba5f6cf3199d64b4f25bbe3294bccc0f8c61fc6ccfa48b071de0f6d` |
+| `packages/memory/src/brainoid_memory/notes.py` | `0209119c73be794f19238fbed4c14efeac310c92d96da992cca831b3715ceb35` |
+| `packages/memory/src/brainoid_memory/tasks.py` | `47ec1048ecdb5c7da329f7fddc4e290f88877c0d202fa6dd0edf6e025090eaa8` |
+| `packages/tools/src/brainoid_tools/notes.py` | `d249a714e9b2c48207ff22631c10e744ba5ee3ef8543c17ce6455d804690b3ef` |
+| `packages/tools/src/brainoid_tools/tasks.py` | `091c08a08992efbdf3a6eaa1a32d533f0df9dfb92fae0494190bf907b31adec8` |
+| `services/api/src/brainoid_api/app.py` | `03ee559b31b4176b3909e65ce5c64b59bc105ebdc964efae82a2ad499ec758a5` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `6b59f617e1ac2dd330d88de59472af9ca949c4253f208e99820ec8ec93c8dae3` |
+| `services/api/src/brainoid_api/repositories/tasks.py` | `7a5f84772c0ef4f570d8d4d7f345801442d27ca18d6947dcc79f23abcda30aee` |
+| `services/api/src/brainoid_api/routes/operations.py` | `6e2da06631ad337470b3b8128e2635c494d70dd7b46034dc984cc1ee69031e92` |
+| `services/api/src/brainoid_api/routes/tasks.py` | `26f0be847153dfea1db67b00b9299d1ef59f18eb24b138426d71cf5b80aca9e3` |
+| `services/worker/src/brainoid_worker/direct_resources.py` | `e93afada7f69749f1c6201818022bc7de9e1e717de996dde12e27cc870d67160` |
+| `services/worker/src/brainoid_worker/export_data.py` | `5d879cbf38a087d30e7c2fa4ac890742815845f32691d03f237e814167605b68` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `4d73173c6c382a5def1e7fb7c6de1af1548a410eb73542b17f748d6f53adfe3f` |
+| `services/worker/src/brainoid_worker/memory.py` | `2f9020dbabe507c019af923237fe832c96f71490e41fd85db58c6af2fa81df6b` |
+| `services/worker/src/brainoid_worker/memory_erasure.py` | `c17032d975fd15b58d06558dadaea3655fd5a77f87afd67dfbad86ff4ae33361` |
+| `services/worker/src/brainoid_worker/note_erasure.py` | `dc972840da23726ad58bed8197fb4999f0d4b123bf85e10fce35e65ac729d384` |
+| `services/worker/src/brainoid_worker/notes.py` | `41e6f1f6bdfadfead2854bf3027bc739f07d53362a9563854690a70e56c67f03` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `ea934b2aa4301ba045fa7417d33c1cc0f5ffdf7ed99e954b73e13320a28dd1af` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `f83d3740acafb59821694017a0aae57f897b084533fd85f883e00f5b8af62a00` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `3fa3ae76cb089d2013b34ff13183c199b457844863093aeda4ba994f2ce6148f` |
+| `services/worker/src/brainoid_worker/tasks.py` | `661cd21702949db9fec79b51e76eb873c5dc6a469d8018e1a34c4f83aa1df46f` |
+| `specs/openapi.yaml` | `1268f2508902de6c6ef3f05c347e856dc4048d513a1ebdcb3041b0c1ef75122e` |
+| `tests/emulator/test_tasks_integration.py` | `c6852f56546e958f81dff81bcc5307177c384e7eb0ac5d557fecbac4cd133320` |
+| `tests/test_notes.py` | `12084388ec6c05ae8183161b0792c33fbec1ea145ce2425f4d7c3bf91d31e6dc` |
+| `tests/test_task_lifecycle.py` | `c1492e0da8258280f0b729c187945b346a92b9faa2056aae65f635732295b022` |
+| `tests/test_task_purge.py` | `9788ad6af79f1eb8edd7642f7c1d9d89952a0f637f30b257696139e8072dbd13` |
+| `tests/test_task_regressions.py` | `4a8a11ec7ddd8b3014c043a69b6636adddd79d5fe964245f5d3a2afb1ae20d2b` |
+| `tests/test_tasks.py` | `c4ef569babc3b17173c423ef6788f966f08d65bb5f13fb2f2f71d845f6ccb1fe` |
+
+### 修正版正式freeze・R2開始・通常全体成功
+
+- 親22:33:14Z auditで正式freeze全436製品SHA、38changed paths、main/base/index空/diff0と元27証拠SHA不変を確認。freeze SHA d81bdbeec02226ed051f8dfb02b8698d20546dc002e42f9f3a722e95dbc09079、aggregate fd506bfa7ee4e3973747210e16d5eccb5fb79757f03705205a5cb76e5d3740af。
+- 整形訂正後の正式setup-final-r2は.570729秒/exit0、check-final-r2は3.352534秒/exit0（Python272sources、全TS等全check）。suffixなしcheck-finalの候補失敗は別証跡として保全。
+- 新規/root/app02_review_r2が全38差分と旧Notes共通化を独立レビュー開始。元R1必須1件/任意1件と証拠を引継ぎ、修正箇所だけに限定しない。製品freeze継続。
+- 修正版通常全体 mise run test は22:32:55.808Z〜22:36:36.674Z、whole220.877460秒/exit0。Python743件196.513秒、Skill18件.086秒、Node40件16.629690445秒（raw pass40/fail0、runner countsにはNode表記未収録）。raw/result /tmp/ba-app-02-r1fix-fulltest-final.{log,json}。全emulator/正式handoff/end auditを待つ。
+
+### R2独立再実行の途中結果
+
+- R2開始監査は38paths/全436SHA/main/base/index空/元27証拠不変。Reviewerが元R1 source無変更でadmin-purge3件.536秒（whole1.574秒）とboundaries5件3.943秒（whole4.990秒）を独自再実行し全成功。
+- Reviewer独自test_task_purge4件2.946秒（whole4.145秒）も成功。各実argv/raw/result /tmp/ba-app-02-review-r2-probe-{admin-purge,boundaries,purge-regressions}.{json,log}、全exit0、session46893終了。親も各JSONを確認。
+- 全差分レビューは継続中。full emulator/正式writer handoff/終了audit前のため承認には未達。
+
+### 修正版全emulator・正式引継ぎ・終了監査
+
+- full emulator184件528.984秒OK、whole537.892639秒/exit0、22:32:56.442Z〜22:41:54.310Z。実argv `bash /tmp/ba-app-02-r1fix-emulator-final.sh` のprocess専用demo-brainoid Auth/Firestore、正常shutdown。raw/result /tmp/ba-app-02-r1fix-emulator-final.{log,json}。
+- Writer正式handoff /tmp/ba-app-02-r1fix-handoff.md SHA f96513d01729bec8f113f6831d7f20e4609a8390a63f265d1287444dee5c0487 を親が全文確認。終了audit SHA b20b7c446631a53663a3de2c85e4d8b73da8e1f34084de2032a64f8402a4ed67、22:42:06Zの全436mapはfreezeと一致、38paths/main/base/index空/diff0、11session completed・ownedprocess空・5ports閉鎖・元27証跡不変。
+- 親もhost上22:42:40Z /tmp/ba-app-02-parent-r1fix-final-audit.json で全436SHA/38paths/main/base/index空/旧27SHA/正式4suite全exit0、8080/9099/9150/4400/4500すべてconnect_ex111を独立確認。R2へ正式証跡を渡し終了判定待ち。
+
+### 独立レビュー ラウンド2 確定・承認
+
+- 新規/root/app02_review_r2 の正式判定 **approve**、必須指摘0・新規任意提案0。R1-001/P1とR1-N01/P3はいずれも解消。report /tmp/ba-app-02-review-r2-report.md SHA8c8ea5f5fc8ebf2bd3fd1df4e8b5369bd398b0bc0766e72a09270747279b48a0を親が全文確認。
+- R2は全38差分/新規全文/周辺経路を確認し、旧Notesの保存・runtimeをbaseから抽出した比較も実施。独立12件の再実行と、正式同SHA全suiteを区別して判定。
+- R2終了監査22:43:49Z passed、SHA a3ef11f53a0d2c22fae9e735c5eca361e8f1322e8ddcb8025b0715323da1530d。全436SHA/38paths/main/base/index空/diff0/元27証跡・writer正式handoff/audit/最終4suite JSON/raw SHA一致、host5ports111、probe session終了。親もsnapshot workingで38paths一致を再確認。
+- 最新承認対象のみを実装commitへ含め、台帳/logは別commitとする。製品編集なし。
+
+### 完了結果
+
+- 状態: done。実装commit `80ee252f9656b69c3f238fdbab06684ce865688e`（`feat(tasks): BA-APP-02 add authorized tasks and conversation tools`）。承認対象38pathsだけstageし、index/commit各blobと作業treeのSHAがR2 manifestと一致、cached diff-check成功。完全stage差分は /tmp/ba-app-02-staged.diff、SHA00690749dcbe9f0c5c3619c02d90e5b7c5f35314cdbba6c3d1541c36578cf95f。
+- API/tool共通Tasksで作成・取得・一覧・版付き更新、open/done/cancelled、UTC期限/IANA/timezone、同tenant現在担当者を提供。Notesの共通保存/runtimeを抽出し、タスクの確定状態・効果・イベントと現在認可を同TXへ束縛。新producerの削除/履歴/export/lifecycleも統合した。
+
+| 受入条件 | 検証根拠 | 結果 |
+| --- | --- | --- |
+| 期限・状態の保存/再取得、保存失敗で偽成功なし | actualHTTP/defaulttool、UTC/IANA、実SDK commit後応答喪失から同key一意回復 | 成功 |
+| 別tenant担当者と他人private拒否 | opaque UID現在membership/account、admin他人private拒否、Pi tasks scope/session、current output/lease | 成功 |
+| 完了/取消再送で重複なし | deterministic status eventとeffect同TX、同key/同status各分岐、unknown原delivery再送execute/task/effect各1 | 成功 |
+| T012競合/文章のみで未変更 | 有効creator/adminの実Firestore CAS1成功1stale、oldIfMatch412、モデル成功文だけでopen維持 | 成功 |
+| 依存回帰と消去 | Notes抽出比較、list→update/delete、R1 admin失効後exact purge・待機export回復、旧intent互換/著者制約・欠損provenance・無関係保持 | 成功 |
+
+- 最終同SHA setup/check成功（Python272sources/全TS等）、通常743+18+40件、全emulator184件、R2独立12件成功。2回の独立レビューでR1必須1件と任意1件を解消、R2approve・未解決必須0。
+- 移行・切戻しはdocs/tasks.md。既存正本の一括migrationなし。task admission停止後、accepted operation/unknown effect/purgeを対応workerで完了してから旧版へ戻し、ledger/証拠/予約を消さない。
+- 今回はdocs08§1のfake/emulatorローカル完了範囲。UI06・APP03/04の通知/スヌーズ、実provider/本番配備/実機は対象外。tenant全集合を読む一覧の費用制約は文書化し、別query最適化を今回追加しない。必須残課題なし。
+- 台帳done更新後に親mise run checkを行い、台帳/logのみ別記録commitへ含める。
+
+- 親のdone更新後 `mise run check` はexit0、whole22.076443秒。Python272sources/全TS・format/lint/contracts/client/compatibility/workflow/docs/tickets成功、37done/96。raw/result /tmp/ba-app-02-parent-record-check.{log,json}。
+- 終了: 2026-10-26T22:46:23.260909+00:00。台帳・ログの2ファイルだけを記録commitする。
