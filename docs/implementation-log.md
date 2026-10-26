@@ -6616,3 +6616,393 @@ FR013・T011/T022。受付済み忘却/削除の原本・派生情報・子階�
 
 - done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、Mypy231/docs1422/生成差分なし/契約互換成功、shell real22.119秒。raw `/tmp/ba-mem-08-parent-check.log`。
 - 台帳done33/todo63/blocked0。変更は台帳・作業ログのみ、記録2ファイルを別commitへ含める。
+
+## ba-iam-10-20261026t174941z
+
+- チケット: BA-IAM-10
+- 状態: done
+- 開始: 2026-10-26T17:49:41.879342+00:00
+- ブランチ: main
+- base commit: 063fd7b3bc10556c9c283cb9cb80c5627317a8f9
+- 開始時の変更: staged / unstaged / untracked ともなし
+- 選択: MEM08両commit/clean/check後、IDなしnextで依存順先頭を選択。IAM06/MEM07/MEM08のdoneと実装commitのHEAD祖先を確認。
+- 親担当: /root、実装担当: /root/iam10_implementation。独立レビューは各ラウンド新規担当。
+- 実装コミット: `287012d06993583535714cad45da2fd4e736c163`。
+
+### 変更範囲と検証計画
+
+FR013・T022/T034。退会・本人global account削除・ownerによる単一tenant削除を区別し、再認証/最終owner/正規target resolverを検査。独立削除台帳を先行記録してtombstone/operation/outboxを確定し、受付直後の新規参照・操作を止める。既存purgeのbounded子階層/再開基盤へ狭い削除範囲を渡す。UI12/GOV03画面・ストア導線、実cloud/認証provider設定・バックアップ訓練を追加しない。追加外部前提なし、fake/emulator完了範囲。
+
+| 受入条件 | 検証予定 | 結果 |
+| --- | --- | --- |
+| 5分超再認証・他人global account・他tenant削除を拒否 | auth_time境界、本人専用global endpoint、tenant owner現在権限とscope差替え負例 | 成功。境界/越境/HTTPと独立guard確認 |
+| 最後のownerを単純離脱させない | owner移譲/tenant削除の選択、複数所属の全owner検査と同時競合、孤立tenant無し | 成功。全所属・最後owner・実Firestore競合確認 |
+| 台帳とtombstone後のみ202・同operation再送 | 台帳前/後・DB前/後障害、決定的ID/要求hash、失効後の本人status参照/同key再送、削除完了との区別 | 成功。障害/再送/予約直列化を全3kindで確認 |
+| 正規範囲のpurgeと新規処理拒否 | 退会の本人private/session、全所属account resolver、tenant全配下、共有寄稿/他人private保持、旧job・生成/export判定fence | 成功。正規producer消去・再生成拒否・共有/他人保持確認 |
+| 回帰と文書/契約/運用 | setup/check/test、実Firestore受付競合/再開、独立全差分レビュー | 成功。setup/check/642+18+40/実Firestore167・R2承認 |
+
+### 引継ぎ上の境界
+
+- MEM08はforget_memory受付済みintentを限定authorityとする専用purge。IAM10の正規resolver/台帳型が必要なら再利用可能なwalkerを保ち狭く拡張し、任意target/任意tenantの削除権限にしない。既存source抑止/依存証拠/通常Jobs/未知外部副作用保護を維持。
+- 退出・accountの共有寄稿ポリシーを既存docsから確認し、無条件tenant全削除や他人private消去を避ける。本人全所属処理と単一tenant管理者破棄を分離。
+- 削除中accountの通常認証拒否と本人operation statusだけの例外を混同しない。raw UIDを任意pathへ連結せず、既存canonical profile解決/認証・ledger fenceを利用。
+
+### 実装担当開始
+
+- 新規fork none `/root/iam10_implementation` を起動。製品の唯一writer、親は台帳/log/commitのみ。本人・tenant・退出の正規scope、先行削除台帳、即時fence、既存purge接続、owner競合、本人status/replayの設計確認から進める。
+- 親の `/tmp/ba-iam-10-parent-checklist.md` は未検証の確認点。docs03:188/232/242、既存canonical profile/query・ControlLedger・membership_mutation・MEM08の狭いaccepted authorityを照合し、全所属snapshot中の新join/移譲とtenant root消去順を担当へ共有。
+
+### 初期設計方針
+
+- 担当は本人全所属resolverとowner単一tenant resolverを分離し、membership_mutation＋account予約で同時変更を直列化する方針。独立台帳へUID無しlifecycle scope（opaque subject/tenant ID・版・epoch）を追加し、先行ledger後同TXでfence/operation/専用purge envelopeを確定する。未検証段階。
+- 通常認可のaccount/tenant/private owner fence、本人statusと同key再送だけの例外、MEM08 walker再利用、共有寄稿保持、tenant制御fence/進捗保持を予定。認証providerは明示adapterの完了receiptを要求し、fake-onlyを実環境成功へ転用しない。実ユーザー削除実行は禁止だがofficial SDK adapterのコード/fake/emulator検証は許容と親が補足。
+
+### 削除後の再登録境界の確認
+
+- 親read-only確認でaccount_stampはprofile無しをunprovisionedとして許可することを確認。profileを消した後も先に永久account fenceを検査し、bootstrap/通常workerを含めた再作成を防ぐ必要を担当へ共有。現UserProfile公開型はactive/deletingのみで、内部最終削除状態をpublic投影して500にしない境界も確認対象。
+- docs/memberships.mdの既存全失効経路のtenant予約/最終owner参加条件を再確認。新join/create/transferと全所属受付の競合は実装/検証中で、まだ成功とはしていない。
+
+### 受付と永久fenceの実装進行
+
+- 担当報告: UID無しlifecycle scope型、account/tenant/member永久fence、独立resolver、最終ownerとtenant予約を含む先行ledger→受付service、本人status/再送APIを追加中。account fenceは共通policyでprofile不在のunprovisioned判定より先に検査する。
+- 次は専用scope handlerを既存walkerへ接続し、300秒境界・複数所属/最終owner・同key/台帳障害・private/共有保持/子階層の重点検証を行う。現在未検証であり、成功/完了はまだ記録しない。
+
+### 退出後の正規再参加との整合を追加確認
+
+- 作成中コードの親read-only確認から、account_stamp例外のHTTP変換、最終read/write/responseまでの再認証期限guard、退出/tenant削除後のaccount削除を重点テスト候補として共有。正式レビューfindingではない。
+- docs/invitations.mdの既存deny→invitation_epoch一回増分→committed revoke→新招待/新grantによる再参加契約を確認。単純な永久member fenceで退出を永久BANにせず、未完了purge中は再参加を止め、消去完了後に旧privateを戻さず正規再参加できるかを担当へ依頼。既存ControlLedger版との整合も実装中の確認事項。
+
+### 再参加の台帳整合方針・重点検証開始
+
+- 担当は退出の所属失効をAuthzChangesの固定Changeへ接続し、既存committed revoke/authorization_version/invitation_epochを再利用する方針。本文無しrevoked membershipと制御台帳を保持し、purge未完了の新招待は409、完了後の新grant版で旧member fenceを越える。旧private IDは個別永続resource fenceで新privateと区別する。
+- 担当報告で重点8試験の受付系は成功、account複数root walkerを修正中。正式件数/失敗raw/修正後結果はhandoff待ち、全成功とはしない。
+- 親は旧MEM07/08保存intentに新kind/scopes default fieldが無い互換境界を共有。new model生成fixtureだけでなく旧JSON/operation形状で通常purgeと再送が使えることを確認する。
+
+### 初回重点検証の中間失敗
+
+- 親raw `/tmp/ba-iam-10-unit-third.log` 確認:8件0.595秒、1ERROR。account profile rootのwalker処理で既存vector path判定が3番目path要素を前提にしてIndexErrorとなった。複数rootへの適用修正中。成功扱いしない。
+- initial/second/typeの途中rawも `/tmp/ba-iam-10-*` に保存され、fourthの関連重点runは実行中。最終freeze/fullsuiteの証拠とは区別する。
+
+### 重点試験のsandbox停止と再実行
+
+- 担当はfocused-fourthの28dots後の停止を既知のsandbox TestClient thread制約と切り分け、担当sessionへCtrl-C、exit130で終了。raw保存。テスト成功に含めず、require_escalatedのhost実行で拡張重点試験へ切替。
+- profile rootのIndexErrorを修正。旧forget intentのkind/scopes defaultをserializationから除外して旧保存形状を保つ対応を追加し、互換回帰を確認中。正式結果は未受領。
+
+### 拡張重点72件成功・tenant ghost修正
+
+- 親raw `/tmp/ba-iam-10-focused-fifth.log` 確認:17件3.270秒1FAIL、tenant unknown_collectionの残存。原因はtenant全削除でも欠損親をprivateの未証明枝と同様に扱い、live孫を選択しなかったこと。成功として扱わない。
+- 担当は正規tenant scopeに限りghost親から全配下への既存範囲の削除権限を継承する修正を追加。operation/purge job/fence/erasure provenanceを保持する。
+- 親raw `/tmp/ba-iam-10-focused-sixth.log` とverification.jsonl確認:新lifecycle17＋既存membership/forget/purgeの計72件11.852秒OK、exit0、whole12.764秒。
+- 次は実Firestoreの同時owner離脱/応答喪失/opaque UID全所属/paged child purge、型/lint整形、最終setup/check/test/全emulator。現在まだ製品固定前であり最終検証とは区別する。
+
+### 初期型・整形の調整
+
+- 親rawとverification.jsonl確認: mypy-second/thirdはexit1、lint-first --fixも未解決残でexit1を保存。format-firstは15files整形/5不変、exit0。mypy-fourthは238source files成功、exit0/1.795秒。
+- この時点の型成功は全体check/freeze後の最終成功とは区別。API契約・文書と実Firestore追加検証の準備を続ける。
+
+### 新受付20件の重点成功・提供環境の明示
+
+- 親raw `/tmp/ba-iam-10-focused-seventh.log` とverification.jsonl確認: test_deletion_requests20件3.495秒OK、exit0、whole4.063秒。台帳前後DB障害、tenant削除pending中の本人account受付、旧immutable JSON/保存receiptのpurge/replay互換を追加。
+- 作成中docs/account-deletion.mdはruntime受付を明示local-emulator＋DI fakeへ限定し、staging/production未構成503、実Firebase/外部cache/export等backend未実装を明記。これはfake/emulator完了範囲と実backend結合の区別であり、実環境の削除成功を意味しない。最終scopeと受入充足はfresh独立レビューで確認する。
+
+### 実Firestore追加3件成功
+
+- 親raw `/tmp/ba-iam-10-emulator-target-first.log` とverification.jsonl確認: Auth/Firestore emulators:execでtest_deletion_requests_integrationの3件13.731秒OK、script exit0、whole21.098秒。Auth/Firestore/hub/logging正常停止。
+- 実Firestore同時owner退出で孤立tenantを残さない、opaque UID全所属＋受付commit応答喪失から同操作再開、公式paged private子階層削除＋共有保持を確認。
+- mypy-fifthは新旧JSON互換fixtureのObjects.data型とunused ignoreの2件でexit1、raw保存。lint-secondはexit0。型修正と全freeze検証はまだ必要。
+
+### 最終setup/check成功・全suite実行へ
+
+- 親raw/verification.jsonl確認: mypy-sixth238files成功exit0/0.494秒、setup-final locked uv/frozen pnpm成功exit0/0.592秒、generate-client-final exit0/0.859秒。
+- check-final全9成功exit0/3.772秒（task表示3.74秒）。製品freeze後の通常全suiteと全emulatorは継続中。最終SHA/変更path集合・終了監査と正式handoffを受領してからfresh R1へ渡す。
+
+### 全suite中の永久tenant fence補強・再固定予定
+
+- 担当のread-only確認で、tenant resolverがstatusのみを見ており古いtenant rootをactiveへ再配置した際の永久tenant fenceを直接検査していなかったため、2pathsを修正し新規削除要求も拒否する負例を追加。最終チェック後の製品変更であり、check/test/emulatorの新freeze検証が必要。
+- 進行中全suiteは実行中2paths変更のある中間結果として保存。import時点の証拠なしに全pathが旧freeze適用と断定せず、最終成功へ流用しない。親は次回全検証前に最終read-only確認完了→全製品SHA manifest保存→freeze→実行→同SHA照合を依頼。
+
+### 最新25pathの再freeze
+
+- 担当は最終read-only確認で、profile親欠落を子も空と誤認して完了しない拒否と、global profile配下pushにtenant_idがあっても正しく消去する境界を修正・負例化。tenant復元fenceに続く変更を含め最新25pathを `/tmp/ba-iam-10-freeze.json` へ保存。
+- 親が2026-10-26T18:19:54.668552+00:00にmain/base/index空/exact25paths/全SHAを照合、`/tmp/ba-iam-10-parent-frozen-audit.json` 保存。setup-final2 exit0/0.743秒。これ以降の全check/test/emulatorを最終証拠とし、途中編集があった前runは別記する。
+- 旧test-finalはexit0/whole163.256秒だが途中製品変更のある中間結果。最新snapshotの全suite成功へ流用しない。前emulator終了後、最新SHAで全emulatorへ進む。
+
+### 正常unprovisioned accountの互換制限を修正へ
+
+- 親確認への担当回答: 最新freezeのresolve_accountはcanonical profile0件/複数を403にし、既存Tenants.create/招待が許す正常unprovisioned本人もaccount削除不可。missing-parent+push子の負例はあるが正常unprovisioned成功試験は無し。docsへ事前profile修復の制限を追記していた。
+- 親は既存仕様が明示許す正規利用経路へ新しい外部修復前提を課すことは受入/互換未充足と判断し、制限を残さず修正するよう依頼。未知childを無条件消去/無視して成功にする修正は不可。正常profile無し・子無し・所属ありの成功と、missing-parent＋子残存の安全な扱いを分ける。未解決の未知子は未完了/固定理由を保持し、正規対象の進行を妨げない選択を含め検討する。
+- 25path freezeで進行中の結果は中間保存し、新しい修正/freeze/検証後にfresh R1。これは親の実装中整合確認であり、正式独立review_roundsはまだ0。
+
+### unprovisioned対応の修正方針
+
+- 担当は正常profile0件の受付拒否を撤回し、account purgeでbounded show_missing walkerを使いusers rootも列挙、canonical user_id一致profileだけを選択する方針。欠損親のlive子は所有者を推定せず固定理由未完了とし、正規全所属/privateは先に消去する。
+- profile/子とも無い正常unprovisioned本人はprovider最終処理まで進める正例を追加する。新修正と検証は進行中、成功の主張ではない。
+
+### unprovisioned修正の重点22件成功・旧全体実行の区別
+
+- 親raw `/tmp/ba-iam-10-unprovisioned-focused.log` とverification.jsonl確認: test_deletion_requests22件5.079秒OK、exit0、whole5.667秒。正常profile無しの受付/完了と不明ghost子の安全な未完了を含む最新修正の重点証拠。
+- 旧check-final2 exit0/4.970秒、test-final2 Python636/152.566秒＋Skill18/0.076秒＋Node40/16.389秒、exit0/whole175.752秒。旧test-finalはPython635/140.388秒＋Skill18/0.087秒＋Node40/16.987秒、exit0/whole163.256秒。
+- 旧emulator-finalは全161件460.840秒OK、script exit0/whole470.084秒、Auth/Firestore/hub/logging正常停止。これらは製品変更が入った中間runであり、最新freezeでの最終検証成功へ流用しない。新freeze全検証が必要。
+
+### unprovisionedと不明ghostの挙動を区別
+
+- 担当が最新重点22件の具体境界を報告: profile無し＋所属ありは成功まで進む。missing-parent＋push子は正規privateを消去した後もrunning/profile_parent_unknown、provider未呼出し。canonical mapping復旧後の正常再開も成功。
+- 型238/lint成功。実Firestoreへ同2ケースを追加し、公式users show_missingを含むtarget5件を検証中。最終全体freezeはこの検証後、旧161件全成功は中間証拠のまま保持。
+
+### global users走査の実Firestore不整合を修正
+
+- 親raw `/tmp/ba-iam-10-emulator-target-unprovisioned.log` 確認:5件14.712秒、1FAIL/1ERROR、script exit1/whole22.437秒。FirestorePurgePages.childrenがtenant配下collectionのrsplitだけを想定し、global users rootでValueError。通常workerはhandler_error/runningとなり未provision完了に至らなかった。
+- 担当は公式bounded list_documentsのparent指定をtop-level collectionへ対応する最小修正をpackages/persistence/purge.pyへ追加。製品pathは26になる。
+- 再実行unprovisioned2はverification.jsonlでexit0/whole35.090秒、正常停止を確認。具体5件のraw結果は次の最終handoffへ含める。前FAIL/ERRORを成功に上書きしない。
+
+### 最新26path再固定・最終全検証へ
+
+- unprovisioned2 raw親確認:実Firestore5件27.552秒OK、script exit0、whole35.090秒。正常unprovisioned完了・親不明live子未完了の両方を公式users show_missingで検証。Auth/Firestore/hub/logging正常停止。
+- root collection pagingを含む26pathsへfreeze更新。親が2026-10-26T18:28:44.104087+00:00にmain/base/index空/exact26paths/全SHA一致を確認し `/tmp/ba-iam-10-parent-frozen26-audit.json` 保存。
+- setup-final3成功との担当報告。最新同SHAでcheck-final3/test-final3/emulator-final2開始、以後編集停止。終了後SHA/5ports監査と正式handoffを受けてfresh R1へ。旧25pathや実行途中変更runを最終成功として混用しない。
+
+### API説明の既知不整合を解消する方針
+
+- 担当がspecs/openapi.yamlのtenant operations説明に旧「forgetのみ、退出は後続」が残ることを発見。既知文書不整合をhandoff制限として残さず現在の提供環境/種別へ修正するよう親が依頼。
+- これはruntime変更を伴わない説明修正のため、全runtime/test/emulator SHA不変を監査できる場合、進行中の全suiteを再実行せず適用証跡を分けて保持する。旧freeze保全→説明変更→client再生成/check→最終snapshot更新とscope-auditを行う。runtimeが変わればこの例外は使わず必要再検証。
+
+### 文書修正後28pathsと検証適用範囲の監査
+
+- 親が2026-10-26T18:33:05.548462+00:00にruntime26/final28 manifestsを照合。差はOpenAPI descriptionと生成sdk.gen.d.ts/sdk.gen.js/types.gen.d.tsのコメントだけ。全runtime/test/emulator SHA不変、全生成codeのblock comment除去後はHEADと同一、OpenAPI差分はdescription行だけと独立確認。`/tmp/ba-iam-10-parent-docs-scope-audit.json` 保存。
+- generator docs更新exit0/1.395秒、check-final-docs全9成功exit0/5.257秒（Mypy238、docs1428/1246OK/182excluded/0errors）。初回scope auditはsdk.gen.tsという存在しない名前の想定でassert失敗、実生成d.ts/jsを列挙して成功した環境スクリプト誤り、製品failureではない。
+- test-final3最新runtime: Python637件145.490秒＋Skill18件0.088秒＋Node40件19.208秒成功、exit0/whole170.342秒。setup-final3 exit0/0.577秒、check-final3 exit0/4.041秒。全emulator-final2は実行中。
+- fullsuiteに対して全28SHAが開始時から同じとは記載しない。説明修正だけの4paths差を監査した限定適用であり、途中runtime変更を含む旧runとは区別する。
+
+### 最新runtimeの全Firestore163件成功
+
+- 親raw `/tmp/ba-iam-10-emulator-final2.log` とverification.jsonl確認: `mise run test-emulator` 全163件450.927秒OK、script exit0、whole460.886秒。Auth/Firestore/hub/logging正常停止。
+- test-final3の637+18+40と同じruntime/test/emulator SHAに適用。OpenAPI説明/生成コメントの4paths差は前記scope-auditで区別し、全28製品SHAが開始時から同じだったという主張はしない。
+- 残る終了監査（全28SHA、main/base/index空、diffcheck、host5ports解放）と正式handoffを受領し、fresh R1で最新全差分を確認する。
+
+### 正式引継ぎ・終了監査
+
+- 親が正式 `/tmp/ba-iam-10-handoff.md` を確認。SHA256 `513647224e84daabac0df212fc59419555113067be5000dd1b5dd367bd5f8229`。final28path manifest `/tmp/ba-iam-10-freeze.json` SHA256 `266165cc3c3ba8ae313abbe7e2840679f55662b66c9d1bf4aeb4aed268684c28`。
+- `/tmp/ba-iam-10-final-audit.json`:全28SHA一致、main/base063fd7b3bc10556c9c283cb9cb80c5627317a8f9、index空、diffcheck0、5ports8080/9099/9150/4400/4500 ECONNREFUSED111、ss listener無し。親もhandoff/manifest hashと全28SHA/main/base/index/diffcheckを再照合。
+- 実装担当編集停止。setup/check/通常637+18+40/全Firestore163成功、説明差のみ4pathsの適用範囲を監査済み。新規独立R1で最新全差分・仕様・既存producerとの整合を確認する。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/iam10_review_r1`（新規独立context）。base commit: `063fd7b3bc10556c9c283cb9cb80c5627317a8f9`。
+- 未追跡を含む最新全28files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/account-deletion.md` | `408ce2a656d90772c21afe54f649dbbb6ef458559745cc72c9356a35a7719cc4` |
+| `docs/memory-forgetting.md` | `e70ec03001022c8456ef88ac45065188e4690e950d4b6a35531f5298e837a029` |
+| `docs/memory-purge.md` | `5963307c1be7a2d93df899331d4e83578baebf630c0a6fa6197dec8c001ae4a6` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `73eeff894d9440b25e840a6bf6d772890c96f8defe41e9d34898362925cdc242` |
+| `packages/api-client/src/generated/sdk.gen.js` | `d6ad3db9b70624b8cfd87ff4bb8b614fa55add58bc74e0d87d007be0ffaf1819` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `01c814234442dfe1da0b32bbee21c7c22e51b51d4f58f9a38f9c0e3471f2c24a` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `529402134391129ef9842fe7b50ca24b99e601370caad835503514c0eee74314` |
+| `packages/contracts/src/brainoid_contracts/errors.py` | `e3f41699bd25001f40cf7ae90314e71dc1564525c1ea07772f09612c7c177ea0` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `64b9aeafbc0bef132f7abe3e21175652ec59e00b5c8543bf04dd4df211240503` |
+| `packages/memory/src/brainoid_memory/forget.py` | `d46538aa04d6c655426df807a7785aabfa157323a0d3247a49013ac9a3955f50` |
+| `packages/memory/src/brainoid_memory/lifecycle.py` | `af9c0045b0cdd0daeb9f0c39f86d11506cd58938f5d966e8100f709e5505cbe3` |
+| `packages/persistence/src/brainoid_persistence/purge.py` | `f464487e75ba7d56442a2d67d5e05e3efbfdcafacd3200eefcc2c55d97352205` |
+| `packages/policy/src/brainoid_policy/accounts.py` | `694b08ca10a330b51dcc96c620a198d2b60dae075bda5c305851f2ca3440a101` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `bd835e7791803aaf382e19c89a1eb16c72f147f9f538dc6aaf040ba12e1d07da` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `67db4c74109ab1c76740f7182c0ef8226c9ed1867006f4d74f73eb772debc132` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `0ad46770996deb07e7920e315e8b755632dc70f9c3aab2cd129a20d3afdc6c11` |
+| `services/api/src/brainoid_api/errors.py` | `ae66f2431f198ee82f8c7a40cefbd3f0c2ccfc05e13b7214fb36a9019b77aeb5` |
+| `services/api/src/brainoid_api/repositories/invitations.py` | `c976713efd695c21996671f16a77553f24d2d927d8f65af3b3db2a814a465641` |
+| `services/api/src/brainoid_api/routes/operations.py` | `e889e098ab47d8a6257c952c806a6f654e2bb106c9c0b4475211471cd8b0483b` |
+| `services/api/src/brainoid_api/services/account_deletion.py` | `923945238467ea6468f397ba3ccea77bc62f7be11e589aa7eb67731700b1a03a` |
+| `services/api/src/brainoid_api/services/deletion_requests.py` | `16268634a1c6da197beced931fec2bbf0c5fe8f72cdc58e10e1cca52f3cf69f7` |
+| `services/api/src/brainoid_api/services/tenant_deletion.py` | `337bb4b3109427f39ecd54320ea54ffb3f991476345b5b4b9bd1d60aea3a3873` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `a56032dc0099f8e4539af1c803bd80e0f7ca6471372cf691a7d693f343292e23` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `be8458d6bac93f6eca5c58fe761818c0afd5335b2e425cfe0ef30ccde31f7409` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `7370a81fa9fbc1318976019b96540ef0308bdea4a18cfa3b53d0ceaee8a387d1` |
+| `specs/openapi.yaml` | `5ca18d0183129c857ef446e3d7854222fa855a65058f01192b7c6bab1ce05e23` |
+| `tests/emulator/test_deletion_requests_integration.py` | `049c071104fb23aed52bd5af7188666a2d9d60bfa71c8760b2dd745387c6e369` |
+| `tests/test_deletion_requests.py` | `4f50d50c3e43d35701965a2250a99baf3b05c1f9402ac79303bf9ceba15d9359` |
+
+### R1開始監査
+
+- 新規独立 `/root/iam10_review_r1` はmain/base/index空/exact28paths/全SHA/diffcheck0を直接確認し開始監査を保存。受入条件・退出/未provision bootstrapの既存契約を直接読み、受付→fence→purgeの全経路を確認中。必須指摘の最終判定前。
+- 親のticket_plan.py checkは96件/33done/1in_review/62todoで成功。製品28pathは固定維持、親はmetadataのみ更新する。
+
+### R1の正規設定更新競合・派生inventory確認
+
+- 親は未検証の確認点として、削除予約がtenant全snapshotを固定する間に通常Tenants.updateが設定を変更した場合の同key再開性をR1へ共有。
+- R1はTenants.updateがmembership_mutationを拒否しないことと削除側fingerprint再照合を直接確認し、正規repository経由の再現probeを準備中。private entityのexternal-ID index等の派生参照も実producerから確認中。いずれも正式finding/判定前、freeze維持。
+
+### R1独立probeで2つの必須候補を再現
+
+- `/root/iam10_review_r1` が正規repository経由の2問題を報告。親も `/tmp/ba-iam-10-r1-probes.log` を確認。probe `/tmp/ba-iam-10-r1-probes.py`、実行0.882秒/exit0は欠陥の観測成功であり、製品受入テスト成功ではない。正式severity/ID/reportは確定待ち。
+- 設定更新競合: 独立ledger append直後に通常Tenants.updateがname/version更新成功。leave/account/tenant全kindで初回・同key再送がconflict、新keyもconflictまたはoperation_forbidden。ledger1件/operation0件、tenant予約残留。accountはreserved永久fenceが通常利用も拒否する。
+- private Entity索引: 正規Entities.registerの本人private entityとintegrationをaccount purgeが消してsucceeded/provider finalizerへ到達する一方、entity_external_idsにraw private external_idとintegration参照が残存。root原本消去だけでは受入不足。
+- R1は全体レビューを継続し正式修正条件をまとめる。製品はfreeze維持し、正式判定と終了監査後に元writerへ修正を返す。
+
+### R1のglobal端末資格情報消去漏れ
+
+- R1は正規pairing→confirm→exchange→delete_tenantで3件目を再現。tenant subtree purge succeeded後もglobal device_credential_familiesがactive、device_pairingsに暗号化access/refresh再送receipt等が残る。実外部adapter不足ではなく現在のlocal credential producerの消去漏れ。
+- `/tmp/ba-iam-10-r1-credential-probe.py` / .log、1.132秒/exit0。親raw確認。API認証はtenant/device fenceで拒否されるため、認証bypassとは評価しない。観測probe成功を受入成功には数えない。
+- 担当が独立実行した既存IAM10非HTTP/旧forget互換21件は4.668秒全成功。全体request_changes reportをまとめるとの報告で、formal/終了監査は未受領。
+
+### 独立レビューR1正式結果・3件の修正へ
+
+- 新規独立 `/root/iam10_review_r1`: **request_changes**、必須3件（P1 1/P2 2）、任意提案無し。親が正式 `/tmp/ba-iam-10-review-r1-report.md` 全文確認。SHA256 `853f1fea769d669da69a809175d00d14aeba37c4446c218a1fe71d4466bd9b72`。終了final-auditはmain/base/index空/exact28paths/全SHA/diffcheck0、5ports接続拒否/listener無し。
+- **IAM10-R1-01/P1**: deletion_requests.py:312付近と既存Tenants.update。通常renameが削除予約中に成功すると全tenant snapshot差でleave/account/tenantの初回・同key再送が永久conflict、immutable intentだけ残りoperation/job無し。account予約で通常利用も拒否。設定mutationの予約参加、または厳密なscope/認可入力への安全なsnapshot照合で解消し、台帳/DB失敗後PATCHと実Firestore直列化を検証する。
+- **IAM10-R1-02/P2**: lifecycle_handlers.py:124付近、実producer entity_resolver.py:99/Entities.register。本人private entityのraw external-ID/integration参照がindexへ残ったままaccount/leave purge完了。canonical選択/不変証拠へ束縛して消去または必要な内容無しtombstoneへ縮退し、他人/shared index保持、原本先消去/再配送を検証する。
+- **IAM10-R1-03/P2**: purge_resource.py:_stack/完了判定とDeviceCredentialRepository実producer。正規pairing/refreshのglobal credential family/pairing encrypted receipt等を残してtenant purge完了。認証は拒否されるためbypassではなく現local保存先の消去漏れ。boundedにtenant正規束縛を検証し、必要なrevoked/anti-replay証拠だけ保持、秘密payload/子階層を消し、別tenant保持・中断再送・完了確認を検証する。
+- 直接検証:既存非HTTP/旧forget互換21件4.668秒/whole5.043秒、追加guard3件0.011秒/whole0.404秒、全exit0。3問題の診断probeは欠陥の観測成功で受入成功とは別。HTTPは既知sandbox制約を避け直接再実行せず提供最新rawを確認。説明だけ4paths差のruntime適用性をR1も独立監査。
+- fake/emulator提供範囲自体はdocs08§1とIAM10外部前提に適合する評価。実backend未提供は現在local producerの消去漏れを免除しない。旧MEM07/08JSON互換・未provision正例・期限/owner保持等の既存正例は維持。
+- 台帳in_progress/review_rounds=1へ戻し、元writerへ3件を返す。修正後はfresh R2で最新全差分を再確認する。
+
+### R1必須3件の修正方針
+
+- 元writerはTenants.updateの認可各phaseでmembership_mutationを確認して予約へ参加させ、元snapshot/confirmation/同key復旧を維持する方針。
+- entity_external_idsをcanonical entityまたは保存selectionへ束縛し、raw参照を除いた内容無し再利用拒否markerへ縮退する。
+- tenant削除だけが既知global device集合をbounded走査し、canonical pairing/familyとの結合で選別、receipt/hashと子を除去してrevoked family/installation binding等の必要最小markerを残す。他tenant保持・正規producer・再配送・Firestore競合を追加検証する。
+- まだ修正/検証段階、R1finding解消の正式承認ではない。修正後は新規R2で最新全差分を確認する。
+
+### R1修正の重点3件成功
+
+- 親raw `/tmp/ba-iam-10-r1fix-focused-first.log` とverification.jsonl確認: test_deletion_inventoryの3件2.754秒OK、exit0/whole3.461秒。
+- private external indexのcanonical束縛/再送、全3kind設定予約と障害後再送、tenant credentialの完了前縮退と正規replay拒否を含む。まだ最終freeze/fullsuiteや独立R2ではなく、R1指摘を正式承認済みとは扱わない。
+
+### R1修正の再配送テスト調整・型検証中
+
+- 親raw確認: focused-secondは3件1.834秒/1FAIL（credential再配送でdelivery None）。thirdは3件2.817秒OK、verification.jsonl exit0/whole3.642秒。担当へ原因とfixture/実処理修正の区別をhandoffに記載するよう依頼。
+- mypy-firstはlifecycle handlerの変数型とfixture enum入力の3件/2files（239source files検査）、exit1。lint-first --fixもexit1を保存。現時点では最終型/全体検証成功ではない。
+- 既存device credential consumerも縮退markerの再送拒否を扱う修正対象となり、fresh R2の全差分へ含める。
+
+### 再配送fixture失敗の原因確定
+
+- 担当回答: focused-secondのdelivery NoneはJobs.fail(retry=True)後に既存retry_delayを進めなかったfixtureの問題。jobs.retry_delay分の時計前進でthird成功、runtime回復処理は変更していない。
+- 縮退marker後のdevice create/confirm/exchange/refresh consumerを早期拒否へ接続し、欠落fieldのKeyErrorを避ける。他tenantへのinstallation再登録拒否も追加。型/closureの修正は済み、最終checkは後続。
+- 実Firestoreへ全3kind設定予約競合と公式globalページ/ghost子試験を追加し、対象emulatorへ進む。
+
+### R1修正の実Firestore9件・最新型検査成功
+
+- 親raw `/tmp/ba-iam-10-r1fix-emulator-target-first.log` 確認:実Auth/Firestoreの9件36.067秒OK、script exit0、正常停止。既存5件にleave/account/tenant全3kindの設定予約直列化と公式global device bounded pagesを追加。
+- focused-fifthは3件2.964秒OK、mypy-thirdは239source files成功。正式command/exit/whole時間はverification.jsonlと最終handoffへ保持。これから最終inventory/docs確認とfreeze後全検証へ進む。
+
+### 既存installationに束縛された未confirm再pairをinventoryへ追加
+
+- 担当が対象emulator9件のwhole43.347秒/exit0を確認。全3kindのledger I/O中・障害後PATCH拒否からexact再送、page_size=1のglobal credential/ghost子削除が成功。
+- その後のproducer inventoryで、既存installationに束縛済みの未confirm再pairもtenant対象と確認し、同じcanonical結合で選択する小追加を行った。fake重点3件2.964秒/whole3.695秒とMypy239/0.425秒はこの後の成功。
+- target9件は小追加前の結果として保持し、最新freeze後の全emulatorで再検証する。未束縛の新installationや別tenantのpending pairingへ範囲を拡大しないことをR2でも確認する。
+
+### R1修正の31path最終freeze
+
+- 担当がread-only producer/consumer inventory・docs/OpenAPI整合を終了して編集停止。`/tmp/ba-iam-10-r1fix-freeze.json` SHA256 `18b1e308d82674e54561aa91cfe45bd7f4c3ec045b243d466ad384b5b6676586`。親が2026-10-26T19:07:11.284945+00:00にmain/base/index空/exact31paths/全SHA/diffcheck0を照合し、parent-r1fix-freeze-audit.jsonを保存。
+- R1対象から変更したpaths: docs/account-deletion.md, packages/api-client/src/generated/sdk.gen.d.ts, packages/api-client/src/generated/sdk.gen.js, services/api/src/brainoid_api/repositories/device_credentials.py, services/api/src/brainoid_api/repositories/tenants.py, services/worker/src/brainoid_worker/lifecycle_handlers.py, services/worker/src/brainoid_worker/purge_resource.py, specs/openapi.yaml, tests/emulator/test_deletion_requests_integration.py, tests/test_deletion_inventory.py。新しい全検証はこの31SHAを対象とする。
+- 担当報告: focused-seventh4件3.499秒/whole4.236秒成功。sixthのshared integration経由index再登録拒否を403としたfixture1FAILは、既存private maskingの正しい404へ期待を修正（runtime変更なし）、raw保全。
+- 同31SHAでsetup/check/test/全emulator実行へ進む。全結果・終了監査・正式r1fix-handoff後にfresh R2、まだ承認前。
+
+### R1修正freeze後の標準検証成功
+
+- 親がsetup/check/通常suite rawとverification.jsonlを確認。同31SHAでsetup exit0/0.585秒、check全9系統 exit0/3.809秒（Mypy239、docs1429/1247OK/182excluded）。
+- 通常suiteはPython641件151.923秒、Skill18件0.077秒、Node40件16.733秒成功、whole173.578秒/exit0。`/tmp/ba-iam-10-r1fix-test-final.log`。全emulatorは実行中のため完了とは扱わない。
+- 元reviewerの既存非HTTP21件は5.434秒/whole6.262秒、追加guard3件は0.027秒/whole0.872秒で再実行成功。元R1のreport・4script・4logはSHA不変をprovenance.jsonへ保存、旧診断probeの観測失敗を上書きしていない。
+- 親がfocused-sixth/seventh rawも確認。sixthは4件中、既存private maskingの404に対する403期待1FAIL。期待修正後seventh4件3.499秒/whole4.236秒成功。
+
+### R1-03追加確認: 削除済installationへのpending再生成
+
+- Writerが最終consumer棚卸しで、既存installationに束縛された削除済tenantへ無認証createの新keyがpending receiptを再生成できる経路を確認。confirmは拒否され、認証bypassではないが、削除後の生成停止が不足。新重点テスト末尾のcreate成功が観測根拠。
+- 現在31SHAのsuiteは変更せず終了結果を保存し、その後create transactionで既存installationのpermanent tenant fenceを確認する修正を行う。受付後の全producer書込経路と同key再送も棚卸しし、新freeze後のsetup/check/test/全emulatorを実行する。
+- 上記31SHAのsetup/check/Python641等の成功結果は中間検証へ区別し、最終修正後に適用しない。R2未開始、製品writerは同担当のみ。
+
+### 削除後create再生成の修正前probe
+
+- 親が `/tmp/ba-iam-10-r1fix-create-fence-probe.py` とbefore.logを確認。元R1 credential probeをrunpyでそのまま使用し、正規pairing/refresh→tenant削除succeededの後に同installation/newkey createを実行。拒否期待に対し成功してAssertionError、exit1/whole2.129秒。元診断script/logは変更していない。
+- 既存family/receiptは内容無しに縮退し認証も拒否されている。残る問題は新pending receiptの生成で、createの保存/再送共通transaction入口へinstallation→tenant fence確認を追加する。writerはconfirmのmanagement、exchange/refreshのdevice principalにも既存fence検査があることを確認。最新差分全体は後続R2で独立確認する。
+
+### 追加create修正前31SHAの全emulator終了
+
+- 親raw確認: `/tmp/ba-iam-10-r1fix-emulator-final.log` は167件455.938秒OK、whole464.857秒/exit0、各emulator正常停止。
+- この成功は旧31SHA（18b1e... manifest）に対応し、create producer追加修正前の中間検証。新freeze後の最終全検証と混同しない。
+
+### R1修正の第2freeze・R2開始条件
+
+- 追加create境界を修正し、before probe exit1/2.129秒→after exit0/1.541秒。重点lifecycle+既存pairing19件4.804秒/whole5.55秒、Mypy239成功。正規createの同key/newkeyを受付直後とpurge後で拒否し、別tenant・未束縛installationは許可する。
+- 最終producer棚卸し `/tmp/ba-iam-10-r1fix-writer-inventory.md` を保存。create/confirm/exchange/refreshの全書込とreceipt返却、pending installation結合を確認。IP/subject HMAC rate-limit countersはtenant credential本文ではなくsecurity metadataとして保持。
+- 新31path manifest SHA256 `3c81730081e2f1bfca3af72fe56197dc58df4d168917e2a4e9169345f2d696e9`。旧manifest/auditはinitial名に保全。変化した4pathはdocs/account-deletion.md、device_credentials.py、test_deletion_inventory.py、emulator/test_deletion_requests_integration.py。親が全31SHA/main/base/index空/exactpath/diffcheck0を照合しparent-r1fix-final2-freeze-audit.jsonへ保存。
+- Writerは編集停止してfinal2全suiteへ移行。重点検証結果と固定差分を受領したため、新規R2のread-only全体レビューを同時に開始する。必須全suiteと正式handoff/終了auditが揃う前のapproveは禁止。失敗・追加問題があればwriterは編集せず親へ報告する。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/iam10_review_r2`（新規独立context）。base commit: `063fd7b3bc10556c9c283cb9cb80c5627317a8f9`。
+- 未追跡を含む最新全31files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/account-deletion.md` | `b08fb259cac68e918e5a480e47972b34e9e7714f91e2bcfab39ab02f92797e6e` |
+| `docs/memory-forgetting.md` | `e70ec03001022c8456ef88ac45065188e4690e950d4b6a35531f5298e837a029` |
+| `docs/memory-purge.md` | `5963307c1be7a2d93df899331d4e83578baebf630c0a6fa6197dec8c001ae4a6` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `c65c1d2c4fe399e9ace759b6872ee0bcdfd45557f431e72fa1091645b7461432` |
+| `packages/api-client/src/generated/sdk.gen.js` | `18b6afd5d427f68dc527fbed0c7c2362138461bdf54efa42aec0ecfab256d7b0` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `01c814234442dfe1da0b32bbee21c7c22e51b51d4f58f9a38f9c0e3471f2c24a` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `529402134391129ef9842fe7b50ca24b99e601370caad835503514c0eee74314` |
+| `packages/contracts/src/brainoid_contracts/errors.py` | `e3f41699bd25001f40cf7ae90314e71dc1564525c1ea07772f09612c7c177ea0` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `64b9aeafbc0bef132f7abe3e21175652ec59e00b5c8543bf04dd4df211240503` |
+| `packages/memory/src/brainoid_memory/forget.py` | `d46538aa04d6c655426df807a7785aabfa157323a0d3247a49013ac9a3955f50` |
+| `packages/memory/src/brainoid_memory/lifecycle.py` | `af9c0045b0cdd0daeb9f0c39f86d11506cd58938f5d966e8100f709e5505cbe3` |
+| `packages/persistence/src/brainoid_persistence/purge.py` | `f464487e75ba7d56442a2d67d5e05e3efbfdcafacd3200eefcc2c55d97352205` |
+| `packages/policy/src/brainoid_policy/accounts.py` | `694b08ca10a330b51dcc96c620a198d2b60dae075bda5c305851f2ca3440a101` |
+| `packages/policy/src/brainoid_policy/transactions.py` | `bd835e7791803aaf382e19c89a1eb16c72f147f9f538dc6aaf040ba12e1d07da` |
+| `services/api/src/brainoid_api/auth/profiles.py` | `67db4c74109ab1c76740f7182c0ef8226c9ed1867006f4d74f73eb772debc132` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `0ad46770996deb07e7920e315e8b755632dc70f9c3aab2cd129a20d3afdc6c11` |
+| `services/api/src/brainoid_api/errors.py` | `ae66f2431f198ee82f8c7a40cefbd3f0c2ccfc05e13b7214fb36a9019b77aeb5` |
+| `services/api/src/brainoid_api/repositories/device_credentials.py` | `9d49c39977eca8042420ca0b5b8c5cc3ee9d9c3028f97ec2189e4848545f30a8` |
+| `services/api/src/brainoid_api/repositories/invitations.py` | `c976713efd695c21996671f16a77553f24d2d927d8f65af3b3db2a814a465641` |
+| `services/api/src/brainoid_api/repositories/tenants.py` | `022528e94b46fb18d1630ed52515cbd04ebb486bd2f7c92c82626071166d1389` |
+| `services/api/src/brainoid_api/routes/operations.py` | `e889e098ab47d8a6257c952c806a6f654e2bb106c9c0b4475211471cd8b0483b` |
+| `services/api/src/brainoid_api/services/account_deletion.py` | `923945238467ea6468f397ba3ccea77bc62f7be11e589aa7eb67731700b1a03a` |
+| `services/api/src/brainoid_api/services/deletion_requests.py` | `16268634a1c6da197beced931fec2bbf0c5fe8f72cdc58e10e1cca52f3cf69f7` |
+| `services/api/src/brainoid_api/services/tenant_deletion.py` | `337bb4b3109427f39ecd54320ea54ffb3f991476345b5b4b9bd1d60aea3a3873` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `dfdc8fca224b7d407e43dd018eb595e79c56870500f825792be0efa2cc5f86a3` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `be8458d6bac93f6eca5c58fe761818c0afd5335b2e425cfe0ef30ccde31f7409` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `4ddbf00af03d653f8e56603ef25330368f4f30f81df81369db07a03cd1639e26` |
+| `specs/openapi.yaml` | `16894a29c7d84c6e9cd79e2b81bb4aee09aaa1397afadf26c21e9efdf5bba4c1` |
+| `tests/emulator/test_deletion_requests_integration.py` | `af7d6c3dbadf1b1265248f202e8e289792719b8357bfcbb03f75f59d6fda41db` |
+| `tests/test_deletion_inventory.py` | `0bc68ae1ba7d163809b9a3499cf4a87cee30cf1611f72af99470098885604c48` |
+| `tests/test_deletion_requests.py` | `4f50d50c3e43d35701965a2250a99baf3b05c1f9402ac79303bf9ceba15d9359` |
+
+### 新31SHAのfinal2標準検証・R2開始監査
+
+- 親rawとverification.jsonl確認: setup0.577秒/exit0、check全9系統3.426秒/exit0、通常suite whole175.94秒/exit0。Python642件153.872秒、Skill18件、Node40件16.780秒が成功。`/tmp/ba-iam-10-r1fix-test-final2.log`。全emulatorは継続中、最終handoff/audit待ち。
+- 新規独立 `/root/iam10_review_r2` が全差分読了、producer/consumerを確認中。開始audit19:19:33Zはmain/base/index空/exact31/allSHA/diffcheck0で親も確認。R1全3指摘再現と通常settings/pairing境界の独立probeを進める。最終suite等が揃う前にapproveしない条件を再通知。
+
+### R2の独立33件成功・正式判定待ち
+
+- 親がR2 raw/verification.jsonl確認。新規独立probe4件2.101秒/whole2.974秒、非HTTP deletion+inventory26件11.532秒/whole12.558秒、R1 guard3件0.017秒/whole0.767秒、すべてexit0。
+- R1 canonical producerをrunpyで無変更使用し、修正後の期待で全3指摘を再確認。全kind settings raceはPATCH conflict/初回と同key受付成功/予約解消、private外部IDは本文無しmarker、global device family/receiptは内容無しrevoked/expiredで新create拒否。
+- 追加で予約前の通常settings/current confirmation name、独立ledger読込中のlifecycle lease失効後にDBを書かないことを確認。全31差分の直接読解で現時点新必須finding無し。ただし最終emulator/formal handoff/audit待ちで正式approve前。
+- final2 Skill18件の実測は0.094秒。追加guardのwriter再実行は3件0.020秒/whole0.904秒成功。
+
+### 新31SHAのfinal2全emulator成功
+
+- 親とR2がraw末尾を直接確認: `/tmp/ba-iam-10-r1fix-emulator-final2.log` は実Auth/Firestore167件459.550秒OK、whole468.521秒/exit0、各emulator正常停止。
+- R2は全体確認を終え必須0/任意0を報告。正式handoff/最終5ports・全SHA audit受領と独立最終照合後に正式reportを確定する。まだ製品commit前。
+
+### R1修正の正式引継ぎ・親終了監査
+
+- 親が正式 `/tmp/ba-iam-10-r1fix-handoff.md` 全文/SHA確認。SHA256 `00f581c48a019abb39a21d3ac0167d7cb9b249e92241b9230f2d3c83b64af7e4`。最終31SHAは全final2 setup/check/test/emulatorを通じて不変、説明文だけ変更した例外も無し。
+- Writer final-audit 19:27:20ZのSHA `93eaa4124f6c78b6d20734228f4f4929291c72bbc92fd64bcc8bb69fa5f60a4f`: main/base/index空/exact31/allSHA/diffcheck0、5ports全ECONNREFUSED111/listener無し。writerの全session終了、製品編集停止。
+- 親も19:27:40Zに独立working auditで31paths/SHA/main/base/index空/diffcheck0を確認し、5ports全111。`/tmp/ba-iam-10-parent-final-audit.json`。正式handoff/auditをR2へ渡した。
+- 実provider/backend、UI、production配備は範囲外。fakeのfinalizer receiptを実認証失効済みとは扱わない。既存forget JSON互換、内容無しanti-replay/installation bindingを保持し、古いconsumerへのrollback時は該当経路を停止する。
+
+### R2正式承認・コミット前照合
+
+- 新規独立 `/root/iam10_review_r2`: **approve**、必須0/任意0。R1の3指摘は全て解消。親が正式report全文とSHA `5f17cdd1f9589e5788df3e6d375acd4e6defab8d848d16ff626006749ba02567` を確認。終了audit19:28:44ZのSHA `6cd7df21b9163c1adbb41aadd9827af6cb5577e3d4283188f1dc8c425fffa189`。
+- reviewerが全31path/周辺producer・consumer/受入条件を直接確認し、独立33件を実行。提供final2全suiteと正式handoffを照合後に承認。port停止はwriter/親の提供証拠、reviewer自身の実行とは区別。
+- 親が承認後にworking auditを再実行し、main/base/index空/exact31/allSHA/diffcheck0確認。レビュー対象と同じ31pathのみをstageし、台帳/logは別記録commitに分ける。
+
+### 実装コミットと完了結果
+
+- 実装 `287012d06993583535714cad45da2fd4e736c163` (`feat(auth): BA-IAM-10 add durable account and tenant deletion`) をmainへ作成。commit前staged31path/SHA、commit後全blob/current31SHAをレビューmanifestと照合。余分なpath無し。staged差分は `/tmp/ba-iam-10-staged.diff` に保存。
+- 本人退出・本人全所属account削除・owner単一tenant削除を分離し、先行独立台帳と即時fence、同key復旧、bounded purgeへ接続。正規private index/global端末credentialの消去と受付後生成停止も含む。
+- 必須setup/check/通常642+18+40/実Firestore167成功、独立R2 approve、未解決必須0。レビュー2回、R1の3件は全て解消。fake/emulator完了範囲で、実provider/production/UI等は未実施の対象外。
+- 台帳done/fullhash/review_rounds=2へ更新。これから親の記録込みmise run checkを行い、台帳/logだけを別commitへ保存する。
+
+### 親の完了記録込み検証
+
+- 台帳done/fullhash/review_rounds=2更新後の `mise run check` は全9系統成功、exit0/whole22.094秒。Mypy239、docs1429/1247OK/182excluded、生成client整合、台帳34/96 doneを確認。raw `/tmp/ba-iam-10-parent-check.log`。
+- 実装後の変更は台帳/logの2pathだけで、diffcheck0を確認。両ファイルだけを記録commitへ保存する。
