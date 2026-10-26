@@ -1,12 +1,12 @@
 # 記憶の保存モデルとrepository
 
-BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` を提供する。FR-006/T-009の保存境界であり、EntityのHTTP・候補検索・provider登録は[BA-MEM-02](entities-api.md)で接続した。FactのHTTP/toolルート、検索、embedding、訂正API、forget処理は後続チケットで接続する。既存のagent coreのMemory型はポート用の値として維持し、この変更で実storeへ接続しない。
+BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` を提供する。FR-006/T-009の保存境界であり、EntityのHTTP・候補検索・provider登録は[BA-MEM-02](entities-api.md)で接続した。FactのHTTP・訂正は[BA-MEM-03](memories-api.md)で接続した。toolルート、検索、embedding処理、forgetは後続チケットで接続する。既存のagent coreのMemory型はポート用の値として維持し、この変更で実storeへ接続しない。
 
 ## 1. 保存値と更新
 
 `EntityInput` は種類・label・aliases・外部参照・scope、`FactInput` は主語・predicate・目的語またはscalar値・qualifiers・出典・有効期間・origin/statusを受け取る。型・文字数・数値範囲・目的語の厳密排他・privateとshared_displayの禁止・[predicate別許可リスト](03-data-and-authorization.md#41-entityとfact)を保存前に再検証する。boolを整数として扱わず、NaN/Infinity、nullの目的語、未知のqualifierも拒否する。
 
-保存値は `Entity` / `Fact` で、UUID、tenant、所有UID、created_by、UTC時刻、version、deletion_epoch、schema_version、deleted、suppress_reuseを持つ。privateは所有者必須。初期保存はversion 1/epoch 0でサーバー時刻を付ける。出典は1〜20件必須で、HTTP入力に出典がない場合は後続adapterが信頼できる入力出典を用意する。推測はcandidateから始め、confirmedにはできない。candidate/confirmedの取消はretractedへ遷移する。
+保存値は `Entity` / `Fact` で、UUID、tenant、所有UID、created_by、UTC時刻、version、deletion_epoch、schema_version、deleted、suppress_reuseを持つ。privateは所有者必須。初期保存はversion 1/epoch 0でサーバー時刻を付ける。出典は最大20件。BA-MEM-03ではuser_explicitのconfirmedとそのsuperseded/retracted履歴に限り空配列を許し、created_byとrecorded_atを直接入力の出典とする。imported/inferred/candidateには出典を必須とする。推測はcandidateから始め、confirmedにはできない。candidate/confirmedの取消はretractedへ遷移する。
 
 保存形式の `owner_user_id` はsharedでnullでも必須キーとして保持し、Entity編集・Fact取消で欠落させない。Factの未指定のobject/valueやqualifierは省略し、明示null禁止の入力規則を維持する。HTTPで任意のownerを省略する処理と、保存recordの必須キー保持は別の規則とする。
 
@@ -20,7 +20,7 @@ BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` 
 | `update_entity(..., patch, expected_version, expected_deletion_epoch)` | label/aliasesのみ更新。版とepochの両方が一致した場合だけversionを1増やす |
 | `update_fact(..., status="retracted", expected_version, expected_deletion_epoch)` | candidate/confirmedを取り消す。現在の依存先読取権限も必要。モデル利用は伴わないのでsuppress_reuseでも取消可能 |
 
-fact本文・出典・visibilityの上書きやconfirmedへの昇格、supersededへの単独遷移は提供しない。訂正はBA-MEM-03で旧factのsuperseded化と新factの作成を原子的に実装する。表示・共有範囲を変更するAPIも今回の対象外。
+fact本文・出典・visibilityの上書きやconfirmedへの昇格、supersededへの単独遷移は提供しない。訂正はBA-MEM-03のFactTransaction.prepare/saveで旧factのsuperseded化と新factの作成を原子的に実装した。表示・共有範囲を変更するAPIも今回の対象外。
 
 ## 2. 現在の認可と出典
 
@@ -36,7 +36,7 @@ shared factがprivate entityを参照することや、private出典からshared
 
 display_policyも元出典・参照entityから広げない。`never` の依存先からは `never` のfactだけ、`authenticated_session` の依存先からは `never` または `authenticated_session` だけを保存可能とする。取得時も同じ条件を検査する。phoneからPiへ送る後続adapterは、取得時のphone権限を転用せず送信直前にPi/sessionの現在権限・表示先を再確認する。今回の戻り値は表示先への転送許可証ではない。
 
-認可・出典・参照entity・対象版の読取はすべて書込前に同一transactionで行う。競合リトライでは再認可する。callbackは読取とDB操作だけで、provider呼出しや外部台帳への書込を行わない。`PolicyDenied`、`VersionConflict`、`AlreadyExists` は本文のない例外で、EntityのHTTPへの変換とETag/冪等性はMEM-02 adapterが担当し、Factは後続adapterが担当する。保存失敗を成功通知に変換してはならない。
+認可・出典・参照entity・対象版の読取はすべて書込前に同一transactionで行う。競合リトライでは再認可する。callbackは読取とDB操作だけで、provider呼出しや外部台帳への書込を行わない。`PolicyDenied`、`VersionConflict`、`AlreadyExists` は本文のない例外で、EntityのHTTPへの変換とETag/冪等性はMEM-02 adapter、FactはMEM-03 adapterが担当する。保存失敗を成功通知に変換してはならない。
 
 最後の業務読取の後、返却/書込を行う直前にI/Oなしで現在時刻を検査する。`VerifiedCaller` の有効区間、正本から再構築したprincipalのPiセッションの絶対/idle期限、モデル用factの有効期間を使い、終端と一致した時点で拒否する。元のcontextの申告セッション期限は使わない。transaction応答の待機中に期限が来る場合も、repositoryが本文を返す前に同じ検査を行う。書込自体が期限前に認可され、commit応答だけが期限後に届いた場合は、返却を拒否しても書込が既に永続化されている可能性がある。後続adapterはこの拒否をrollbackの証明にせず、現在の認可を取り直して同じID/版・冪等性記録から結果を照合する。
 
@@ -54,6 +54,6 @@ set +a
 mise run test-emulator
 ```
 
-新規パッケージの保存形式なので既存DBの自動移行はない。schema_version 1以外や必要メタデータが欠けた旧/不正recordは拒否し、推測で補わない。HTTP/toolの構造schemaと版は維持し、predicate別の業務制約をdescriptionで明示する。後続MEM-03では入力DTOから保存型への変換とこの検証を接続する。
+新規パッケージの保存形式なので既存DBの自動移行はない。schema_version 1以外や必要メタデータが欠けた旧/不正recordは拒否し、推測で補わない。HTTP/toolの構造schemaと版は維持し、predicate別の業務制約をdescriptionで明示する。MEM-03では入力DTOから保存型への変換とこの検証を接続した。
 
 削除の独立台帳・永続tombstone・物理削除・再生成抑止・restore適用はBA-MEM-06以降で実装する。本repositoryは現存するdeleted recordの再作成やepochのリセットを許さず、モデル利用/新fact生成では正のepochも保守的に拒否する。IDを再発行・再利用しないこと、物理削除後も削除fenceを維持することは後続の削除実装の責務。今回のrollbackは呼出adapterを接続しない状態へ戻し、保存済みrecordを保持する。新schemaのrecordを旧コードへ無検証で渡さない。

@@ -40,9 +40,15 @@ class ExternalRef(MemoryValue):
 
 
 class Qualifiers(MemoryValue):
-    context: Annotated[str, Field(strict=True, max_length=200)] | None = None
-    brightness_pct: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
-    temperature_c: Annotated[float, Field(strict=True, ge=16, le=30)] | None = None
+    context: Annotated[str, Field(strict=True, max_length=200)] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
+    brightness_pct: Annotated[int, Field(strict=True, ge=0, le=100)] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
+    temperature_c: Annotated[float, Field(strict=True, ge=16, le=30)] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
 
     @field_validator("context", "brightness_pct", "temperature_c", mode="before")
     @classmethod
@@ -83,17 +89,12 @@ class EntityPatch(MemoryValue):
         return self
 
 
-class FactInput(ScopedValue):
+class ClaimInput(ScopedValue):
     subject_entity_id: ResourceId
     predicate: Predicate
     object_entity_id: ResourceId | None = None
     value: Value | None = None
     qualifiers: Qualifiers = Field(default_factory=Qualifiers)
-    source_refs: Annotated[tuple[SourceRef, ...], Field(min_length=1, max_length=20)]
-    valid_from: UtcTimestamp
-    valid_to: UtcTimestamp | None = None
-    origin: Literal["user_explicit", "imported", "inferred"] = "user_explicit"
-    status: FactStatus = "confirmed"
 
     @field_validator("object_entity_id", "value", mode="before")
     @classmethod
@@ -103,17 +104,31 @@ class FactInput(ScopedValue):
         return value
 
     @model_validator(mode="after")
-    def validate_fact(self) -> Self:
+    def validate_claim(self) -> Self:
         if (self.object_entity_id is None) == (self.value is None):
             raise ValueError("A fact requires exactly one object_entity_id or value")
         if self.predicate != "prefers_setting" and (
             self.qualifiers.brightness_pct is not None or self.qualifiers.temperature_c is not None
         ):
             raise ValueError("Setting qualifiers require prefers_setting")
+        return self
+
+
+class FactInput(ClaimInput):
+    source_refs: Annotated[tuple[SourceRef, ...], Field(max_length=20)]
+    valid_from: UtcTimestamp
+    valid_to: UtcTimestamp | None = None
+    origin: Literal["user_explicit", "imported", "inferred"] = "user_explicit"
+    status: FactStatus = "confirmed"
+
+    @model_validator(mode="after")
+    def validate_fact(self) -> Self:
         if self.valid_to is not None and self.valid_to <= self.valid_from:
             raise ValueError("valid_to must follow valid_from")
         if self.origin == "inferred" and self.status == "confirmed":
             raise ValueError("An inference cannot be a confirmed fact")
+        if not self.source_refs and (self.origin != "user_explicit" or self.status == "candidate"):
+            raise ValueError("Only explicit confirmed input and its history may lack sources")
         if len(set(self.source_refs)) != len(self.source_refs):
             raise ValueError("Duplicate source references")
         return self

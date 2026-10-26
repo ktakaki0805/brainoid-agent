@@ -355,7 +355,7 @@ export type EntityPatch = {
     aliases?: Array<string>;
 };
 /**
- * 利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。qualifiersのbrightness_pct/temperature_cはprefers_settingのみ、contextは全predicateで使用可能。構造schemaの成功だけで保存可能とは判断せず、保存モデルでpredicate別の業務制約を検証する。
+ * source_refs省略時は空配列、valid_from省略時はサーバー記録時刻。既存出典のない直接入力はcreated_byとrecorded_atを出典として示す。利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。qualifiersのbrightness_pct/temperature_cはprefers_settingのみ、contextは全predicateで使用可能。構造schemaの成功だけで保存可能とは判断せず、保存モデルでpredicate別の業務制約を検証する。
  */
 export type MemoryCreate = unknown & {
     subject_entity_id: ResourceId;
@@ -397,6 +397,10 @@ export type Memory = unknown & {
     origin: 'user_explicit' | 'imported' | 'inferred';
     status: 'candidate' | 'confirmed' | 'superseded' | 'retracted';
     recorded_at: UtcTimestamp;
+    /**
+     * 記録した本人のUID。出典のない直接入力ではrecorded_atとともに出典として示す。
+     */
+    created_by?: string;
     deletion_epoch: number;
     supersedes_fact_id?: ResourceId;
 };
@@ -405,7 +409,7 @@ export type MemoryPage = {
     next_cursor: string | null;
 };
 /**
- * 旧factをsupersededにして新factを作成。戻り値は新fact。
+ * 旧factをsupersededにして新factを作成。戻り値は新fact。旧factのvisibility・display_policy・ownerを継承し、訂正で公開範囲を変更しない。reasonは要求の冪等性照合に用い、本文やジョブへ保存しない。
  */
 export type MemoryRevision = {
     replacement: MemoryCreate;
@@ -2106,7 +2110,7 @@ export type ListMemoriesErrors = {
 export type ListMemoriesError = ListMemoriesErrors[keyof ListMemoriesErrors];
 export type ListMemoriesResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: MemoryPage;
 };
@@ -2138,7 +2142,7 @@ export type CreateMemoryErrors = {
 export type CreateMemoryError = CreateMemoryErrors[keyof CreateMemoryErrors];
 export type CreateMemoryResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     201: Memory;
 };
@@ -2167,7 +2171,7 @@ export type GetMemoryErrors = {
 export type GetMemoryError = GetMemoryErrors[keyof GetMemoryErrors];
 export type GetMemoryResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Memory;
 };
@@ -2204,7 +2208,7 @@ export type ReviseMemoryErrors = {
 export type ReviseMemoryError = ReviseMemoryErrors[keyof ReviseMemoryErrors];
 export type ReviseMemoryResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Memory;
 };

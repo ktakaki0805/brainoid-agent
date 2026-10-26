@@ -1586,13 +1586,13 @@ paths:
     get:
       operationId: listMemories
       summary: 閲覧可能なmemories一覧
-      description: 閲覧可能なmemories一覧
+      description: 現在閲覧可能なconfirmed記憶の一覧。訂正済み履歴はID取得でstatusを確認できる。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1620,7 +1620,7 @@ paths:
       - deviceBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1648,13 +1648,13 @@ paths:
     get:
       operationId: getMemory
       summary: Memory取得
-      description: Memory取得
+      description: 現在の出典・参照先権限を再確認して取得。訂正済みの旧IDはsupersededとして返す。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1689,7 +1689,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -4262,7 +4262,7 @@ components:
         not:
           required:
           - object_entity_id
-      description: 利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。qualifiersのbrightness_pct/temperature_cはprefers_settingのみ、contextは全predicateで使用可能。構造schemaの成功だけで保存可能とは判断せず、保存モデルでpredicate別の業務制約を検証する。
+      description: source_refs省略時は空配列、valid_from省略時はサーバー記録時刻。既存出典のない直接入力はcreated_byとrecorded_atを出典として示す。利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。qualifiersのbrightness_pct/temperature_cはprefers_settingのみ、contextは全predicateで使用可能。構造schemaの成功だけで保存可能とは判断せず、保存モデルでpredicate別の業務制約を検証する。
       allOf:
       - if:
           properties:
@@ -4310,6 +4310,11 @@ components:
           - superseded
           - retracted
         recorded_at: *id008
+        created_by:
+          description: 記録した本人のUID。出典のない直接入力ではrecorded_atとともに出典として示す。
+          type: string
+          minLength: 1
+          maxLength: 128
         deletion_epoch:
           type: integer
           minimum: 0
@@ -4376,7 +4381,7 @@ components:
       required:
       - replacement
       additionalProperties: false
-      description: 旧factをsupersededにして新factを作成。戻り値は新fact。
+      description: 旧factをsupersededにして新factを作成。戻り値は新fact。旧factのvisibility・display_policy・ownerを継承し、訂正で公開範囲を変更しない。reasonは要求の冪等性照合に用い、本文やジョブへ保存しない。
     MemorySearch:
       type: object
       properties:

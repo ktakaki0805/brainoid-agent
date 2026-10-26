@@ -761,7 +761,7 @@ export const updateEntity = (options) => (options.client ?? client).patch({
 /**
  * 閲覧可能なmemories一覧
  *
- * 閲覧可能なmemories一覧
+ * 現在閲覧可能なconfirmed記憶の一覧。訂正済み履歴はID取得でstatusを確認できる。
  */
 export const listMemories = (options) => (options.client ?? client).get({
     security: [{
@@ -801,7 +801,7 @@ export const createMemory = (options) => (options.client ?? client).post({
 /**
  * Memory取得
  *
- * Memory取得
+ * 現在の出典・参照先権限を再確認して取得。訂正済みの旧IDはsupersededとして返す。
  */
 export const getMemory = (options) => (options.client ?? client).get({
     security: [{

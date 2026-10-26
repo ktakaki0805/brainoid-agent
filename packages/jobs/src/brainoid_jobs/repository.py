@@ -14,7 +14,7 @@ from brainoid_contracts.transactions import Document, Transaction, TransactionSt
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.evaluator import Evaluator
-from brainoid_policy.models import Action, Subject, UserSubject
+from brainoid_policy.models import Action, ResourceKind, Subject, UserSubject
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, ResourceGrant
 from brainoid_policy.transactions import resource_state, transaction_policy
 from pydantic import JsonValue, ValidationError
@@ -141,6 +141,77 @@ class Jobs:
 
     def get(self, tenant: ResourceId, identity: ResourceId) -> Job | None:
         return self.store.run(lambda tx: self._read(tx, tenant, identity))
+
+    def add_created_memory(
+        self,
+        tx: Transaction,
+        *,
+        grant: ResourceGrant,
+        source: Document,
+        before_write: Callable[[], None],
+    ) -> Job:
+        """Atomic new memory and dormant indexing outbox; no synthetic parent grant.
+
+        The memory adapter must first validate a complete canonical Fact, its current
+        dependencies and revision fence in this transaction. This narrow creation
+        path independently checks current principal/search policy and accounts, exact
+        source metadata, version/epoch zero-state and actual DB nonexistence. It never
+        overlays authority documents or relaxes add_pending's existing-source rules.
+
+        MEM-05 activates waiting jobs only after current fact status, dependencies,
+        version/epoch and authorization have been revalidated. Until that handler is
+        installed these must not dispatch and fail with unknown_handler.
+        """
+        state = resource_state(grant.ref, source)
+        if (
+            grant.ref.kind != ResourceKind.MEMORY
+            or grant.action != Action.MODEL_READ
+            or state != grant.resource
+            or state is None
+            or state.version != 1
+            or state.deletion_epoch != 0
+            or source.get("deleted") is not False
+            or source.get("suppress_reuse") is not False
+            or source.get("status") != "confirmed"
+            or source.get("origin") != "user_explicit"
+            or source.get("created_by") != grant.principal.user_id
+        ):
+            raise JobError("invalid_source_creation")
+        current = self._policy(tx).search(
+            grant.ref.tenant_id, grant.principal.subject, ResourceKind.MEMORY
+        )
+        if (
+            current.principal != grant.principal
+            or current.principal.user_id is None
+            or "memory.write" not in current.principal.context.actor.allowed_scopes
+            or not any(item.matches(state) for item in current.filters)
+        ):
+            raise PolicyDenied()
+        source_path = f"tenants/{grant.ref.tenant_id}/{grant.ref.kind}/{grant.ref.id}"
+        identity = job_id(grant.ref.tenant_id, "memory_index", grant.ref.id)
+        if (
+            tx.get(source_path) is not None
+            or tx.get(path(grant.ref.tenant_id, identity)) is not None
+        ):
+            raise JobError("source_already_exists")
+        stamps = self._accounts(tx, grant, None)
+        now = normalize_utc(self.now())
+        job = Job(
+            id=identity,
+            tenant_id=grant.ref.tenant_id,
+            operation_id=grant.ref.id,
+            kind="memory_index",
+            grant=grant,
+            account_stamps=stamps,
+            created_at=now,
+            available_at=now,
+            dispatch_after=now,
+            status="waiting",
+        )
+        before_write()
+        tx.create(source_path, source)
+        tx.create(path(job.tenant_id, job.id), job.model_dump(mode="json"))
+        return job
 
     def _read(self, tx: Transaction, tenant: ResourceId, identity: ResourceId) -> Job | None:
         document = tx.get(path(tenant, identity))

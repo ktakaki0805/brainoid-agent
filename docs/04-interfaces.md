@@ -260,7 +260,7 @@ MVPでは単発予定の本人calendarへの操作を対象とし、参加者へ
 
 ### 6.2 記憶の保存・訂正・忘却
 
-記憶保存時は出典・scope・subject/objectの存在を検査し、user_explicit/confirmedはサーバーで設定する。JSON入力に `status=confirmed` を指定できる汎用エンドポイントは設けない。直接フォーム入力で既存出典がない場合はsource_refsを空配列とし、本人と記録時刻を出典としてUIに示す。存在しないmessage IDを生成して根拠にしない。
+記憶保存時は出典・scope・subject/objectの存在を検査し、user_explicit/confirmedはサーバーで設定する。JSON入力に `status=confirmed` を指定できる汎用エンドポイントは設けない。直接フォーム入力で既存出典がない場合はsource_refsを空配列とし、本人と記録時刻を出典としてUIに示す。存在しないmessage IDを生成して根拠にしない。[明示記憶API](memories-api.md)では出典表示用のcreated_byとrecorded_atを返し、source_refs省略時を空配列、valid_from省略時をサーバー時刻とする。
 
 PATCH memoryはIf-Match付きのrevisionで、旧factをsupersededにし、新factを返す。forgetはoperationで受け、`source_policy` の既定は `suppress_reuse` とする。元出典をUI履歴に残す場合でも、該当span（特定できなければmessage全体）をモデルcontext・要約・検索・再抽出から除外する。`delete_source` は削除権限を持つ出典も削除する選択である。
 

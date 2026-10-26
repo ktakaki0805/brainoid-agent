@@ -63,9 +63,17 @@ class MemoryModelTests(unittest.TestCase):
             fact_values(origin="inferred")
         fact_values(origin="inferred", status="candidate")
         fact_values(origin="inferred", status="retracted")
-        for sources in ([], [{"kind": "note", "resource_id": SOURCE, "version": True}]):
+        for sources in ([{"kind": "note", "resource_id": SOURCE, "version": True}],):
             with self.assertRaises(ValidationError):
                 fact_values(source_refs=sources)
+        fact_values(source_refs=[])
+        for origin, status in (
+            ("inferred", "candidate"),
+            ("imported", "confirmed"),
+            ("user_explicit", "candidate"),
+        ):
+            with self.assertRaises(ValidationError):
+                fact_values(source_refs=[], origin=origin, status=status)
         with self.assertRaises(ValidationError):
             SourceRef.model_validate(
                 {

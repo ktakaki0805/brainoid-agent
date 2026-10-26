@@ -31,7 +31,7 @@ from brainoid_policy.models import (
     Subject,
     UserSubject,
 )
-from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, Principal
+from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, Principal, ResourceGrant
 from brainoid_policy.transactions import TransactionPolicyState, resource_state
 from pydantic import BaseModel, TypeAdapter, ValidationError, model_validator
 
@@ -201,6 +201,11 @@ class MemoryRepository:
         _validated(TenantContext, context)
         return EntityTransaction(self, tx, context, self._authority(tx, context))
 
+    def facts(self, tx: Transaction, context: TenantContext) -> "FactTransaction":
+        """Compose current fact access and atomic revisions with jobs and receipts."""
+        _validated(TenantContext, context)
+        return FactTransaction(self, tx, context, self._authority(tx, context))
+
     def _ref(self, context: TenantContext, identity: ResourceId, kind: ResourceKind) -> ResourceRef:
         _validated(TenantContext, context)
         return ResourceRef(tenant_id=context.tenant_id, kind=kind, id=identity)
@@ -336,6 +341,20 @@ class MemoryRepository:
             _inherited_scope(fact, entity)
             if reuse and entity.deletion_epoch != 0:
                 raise PolicyDenied()
+        if fact.supersedes_fact_id is not None:
+            predecessor = self._read(
+                tx,
+                policy,
+                subject,
+                self._ref(context, fact.supersedes_fact_id, ResourceKind.MEMORY),
+                Fact,
+            )
+            _inherited_scope(fact, predecessor)
+            if predecessor.deletion_epoch != 0 or (
+                predecessor.visibility == Visibility.PRIVATE
+                and predecessor.owner_user_id != fact.owner_user_id
+            ):
+                raise PolicyDenied()
         for source in fact.source_refs:
             resolved = _validated(ResolvedSource, self._sources.resolve(tx, context, source))
             if (
@@ -368,41 +387,16 @@ class MemoryRepository:
         return self._run(work)
 
     def create_fact(self, context: TenantContext, identity: ResourceId, values: FactInput) -> Fact:
-        ref = self._ref(context, identity, ResourceKind.MEMORY)
+        self._ref(context, identity, ResourceKind.MEMORY)
         values = _validated(FactInput, values)
         if values.status not in ("candidate", "confirmed"):
             raise ValueError("New facts must be candidate or confirmed")
 
         def work(tx: Transaction) -> tuple[Fact, _Authority]:
-            authority = self._authority(tx, context)
-            policy, subject, principal = authority.policy, authority.subject, authority.principal
-            now = normalize_utc(self._now())
-            record = Fact(
-                **values.model_dump(exclude_none=True),
-                id=ref.id,
-                tenant_id=ref.tenant_id,
-                owner_user_id=principal.user_id,
-                created_by=authority.creator(),
-                created_via_device_id=authority.device_id,
-                version=1,
-                deletion_epoch=0,
-                schema_version=1,
-                deleted=False,
-                suppress_reuse=False,
-                created_at=now,
-                updated_at=now,
-                recorded_at=now,
-            )
-            self._new(policy, subject, principal, ref, record)
-            self._dependencies(tx, context, policy, subject, record, reuse=True)
-            if tx.get(_path(ref)) is not None:
-                policy.resource(ref.tenant_id, subject, ref)
-                self._finish(authority)
-                raise AlreadyExists()
-            document = _stored(record, mode="json")
-            self._finish(authority)
-            tx.create(_path(ref), document)
-            return record, authority
+            access = self.facts(tx, context)
+            change = access.prepare(identity, values)
+            access.save(change)
+            return change.record, access._authority
 
         return self._run(work)
 
@@ -416,23 +410,9 @@ class MemoryRepository:
     def get_fact(
         self, context: TenantContext, identity: ResourceId, *, for_model: bool = False
     ) -> Fact:
-        ref = self._ref(context, identity, ResourceKind.MEMORY)
-
         def work(tx: Transaction) -> tuple[Fact, _Authority]:
-            authority = self._authority(tx, context)
-            policy, subject = authority.policy, authority.subject
-            record = self._read(
-                tx,
-                policy,
-                subject,
-                ref,
-                Fact,
-                action=Action.MODEL_READ if for_model else Action.READ,
-            )
-            self._finish(authority, model_fact=record if for_model else None)
-            self._dependencies(tx, context, policy, subject, record, reuse=for_model)
-            self._finish(authority, model_fact=record if for_model else None)
-            return record, authority
+            access = self.facts(tx, context)
+            return access.get(identity, for_model=for_model), access._authority
 
         return self._run(work, for_model=for_model)
 
@@ -506,8 +486,8 @@ class MemoryRepository:
         return self._run(work)
 
 
-class EntityTransaction:
-    """Current entity access for atomic composition with receipts/provider indexes."""
+class _MemoryTransaction:
+    """Transaction-local authority shared by entity and fact operations."""
 
     def __init__(
         self,
@@ -528,6 +508,10 @@ class EntityTransaction:
 
     def finish(self) -> None:
         self._repo._finish(self._authority)
+
+
+class EntityTransaction(_MemoryTransaction):
+    """Current entity access for atomic composition with receipts/provider indexes."""
 
     def get(self, identity: ResourceId, *, write: bool = False) -> Entity:
         result = self._repo._read(
@@ -625,3 +609,162 @@ class EntityTransaction:
             _stored(replacement, mode="json"),
         )
         return replacement
+
+
+@dataclass(frozen=True)
+class FactChange:
+    """Prepared canonical creation, with optional predecessor replacement."""
+
+    record: Fact
+    grant: ResourceGrant
+    previous: Fact | None = None
+
+    @property
+    def document(self) -> Document:
+        return _stored(self.record, mode="json")
+
+
+class FactTransaction(_MemoryTransaction):
+    """All reads in prepare precede save and any caller's job/receipt writes."""
+
+    def get(self, identity: ResourceId, *, write: bool = False, for_model: bool = False) -> Fact:
+        record = self._repo._read(
+            self._tx,
+            self._authority.policy,
+            self._authority.subject,
+            self._repo._ref(self._context, identity, ResourceKind.MEMORY),
+            Fact,
+            action=Action.WRITE if write else Action.MODEL_READ if for_model else Action.READ,
+        )
+        self._repo._dependencies(
+            self._tx,
+            self._context,
+            self._authority.policy,
+            self._authority.subject,
+            record,
+            reuse=for_model,
+        )
+        self._repo._finish(self._authority, model_fact=record if for_model else None)
+        return record
+
+    def candidates(self) -> list[Fact]:
+        scope = self._authority.policy.search(
+            self._context.tenant_id, self._authority.subject, ResourceKind.MEMORY
+        )
+        results = []
+        for path, doc in self._tx.collection(
+            f"tenants/{self._context.tenant_id}/{ResourceKind.MEMORY}"
+        ):
+            try:
+                identity = TypeAdapter(ResourceId).validate_python(doc.get("id"))
+                ref = self._repo._ref(self._context, identity, ResourceKind.MEMORY)
+                state = resource_state(ref, doc)
+                if state is None or path != _path(ref):
+                    continue
+                if not any(item.matches(state) for item in scope.filters):
+                    continue
+                record = self.get(identity)
+            except PolicyUnavailable:
+                raise
+            except (PolicyDenied, ValidationError):
+                continue
+            # History remains addressable by ID, always with its explicit status.
+            if record.status == "confirmed":
+                results.append(record)
+        self.finish()
+        return sorted(results, key=lambda record: record.id)
+
+    def prepare(
+        self,
+        identity: ResourceId,
+        values: FactInput,
+        *,
+        predecessor: ResourceId | None = None,
+        expected_version: Version | None = None,
+        expected_deletion_epoch: Epoch = 0,
+    ) -> FactChange:
+        values = _validated(FactInput, values)
+        if values.status not in ("candidate", "confirmed"):
+            raise ValueError("New facts must be candidate or confirmed")
+        prior = None
+        if predecessor is not None:
+            if expected_version is None:
+                raise ValueError("Revisions require an expected version")
+            self._repo._expected(expected_version, expected_deletion_epoch)
+            prior = self.get(predecessor, write=True)
+            if (prior.version, prior.deletion_epoch) != (
+                expected_version,
+                expected_deletion_epoch,
+            ) or prior.status != "confirmed":
+                raise VersionConflict()
+            # Sharing/ownership changes require a separate explicit workflow. The
+            # revision ID is itself provenance and must not publish private history.
+            if (values.visibility, values.display_policy) != (
+                prior.visibility,
+                prior.display_policy,
+            ):
+                raise PolicyDenied()
+        now = normalize_utc(self._repo._now())
+        ref = self._repo._ref(self._context, identity, ResourceKind.MEMORY)
+        record = Fact(
+            **values.model_dump(exclude_none=True),
+            id=identity,
+            tenant_id=ref.tenant_id,
+            owner_user_id=self.principal.user_id if prior is None else prior.owner_user_id,
+            created_by=self._authority.creator(),
+            created_via_device_id=self._authority.device_id,
+            version=1,
+            deletion_epoch=0,
+            schema_version=1,
+            deleted=False,
+            suppress_reuse=False,
+            created_at=now,
+            updated_at=now,
+            recorded_at=now,
+            supersedes_fact_id=None if prior is None else prior.id,
+        )
+        self._repo._new(
+            self._authority.policy, self._authority.subject, self.principal, ref, record
+        )
+        self._repo._dependencies(
+            self._tx,
+            self._context,
+            self._authority.policy,
+            self._authority.subject,
+            record,
+            reuse=True,
+        )
+        if self._tx.get(_path(ref)) is not None:
+            self.get(identity)
+            raise AlreadyExists()
+        state = resource_state(ref, record.model_dump(mode="json"))
+        assert state is not None
+        self.finish()
+        return FactChange(
+            record,
+            ResourceGrant(self.principal, state, Action.MODEL_READ),
+            None
+            if prior is None
+            else Fact.model_validate(
+                {
+                    **_stored(prior),
+                    "status": "superseded",
+                    "version": prior.version + 1,
+                    "updated_at": now,
+                }
+            ),
+        )
+
+    def save(self, change: FactChange, *, source_already_created: bool = False) -> None:
+        """Writes only; caller must finish again after the commit response."""
+        self.finish()
+        if not source_already_created:
+            self._tx.create(
+                _path(self._repo._ref(self._context, change.record.id, ResourceKind.MEMORY)),
+                change.document,
+            )
+        if change.previous is not None:
+            self._tx.set(
+                _path(self._repo._ref(self._context, change.previous.id, ResourceKind.MEMORY)),
+                _stored(change.previous, mode="json"),
+            )

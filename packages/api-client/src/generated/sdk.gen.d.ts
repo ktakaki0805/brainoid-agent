@@ -292,7 +292,7 @@ export declare const updateEntity: <ThrowOnError extends boolean = false>(option
 /**
  * 閲覧可能なmemories一覧
  *
- * 閲覧可能なmemories一覧
+ * 現在閲覧可能なconfirmed記憶の一覧。訂正済み履歴はID取得でstatusを確認できる。
  */
 export declare const listMemories: <ThrowOnError extends boolean = false>(options: Options<ListMemoriesData, ThrowOnError>) => RequestResult<ListMemoriesResponses, ListMemoriesErrors, ThrowOnError>;
 /**
@@ -304,7 +304,7 @@ export declare const createMemory: <ThrowOnError extends boolean = false>(option
 /**
  * Memory取得
  *
- * Memory取得
+ * 現在の出典・参照先権限を再確認して取得。訂正済みの旧IDはsupersededとして返す。
  */
 export declare const getMemory: <ThrowOnError extends boolean = false>(options: Options<GetMemoryData, ThrowOnError>) => RequestResult<GetMemoryResponses, GetMemoryErrors, ThrowOnError>;
 /**
