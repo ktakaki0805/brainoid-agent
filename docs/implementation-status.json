@@ -275,7 +275,13 @@
       "implementation_commit": "58a551f19c1471c6627195fcd9b30183f87061d7"
     },
     "BA-MEM-06": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "221f13a5463d2de8db4f8cfa225618f3a0fe4dc0",
+      "updated_at": "2026-10-26T12:44:54.492036+00:00",
+      "log_anchor": "ba-mem-06-20261026t111919z",
+      "review_rounds": 2,
+      "implementation_commit": "c3311cfc0a814ccce29e525ae53938f490cb3de1"
     },
     "BA-MEM-07": {
       "status": "todo"

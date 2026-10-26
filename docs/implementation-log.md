@@ -5569,3 +5569,256 @@ BA-FND-01 独立レビュー第1回
 
 - done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy204/docs1403/生成差分なし/契約互換性成功。台帳done30/todo66/blocked0、real22.32秒、raw `/tmp/ba-mem-05-parent-check.log`。
 - 台帳・本ログ2ファイルだけを記録コミット対象として確認する。製品の未記録変更なし。
+
+## ba-mem-06-20261026t111919z
+
+- チケット: BA-MEM-06
+- 状態: done
+- 開始: 2026-10-26T11:19:19.016803+00:00
+- ブランチ: main
+- base commit: 221f13a5463d2de8db4f8cfa225618f3a0fe4dc0
+- 開始時の変更: staged / unstaged / untracked ともなし
+- 選択: planner check成功後、IDなしnextで依存順先頭を選択。依存MEM03/RUN01/RUN02/RUN04のdoneと実装commitのHEAD祖先を確認。
+- 親担当: /root、実装担当: /root/mem06_implementation（次に起動）、レビュー担当はラウンドごとに新規起動。
+- 実装コミット: c3311cfc0a814ccce29e525ae53938f490cb3de1
+
+### 変更範囲と検証計画
+
+FR004/006、T010/T011。会話要約jobに元message集合・version・scope・deletion_epochを保持し、生成中の訂正・削除・抑止と競合した結果を保存せず、利用時も現正本と照合する。owner/display/retentionを元会話から継承し、context builderへ出典付きで接続する。自動Fact抽出・確定、物理purge(MEM08)は対象外。追加外部前提なし、fake/emulatorで検証する。
+
+| 受入条件 | 検証予定 | 結果 |
+| --- | --- | --- |
+| private会話からshared要約/Factを生成しない | canonical owner/visibility/display/retention継承、context/output境界、Fact非作成の正負例 | 未実施 |
+| 削除・訂正と競合した要約を保存/利用しない | 生成中のsource update/delete/suppress、job lease/epoch/再送、利用直前の現source照合 | 未実施 |
+| 元sourceと版の識別・本文不在でも出典非捏造 | 保存provenanceとcontext projection、source欠落時の挙動、ID/版改竄負例 | 未実施 |
+| 依存契約と回帰 | setup/check/test、影響箇所の実Firestore emulator、独立全差分レビュー | 未実施 |
+
+### 開始確認
+
+親の読取補助scriptが台帳entry内にidキーがあると誤仮定しKeyErrorとなった。dictキーで再確認し、全依存done/ancestorとmain/cleanを成功確認した。製品検証の失敗ではない。
+
+### 実装担当の開始と設計境界
+
+- 新規独立 `/root/mem06_implementation`（fork none）を起動、親がmetadata/commit/レビュー、製品の書き手は同担当のみ。適用AGENTSなし、CONTRIBUTING/docs05完了条件とdocs03§7/8の再利用抑止・削除/保持を直接確認。
+- 初期設計は直接user発言をsummary専用manifestで圧縮し、assistant/tool/derived metadata付きuserは再帰的出典証明が未対応のため除外する。FactのMessage SourceRef直接user限定は維持。summaryは完全履歴ではなく直接user発言の要約と明示する。
+- parent owner/scope/display/retention、source集合/版/epoch/hashを生成前・保存・利用時に検証。spanが安全に特定できなければmessage全体除外。元grant維持の専用job/queue、Coreの出典付き投影とRunState照合を予定。未実装/未検証の計画であり成功扱いではない。
+- 親は正常な次turnでのprefix利用、suppressed/derived内容のrawhistoryからの再流入、retention既存契約、callback/async期限・effect回復・public runtime接続を確認事項として提示。`/tmp/ba-mem-06-review-checklist.md`は検討項目のみ、合格証跡ではない。
+
+### 実装中間報告（未承認）
+
+- `/root/mem06_implementation`: summary manifest/job、Core投影、RunState/Authorizerの取得・直接user履歴置換を追加。通常の次turnではparent版増加のみ許容し、scope/owner/epoch/expiry/source prefix集合・hashは完全照合する方針。履歴側のspan抑止、先行source変更後の派生応答除外の正負例を追加中。対象ruff確認成功との報告（raw全検証未提出）。
+- 親が途中のSummaryTransactionとworkerを読み、候補棄却後の期限guard残留とmodel_response検査を確認依頼。実装担当は期限guardは共通current parent expiry由来であり候補固有旧expiryを登録しないと説明、テスト予定。formal review判定や解消確認としては扱わない。
+
+### 初回関連検証raw確認
+
+- 親が `/tmp/ba-mem-06-summary-first.log`（11件0.195秒OK、real0.57秒）と `summary-runtime-first.log`（13件1.585秒OK、real2.30秒）を直接確認。重複実行の有無/コマンド/exitは最終handoffで照合予定、24独立ケースとは主張しない。
+- `mypy-first.log` は3型注釈エラー（RunState remaining、fixture lambda、changes型）/209files。`mypy-second.log` は210files成功、real0.37秒。初回失敗を保持し、全check/test完了とは扱わない。
+- 親の途中確認で、削除されて文書自体がmissingになった元userからのassistant再流入も負例へ加えるよう依頼した。summary prefixの欠落検出だけでrawhistoryを十分検証した扱いにしない。
+
+### 初回実Firestore検証
+
+- `/tmp/ba-mem-06-emulator-first.log` を親raw確認。demo-brainoid、Auth/Firestore emulators、`PYTHONPATH=tests uv run --all-packages --locked --offline python -B -m unittest discover -s tests/emulator -p 'test_summary_integration.py'`。5件21.815秒OK、Script exit0、全emulator正常shutdown、real29.31秒。
+- 初回追加5件の範囲であり全suite成功とは区別。history/RunState/Coreの共通経路を変更したため、最終通常testに加えて実Firestore全suite検証を実装担当へ依頼した。
+
+### runtime負例・依存整合・全検証への移行
+
+- 実装担当報告: 後続2turnでprefix利用、元user物理欠落/本文欠落/suppress/訂正の4subcaseでsummary/旧assistant識別語がモデルへ戻らないことをruntime suiteで確認。親もtestコードの対応assertionを直接読了。
+- MEM05由来共通effect commit/attributes/queue分離が実依存となるため、docs08 MEM06の依存PRへMEM05を追加し理由を記載。`embed_memory._Caller`の私有importはsummary自身のcaller検査へ置換。元caller有効区間をjobへ固定しuser受付限定、device contextだけから新しいdelegationを作らない。
+- `/tmp/ba-mem-06-setup.log` locked/frozen setup成功、real0.56秒（実装担当報告+親raw確認）。
+- `check-first.log` 初回全check失敗: 新emulator fixtureにNone未絞込1件/Callable戻り値型2件、計3型エラー/211files、real20.68秒。docs/contract/client等は成功したが全check成功とは扱わない。実装担当は修正済みと報告し、全通常test/全Firestore suiteへ進む。
+
+### 全体検証の回帰検出（修正待ち）
+
+- `check-final.log`: 全check9タスク完了、real23.24秒。親raw確認。
+- `test-final.log`: 通常Python540件69.176秒でfailures9/errors29、real73.26秒、test task失敗。Skill/Nodeまで成功した扱いにしない。多くはwaiting confirmationでsummary取得がrunning限定callerへ再入しPolicyDeniedとなるstack、ほかprovider部分応答・authority outage/lease境界の既存assertion失敗。親から全結果を実装担当へ返し修正と再検証を依頼。原因確定/修正成功とはまだ記録しない。
+- `emulator-full.log` は同時点で実行途中、未完了。初回失敗rawを保持し、以後別名logにする。
+
+### 回帰修正の関連再検証
+
+- 親raw確認 `run-regression-fix.log`: 関連76件19.384秒OK、real21.06秒。`check-final2.log`: 全check再成功、real23.16秒。正確なcommand/変更原因はhandoff照合予定。
+- `test-final2.log` は再実行途中、成功判定未確定。`emulator-full.log` は修正前に開始したsuiteでerror/failureが出ており、終了報告待ち。修正後snapshotの全検証とは区別し、共通経路の修正後emulator再検証を依頼済み。
+
+### waiting回帰修正後の全通常テスト
+
+- 実装担当が原因確定: waiting confirmation中にrunning-only RunCallerでsummaryをloadしていた。waitingではloadせず再開後に再検証、summary collectionが空なら既存経路へ追加RunCaller検査を入れない。summaryありの確認待ち→再開正例も追加。
+- `/tmp/ba-mem-06-test-final2.log` 親raw確認: Python541件67.347秒OK、Skill18件0.062秒OK、Node40件全pass14.130秒、real85.62秒。
+- 修正前importの `/tmp/ba-mem-06-emulator-full.log`: 149件315.358秒、failures2/errors12、Script exit1、real324.64秒、全emulator正常shutdown。全失敗はcheckpoint integrationのwaiting/confirmation系。成功扱いにしない。修正後全suite再実行予定。
+- 新たに導入するspan suppressionがFact経由のMODEL_READを迂回しないよう、span範囲証明を持たないFact sourceはMODEL_READで保守的に拒否する整合変更を追加予定。UI READとの区別、既存direct-user source resolverのdeny追加のみとし、MEM07の忘却受付は実装しない。追加後の最終検証を待つ。
+
+### 最新通常テスト成功・実Firestore単独エラー
+
+- `/tmp/ba-mem-06-check-final3.log` 全check成功real22.97秒、`test-final3.log` Python542件67.131秒/Skill18件0.069秒/Node40件15.639秒、全成功real86.86秒、実装担当exit0報告、親raw確認。summary provenance14/runtime3/Firestore5/既存memory repository追加1で新規独立test method23（subTestは別計数しない）。
+- 修正後全Firestore `emulator-full2.log`: 149件267.777秒でerrors1、Script exit1、real278.38秒、全emulator正常shutdown。`test_memory_retrieval_integration.MemoryRetrievalIntegrationTests.test_history_deadline_after_metering_before_provider_dispatch` で `authorizer.unavailable` からPersistenceUnavailable。残りのケースが成功でも全suite合格ではない。実装担当が単独再現/原因調査へ進む。
+
+### Firestore残件の原因と修正計画
+
+- 実装担当の調査: 既存metering期限テストでLiveCancellationが失効を検知→保留中Authorizer.checkをcancel→CancelledError節が一律PersistenceUnavailableにしていた競合。provider開始前guardは拒否しているが、正当な取消がinfra failureとして伝播する。
+- 修正予定: control.cancellation.cancelledでの正当取消は偽のDB障害を立てず、実infra errorは既存cancellation.error経路で維持、未完了DB待機timeoutは従来unavailable。pending認可中のmembership失効→watcher取消を決定的に再現する回帰を追加。
+- 親はprovider追加呼出し/late書込なし、実障害/timeoutの区別、bounded cancel/使用量zero-before-start/started未知結果保全をassertするよう依頼。最終全check/test/Firestore再実行の成功までは完了扱いにしない。
+
+### 取消分類修正と決定的関連検証
+
+- 最新差分でAuthorizer.checkのCancelledErrorは `control.cancellation.cancelled` でない場合のみPersistenceUnavailableを設定。watcherの実障害は既存error経路、未応答DB deadlineは従来unavailable。`test_revocation_cancels_pending_authority_without_inventing_storage_outage`は保留認可await中にmembership認可版を変え、watcher取消後provider呼出し0/job obsolete authorization_changed/assistant保存0をassertする。親が差分を直接確認。
+- `/tmp/ba-mem-06-cancellation-fix.log` 関連23件7.681秒OK、real8.61秒。`check-final4.log`全check成功real23.13秒。最終通常`test-final4.log`と全Firestore`emulator-full3.log`は実行中。
+
+### 最終全検証成功（R1前）
+
+- 親が最新raw直接確認。環境は `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache`、pipefail + `/usr/bin/time -p` + tee。setupは既述locked/frozen成功。
+- `mise run check` → `check-final4.log`: 全9タスク成功、real23.13秒。`mise run test` → `test-final4.log`: Python543件64.391秒OK、Skill18件0.079秒OK、Node40件15.396秒全pass、real83.92秒、実装担当exit0報告。
+- `set -a; source .env.emulator.example; set +a; mise run test-emulator` → `emulator-full3.log`: demo-brainoid Auth/Firestore全149件265.216秒OK、Script exit0、全emulator正常shutdown、real274.29秒。最終watcher取消修正を含む共通経路で再検証成功。
+- 追加独立methodは通常19（provenance14/runtime3/Fact span1/取消1）+実Firestore5=24。初回summary-runtime-first13はprovenance11+runtime2をまとめた実行であり、summary-first11との重複を含むとhandoff草稿で照合済み。
+- `/tmp/ba-mem-06-handoff.md`草稿を親全文確認。実provider/実cloud/配備/物理purge/Fact自動抽出未実施と対象外、直接user要約の限定、retention原契約、roll-back条件、全失敗と修正前後の範囲を区別。最終ports/diffcheck/編集停止報告後にsnapshotを固定してR1へ進む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/mem06_review_r1`（新規独立context）。base commit: `221f13a5463d2de8db4f8cfa225618f3a0fe4dc0`。
+- 未追跡を含む最新全18files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `a476ec8e745994897860bf19578f7d5c8768970104dbbdb84668701677c53424` |
+| `docs/05-development-and-testing.md` | `970414a89a5d65e5aa668e61e8d4c029bfd34a52ee6bd5f10f1c76a7b92182d8` |
+| `docs/08-implementation-tickets.md` | `69cceb3df32cb3c0b4fc682519b3cf8bb2378d0b45955e7fc4e33ec9135b571b` |
+| `docs/conversation-summaries.md` | `c2db1cfe5ddf9ebda85c537274f74f1a6232ad726022b57eba2ec7325a539e34` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `94643e97fb35704491177859f36c03a873765ac06757e5a136c8334a52bad8ed` |
+| `packages/contracts/src/brainoid_contracts/reuse.py` | `e4f6f8519b45cf85b256c8517aa28fd0e4dccb0b0171ab6d7fe12083697943b6` |
+| `packages/memory/src/brainoid_memory/repository.py` | `9a94d918d3530256bd86f6b9b3dd69e5dd282ba20ed8201984c15129c67d8296` |
+| `packages/memory/src/brainoid_memory/sources.py` | `4b45efea2d2faab2e73d54d4eb9489755cf02a1578b324fea7cc2d1be59bf835` |
+| `packages/memory/src/brainoid_memory/summaries.py` | `d38f506fbb68c12058c6857312081f67d5a3011dd3c5a0818a111deec28e436a` |
+| `packages/runs/src/brainoid_runs/state.py` | `c0dbad8f41ea8266c3375bcbcf4e20f43076f4c0a9c63f9a9d01a78981964b42` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `9f2af79d7fb18b5c2bc33a1f0768dbe6b0e7cc2577485bc9507adead7be3ad1b` |
+| `services/worker/src/brainoid_worker/summarize_conversation.py` | `45d06e6239e3126ff94dc955b8419f99a383f3c1b65ddd1e85ec0235e96021db` |
+| `tests/emulator/test_summary_integration.py` | `c1a593247b9718ec0a02e8effeef81b669410fc46b80d30659e88202bbea664a` |
+| `tests/fakes/summaries.py` | `8ed47c7ef68d280fc45fab3820ffaca27a9930b07d18a334f556ef6743cb2e71` |
+| `tests/test_memory_repository.py` | `a1d6430ada93e65098bfb3d58cb23958e35e7b00b19491f4bb9fbe297f01c9e1` |
+| `tests/test_summary_provenance.py` | `f0d8266b4a9ea1e4328b8e0309f08182537888b9eb3e0efc5b0187e42825c02f` |
+| `tests/test_summary_runtime.py` | `d401d18d1e2401995556b9ad713d23b02aa5aa59dc665f629dca5fe37dc5af47` |
+| `tests/test_turn_run.py` | `5713a8a6e884233355cd9adbb86f548c92cda6b444aeb11ffa739ea0a6b3d786` |
+
+### R1開始・製品固定
+
+- 実装担当がhandoff確定/製品編集停止を報告。親が `/tmp/ba-mem-06-final-audit.log` の5ports closed/main/diffcheck、handoff最終結果を直接確認。18pathsを `/tmp/ba-mem-06-review-r1.json` に固定。
+- 新規独立 `/root/mem06_review_r1`（fork none）を起動。全差分/正本/周辺コードを直接読むこと、原source/認可/期限/出典投影/履歴抑止/専用job/原子checkpoint/rollbackとwaiting・watcher取消の共通経路を含めてレビューするよう依頼。全成功最終rawと過去失敗・修正前後の範囲を区別して伝達。
+- R1 verdict未確定。製品編集停止を維持し、必要修正は元の実装担当へ戻す。
+
+### R1開始照合
+
+- `/root/mem06_review_r1` がmain/base/index空/全18path集合・SHA一致、適用AGENTSなしを独立確認。正本要件とgeneration/save/reuse fence・通常履歴抑止を読んでいる。
+- 親は入力100messages/64,000文字の明示上限、server構成と後続turn利用、超過時の実動作と文書整合も検討対象として伝えた。未確定の検討項目であり必須指摘や不具合確定ではない。
+
+### R1独立関連検証
+
+- reviewerの `/tmp/ba-mem-06-review-r1-tests.log` を親raw確認: 要約17/Fact span1/取消・実infra outage・lease expiry・late-write関連4、計22件2.548秒OK。
+- 独立追加 `review-r1-probes.log` は8件中7成功/1error。100messagesちょうどのprefixにfixture.latest(before=100)を指定したため意図どおり除外されNoneを参照したテスト境界ミス、とreviewer報告。上限100/64,000で保存成功までは確認、fixture修正後に別logで再実行を依頼。製品不具合確定とは扱わない。
+- parentはprovider.stream生成直前/anext直前のdeadline/release検査範囲も最終報告で明示するよう依頼。正式verdictは未確定。
+
+### R1追加反証と要修正候補
+
+- `/tmp/ba-mem-06-review-r1-probes-final.log` を親raw確認: 8件0.212秒OK。非同期入口のauth期限/DB応答遅延/stream生成後anext直前の期限/source削除/account失効/100messages・64,000文字境界/prefixへの前方挿入/Unicode重複spanを検査。初回fixtureのbefore境界ミスを修正したprobeの再実行、製品変更なし。
+- reviewerがbounded cleanup欠落を2つの決定的probeで再現。`review-r1-cleanup-probe.py/.log`を親も直接確認。provider待機予算を30s→0.03sに縮め、(a)不正eventでhandlerが拒否した後のaclose待機、(b)anext timeoutでprovider finallyへ入った後の待機が、0.3秒後もworkerを保持する。いずれもsummary保存なし。fake cleanupを解除し全thread回収、2件FAIL/0.652秒。
+- 単発のasyncio.timeoutはfinallyの協調await終了も待ち、外側finallyのacloseはtimeout外。既存Coreは専用close deadline/二段cancel/回収を持つ。reviewerはP2 request_changesとして整理中、最終report/manifest照合後に修正担当へ返す。
+
+### 独立R1正式結果と修正引継ぎ
+
+- `/root/mem06_review_r1`: **request_changes**、必須 `MEM06-R1-001 / P2` 1件。正式 `/tmp/ba-mem-06-review-r1-report.md` を親全文確認。開始終了main/base/index空/18paths・SHA一致、5ports closed、製品変更なし。親もsnapshot working一致再確認。
+- MEM06-R1-001: summarize_conversation.pyのanext timeoutからprovider finallyへ入る待機と、timeout外のaclose待機に有限終了上限がない。最終 `review-r1-cleanup-probe-final.log` は予算0.03sに対し1.006s/1.036s後もworker生存、2F（初回0.3秒rawも保持）。summary未保存、event解除後全thread回収。
+- 修正要件: advancement/cleanup独立deadline、二段cancelとtask回収、asyncio.run shutdownへ未回収taskを残さない。正常完了・不正event・anext timeout・cleanup例外・task取消の各経路で有限終了/無保存/無再課金を検証。元source/権限/releaseguard・atomic checkpointを維持。
+- 直接22+8成功と提供全543+18+40/Firestore149成功はcleanup失敗を上書きしない。入力上限/直接user限定は文書と一致し初版範囲として承認可能、公開HTTP/自動trigger/chunkingは必須修正でないとreviewer確認。
+- 任意O1: docs08一覧表MEM06にもMEM05依存を同期する提案。詳細節正本は正しく必須ではないが今回の修正時に合わせる。
+- 台帳in_progress/review_rounds1へ戻し、元 `/root/mem06_implementation` へ修正を返す。次は新規独立R2で最新全差分を再確認する。
+
+### R1修正中の構成報告
+
+- 実装担当報告: summary専用ファイル内に有限 `_wait`（provider awaitを個別taskへ分離）、250ms猶予で最大2回cancelする `_collect`、task/asyncgen終了も有限化する専用loop runnerを追加。`asyncio.run`の無期限shutdown gatherを使わず、Completed受領後に独立close期限へ移る。Core/Jobs/共有helper変更なし、releaseguard/atomic effect維持。
+- blocked close/timeout finally/正常完了/例外/Python取消/残taskの回帰を追加中。任意O1の一覧依存とcleanup契約docも更新。まだ検証/再レビュー前でありMEM06-R1-001解消確定とは扱わない。
+
+### R1修正の関連検証
+
+- 親raw確認 `/tmp/ba-mem-06-r1fix-targeted-first.log`:23件2.846秒OK/real3.57秒、`r1fix-targeted-final.log`:26件3.297秒OK/real4.08秒。new cleanup6は正常Completed後blocked close、不正event後blocked close、anext timeout→finally、cleanup例外、Python task取消、scheduleされたadvance内の期限検査を扱う。
+- `r1fix-mypy-first.log`:2型診断（不要ignore、module経由asyncio export）、212files、real0.41秒。失敗を保持、修正後全check待ち。
+- 親は当初R1のasyncio.timeout patchが新方式では変わる可能性を伝えたが、実装担当が外側timeout(30)を維持していると説明。元probeの予算patchは有効、後始末だけ閉鎖済loopにcall_soonしない条件へ変更し、元1秒終了assertは維持して別copyで再実行する。元raw/probeは保持する。
+- 専用advance task内でprovider実行直前にもreleaseguard.finishを呼ぶ追加確認を親が依頼し、最新差分と新負例で対応中。Core/Jobsの共有実装は変更していない。
+
+### R1元反証と実Firestore関連再検証
+
+- `/tmp/ba-mem-06-r1fix-review-probe.log` 親raw確認: 元review cleanup2シナリオが0.259秒/0.288秒でworker終了、summary未保存、2件0.553秒OK/real0.93秒。別copy `r1fix-cleanup-probe.py`は閉鎖済loopに後始末call_soonを行わない条件だけ変更し、元1秒の有限終了assertを維持。R1元probe/rawは保存済み。
+- `/tmp/ba-mem-06-r1fix-emulator-final.log`: 実Auth/Firestore summary関連5件21.947秒OK、Script exit0/全shutdown、real30.97秒。R1前全149成功の後、summary専用cleanup修正に対する関連5再実行であり、最新差分で全149を再実行したとは主張しない。Core/Jobs共通コードの修正はない。
+- `r1fix-check-final.log`は新testのhits型注釈1件で失敗、real20.64秒。注釈修正後`check-final2.log`再実行中、`r1fix-test-final.log`通常全suiteも実行中。初回型失敗は保持する。
+
+### R1修正後の最終check/test成功
+
+- 親raw確認 `r1fix-check-final2.log`: 全9check成功、real22.86秒。`r1fix-test-final.log`: Python549件70.302秒OK、Skill18件0.064秒OK、Node40件13.570秒全pass、real87.85秒。
+- 関連26件、R1元反証2件、最新実Firestore関連5件成功は上述。R1前の全Firestore149と最新関連5の差を維持して記録。setup後の依存変更なし。
+- 最終監査/引継ぎ/製品編集停止後に19paths想定の最新全差分を固定し、新規独立R2へ渡す。MEM06-R1-001の独立解消判定はまだ未了。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/mem06_review_r2`（新規独立context）。base commit: `221f13a5463d2de8db4f8cfa225618f3a0fe4dc0`。
+- 未追跡を含む最新全19files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `a476ec8e745994897860bf19578f7d5c8768970104dbbdb84668701677c53424` |
+| `docs/05-development-and-testing.md` | `970414a89a5d65e5aa668e61e8d4c029bfd34a52ee6bd5f10f1c76a7b92182d8` |
+| `docs/08-implementation-tickets.md` | `d6f02c470aa8bfbcd11a0ad4b736fce7d6dd762baf855718d6ac75308f40db92` |
+| `docs/conversation-summaries.md` | `3d1f11336961116bb6d931dc6bee41fae7aa15f3ac9043b6f53403e063944884` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `94643e97fb35704491177859f36c03a873765ac06757e5a136c8334a52bad8ed` |
+| `packages/contracts/src/brainoid_contracts/reuse.py` | `e4f6f8519b45cf85b256c8517aa28fd0e4dccb0b0171ab6d7fe12083697943b6` |
+| `packages/memory/src/brainoid_memory/repository.py` | `9a94d918d3530256bd86f6b9b3dd69e5dd282ba20ed8201984c15129c67d8296` |
+| `packages/memory/src/brainoid_memory/sources.py` | `4b45efea2d2faab2e73d54d4eb9489755cf02a1578b324fea7cc2d1be59bf835` |
+| `packages/memory/src/brainoid_memory/summaries.py` | `d38f506fbb68c12058c6857312081f67d5a3011dd3c5a0818a111deec28e436a` |
+| `packages/runs/src/brainoid_runs/state.py` | `c0dbad8f41ea8266c3375bcbcf4e20f43076f4c0a9c63f9a9d01a78981964b42` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `9f2af79d7fb18b5c2bc33a1f0768dbe6b0e7cc2577485bc9507adead7be3ad1b` |
+| `services/worker/src/brainoid_worker/summarize_conversation.py` | `bfb257a80448d29c9c456e1971a7b1bf688ddd206ca4c3d17eed485355d3de7a` |
+| `tests/emulator/test_summary_integration.py` | `c1a593247b9718ec0a02e8effeef81b669410fc46b80d30659e88202bbea664a` |
+| `tests/fakes/summaries.py` | `8ed47c7ef68d280fc45fab3820ffaca27a9930b07d18a334f556ef6743cb2e71` |
+| `tests/test_memory_repository.py` | `a1d6430ada93e65098bfb3d58cb23958e35e7b00b19491f4bb9fbe297f01c9e1` |
+| `tests/test_summary_cleanup.py` | `e35a07693f91ad52da8e72cb55c7146f7ea55597fa3a1b12357691e8c8cf1732` |
+| `tests/test_summary_provenance.py` | `f0d8266b4a9ea1e4328b8e0309f08182537888b9eb3e0efc5b0187e42825c02f` |
+| `tests/test_summary_runtime.py` | `d401d18d1e2401995556b9ad713d23b02aa5aa59dc665f629dca5fe37dc5af47` |
+| `tests/test_turn_run.py` | `5713a8a6e884233355cd9adbb86f548c92cda6b444aeb11ffa739ea0a6b3d786` |
+
+### R1修正確定・R2開始
+
+- 実装担当が `/tmp/ba-mem-06-r1fix-handoff.md` 確定/製品編集停止を報告、親が全文確認。R1から4paths変更、全19paths。`r1fix-final-audit.log` はmain/base/index空/diffcheck/5ports closed、親raw確認。
+- 全test実行中に新cleanup testのhits型注釈だけ追記した範囲差を引継ぎで明記。runtime/assertion変更なし、exact final `r1fix-cleanup-final.log` 6件0.876秒OK/real1.24秒で再検証。setupは依存不変、最新Firestoreは関連5（全149はR1前）の範囲を維持。
+- `/tmp/ba-mem-06-review-r2.json` に19paths固定し、新規独立 `/root/mem06_review_r2`（fork none）を起動。最新全差分/R1のbounded cleanup必須指摘とO1/元probeの後始末差だけ/最終検証範囲を伝達。共通waiting/取消/履歴変更もレビューから除外しない。
+- R2判定待ち。製品編集停止、台帳in_review。
+
+### R2開始監査
+
+- `/root/mem06_review_r2` がmain/base/index空/全19paths・SHA一致を独立確認。最新全差分とsummary専用_wait/_collect/_run、advance内releaseguardを直接読み、独自cleanup/権限handoff検証を開始。製品変更なし、正式verdict未確定。
+
+### R2独立関連・追加検証
+
+- `/tmp/ba-mem-06-review-r2-tests.log` 親raw確認: cleanup6+既存要約17+Fact span1+取消/実infra/lease/late-write4、計28件3.403秒OK。
+- 初回 `review-r2-probes.log` は9件で1F/2E。GoogleModelProvider fixtureの必須clock未指定2E、account close hookがusers doc無しで何も変えない1Fというprobe構成ミスとreviewer確認。元raw保持、製品不具合扱いにしない。
+- `review-r2-probes-retry.log` 親raw確認:9件0.502秒OK。非同期loop前/stream factory後/DB応答後の期限/source物理削除/prefix挿入/cleanup例外本文の非ログ化を確認。実Google adapter+offline HTTPXで正常応答/待機中のresponse close停止が0.087s/0.340sで終了、残task無し/transport回収/要約未保存/unknown再送抑止。実cloudや課金providerを使わない。
+- account probeはunprovisioned→canonical user追加によるstamp変化の拒否を確認した段階。reviewerは更にvalid UserProfile active→deletingの実遷移・hook発火/path assertへ厳密化して最終確認する。正式verdict待ち、全19paths固定。
+
+### R2最終追加反証成功
+
+- `review-r2-probes-final.log` を親raw確認:9件0.507秒OK。account probeはvalid UserProfile(active,v1)を実users pathへ置いて元jobを作り、close時に同UID deleting,v2へ変更。hook1回/path/UID/status/profile妥当性をassertし、job account_changed/summary・completed checkpoint無しを確認したとreviewer報告。
+- 同probeのoffline Google response closeは正常応答0.089s/待機中0.340s、いずれもworker終了・response/transport回収・残task無し・未保存。初回fixture誤りを修正した最終結果であり元rawは保持。
+- reviewerが元R1 cleanup再現copyも独立再実行。`review-r2-r1cleanup.log`2件0.553秒OK、0.259s/0.289sでworker終了・summary未保存。元の0.03s予算/1s有限終了assert維持、後始末releaseだけ生存時条件。
+- 最終report/audit待ち、製品19paths固定維持。
+
+### 独立R2最終承認
+
+- `/root/mem06_review_r2`: **approve**、必須未解決0、新規必須0、追加任意なし。正式 `/tmp/ba-mem-06-review-r2-report.md` を親全文確認。MEM06-R1-001解消、R1任意O1対応を確認。
+- reviewer直接28+独自9+R1再現2=39件成功、最終account probeは有効なactive→deleting遷移を確認。実SDKはoffline transportのみ。提供全549+18+40/最新関連Firestore5/修正前全149/型注釈だけ最終6再実行を区別して承認。
+- `review-r2-final-audit.log`: main/base/index空/19paths/全SHA一致/diffcheck/5ports closed、親全文確認。製品変更なし。繰返し取消へ協調するadapter契約の有限cleanupが承認対象であり、任意同期ブロックの強制停止を保証するものではない。
+- 親がstage直前にsnapshotを再照合し、承認された19pathsだけを実装コミットへ含める。
+
+### 実装コミットと完了条件
+
+- mainへ `c3311cfc0a814ccce29e525ae53938f490cb3de1`（feat(memory): BA-MEM-06 add scoped conversation summaries）を作成。stage前/index/commit後の全19pathsとSHAがR2承認snapshot一致。cached全diff `/tmp/ba-mem-06-staged.diff`。
+- FR004/006/T010/T011: canonical source prefix・版/epoch/hash/owner/scope/display/保持の継承、生成前/保存/現在利用の検査、直接user限定要約とCore投影、suppression/欠落の派生履歴再利用抑止、専用job/原子checkpoint/未知effectの再課金抑止を実装。
+- R1 bounded cleanup1件を修正し、R2全差分approve/必須0/任意0。独立R2直接28+9+2成功。最新全check/通常549+18+40と最終cleanup6/実Firestore関連5成功、共通経路変更時のR1前全149成功も保持。最新cleanup修正後に全149を再実行したとは扱わない。
+- 直接ユーザー発言・100messages/入力64,000文字等の初版範囲を文書化。assistant/toolの完全要約、自動trigger/chunking、Fact自動抽出、physicalpurge、実cloud/課金provider/品質評価/配備は対象外。旧workerへ抑止済み会話を戻さず、checkpoint/出典を維持するrollback条件を記載。
+- 完了更新: 2026-10-26T12:44:54.492036+00:00。done metadata更新後の親最終checkと記録コミットへ進む。
+
+### 親の最終検証
+
+- done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy212/docs1409/生成差分なし/契約互換性成功、real22.14秒。raw `/tmp/ba-mem-06-parent-check.log`。
+- 台帳done31/todo65/blocked0、変更は台帳・作業ログのみ。記録2ファイルだけを別commitへ含め、製品未記録変更がないことを確認する。
