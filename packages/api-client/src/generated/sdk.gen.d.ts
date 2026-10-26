@@ -520,7 +520,7 @@ export declare const cancelDeviceCommand: <ThrowOnError extends boolean = false>
 /**
  * forget/delete/export/退出を受け付ける
  *
- * forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。delete_resourceとexportは未提供。
+ * forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。exportは明示local構成で提供。現在読める会話・メッセージ・Entity・記憶・ノートをJSON入りZIPにまとめる。my_dataは本人privateと本人の共有寄稿（共有会話の親metadataを含む）、visible_tenant_dataは現在読める共有範囲も含む。delete_resourceは未提供。
  */
 export declare const createTenantOperation: <ThrowOnError extends boolean = false>(options: Options<CreateTenantOperationData, ThrowOnError>) => RequestResult<CreateTenantOperationResponses, CreateTenantOperationErrors, ThrowOnError>;
 /**
@@ -532,7 +532,7 @@ export declare const getTenantOperation: <ThrowOnError extends boolean = false>(
 /**
  * 本人のexportを取得
  *
- * export成功・24時間期限内のみ。再認可し、公開URLを返さずstreamする。
+ * 明示local構成で提供。export成功・受付から24時間以内のみ。本人の現在membership・owner・全manifestの版/削除epoch/依存権限とobject期限を各取得およびstream送信境界で再検査する。公開URLを返さない。200はdata.jsonを含むZIP。上限200対象・非圧縮4MiB、走査5000対象を超える場合はoperation失敗とし部分出力しない。実非公開一時bucketはBA-OPS-02の外部前提。
  */
 export declare const downloadExport: <ThrowOnError extends boolean = false>(options: Options<DownloadExportData, ThrowOnError>) => RequestResult<DownloadExportResponses, DownloadExportErrors, ThrowOnError>;
 /**

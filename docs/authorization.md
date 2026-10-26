@@ -10,7 +10,7 @@ BA-IAM-02（FR-002/006/012）は [policy package](../packages/policy/src/brainoi
 
 membershipは `user_id` の一致検索を同じtransactionで行い、2件まで読み、重複を拒否する。UIDに `/` が含まれていてもdocument pathに連結しない。既存fixtureの `memberships/{uid}` と将来の安全なdocument keyの両方を扱う。scope・status・所有者・版の欠落や不正値、複数membershipは許可に変換しない。
 
-対象は `ResourceRef(tenant_id, kind, id)` で指定し、readerが正本のscope・owner・creator・version・deletion epochを取得する。対応kindはconversations/entities/facts/notes/tasks/remindersである。PATCH入力や検索索引のmetadataで正本を置き換えない。子message/run/音声は後続repositoryが正本の親へ解決し、親と子の版・削除状態を検査してから接続する。新規作成時の所有者のサーバー確定、scope変更や共有化の遷移制約、Calendar/家電固有の認可は各業務チケットの責務である。
+対象は `ResourceRef(tenant_id, kind, id)` で指定し、readerが正本のscope・owner・creator・version・deletion epochを取得する。対応kindはconversations/entities/facts/notes/tasks/reminders、および本人privateのoperation metadataだけを表すexportsである。exportsはUserSubjectの本人READ・outputなしに限定し、sourceの読取り権限は[エクスポート契約](data-export.md)で別途検査する。PATCH入力や検索索引のmetadataで正本を置き換えない。子message/run/音声は後続repositoryが正本の親へ解決し、親と子の版・削除状態を検査してから接続する。新規作成時の所有者のサーバー確定、scope変更や共有化の遷移制約、Calendar/家電固有の認可は各業務チケットの責務である。
 
 ## 許可と拒否
 

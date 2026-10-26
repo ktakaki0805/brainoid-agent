@@ -3288,7 +3288,7 @@ export type CreateTenantOperationErrors = {
 export type CreateTenantOperationError = CreateTenantOperationErrors[keyof CreateTenantOperationErrors];
 export type CreateTenantOperationResponses = {
     /**
-     * 削除台帳とtombstoneを保存して受付済み。物理消去や認証provider失効の完了ではない
+     * 非同期operation受付済み。削除は独立台帳とtombstone保存後、exportはoperationと通常jobの同一transaction保存後に返す。処理完了ではない
      */
     202: Operation;
 };
@@ -3334,7 +3334,7 @@ export type DownloadExportErrors = {
 export type DownloadExportError = DownloadExportErrors[keyof DownloadExportErrors];
 export type DownloadExportResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 認可済みdata.jsonを含むZIP。Cache-Controlはno-store
      */
     200: Blob | File;
 };

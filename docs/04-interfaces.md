@@ -278,6 +278,8 @@ DBのdue_atを正本とし、Schedulerの定期走査とCloud Tasksで配信す�
 
 初期案では期限から5分を過ぎた通知を自動読み上げせず、未確認一覧で示す。OSへのpush受理、Piでのdisplayed、本人のacknowledgedを別状態として保存する。push到着時刻をサービスの厳密な保証としない。
 
+BA-MEM-09の[本人エクスポート](data-export.md)は明示local構成で提供する。downloadは認証付き `application/zip`（内部 `data.json`）、受付から24時間、最大200対象・4MiB。毎回とstream送信境界で現在の権限・全manifestを検査し、公開URLを返さない。
+
 ## 7. Toolとローカル境界
 
 LLMに公開するのは型付きのtool名とargumentsであり、TenantContext/ActorContext、OAuth token、端末credential、実行済み確認情報は公開しない。ToolExecutorは実行ごとに現在の権限・対象・quota・確認を検査する。modelが返したJSONをそのままproviderへ中継しない。

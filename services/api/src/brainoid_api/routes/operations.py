@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from brainoid_contracts import ResourceId
+from brainoid_memory.export_manifest import ExportCreate
 from brainoid_memory.forget import ForgetCreate, Operation
 from fastapi import APIRouter, Depends, Request
 from starlette.concurrency import run_in_threadpool
@@ -40,11 +41,17 @@ Lifecycle = Annotated[DeletionRequests, Depends(lifecycle_repository)]
 )
 async def create_operation(
     tenant_id: ResourceId,
-    body: ForgetCreate | LeaveTenant | DeleteTenant,
+    body: ForgetCreate | LeaveTenant | DeleteTenant | ExportCreate,
     identity: Identity,
     services: Annotated[AuthServices, Depends(get_auth_services)],
     request: Request,
 ) -> Operation:
+    if isinstance(body, ExportCreate):
+        if services.exports is None:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+        return await run_in_threadpool(
+            services.exports.create, identity, tenant_id, body, _header(request, "Idempotency-Key")
+        )
     if isinstance(body, ForgetCreate):
         if services.memories is None:
             raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
@@ -74,6 +81,12 @@ async def get_operation(
             return await run_in_threadpool(
                 services.deletion_requests.get, identity, operation_id, tenant_id
             )
+        except APIError as error:
+            if error.code != ErrorCode.RESOURCE_NOT_FOUND:
+                raise
+    if services.exports is not None:
+        try:
+            return await run_in_threadpool(services.exports.get, identity, tenant_id, operation_id)
         except APIError as error:
             if error.code != ErrorCode.RESOURCE_NOT_FOUND:
                 raise

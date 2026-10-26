@@ -82,6 +82,7 @@ class SessionState(Record):
 
 
 class ResourceKind(StrEnum):
+    EXPORT = "exports"
     CONVERSATION = "conversations"
     ENTITY = "entities"
     MEMORY = "facts"

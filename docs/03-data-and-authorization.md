@@ -223,6 +223,8 @@ workerは開始時とコミット直前にsource version、認可版、deletion_
 
 エクスポートは本人のrequestで非同期operationを作成し、実行時点の権限で対象を確定する。暗号化された一時オブジェクトを作り、認証付きAPIでストリーム取得する。各downloadで現在のmembership・owner・対象deletion_epoch・期限を再検査する。退出・forget・削除・scope変更で関連する生成済みexportを失効し、GCSオブジェクトを消去する。初期ダウンロード期限24時間とし、生の公開URLをpushやログへ出さない。他人のprivateデータ、token、内部推論、管理上の秘密を含めない。
 
+BA-MEM-09の[本人エクスポート契約](data-export.md)は、明示local構成でJSON入りZIP、全manifestの再認可、独立一時object台帳とpurge/reaperによる物理消去を提供する。標準APIの本番受付は未有効で、実一時bucketはBA-OPS-02の外部前提である。
+
 ## 8. 削除・忘却・保持
 
 | 操作 | 主な扱い |

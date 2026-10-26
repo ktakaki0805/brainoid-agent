@@ -41,6 +41,7 @@ from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.memories import Memories
 from brainoid_api.repositories.tenants import Tenants
 from brainoid_api.services.deletion_requests import DeletionRequests
+from brainoid_api.services.export_requests import ExportRequests
 from brainoid_api.services.private_sessions import PrivateSessions
 from brainoid_api.settings import Settings
 
@@ -60,6 +61,7 @@ class AuthServices:
     entities: Entities | None = None
     memories: Memories | None = None
     deletion_requests: DeletionRequests | None = None
+    exports: ExportRequests | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]

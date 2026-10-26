@@ -47,6 +47,7 @@ USER_SCOPES = frozenset(
         "calendar.read",
         "calendar.propose",
         "home.control",
+        "export",
     }
 )
 ALL_DISPLAY = frozenset(DisplayPolicy)
@@ -84,6 +85,7 @@ def _permission(kind: ResourceKind, action: Action) -> str:
         ResourceKind.NOTE: "notes",
         ResourceKind.TASK: "tasks",
         ResourceKind.REMINDER: "reminders",
+        ResourceKind.EXPORT: "export",
     }[kind]
 
 
@@ -232,6 +234,8 @@ class Evaluator:
         if not isinstance(kind, ResourceKind):
             raise PolicyDenied()
         principal = self.principal(tenant_id, subject)
+        if kind == ResourceKind.EXPORT and not isinstance(subject, UserSubject):
+            raise PolicyDenied()
         if _permission(kind, Action.READ) not in principal.context.actor.allowed_scopes:
             raise PolicyDenied()
         filters = self._filters(principal)
@@ -307,6 +311,14 @@ class Evaluator:
             raise PolicyDenied()
         resource = self._state.resource(ref)
         if resource is None or resource.ref != ref or resource.deleted:
+            raise PolicyDenied()
+        if ref.kind == ResourceKind.EXPORT and (
+            not isinstance(subject, UserSubject)
+            or resource.scope.visibility != Visibility.PRIVATE
+            or resource.owner_user_id != subject.user_id
+            or output is not None
+            or action != Action.READ
+        ):
             raise PolicyDenied()
         self._readable(principal, resource)
         if _permission(ref.kind, action) not in principal.context.actor.allowed_scopes:

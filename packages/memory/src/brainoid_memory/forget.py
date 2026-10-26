@@ -15,7 +15,7 @@ from brainoid_jobs.repository import path as job_path
 from brainoid_policy.accounts import account_stamp
 from brainoid_policy.models import Action, ResourceKind, ResourceRef
 from brainoid_policy.scopes import PolicyDenied, ResourceGrant
-from pydantic import TypeAdapter, ValidationError
+from pydantic import Field, TypeAdapter, ValidationError
 
 from brainoid_memory.deletion_ledger import DeletionIntent, DeletionLedger, DeletionTarget
 from brainoid_memory.models import Fact, MemoryValue
@@ -31,12 +31,14 @@ class ForgetCreate(MemoryValue):
 
 class Operation(MemoryValue):
     operation_id: ResourceId
-    kind: Literal["forget_memory", "leave_tenant", "delete_tenant", "delete_account"] = (
+    kind: Literal["forget_memory", "leave_tenant", "delete_tenant", "delete_account", "export"] = (
         "forget_memory"
     )
     status: Literal["pending", "running", "succeeded", "failed", "outcome_unknown"] = "pending"
     created_at: UtcTimestamp
     updated_at: UtcTimestamp
+    download_expires_at: UtcTimestamp | None = Field(default=None, exclude_if=lambda v: v is None)
+    error_code: str | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 def operation_path(tenant: ResourceId, operation: ResourceId) -> str:
