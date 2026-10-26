@@ -520,7 +520,7 @@ export declare const cancelDeviceCommand: <ThrowOnError extends boolean = false>
 /**
  * forget/delete/export/退出を受け付ける
  *
- * delete_tenantはownerの直近5分の再認証と名称一致。削除は独立台帳の先行記録、DB tombstone保存後に202。
+ * 現在はforget_memoryのみ実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。delete/export/退出は後続実装。
  */
 export declare const createTenantOperation: <ThrowOnError extends boolean = false>(options: Options<CreateTenantOperationData, ThrowOnError>) => RequestResult<CreateTenantOperationResponses, CreateTenantOperationErrors, ThrowOnError>;
 /**

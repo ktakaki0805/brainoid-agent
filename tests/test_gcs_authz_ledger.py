@@ -11,7 +11,9 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 import google_crc32c
 from brainoid_api.adapters.gcs_authz_ledger import GCSAuthzObjects
+from brainoid_memory.deletion_ledger import DeletionIntent, DeletionLedger, DeletionTarget
 from brainoid_policy.control_ledger import ControlLedger, LedgerConflict, LedgerError
+from fakes.memory_repository import FACT, NOW, TENANT
 from google.auth.credentials import AnonymousCredentials
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud.storage import Client  # type: ignore[import-untyped]
@@ -165,3 +167,24 @@ class GCSAuthzTests(unittest.TestCase):
                 work()
             self.assertEqual(str(failure.exception), "authorization_ledger_unavailable")
         self.assertFalse(self.transport.objects)
+
+    def test_deletion_namespace_is_independent_and_survives_upload_response_loss(self) -> None:
+        ledger = DeletionLedger(self.objects)
+        intent = DeletionIntent(
+            operation_id=FACT,
+            tenant_id=TENANT,
+            request_hash="a" * 64,
+            source_policy="suppress_reuse",
+            created_at=NOW,
+            targets=(DeletionTarget(kind="fact", resource_id=FACT, version=1, deletion_epoch=1),),
+        )
+        self.transport.lose_upload_response = True
+        ledger.append(intent)
+        self.assertEqual(ledger.get(FACT), intent)
+        ledger.append(intent)
+        self.assertEqual(list(self.transport.objects), [f"deletion/v1/operations/{FACT}.json"])
+        with self.assertRaises(LedgerConflict):
+            ledger.append(intent.model_copy(update={"request_hash": "b" * 64}))
+        self.assertFalse(
+            any(r.method in {"PUT", "PATCH", "DELETE"} for r in self.transport.requests)
+        )

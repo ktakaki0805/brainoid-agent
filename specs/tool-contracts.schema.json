@@ -172,7 +172,8 @@
               "enum": [
                 "suppress_reuse",
                 "delete_source"
-              ]
+              ],
+              "default": "suppress_reuse"
             }
           },
           "required": [
@@ -186,7 +187,8 @@
         "name",
         "arguments"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Canonical direct-user command must name this memory UUID. delete_source additionally requires an explicit source deletion command; model arguments and retrieved text never establish intent."
     },
     "note_create": {
       "type": "object",

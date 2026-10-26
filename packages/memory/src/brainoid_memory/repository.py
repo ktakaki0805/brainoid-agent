@@ -18,6 +18,7 @@ from brainoid_contracts import (
     Visibility,
     normalize_utc,
 )
+from brainoid_contracts.deletion import fenced_document, tombstone_path
 from brainoid_contracts.guards import protect
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
@@ -120,7 +121,12 @@ class _Authority:
 class _GraphPolicyState(TransactionPolicyState):
     def resource(self, ref: ResourceRef) -> ResourceState | None:
         document = self._transaction.get(_path(ref))
-        result = resource_state(ref, document)
+        result = resource_state(
+            ref,
+            fenced_document(self._transaction, ref.tenant_id, ref.kind, ref.id, document)
+            if document is not None
+            else None,
+        )
         if result is not None and document is not None and ref.kind == ResourceKind.ENTITY:
             result = _entity_target(result, document.get("kind"))
         return result
@@ -322,6 +328,11 @@ class MemoryRepository:
         action: Action = Action.READ,
     ) -> T:
         policy.resource(ref.tenant_id, subject, ref, action=action, output=self._output)
+        if ref.kind == ResourceKind.MEMORY and action == Action.WRITE:
+            from brainoid_memory.forget import reservation_path
+
+            if tx.get(reservation_path(ref.tenant_id, ref.id)) is not None:
+                raise VersionConflict()
         document = tx.get(_path(ref))
         try:
             result = model.model_validate(document)
@@ -837,6 +848,8 @@ class FactTransaction(_MemoryTransaction):
             record,
             reuse=True,
         )
+        if self._tx.get(tombstone_path(ref.tenant_id, ref.kind, ref.id)) is not None:
+            raise PolicyDenied()
         if self._tx.get(_path(ref)) is not None:
             self.get(identity)
             raise AlreadyExists()

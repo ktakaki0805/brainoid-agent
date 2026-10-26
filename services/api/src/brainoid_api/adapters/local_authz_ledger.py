@@ -14,7 +14,7 @@ class LocalAuthzObjects:
             raise ValueError("Local ledger requires an absolute directory")
 
     def _path(self, name: str) -> Path:
-        if not name.startswith("authz/v1/") or any(
+        if not name.startswith(("authz/v1/", "deletion/v1/")) or any(
             part in ("", ".", "..") for part in name.split("/")
         ):
             raise LedgerError()

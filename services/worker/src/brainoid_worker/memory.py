@@ -1,6 +1,7 @@
 """Current run-bound memory retrieval, mutation, result reuse and history fencing."""
 
 import re
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid5
 
@@ -22,12 +23,16 @@ from brainoid_agent_core.types import (
     ToolResult,
 )
 from brainoid_contracts import DeviceActorContext, ResourceId, Scope, TenantContext
+from brainoid_contracts.deletion import fenced_document
+from brainoid_contracts.reuse import direct_user
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job
 from brainoid_jobs.models import job_id
 from brainoid_jobs.repository import path as job_path
 from brainoid_memory import CanonicalSources, MemoryRepository, VerifiedCaller
+from brainoid_memory.deletion_ledger import DeletionLedger
 from brainoid_memory.dto import MemoryCreate
+from brainoid_memory.forget import ForgetCreate, ForgetMemories, Operation, operation_path
 from brainoid_memory.models import Fact
 from brainoid_memory.mutations import MemoryMutations, effect_path
 from brainoid_memory.repository import FactTransaction
@@ -38,7 +43,7 @@ from brainoid_policy.accounts import fingerprint
 from brainoid_policy.models import DeviceSubject
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from brainoid_runs.memory_sources import SavedMessages
-from brainoid_runs.state import KIND, run_path
+from brainoid_runs.state import KIND, conversation_path, history_hash, project_history, run_path
 from brainoid_tools import (
     Arguments,
     Authority,
@@ -49,6 +54,7 @@ from brainoid_tools import (
     ToolRejected,
 )
 from brainoid_tools.memory import (
+    ForgetArguments,
     MemoryArguments,
     RememberArguments,
     ReviseArguments,
@@ -224,7 +230,14 @@ class BoundMemory:
 
 
 class MemoryRuntime:
-    def __init__(self, handler: "RunTurn", *, vector_search: VectorSearch | None = None) -> None:
+    def __init__(
+        self,
+        handler: "RunTurn",
+        *,
+        vector_search: VectorSearch | None = None,
+        deletion_ledger: DeletionLedger | None = None,
+    ) -> None:
+        self.deletion_ledger = deletion_ledger
         self.vector_search = vector_search
         self.handler = handler
         self.delegate = handler.tool_authorizer
@@ -403,6 +416,32 @@ class MemoryRuntime:
         )
         return re.fullmatch(pattern, text.strip(), re.I) is not None
 
+    @staticmethod
+    def forget_intent(text: str, args: ForgetArguments) -> bool:
+        suffix = " and delete its source" if args.source_policy == "delete_source" else ""
+        japanese = "元の出典ごと" if args.source_policy == "delete_source" else ""
+        return text.strip().casefold() in (
+            f"forget memory {args.memory_id}{suffix}".casefold(),
+            f"please forget memory {args.memory_id}{suffix}".casefold(),
+            f"記憶 {args.memory_id} を{japanese}忘れて",
+        )
+
+    def forgetting(self) -> ForgetMemories:
+        if self.deletion_ledger is None:
+            raise PolicyUnavailable()
+        return ForgetMemories(
+            self.handler.jobs.store, self.deletion_ledger, now=self.handler.jobs.now
+        )
+
+    @staticmethod
+    def forget_body(args: ForgetArguments) -> ForgetCreate:
+        return ForgetCreate(
+            kind="forget_memory",
+            target_id=args.memory_id,
+            expected_version=args.expected_version,
+            source_policy=args.source_policy,
+        )
+
     def check(self, tx: Transaction, request: ToolExecution, arguments: Arguments) -> Authority:
         if not request.call.name.startswith("memory."):
             if self.delegate is None:
@@ -413,6 +452,28 @@ class MemoryRuntime:
             access = self.open(tx, job)
             if isinstance(arguments, SearchArguments):
                 access.scopes()
+            elif isinstance(arguments, ForgetArguments):
+                message = tx.get(
+                    conversation_path(job.tenant_id, job.grant.ref.id)
+                    + "/messages/"
+                    + run["input_message_id"]
+                )
+                if message is None or not direct_user(message):
+                    raise PolicyDenied()
+                if not self.forget_intent(expected.user_text, arguments):
+                    raise PolicyDenied()
+                effect = ResourceId(str(uuid5(UUID(request.tool_call_id), "brainoid-tool-effect")))
+                saved = tx.get(operation_path(job.tenant_id, effect))
+                if saved is not None:
+                    self.forgetting().operation(access, saved)
+                    scope = Scope.model_validate(saved["scope"])
+                else:
+                    _, grant, _, _ = self.forgetting().prepare(
+                        tx, access, self.forget_body(arguments)
+                    )
+                    scope = grant.scope
+                if scope != expected.conversation.scope:
+                    raise PolicyDenied()
             elif isinstance(arguments, (RememberArguments, ReviseArguments)):
                 revise = isinstance(arguments, ReviseArguments)
                 if not self.intent(expected.user_text, revise):
@@ -520,6 +581,10 @@ class MemoryRuntime:
                 job = self.job(
                     tx, invocation.context.tenant_id, ResourceId(saved["authority"]["run_id"])
                 )
+                # Both reservation and commit must validate every current input.
+                # The forget target is still live before its atomic commit; after
+                # that commit the same run/effect proof owns the rebound context.
+                # Skipping checks here would erase unrelated external invalidation.
                 run, _, expected, _ = self.handler.state.check(tx, job)
                 if invocation.context != expected.context or invocation.tool_call_id not in run.get(
                     "tool_call_ids", []
@@ -597,6 +662,82 @@ class MemoryRuntime:
                 result, access, records = self.handler.jobs.store.run(search)
                 access.finish_records(records)
                 return result
+            if isinstance(args, ForgetArguments):
+
+                def terminal(
+                    tx: Transaction, operation: Operation, replacements: dict[str, Document]
+                ) -> Callable[[], None]:
+                    saved = tx.get(
+                        f"tenants/{invocation.context.tenant_id}/tool_executions/{invocation.tool_call_id}"
+                    )
+                    assert saved is not None
+                    run_id = ResourceId(saved["authority"]["run_id"])
+                    path = run_path(invocation.context.tenant_id, run_id)
+                    run = tx.get(path)
+                    if run is None:
+                        raise PolicyDenied()
+                    job = self.job(tx, invocation.context.tenant_id, run_id)
+                    base = conversation_path(job.tenant_id, job.grant.ref.id)
+                    projected = [
+                        (
+                            p,
+                            replacements.get(
+                                p,
+                                fenced_document(
+                                    tx,
+                                    job.tenant_id,
+                                    "messages",
+                                    ResourceId(d["id"]),
+                                    d,
+                                    parent=job.grant.ref.id,
+                                ),
+                            ),
+                        )
+                        for p, d in tx.collection(base + "/messages")
+                    ]
+                    docs, messages, _ = project_history(job.tenant_id, job.grant.ref.id, projected)
+                    if not docs or docs[-1]["id"] != run["input_message_id"]:
+                        raise PolicyDenied()
+                    proof_path = (
+                        f"tenants/{job.tenant_id}/memory_forget_effects/{operation.operation_id}"
+                    )
+                    if tx.get(proof_path) is not None:
+                        raise PolicyDenied()
+                    proof = {
+                        "operation_id": operation.operation_id,
+                        "run_id": run_id,
+                        "tool_call_id": invocation.tool_call_id,
+                        "request": self.forget_body(args).model_dump(mode="json"),
+                    }
+                    # opened() validated ALL existing dependencies in this same TX;
+                    # its guards also survive these reads and the writes below.
+                    # Rebind only with this atomic self-forget receipt. No model
+                    # continuation may reuse the old input; only a fixed notice follows.
+                    updated = {
+                        **run,
+                        "forget_operation_id": operation.operation_id,
+                        "history_hash": history_hash(docs[:-1], messages[:-1]),
+                        "memory_records": [],
+                        "tool_bindings": [],
+                        "continuation": [],
+                    }
+
+                    def save() -> None:
+                        tx.create(proof_path, proof)
+                        tx.set(path, updated)
+
+                    return save
+
+                operation = self.forgetting().forget(
+                    opened,
+                    self.forget_body(args),
+                    str(invocation.effect_id),
+                    effect=invocation.effect_id,
+                    extra=terminal,
+                )
+                return HandlerResult(
+                    status="succeeded", result={"operation": operation.model_dump(mode="json")}
+                )
             if reconcile:
 
                 def read(tx: Transaction) -> Fact:
@@ -645,6 +786,29 @@ class MemoryRuntime:
             if self.consumer(job) != consumer:
                 raise PolicyDenied()
             access = self.open(tx, job)
+            if isinstance(arguments, ForgetArguments):
+                if result.status == "succeeded":
+                    if result.operation_id is None:
+                        raise PolicyDenied()
+                    operation = self.forgetting().operation(
+                        access, tx.get(operation_path(job.tenant_id, result.operation_id))
+                    )
+                    if result.result != {"operation": operation.model_dump(mode="json")}:
+                        raise PolicyDenied()
+                elif result.result:
+                    raise PolicyDenied()
+                access.finish()
+                return ResultUse(
+                    receipt=fingerprint(
+                        [result.model_dump(mode="json"), consumer.model_dump(mode="json")]
+                    ),
+                    sources=(
+                        ResultSource(
+                            scope=consumer.conversation_scope,
+                            owner_user_id=consumer.conversation_owner_user_id,
+                        ),
+                    ),
+                )
             raw_records = result.result.get("memories", [])
             if not isinstance(raw_records, list):
                 raise PolicyDenied()

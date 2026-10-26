@@ -1,0 +1,79 @@
+"""Immutable deletion intentions, independent of the restorable application DB.
+
+Only opaque references and counters are recorded: never fact/message text, account
+identities or credentials. This protocol deliberately has no authorization grants.
+"""
+
+from typing import Annotated, Literal, Self
+
+from brainoid_contracts import ResourceId, UtcTimestamp, Version
+from brainoid_policy.control_ledger import LedgerConflict, LedgerError, Objects
+from pydantic import Field, TypeAdapter, ValidationError, model_validator
+
+from brainoid_memory.models import MemoryValue
+
+
+class DeletionTarget(MemoryValue):
+    kind: Literal["fact", "message", "note"]
+    resource_id: ResourceId
+    parent_id: ResourceId | None = None
+    version: Version
+    deletion_epoch: Annotated[int, Field(strict=True, ge=1)]
+
+    @model_validator(mode="after")
+    def parent(self) -> Self:
+        if (self.kind == "message") != (self.parent_id is not None):
+            raise ValueError("Only messages require a canonical parent")
+        return self
+
+
+class DeletionIntent(MemoryValue):
+    schema_version: Literal[1] = 1
+    operation_id: ResourceId
+    tenant_id: ResourceId
+    request_hash: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+    source_policy: Literal["suppress_reuse", "delete_source"]
+    created_at: UtcTimestamp
+    targets: Annotated[tuple[DeletionTarget, ...], Field(min_length=1, max_length=21)]
+
+    @model_validator(mode="after")
+    def bindings(self) -> Self:
+        keys = [(t.kind, t.parent_id, t.resource_id) for t in self.targets]
+        if (
+            self.targets[0].kind != "fact"
+            or any(t.kind == "fact" for t in self.targets[1:])
+            or len(set(keys)) != len(keys)
+        ):
+            raise ValueError("A forget intent has one fact and unique sources")
+        return self
+
+
+class DeletionLedger:
+    def __init__(self, objects: Objects) -> None:
+        self.objects = objects
+
+    @staticmethod
+    def name(operation: ResourceId) -> str:
+        # Validate even if a caller bypassed the normal DTO constructor.
+        identity = TypeAdapter(ResourceId).validate_python(operation)
+        return f"deletion/v1/operations/{identity}.json"
+
+    def get(self, operation: ResourceId) -> DeletionIntent | None:
+        raw = self.objects.read(self.name(operation))
+        if raw is None:
+            return None
+        try:
+            intent = DeletionIntent.model_validate_json(raw)
+        except ValidationError:
+            raise LedgerError() from None
+        if intent.operation_id != operation:
+            raise LedgerError()
+        return intent
+
+    def append(self, intent: DeletionIntent) -> None:
+        intent = DeletionIntent.model_validate(intent.model_dump())
+        if not self.objects.create(
+            self.name(intent.operation_id), intent.model_dump_json().encode()
+        ):
+            if self.get(intent.operation_id) != intent:
+                raise LedgerConflict()

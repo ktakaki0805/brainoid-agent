@@ -3,6 +3,7 @@
 from typing import Protocol
 
 from brainoid_contracts import ResourceId, TenantContext, Version
+from brainoid_contracts.deletion import fenced_document
 from brainoid_contracts.transactions import Transaction
 from brainoid_policy.models import ResourceKind, ResourceRef
 from brainoid_policy.scopes import PolicyDenied
@@ -86,6 +87,14 @@ class CanonicalSources:
             source.kind == "message" and document.get("conversation_id") != authority.id
         ):
             raise PolicyDenied()
+        document = fenced_document(
+            tx,
+            context.tenant_id,
+            "messages" if source.kind == "message" else "notes",
+            source.resource_id,
+            document,
+            parent=authority.id if source.kind == "message" else None,
+        )
         if source.kind == "message" and (
             # Assistant/tool text can derive from earlier history even with empty
             # local dependency arrays. Until recursive proof is supported, accept

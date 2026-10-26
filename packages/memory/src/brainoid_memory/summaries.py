@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 from uuid import UUID, uuid5
 
 from brainoid_contracts import FirebaseUid, ResourceId, Scope, UtcTimestamp, Version, normalize_utc
+from brainoid_contracts.deletion import fenced_document
 from brainoid_contracts.guards import protect
 from brainoid_contracts.reuse import direct_user, reusable_text
 from brainoid_contracts.transactions import Document
@@ -116,6 +117,9 @@ class SummaryTransaction(_MemoryTransaction):
             raise PolicyDenied()
         sources, texts = [], []
         for doc in records:
+            doc = fenced_document(
+                self._tx, ref.tenant_id, "messages", ResourceId(doc["id"]), doc, parent=ref.id
+            )
             text = reusable_text(doc) if direct_user(doc) else None
             if text:
                 texts.append(text)

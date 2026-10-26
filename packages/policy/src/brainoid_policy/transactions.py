@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from brainoid_contracts import FirebaseUid, ResourceId, Scope
+from brainoid_contracts.deletion import fenced_document
 from brainoid_contracts.transactions import Document, Transaction
 from pydantic import ValidationError
 
@@ -28,7 +29,7 @@ class TransactionPolicyState:
 
     No resource body, graph role, or request-provided context is projected into policy.
     Missing/invalid/ambiguous authority is denied; caller logs must not serialize errors.
-    Canonical resource tombstones must set deleted before purge (later MEM/IAM flows).
+    Persistent deletion fences survive physical purge and stale canonical restores.
     """
 
     def __init__(
@@ -126,7 +127,12 @@ class TransactionPolicyState:
 
     def resource(self, ref: ResourceRef) -> ResourceState | None:
         document = self._transaction.get(f"tenants/{ref.tenant_id}/{ref.kind}/{ref.id}")
-        return resource_state(ref, document)
+        return resource_state(
+            ref,
+            fenced_document(self._transaction, ref.tenant_id, ref.kind, ref.id, document)
+            if document is not None
+            else None,
+        )
 
 
 def resource_state(ref: ResourceRef, document: Document | None) -> ResourceState | None:

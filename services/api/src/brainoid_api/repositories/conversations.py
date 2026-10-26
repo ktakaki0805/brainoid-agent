@@ -6,6 +6,7 @@ from functools import partial
 from uuid import uuid4
 
 from brainoid_contracts import DisplayPolicy, FirebaseUid, ResourceId, Scope, Visibility
+from brainoid_contracts.deletion import fenced_document
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_jobs import Jobs
 from brainoid_policy.models import (
@@ -397,9 +398,14 @@ class Conversations:
                     doc.get("tenant_id") != tenant
                     or doc.get("conversation_id") != conversation
                     or path != conversation_path(tenant, conversation) + "/messages/" + item.id
-                    or doc.get("deleted") is not False
+                    or type(doc.get("deleted")) is not bool
                 ):
                     raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
+                current_document = fenced_document(
+                    tx, tenant, "messages", item.id, doc, parent=conversation
+                )
+                if current_document["deleted"]:
+                    continue
                 items.append(item)
             current = current.model_copy(
                 update={
@@ -620,6 +626,7 @@ class Conversations:
                     "tenant_id": tenant,
                     "conversation_id": conversation,
                     "sequence": record["input_sequence"],
+                    "created_by": principal.user_id,
                     "version": 1,
                     "deletion_epoch": 0,
                     "deleted": False,

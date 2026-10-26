@@ -126,7 +126,7 @@ IDの並びは分野別であり、実装の直列順序ではない。詳細に
 | [BA-MEM-04](#ba-mem-04-scope付き2hop検索と会話への文脈組込み) | scope付き2hop検索と会話への文脈組込み | M2 | P0・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-03](#ba-run-03-人格設定とテキストagentcore)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査) |
 | [BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter) | 埋め込みjobとvector検索adapter | M2 | P0・M | [BA-MEM-04](#ba-mem-04-scope付き2hop検索と会話への文脈組込み)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤) |
 | [BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承) | 会話要約と出典・scope・版の継承 | M2 | P1・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-02](#ba-run-02-google-gen-aiのmodelprovider-adapter)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行)、[BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter) |
-| [BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止) | 忘却受付・削除台帳・元出典再利用抑止 | M2 | P0・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査) |
+| [BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止) | 忘却受付・削除台帳・元出典再利用抑止 | M2 | P0・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査)、[BA-MEM-04](#ba-mem-04-scope付き2hop検索と会話への文脈組込み)、[BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter)、[BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承) |
 | [BA-MEM-08](#ba-mem-08-派生データと子階層のpurge-worker) | 派生データと子階層のpurge worker | M2 | P0・M | [BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter)、[BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承)、[BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止) |
 | [BA-MEM-09](#ba-mem-09-認可付きエクスポート生成取得失効) | 認可付きエクスポート生成・取得・失効 | M5 | P0・M | [BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止)、[BA-MEM-08](#ba-mem-08-派生データと子階層のpurge-worker) |
 | [BA-APP-01](#ba-app-01-ノートcrudとノートtool) | ノートCRUDとノートtool | M3 | P1・M | [BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査)、[BA-FND-08](#ba-fnd-08-冪等性etagcursorの共通処理)、[BA-MEM-08](#ba-mem-08-派生データと子階層のpurge-worker) |
@@ -1697,11 +1697,13 @@ BA-MEM-05で追加した共通JobsのDB-only effect commit、本文なしjob属�
 | 担当ロール | Backend |
 | 段階・優先度・規模 | M2・P0・M |
 | 関連要件 | FR-006、FR-013 |
-| 依存PR | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査) |
+| 依存PR | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査)、[BA-MEM-04](#ba-mem-04-scope付き2hop検索と会話への文脈組込み)、[BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter)、[BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承) |
 
 **目的**
 
 忘却の受付直後から、対象記憶と残した会話の再利用を止める。バックアップ復元でも削除要求を失わない受付経路を作る。
+
+BA-MEM-04の現在出典・tool結果再検査、BA-MEM-05の本文なしjob属性・queue分離、BA-MEM-06の履歴/要約再利用抑止を共通契約として利用するため、実装依存に含める。
 
 **主な変更範囲**
 

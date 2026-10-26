@@ -1,6 +1,6 @@
 """Typed memory tools; all persistence is delegated to the common mutation service."""
 
-from typing import Annotated, Protocol
+from typing import Annotated, Literal, Protocol
 
 from brainoid_agent_core.ports import CallControl
 from brainoid_contracts import DisplayPolicy, ResourceId, Version, Visibility
@@ -31,7 +31,13 @@ class ReviseArguments(Arguments):
     replacement: MemoryCreate
 
 
-type MemoryArguments = SearchArguments | RememberArguments | ReviseArguments
+class ForgetArguments(Arguments):
+    memory_id: ResourceId
+    expected_version: Version
+    source_policy: Literal["suppress_reuse", "delete_source"] = "suppress_reuse"
+
+
+type MemoryArguments = SearchArguments | RememberArguments | ReviseArguments | ForgetArguments
 
 
 class MemoryBackend(Protocol):
@@ -73,4 +79,8 @@ def register_memory(registry: Registry, backend: MemoryBackend) -> None:
     )
     registry.register(
         Registration("memory.revise", ReviseArguments, MemoryHandler("memory.revise", backend))
+    )
+
+    registry.register(
+        Registration("memory.forget", ForgetArguments, MemoryHandler("memory.forget", backend))
     )

@@ -26,6 +26,8 @@ from brainoid_contracts import ResourceId
 from brainoid_contracts.guards import GuardedTransactions, ReleaseGuard, release_guard
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job, Jobs, LeaseLost
+from brainoid_memory.deletion_ledger import DeletionLedger
+from brainoid_memory.forget import operation_path
 from brainoid_memory.vector_store import VectorSearch
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.models import Record
@@ -212,6 +214,7 @@ class RunTurn:
         tool_registry: Registry | None = None,
         tool_authorizer: ToolAuthorizer | None = None,
         vector_search: VectorSearch | None = None,
+        deletion_ledger: DeletionLedger | None = None,
     ) -> None:
         # Every run/tool/stream/final transaction shares guards, including the outer
         # Jobs.complete callback and read responses delayed after the callback ends.
@@ -229,7 +232,9 @@ class RunTurn:
                 "max_output_characters": min(8000, (budget or RunBudget()).max_output_characters)
             }
         )
-        self.memory = MemoryRuntime(self, vector_search=vector_search)
+        self.memory = MemoryRuntime(
+            self, vector_search=vector_search, deletion_ledger=deletion_ledger
+        )
         self.tool_registry = tool_registry.copy() if tool_registry is not None else Registry()
         register_memory(self.tool_registry, self.memory)
         self.tool_authorizer = tool_authorizer or self.memory
@@ -310,10 +315,49 @@ class RunTurn:
         except PolicyUnavailable:
             raise AuthorizationUnavailable() from None
 
+    def _forget_outcome(self, job: Job) -> JsonValue | None:
+        def read(tx: Transaction) -> JsonValue | None:
+            run, _, _, _ = self.state.check(tx, job)
+            identity = run.get("forget_operation_id")
+            if identity is None:
+                return None
+            proof = tx.get(f"tenants/{job.tenant_id}/memory_forget_effects/{identity}")
+            if (
+                proof is None
+                or proof.get("operation_id") != identity
+                or proof.get("run_id") != job.operation_id
+            ):
+                raise PolicyDenied()
+            tool_id = proof.get("tool_call_id")
+            if tool_id not in run.get("tool_call_ids", []):
+                raise PolicyDenied()
+            saved = tx.get(f"tenants/{job.tenant_id}/tool_executions/{tool_id}")
+            if (
+                saved is None
+                or saved.get("name") != "memory.forget"
+                or saved.get("effect_id") != identity
+                or saved["authority"]["run_id"] != job.operation_id
+            ):
+                raise PolicyDenied()
+            access = self.memory.open(tx, job)
+            self.memory.forgetting().operation(
+                access, tx.get(operation_path(job.tenant_id, ResourceId(identity)))
+            )
+            return Outcome(
+                status="completed",
+                text=run.get("streamed_text", "")
+                + "忘却を受け付けました。対象記憶と元出典のモデル再利用を停止し、消去処理を待っています。別の出典や新しい発言から同じ内容を知る可能性は残ります。",
+            ).model_dump(mode="json")
+
+        return self.jobs.store.run(read)
+
     def _run(self, execution: Execution) -> JsonValue:
         job, request, run = self._start(execution)
         while True:
             execution.check(renew=True)
+            if run.get("forget_operation_id") is not None:
+                if (forgotten := self._forget_outcome(job)) is not None:
+                    return forgotten
             if run.get("confirmation_decision") == "outcome_unknown":
                 return Outcome(status="failed", error_code="outcome_unknown").model_dump(
                     mode="json"
@@ -405,6 +449,9 @@ class RunTurn:
                             raise cancellation.error
 
                 result = asyncio.run(execute_tool())
+                if tool_request.call.name == "memory.forget":
+                    if (forgotten := self._forget_outcome(job)) is not None:
+                        return forgotten
                 if tool_authority.unavailable is not None:
                     raise tool_authority.unavailable
                 if not isinstance(result, ToolResult):
@@ -683,7 +730,7 @@ class RunTurn:
                     "version": 1,
                     "deletion_epoch": 0,
                     "deleted": False,
-                    "suppress_reuse": False,
+                    "suppress_reuse": bool(run.get("forget_operation_id")),
                     "sequence": parent["next_sequence"],
                     "tool_bindings": run.get("tool_bindings", []),
                     "memory_records": run.get("memory_records", []),
@@ -730,6 +777,7 @@ def text_worker(
     *,
     credential_epoch: ResourceId | None,
     clock: Clock | None = None,
+    deletion_ledger: DeletionLedger | None = None,
 ) -> Worker:
     """Explicit local composition; production injects its verified Tasks caller."""
     from brainoid_worker.local import LocalCaller
@@ -737,5 +785,13 @@ def text_worker(
     return Worker(
         jobs,
         LocalCaller(),
-        {"run_turn": RunTurn(jobs, model, credential_epoch=credential_epoch, clock=clock)},
+        {
+            "run_turn": RunTurn(
+                jobs,
+                model,
+                credential_epoch=credential_epoch,
+                clock=clock,
+                deletion_ledger=deletion_ledger,
+            )
+        },
     )

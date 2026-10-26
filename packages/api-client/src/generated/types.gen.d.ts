@@ -3288,7 +3288,7 @@ export type CreateTenantOperationErrors = {
 export type CreateTenantOperationError = CreateTenantOperationErrors[keyof CreateTenantOperationErrors];
 export type CreateTenantOperationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 忘却受付済み。物理消去完了ではない
      */
     202: Operation;
 };
@@ -3311,7 +3311,7 @@ export type GetTenantOperationErrors = {
 export type GetTenantOperationError = GetTenantOperationErrors[keyof GetTenantOperationErrors];
 export type GetTenantOperationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の認可を検査した本人の忘却操作状態
      */
     200: Operation;
 };

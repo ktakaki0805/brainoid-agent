@@ -9,8 +9,9 @@ from uuid import uuid4
 
 import firebase_admin  # type: ignore[import-untyped]
 from brainoid_jobs import Jobs
+from brainoid_memory.deletion_ledger import DeletionLedger
 from brainoid_memory.vector_store import VectorSearch
-from brainoid_policy.control_ledger import ControlLedger
+from brainoid_policy.control_ledger import ControlLedger, Objects
 from fastapi import Depends, Request
 from google.auth.credentials import AnonymousCredentials
 from google.cloud import storage
@@ -101,15 +102,16 @@ async def authentication_lifespan(
             settings.cursor_signing_key.get_secret_value().encode("utf-8"),
             now=lambda: datetime.now(UTC),
         )
+        objects: Objects
         if settings.app_env == "local-emulator":
             assert settings.authz_ledger_directory is not None
-            ledger = ControlLedger(LocalAuthzObjects(settings.authz_ledger_directory))
+            objects = LocalAuthzObjects(settings.authz_ledger_directory)
+            ledger = ControlLedger(objects)
         else:
             assert settings.authz_ledger_bucket is not None
             storage_client = storage.Client(project=settings.gcp_project_id, credentials=credential)
-            ledger = ControlLedger(
-                GCSAuthzObjects(storage_client.bucket(settings.authz_ledger_bucket))
-            )
+            objects = GCSAuthzObjects(storage_client.bucket(settings.authz_ledger_bucket))
+            ledger = ControlLedger(objects)
         store = FirestoreTransactions(client)
         tenants = Tenants(store, cursors, ledger=ledger)
         devices = DeviceCredentialRepository(store, tenants, ledger, device_tokens)
@@ -156,6 +158,7 @@ async def authentication_lifespan(
                 credentials=devices,
                 allow_untracked_bootstrap=True,
                 vector_search=(vector_search_factory(client) if vector_search_factory else None),
+                deletion_ledger=DeletionLedger(objects),
             ),
         )
     finally:

@@ -16,7 +16,7 @@ from google.api_core.exceptions import Aborted, ServiceUnavailable
 from test_device_pairing_integration import DevicePairingIntegrationFixture
 
 
-class MemoryIntegrationTests(DevicePairingIntegrationFixture):
+class MemoryIntegrationFixture(DevicePairingIntegrationFixture):
     def setUp(self) -> None:
         super().setUp()
         cursors = Cursors(b"m" * 32, now=lambda: self.now)
@@ -114,6 +114,8 @@ class MemoryIntegrationTests(DevicePairingIntegrationFixture):
         )
         return parent, child, message
 
+
+class MemoryIntegrationTests(MemoryIntegrationFixture):
     def test_concurrent_idempotent_create_immediate_get_and_revision_compare_swap(self) -> None:
         result = self.concurrent(self.create_memory, self.create_memory)
         self.assertIsInstance(result[0], MemoryView)

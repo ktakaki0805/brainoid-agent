@@ -2921,12 +2921,12 @@ paths:
     post:
       operationId: createTenantOperation
       summary: forget/delete/export/退出を受け付ける
-      description: delete_tenantはownerの直近5分の再認証と名称一致。削除は独立台帳の先行記録、DB tombstone保存後に202。
+      description: 現在はforget_memoryのみ実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。delete/export/退出は後続実装。
       security:
       - userBearer: []
       responses:
         '202':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 忘却受付済み。物理消去完了ではない
           content:
             application/json:
               schema:
@@ -2958,7 +2958,7 @@ paths:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の認可を検査した本人の忘却操作状態
           content:
             application/json:
               schema:
@@ -5386,6 +5386,7 @@ components:
             type: integer
             minimum: 1
           source_policy:
+            default: suppress_reuse
             type: string
             enum:
             - suppress_reuse

@@ -26,6 +26,7 @@ from brainoid_contracts import (
     Visibility,
     normalize_utc,
 )
+from brainoid_contracts.deletion import fenced_document
 from brainoid_contracts.guards import protect
 from brainoid_contracts.reuse import direct_user, reusable_text
 from brainoid_contracts.transactions import Document, Transaction
@@ -70,9 +71,35 @@ def agent(tx: Transaction, tenant: ResourceId, identity: ResourceId) -> AgentDef
 def history(
     tx: Transaction, tenant: ResourceId, conversation: ResourceId
 ) -> tuple[list[Document], tuple[ModelMessage, ...], str]:
+    raw = tx.collection(conversation_path(tenant, conversation) + "/messages")
+    return project_history(
+        tenant,
+        conversation,
+        [
+            (
+                path,
+                fenced_document(
+                    tx,
+                    tenant,
+                    "messages",
+                    TypeAdapter(ResourceId).validate_python(doc.get("id")),
+                    doc,
+                    parent=conversation,
+                ),
+            )
+            for path, doc in raw
+        ],
+    )
+
+
+def project_history(
+    tenant: ResourceId,
+    conversation: ResourceId,
+    raw: list[tuple[str, Document]],
+) -> tuple[list[Document], tuple[ModelMessage, ...], str]:
+    """Pure canonical projection, also used before an atomic forget commit."""
     base = conversation_path(tenant, conversation)
     documents = []
-    raw = tx.collection(base + "/messages")
     for path, doc in raw:
         if (
             path != base + "/messages/" + str(doc.get("id"))

@@ -13,16 +13,18 @@ from brainoid_contracts import (
 )
 from brainoid_jobs import Jobs
 from brainoid_memory import CanonicalSources, MemoryRepository
+from brainoid_memory.deletion_ledger import DeletionLedger
 from brainoid_memory.dto import MemoryCreate as MemoryCreate
 from brainoid_memory.dto import MemoryPage as MemoryPage
 from brainoid_memory.dto import MemoryRevision as MemoryRevision
 from brainoid_memory.dto import MemoryView as MemoryView
+from brainoid_memory.forget import ForgetCreate, ForgetMemories, Operation
 from brainoid_memory.models import Fact
 from brainoid_memory.mutations import MemoryMutations
 from brainoid_memory.repository import FactTransaction, VersionConflict
 from brainoid_memory.retrieval import SearchInput, retrieve
 from brainoid_memory.vector_store import VectorConfigurationError, VectorSearch, VectorUnavailable
-from brainoid_policy.control_ledger import ControlLedger
+from brainoid_policy.control_ledger import ControlLedger, LedgerError
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from pydantic import JsonValue
 
@@ -43,7 +45,7 @@ from brainoid_api.repositories.tenants import Tenants
 def policy_call[T](work: Callable[[], T]) -> T:
     try:
         return work()
-    except PolicyUnavailable:
+    except (PolicyUnavailable, LedgerError):
         raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
     except PolicyDenied as error:
         raise APIError(ErrorCode(error.code)) from None
@@ -65,7 +67,9 @@ class Memories:
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         allow_untracked_bootstrap: bool = False,
         vector_search: VectorSearch | None = None,
+        deletion_ledger: DeletionLedger | None = None,
     ) -> None:
+        self.deletion_ledger = deletion_ledger
         self.vector_search = vector_search
         self.store, self.tenants, self.cursors = store, tenants, cursors
         self.ledger, self.credentials, self.now = ledger, credentials, now
@@ -289,4 +293,37 @@ class Memories:
             predecessor=memory,
             expected=require_if_match(if_match),
             reason=body.reason,
+        )
+
+    def forgetting(self) -> ForgetMemories:
+        if self.deletion_ledger is None:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+        return ForgetMemories(self.store, self.deletion_ledger, now=self.now)
+
+    def forget(
+        self,
+        identity: EntityIdentity,
+        tenant: ResourceId,
+        body: ForgetCreate,
+        key: str | None,
+    ) -> Operation:
+        return policy_call(
+            lambda: self.forgetting().forget(
+                lambda tx: self._open(tx, identity, tenant, None),
+                body,
+                key,
+            )
+        )
+
+    def operation(
+        self,
+        identity: EntityIdentity,
+        tenant: ResourceId,
+        operation: ResourceId,
+    ) -> Operation:
+        return policy_call(
+            lambda: self.forgetting().get(
+                lambda tx: self._open(tx, identity, tenant, None),
+                operation,
+            )
         )

@@ -239,7 +239,9 @@ workerは開始時とコミット直前にsource version、認可版、deletion_
 
 Firestoreでは親documentの削除だけでsubcollectionは削除されない。削除workerは対象リソースの子階層を明示的に列挙し、cursorと再試行状態を保存して走査する。[公式資料](https://firebase.google.com/docs/firestore/manage-data/delete-data)
 
-バックアップからの復活を防ぐため、削除対象のopaque ID・epoch・時刻だけをDB外のCloud Storage制御bucketの削除台帳へ先行追記する。本文は保存しない。追記はDB transactionの外で行う。台帳記録失敗時は503を返し、受付完了と表示しない。台帳成功後にDB処理が失敗した場合は同じoperation IDで再構築・再適用し、削除意図を失わない。復元では最新台帳の適用が終わるまでAPI・worker・通知を停止する。初期backup保持7日に対し台帳30日を提案し、すべての復元可能なbackupより長く保持する。詳細は運用手順で管理する。
+バックアップからの復活を防ぐため、削除対象のopaque ID・版・epoch・source方針・要求hash・時刻だけをDB外のCloud Storage制御bucketの削除台帳へ先行追記する。本文は保存しない。追記はDB transactionの外で行う。台帳記録失敗時は503を返し、受付完了と表示しない。台帳成功後にDB処理が失敗した場合は同じoperation IDで再構築・再適用し、削除意図を失わない。復元では最新台帳の適用が終わるまでAPI・worker・通知を停止する。初期backup保持7日に対し台帳30日を提案し、すべての復元可能なbackupより長く保持する。詳細は運用手順で管理する。
+
+BA-MEM-07の提供済み受付は[忘却受付と削除台帳](memory-forgetting.md)を参照する。独立tombstoneは正本の古い再配置にも適用し、再作成・model再利用・要約・履歴・export判定を遮断する。物理purgeは専用の未activation envelopeとして保持し、BA-MEM-08が削除意図の範囲に限定して処理する。
 
 TTLは期限付き補助データの掃除に使うが、認可・セッション失効・コマンド期限・忘却の即時判定には使わない。FirestoreのTTL削除は即時ではなく、通常は期限から24時間以内とされるため、すべての利用時にexpires_atを検査する。[公式資料](https://firebase.google.com/docs/firestore/ttl)
 
