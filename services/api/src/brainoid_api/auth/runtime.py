@@ -1,6 +1,6 @@
 """App-owned SDK lifetimes and request dependencies; blocking I/O runs in worker threads."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import firebase_admin  # type: ignore[import-untyped]
 from brainoid_jobs import Jobs
+from brainoid_memory.vector_store import VectorSearch
 from brainoid_policy.control_ledger import ControlLedger
 from fastapi import Depends, Request
 from google.auth.credentials import AnonymousCredentials
@@ -58,8 +59,13 @@ class AuthServices:
     memories: Memories | None = None
 
 
+VectorSearchFactory = Callable[[Client], VectorSearch]
+
+
 @asynccontextmanager
-async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServices]:
+async def authentication_lifespan(
+    settings: Settings, *, vector_search_factory: VectorSearchFactory | None = None
+) -> AsyncIterator[AuthServices]:
     validate_sdk_environment(settings)
     if settings.app_env == "local-fake":
         # Health and non-auth fake development remain available; no dummy bearer is accepted.
@@ -149,6 +155,7 @@ async def authentication_lifespan(settings: Settings) -> AsyncIterator[AuthServi
                 ledger=ledger,
                 credentials=devices,
                 allow_untracked_bootstrap=True,
+                vector_search=(vector_search_factory(client) if vector_search_factory else None),
             ),
         )
     finally:

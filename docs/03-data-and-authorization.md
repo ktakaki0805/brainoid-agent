@@ -63,7 +63,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `speech_outputs/{id}` | 合成対象の確定文参照、run_id、期限 | 初期5分。音声は認可付き取得時に合成 |
 | `entities/{id}` | 人・部屋・家電・活動などの型、ラベル、外部参照 | 同名だけで自動マージしない |
 | `facts/{id}` | 主語・関係・目的語／値、出典、時間、状態 | グラフ記憶の正本 |
-| `memory_vectors/{id}` | 対象ID/版、scope、embedding、モデル/次元 | 派生索引。正本の再検査後に利用 |
+| `memory_vectors_<configuration_hash>/{id}` | 対象ID/版、scope、embedding、モデル/次元 | 派生索引。正本の再検査後に利用 |
 | `notes/{id}` | title、body、scope | 一覧は本文の過剰返却を避ける |
 | `tasks/{id}` | title、status、due_at、assignee_user_id | 状態はopen/done/cancelled |
 | `reminders/{id}` | due_at、timezone、schedule_version、内容参照、通知先、状態 | 再予定で版を増加し旧通知を無効化。配信と本人確認を区別 |
@@ -147,6 +147,8 @@ MVPは利用者が明示した記憶の保存を優先する。推測を保存�
 7. ツール実行時には対象・権限を再検査する。検索時の許可を使い回さない。
 
 Firestoreのベクトル検索は最大2048次元で、ベクトルクエリのリアルタイムsnapshot listenerはサポートしない。本設計では埋め込み次元をモデル設定と索引の両方に固定し、API経由の検索結果として返す。通常のコマンド監視とベクトル検索は別の経路とする。[公式資料](https://firebase.google.com/docs/firestore/vector-search)
+
+BA-MEM-05の配置・世代・正本fenceは[vector契約](memory-vectors.md)を参照する。
 
 ### 4.4 索引計画
 

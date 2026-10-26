@@ -21,6 +21,7 @@ from brainoid_memory.models import Fact
 from brainoid_memory.mutations import MemoryMutations
 from brainoid_memory.repository import FactTransaction, VersionConflict
 from brainoid_memory.retrieval import SearchInput, retrieve
+from brainoid_memory.vector_store import VectorConfigurationError, VectorSearch, VectorUnavailable
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from pydantic import JsonValue
@@ -46,6 +47,8 @@ def policy_call[T](work: Callable[[], T]) -> T:
         raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
     except PolicyDenied as error:
         raise APIError(ErrorCode(error.code)) from None
+    except (VectorUnavailable, VectorConfigurationError):
+        raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
     except VersionConflict:
         raise APIError(ErrorCode.VERSION_CONFLICT) from None
 
@@ -61,7 +64,9 @@ class Memories:
         credentials: DeviceCredentialRepository | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         allow_untracked_bootstrap: bool = False,
+        vector_search: VectorSearch | None = None,
     ) -> None:
+        self.vector_search = vector_search
         self.store, self.tenants, self.cursors = store, tenants, cursors
         self.ledger, self.credentials, self.now = ledger, credentials, now
         self.untracked = allow_untracked_bootstrap
@@ -206,9 +211,11 @@ class Memories:
         if key is None or not 16 <= len(key) <= 128:
             raise APIError(ErrorCode.INVALID_REQUEST)
 
+        provider = None
+
         def read(tx: Transaction) -> tuple[MemoryPage, FactTransaction, tuple[Fact, ...]]:
             access = self._open(tx, identity, tenant, session)
-            found = retrieve(access, access.entities(), body)
+            found = retrieve(access, access.entities(), body, provider=provider)
             logging.getLogger("brainoid_memory").info("memory_search %s", found.trace.model_dump())
             return (
                 MemoryPage(items=[self._view(r) for r in found.records], next_cursor=None),
@@ -217,6 +224,11 @@ class Memories:
             )
 
         def run() -> MemoryPage:
+            nonlocal provider
+            if self.vector_search is not None:
+                provider = self.vector_search.prepare(
+                    self.store, lambda tx: self._open(tx, identity, tenant, session), body
+                )
             page, access, records = self.store.run(read)
             access.finish_records(records)
             return page

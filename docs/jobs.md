@@ -79,3 +79,5 @@ queue.drain(worker)
 BA-RUN-07の確認待ちは`waiting` jobとしてleaseを解放し、通常recover/acquireは配送しない。内部確認transactionが同じcanonical jobをpendingへ戻し、dispatch/lease世代を進める。正常な待機移行は失敗attemptを消費しない。業務toolは`execution.effect`と同等のstart/result fenceを持つExecutorを利用し、モデルcheckpointとは別に一回開始・結果再利用を保証する。詳細は[確認checkpointと再開](conversations-and-runs.md#確認checkpointと再開)を参照。
 
 BA-RUN-08の[利用量照合](usage.md)はworker終端と周期的sweepで実行する。queue詰まり・worker強制終了はrunのhard期限で停止し、未知のprovider消費量を予約額のまま保持する。
+
+`Execution.effect(..., commit=...)` は外部結果を同一transaction内でcanonical再検査・派生書込し、本文なしreceiptへ変換できる。started/unknownの再実行禁止は維持する。memory_index待機分の起動、memory_embedの専用queue・checkpoint・世代移行は[vector契約](memory-vectors.md)を参照する。

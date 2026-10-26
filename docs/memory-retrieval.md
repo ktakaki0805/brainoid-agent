@@ -41,3 +41,5 @@ Executorのstarted/unknownは再実行許可ではない。応答喪失では同
 通常検証は`mise run setup`、`mise run check`、`mise run test`。`.env.emulator.example`を明示sourceした`mise run test-emulator`はAuth/Firestoreを起動・停止する。実embedding/cloud/実機検証はこのチケットでは行わない。既存Factの移行は不要。rollback時にもFact/job/receiptを保持するが、検索の利用を止める場合は記憶に由来する履歴の再利用も止める。旧workerへ戻して新しい`memory_records`の検査を省略した会話を継続しない。
 
 関連: [保存repository](memory-repository.md)、[明示記憶API](memories-api.md)、[会話run](conversations-and-runs.md)、[Tool実行](tool-execution.md)、[検索予算](03-data-and-authorization.md#43-検索手順と予算)。
+
+BA-MEM-05の外部embedding分離、scope別vector索引、API/worker構成入口と世代移行は[vector契約](memory-vectors.md)を参照する。

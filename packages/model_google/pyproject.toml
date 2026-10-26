@@ -5,6 +5,7 @@ description = "Explicitly configured Google Gen AI model adapter"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "brainoid-agent-core",
+    "brainoid-memory",
     "google-auth==2.62.0",
     "google-genai==2.33.0",
     "httpx==0.28.1",
@@ -20,3 +21,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 brainoid-agent-core = { workspace = true }
+brainoid-memory = { workspace = true }

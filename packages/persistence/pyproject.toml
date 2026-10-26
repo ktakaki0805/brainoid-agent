@@ -5,6 +5,7 @@ description = "Shared persistence boundary"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "brainoid-contracts",
+    "brainoid-memory",
     "google-cloud-firestore==2.34.1",
 ]
 classifiers = ["Private :: Do Not Upload"]
@@ -15,3 +16,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 brainoid-contracts = { workspace = true }
+brainoid-memory = { workspace = true }

@@ -33,13 +33,18 @@ class RecoveryPage:
 
 
 class Dispatcher:
-    def __init__(self, jobs: Jobs, pages: JobPages, queue: Queue) -> None:
+    def __init__(
+        self, jobs: Jobs, pages: JobPages, queue: Queue, *, queue_name: str = "default"
+    ) -> None:
+        if not queue_name or len(queue_name) > 64:
+            raise ValueError("Invalid dispatch queue name")
         self.jobs = jobs
         self.pages = pages
         self.queue = queue
+        self.queue_name = queue_name
 
     def dispatch(self, tenant: ResourceId, identity: ResourceId) -> bool:
-        delivery = self.jobs.prepare_dispatch(tenant, identity)
+        delivery = self.jobs.prepare_dispatch(tenant, identity, queue_name=self.queue_name)
         if delivery is None:
             return False
         self.queue.enqueue(delivery)

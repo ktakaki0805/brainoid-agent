@@ -245,6 +245,7 @@ version = "0.1.0"
 source = { editable = "packages/model_google" }
 dependencies = [
     { name = "brainoid-agent-core" },
+    { name = "brainoid-memory" },
     { name = "google-auth" },
     { name = "google-genai" },
     { name = "httpx" },
@@ -256,6 +257,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "brainoid-agent-core", editable = "packages/agent_core" },
+    { name = "brainoid-memory", editable = "packages/memory" },
     { name = "google-auth", specifier = "==2.62.0" },
     { name = "google-genai", specifier = "==2.33.0" },
     { name = "httpx", specifier = "==0.28.1" },
@@ -270,12 +272,14 @@ version = "0.1.0"
 source = { editable = "packages/persistence" }
 dependencies = [
     { name = "brainoid-contracts" },
+    { name = "brainoid-memory" },
     { name = "google-cloud-firestore" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-memory", editable = "packages/memory" },
     { name = "google-cloud-firestore", specifier = "==2.34.1" },
 ]
 

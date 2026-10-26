@@ -32,6 +32,7 @@ from brainoid_memory.models import Fact
 from brainoid_memory.mutations import MemoryMutations, effect_path
 from brainoid_memory.repository import FactTransaction
 from brainoid_memory.retrieval import SearchInput, retrieve
+from brainoid_memory.vector_store import VectorConfigurationError, VectorSearch, VectorUnavailable
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.accounts import fingerprint
 from brainoid_policy.models import DeviceSubject
@@ -143,6 +144,22 @@ class BoundMemory:
         runtime = self.runtime
 
         def work() -> MemoryMatches:
+            search_input = SearchInput(query=request.query[:2000], limit=request.limit)
+
+            def opened(tx: Transaction) -> FactTransaction:
+                _, _, expected, _ = runtime.handler.state.check(tx, self.job)
+                if request.context != expected.context or request.scopes != expected.memory_scopes:
+                    raise PolicyDenied()
+                return runtime.open(tx, self.job, control)
+
+            provider = (
+                runtime.vector_search.prepare(
+                    runtime.handler.jobs.store, opened, search_input, scopes=request.scopes
+                )
+                if runtime.vector_search is not None
+                else None
+            )
+
             def read(tx: Transaction) -> tuple[MemoryMatches, FactTransaction, tuple[Fact, ...]]:
                 run, _, expected, _ = runtime.handler.state.check(tx, self.job)
                 if request.context != expected.context or request.scopes != expected.memory_scopes:
@@ -151,8 +168,9 @@ class BoundMemory:
                 found = retrieve(
                     access,
                     access.entities(),
-                    SearchInput(query=request.query[:2000], limit=request.limit),
+                    search_input,
                     scopes=request.scopes,
+                    provider=provider,
                 )
                 records = tuple(model_record(f) for f in found.records)
                 consumer = runtime.consumer(self.job)
@@ -188,6 +206,8 @@ class BoundMemory:
         except PersistenceUnavailable as error:
             self.unavailable = error
             raise
+        except (VectorUnavailable, VectorConfigurationError):
+            return Failed(code="unavailable")
         except (PolicyDenied, ToolRejected):
             return Failed(code="permission_denied")
 
@@ -204,7 +224,8 @@ class BoundMemory:
 
 
 class MemoryRuntime:
-    def __init__(self, handler: "RunTurn") -> None:
+    def __init__(self, handler: "RunTurn", *, vector_search: VectorSearch | None = None) -> None:
+        self.vector_search = vector_search
         self.handler = handler
         self.delegate = handler.tool_authorizer
 
@@ -511,6 +532,32 @@ class MemoryRuntime:
                 if reconcile:
                     return HandlerResult(status="outcome_unknown")
 
+                search_input = SearchInput.model_validate(args.model_dump())
+
+                def selected_scopes(tx: Transaction) -> tuple[Scope, ...]:
+                    access = opened(tx)
+                    saved = tx.get(
+                        f"tenants/{invocation.context.tenant_id}/tool_executions/{invocation.tool_call_id}"
+                    )
+                    assert saved is not None
+                    job = self.job(
+                        tx, invocation.context.tenant_id, ResourceId(saved["authority"]["run_id"])
+                    )
+                    _, _, expected, _ = self.handler.state.check(tx, job)
+                    access.finish()
+                    return expected.memory_scopes
+
+                provider = (
+                    self.vector_search.prepare(
+                        self.handler.jobs.store,
+                        opened,
+                        search_input,
+                        scopes=self.handler.jobs.store.run(selected_scopes),
+                    )
+                    if self.vector_search is not None
+                    else None
+                )
+
                 def search(
                     tx: Transaction,
                 ) -> tuple[HandlerResult, FactTransaction, tuple[Fact, ...]]:
@@ -528,8 +575,9 @@ class MemoryRuntime:
                     found = retrieve(
                         access,
                         access.entities(),
-                        SearchInput.model_validate(args.model_dump()),
+                        search_input,
                         scopes=expected.memory_scopes,
+                        provider=provider,
                     )
                     records = tuple(model_record(f) for f in found.records)
                     for record in records:

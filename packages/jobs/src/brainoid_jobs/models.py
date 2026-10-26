@@ -70,6 +70,9 @@ class Job(Record):
     lease_generation: Counter = 0
     lease_expires_at: UtcTimestamp | None = None
     checkpoints: tuple[Checkpoint, ...] = ()
+    attributes: dict[str, JsonValue] = Field(
+        default_factory=dict, exclude_if=lambda value: not value
+    )
     result: JsonValue = None
     reason: Reason | None = None
 
@@ -117,3 +120,7 @@ class RetryableError(JobError):
 class OutcomeUnknown(JobError):
     def __init__(self) -> None:
         super().__init__("job_outcome_unknown")
+
+
+class SourceObsolete(JobError):
+    """A business handler revalidated canonical dependencies and must discard its result."""

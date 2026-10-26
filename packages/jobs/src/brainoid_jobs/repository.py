@@ -158,9 +158,9 @@ class Jobs:
         source metadata, version/epoch zero-state and actual DB nonexistence. It never
         overlays authority documents or relaxes add_pending's existing-source rules.
 
-        MEM-05 activates waiting jobs only after current fact status, dependencies,
-        version/epoch and authorization have been revalidated. Until that handler is
-        installed these must not dispatch and fail with unknown_handler.
+        MEM-05 converts this identifier-only event into a configuration-bound job.
+        Its handler revalidates all canonical dependencies under an acquired lease
+        before sending content to an embedding provider. This event stays waiting.
         """
         state = resource_state(grant.ref, source)
         if (
@@ -272,7 +272,9 @@ class Jobs:
             return "authorization_changed"
         return None
 
-    def prepare_dispatch(self, tenant: ResourceId, identity: ResourceId) -> Delivery | None:
+    def prepare_dispatch(
+        self, tenant: ResourceId, identity: ResourceId, *, queue_name: str | None = None
+    ) -> Delivery | None:
         def work(tx: Transaction) -> Delivery | None:
             job = self._read(tx, tenant, identity)
             now = normalize_utc(self.now())
@@ -281,6 +283,10 @@ class Jobs:
                 or job.status in TERMINAL
                 or job.status == "waiting"
                 or job.available_at > now
+                or (
+                    queue_name is not None
+                    and job.attributes.get("dispatch_queue", "default") != queue_name
+                )
             ):
                 return None
             if job.status == "running":
@@ -420,7 +426,14 @@ class Jobs:
             raise LeaseLost()
         return checkpoint
 
-    def effect(self, lease: Lease, key: str, invoke: Callable[[str], JsonValue]) -> JsonValue:
+    def effect(
+        self,
+        lease: Lease,
+        key: str,
+        invoke: Callable[[str], JsonValue],
+        *,
+        commit: Callable[[Transaction, Job, JsonValue], JsonValue] | None = None,
+    ) -> JsonValue:
         # A start marker cannot authorize reexecution. The marker and callback may be
         # separated by a crash, so even a never-started call can require reconciliation.
         job = self.check(lease)
@@ -434,25 +447,41 @@ class Jobs:
             return checkpoint.result
         result = invoke(f"{lease.job_id}:{key}")
 
-        def work(tx: Transaction) -> bool:
+        def work(tx: Transaction) -> tuple[bool, JsonValue]:
             current = self._live(tx, lease)
             if current is None:
-                return False
+                return False, None
+            # Canonical validation + derived data + content-free receipt are atomic.
+            # The raw provider result never enters the durable job envelope.
+            saved = result if commit is None else commit(tx, current, result)
             self._write(
                 tx,
                 current,
                 checkpoints=tuple(
-                    c.model_copy(update={"state": "completed", "result": result})
+                    c.model_copy(update={"state": "completed", "result": saved})
                     if c.key == key
                     else c
                     for c in current.checkpoints
                 ),
             )
-            return True
+            return True, saved
 
-        if not self.store.run(work):
+        committed, saved = self.store.run(work)
+        if not committed:
             raise LeaseLost()
-        return result
+        return saved
+
+    def obsolete(self, lease: Lease) -> None:
+        def work(tx: Transaction) -> None:
+            job = self._read(tx, lease.tenant_id, lease.job_id)
+            if (
+                job is not None
+                and job.status == "running"
+                and job.lease_generation == lease.generation
+            ):
+                self._stop(tx, job, "obsolete", "source_changed")
+
+        self.store.run(work)
 
     def complete(
         self,

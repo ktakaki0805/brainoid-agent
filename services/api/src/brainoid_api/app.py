@@ -5,7 +5,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from fastapi import FastAPI
 
-from brainoid_api.auth.runtime import authentication_lifespan
+from brainoid_api.auth.runtime import VectorSearchFactory, authentication_lifespan
 from brainoid_api.errors import RequestContextMiddleware, install_error_handlers, logger
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
 from brainoid_api.routes.agents import router as agents_router
@@ -36,6 +36,7 @@ def create_app(
     *,
     settings_loader: Callable[[], Settings] = load_settings,
     dependency_lifespan: DependencyLifespan = no_dependencies,
+    vector_search_factory: VectorSearchFactory | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -46,7 +47,9 @@ def create_app(
             runtime.settings = settings_loader()
             logger.setLevel(runtime.settings.log_level)
             async with (
-                authentication_lifespan(runtime.settings) as auth_services,
+                authentication_lifespan(
+                    runtime.settings, vector_search_factory=vector_search_factory
+                ) as auth_services,
                 dependency_lifespan(runtime.settings) as probes,
             ):
                 app.state.auth_services = auth_services

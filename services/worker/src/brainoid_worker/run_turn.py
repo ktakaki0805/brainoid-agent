@@ -26,6 +26,7 @@ from brainoid_contracts import ResourceId
 from brainoid_contracts.guards import GuardedTransactions, ReleaseGuard, release_guard
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job, Jobs, LeaseLost
+from brainoid_memory.vector_store import VectorSearch
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.models import Record
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
@@ -207,6 +208,7 @@ class RunTurn:
         budget: RunBudget | None = None,
         tool_registry: Registry | None = None,
         tool_authorizer: ToolAuthorizer | None = None,
+        vector_search: VectorSearch | None = None,
     ) -> None:
         # Every run/tool/stream/final transaction shares guards, including the outer
         # Jobs.complete callback and read responses delayed after the callback ends.
@@ -224,7 +226,7 @@ class RunTurn:
                 "max_output_characters": min(8000, (budget or RunBudget()).max_output_characters)
             }
         )
-        self.memory = MemoryRuntime(self)
+        self.memory = MemoryRuntime(self, vector_search=vector_search)
         self.tool_registry = tool_registry.copy() if tool_registry is not None else Registry()
         register_memory(self.tool_registry, self.memory)
         self.tool_authorizer = tool_authorizer or self.memory

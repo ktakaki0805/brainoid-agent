@@ -14,6 +14,7 @@ from brainoid_jobs import (
     LeaseLost,
     RetryableError,
 )
+from brainoid_jobs.models import SourceObsolete
 from brainoid_persistence.firestore import PersistenceUnavailable
 from pydantic import JsonValue
 
@@ -37,13 +38,19 @@ class Execution:
     def check(self, *, renew: bool = False) -> Job:
         return self.jobs.check(self.lease, renew=renew)
 
-    def effect(self, key: str, invoke: Callable[[str], JsonValue]) -> JsonValue:
+    def effect(
+        self,
+        key: str,
+        invoke: Callable[[str], JsonValue],
+        *,
+        commit: Callable[[Transaction, Job, JsonValue], JsonValue] | None = None,
+    ) -> JsonValue:
         """Invoke after a durable start; stable key is suitable for provider idempotency.
 
         Completed checkpoints replay their result. An unresolved start requires a
         later business-specific reconciler, never blind reexecution by this runner.
         """
-        return self.jobs.effect(self.lease, key, invoke)
+        return self.jobs.effect(self.lease, key, invoke, commit=commit)
 
 
 class Handler(Protocol):
@@ -106,6 +113,8 @@ class Worker:
         except LeaseLost:
             # Another generation or a terminal authorization denial owns the record now.
             return
+        except SourceObsolete:
+            self.jobs.obsolete(lease)
         except (AuthorizationUnavailable, PersistenceUnavailable):
             raise
         except RetryableError:
