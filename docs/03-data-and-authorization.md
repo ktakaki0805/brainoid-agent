@@ -111,6 +111,13 @@ factは以下の構造を持つ。例は架空の照明設定である。
 
 目的語は `object_entity_id` と `value` のいずれか一方を必須にする。数値や文章は `value`、別エンティティとの関係は `object_entity_id` を使う。`qualifiers` のキーはpredicateごとの許可リストで検証し、自由な命令文として解釈しない。
 
+| predicate | 保存可能なqualifier |
+| --- | --- |
+| `prefers_setting` | `context`（200文字以下）、`brightness_pct`（整数0〜100）、`temperature_c`（数値16〜30） |
+| `located_in` / `prefers` / `related_to` / `has_attribute` | `context`（200文字以下）のみ |
+
+HTTP/toolの構造schemaは型・範囲を検証し、保存モデルが上表の組合せも検証する。構造schemaの成功は業務上の保存可否を意味しない。BA-MEM-03のHTTP/tool接続でも保存モデルの検証を必ず通す。BA-MEM-01の保存・出典解決・条件付き更新の実装契約は[記憶repository](memory-repository.md)を参照する。
+
 | 項目 | ルール |
 | --- | --- |
 | `predicate` | 初期は `located_in`、`prefers_setting`、`prefers`、`related_to`、`has_attribute`。追加はschema変更としてレビュー |

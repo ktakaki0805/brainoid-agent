@@ -355,7 +355,7 @@ export type EntityPatch = {
     aliases?: Array<string>;
 };
 /**
- * 利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。
+ * 利用者の明示保存はuser_explicit/confirmedをサーバーが設定。private＋shared_displayを拒否。qualifiersのbrightness_pct/temperature_cはprefers_settingのみ、contextは全predicateで使用可能。構造schemaの成功だけで保存可能とは判断せず、保存モデルでpredicate別の業務制約を検証する。
  */
 export type MemoryCreate = unknown & {
     subject_entity_id: ResourceId;

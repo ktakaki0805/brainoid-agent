@@ -224,6 +224,18 @@ requires-dist = [
 name = "brainoid-memory"
 version = "0.1.0"
 source = { editable = "packages/memory" }
+dependencies = [
+    { name = "brainoid-contracts" },
+    { name = "brainoid-policy" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-policy", editable = "packages/policy" },
+    { name = "pydantic", specifier = "==2.14.1" },
+]
 
 [[package]]
 name = "brainoid-model-google"
