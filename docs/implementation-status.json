@@ -194,7 +194,13 @@
       "implementation_commit": "3cc92987e8bf710d82afa19854e20c142a7b2c7a"
     },
     "BA-RUN-05": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "38cb437bdd6ea0db93198a3a6a9a942fdf671c1b",
+      "updated_at": "2026-10-26T02:22:00.317755+00:00",
+      "log_anchor": "ba-run-05-20261026t015033z",
+      "implementation_commit": "3011d889d2fee0c72cfcec954ac11108cca4d35a",
+      "review_rounds": 1
     },
     "BA-RUN-06": {
       "status": "todo"

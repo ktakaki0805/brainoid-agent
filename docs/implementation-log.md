@@ -3506,3 +3506,115 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.96秒、全9タスク成功、mypy136/docs1338errors0、台帳done21/todo75。
 - 終了: 2026-10-26T01:49:04.798259+00:00。台帳・ログのみを記録コミット。
+
+## ba-run-05-20261026t015033z
+
+- チケット: BA-RUN-05
+- 状態: done
+- 開始: 2026-10-26T01:50:33.090319+00:00
+- ブランチ / base commit: main / 38cb437bdd6ea0db93198a3a6a9a942fdf671c1b
+- 開始時の変更: なし
+- 選択: check成功（done21/todo75）、IDなしnext。依存RUN04は現履歴に存在。
+- 親担当: /root、実装担当: `/root/run05_implementation`（独立context）。
+- 実装コミット: 3011d889d2fee0c72cfcec954ac11108cca4d35a
+
+### 受入条件と検証計画
+
+- run内単調seq・確定イベントを永続化、差分は250msまたは1KiB目安でbatch化。tokenごとのDB writeを避け、最終messageと終端eventを一致させる。
+- 認証header付きGETでSSE、id=seq/event=type/data=JSON Schema。Last-Event-ID再開と既読seq重複適用防止の契約、heartbeatはseqを消費しないcomment。
+- 現在会話/出力先認可をbatch配送直前まで確認し、失効/削除後の新batch禁止。24時間履歴期限後410からrun/finalmessage取得へ誘導。
+- T023/T032の切断・seq重複・認可失効・期限、固定streamのwrite件数と最終message一致、fake/emulatorと全setup/check/test。
+- Pi run割当DEV04、読み上げ生成VOICE02は対象外。追加外部前提なし。既存RUN04の現在lease/unknown checkpoint/署名非公開/任意記憶・純文字経路を維持。
+
+### Core observer・batch・SSE構成方針
+
+- frameworkfree CoreへTextDeltaのみの非同期observer、worker専用writerが独立250ms timer/UTF-8 1KiBでbatch化。各writeは通常TX内livelease/現在認可確認、seq/event/runmetadataを同時保存。
+- 最終flush/finalmessage/終端eventは同TX、failed_projectionも終端event同TX保存。SSEは初回404/410等をheaders前に検証、1event(batch)ずつ取得・配送直前認可。run作成時固定24h、heartbeat comment、clientに小さなseq cursor API予定。
+- 親から正常完了が親version/historyを進める点を確認し、生成writeの旧入力版fenceと完了履歴配送の現在認可を区別するよう依頼。observer差分は採用文字/出力上限と一致させ、partial失敗/lengthの意味を明記する。
+
+### writer・SSE初稿と初回検証
+
+- 採用済み文字observer、公イベント型/UTF8分割、独立timer/handler共有single-write bridge、開始/終端同TX保存を実装。最終commitで確定prefixと最終textを照合し未保存suffixを同TX保存する方針。
+- 初回mypy/ruff成功。SSE初回preflight/各batch現在parent+savedoutput認可、固定24h・欠損410・未来cursor409・comment heartbeatを追加。
+- RUN04回帰はsandbox TestClient停止を中断し適切なescalationで再実行中。新10件（UTF8/schema/replay/切断/失効/期限/終端応答喪失/tokenstream/timer/heartbeat）とclient cursor/認可負例を作成中。
+
+### batch配送の認証期限境界
+
+- 親read-only確認: next_batch末尾current.ensure_liveはprivate session期限のみを検査し、user/device token期限はrepo.access冒頭で検査される。event/job読取待機中にtoken期限へ到達した場合も配送を止めるよう、最終batch境界のidentity期限再検査と時計進行負例を依頼。
+
+### 初回SSE回帰成功と配送主体の確認
+
+- RUN04既存16件成功（2.106秒）。新SSE初回10件は9成功/非ASCII headerがhttpx送信前UnicodeEncodeErrorで1error、ASCII不正cursorへ修正。拡張SSE14件成功（2.116秒）。
+- 追加負例: event読取中user token期限、event I/O中削除後freshTX再認可、private output session/family/slot/generation失効、取消後latewrite拒否。SSEはevent読取後fresh authorityTXと末尾user/device token・output private期限検査を追加。
+- mypy140成功後の追加import整形等は再確認予定。client cursor/Nodetest追加・生成成功、emulator拡張と全setup/check/testはこれから。
+- 親からshared run別active member購読の契約確認: requesterとsaved job.output(UserSubject作成者)を同一resource認可に渡すと_destinationのuser一致条件でSSEだけ拒否され得る。会話継承の現在購読者権限と、保存実行出力先の失効fenceを区別する必要を確認依頼。
+
+### 共有購読の分離とNode実行互換
+
+- 実装担当はrequesterの会話読取認可と、savedoutput自身のresource認可を分離済み。shared別active memberの閲覧正例を追加する。親はsavedoutputがUserSubjectの場合global account status/stampも同TX確認する必要を追加確認依頼（requester accountとは別、deviceprivateはpolicy.sessionで検査済み）。
+- setup成功、fullcheck全9成功（3.31秒/Python141/TS/生成/契約互換/docs）。fulltestはPython305中303成功/2error: 新client cursorのconstructor parameter propertyがNode24 strip-only非対応で既存SDK import試験失敗。静的TS型検査では検出されなかった。通常readonly field+constructor代入へ修正しNode40件再実行成功（14.35秒）。
+- emulator初回87件は86成功/既存SDK UID query1error、新SSE実DB4件は成功。SDK subprocessが修正前構文を読み同じimport失敗となった。全emulator停止ログ確認、最新差分で全test/emulatorを再実行する。
+
+### 出力先accountとobserver/writer回収
+
+- savedoutput UserSubjectのaccount_stampとjob.account_stampsを同TX照合する修正。別member shared閲覧成功と、出力先account deleting/version変更後拒否の負例を追加。
+- observer採用文字上限/timeout/例外非漏出/task回収を追加しCore44件成功（0.562秒）。writer timerも二段階0.25秒回収へ整合、固定streamはevent数に加え実run/event文書write件数を測定。
+- 新SSE18件と最終check/test/emulatorへ進む。
+
+### 最終版全検証と停止
+
+- 最終check全9成功（3.66秒）、fulltest Python311（26.684秒）/Skill18（0.059秒）/Node40（13.279秒）成功。新SSE18/observer2を含む。failed_projection直後GETのseq更新前DTOを修正し初回last_event_seq1を確認。
+- 最終emulator87件成功（101.219秒）exit0、Auth/Firestore/hub/logging停止と8080/9099/9150/4400/4500全閉鎖確認。git diff --check成功、編集停止。
+- 100ms認可poll本番容量未測定、TTLpolicy有効化は配備（API期限強制/各event expires_at実装済み）、最大1outstanding write/handler飽和はPersistenceUnavailableとする境界を文書化。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run05_review_r1`（新規独立context）、base commit: `38cb437bdd6ea0db93198a3a6a9a942fdf671c1b`。
+- 未追跡含む最新全22files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `0d1141c3897a33865e3daa34554521471f03bb4f35be55a496f764763c77e1a4` |
+| `docs/conversations-and-runs.md` | `5f5970025aee87f0f1504ad61122c61185a3e413d13c349b7f0301348cd4c073` |
+| `docs/text-agent-core.md` | `2053f356740c957d3b41acfbea40ccc0299302ab5b1dbbeb7379ee1be608bbf1` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `66ba6c8194dc7a91c4e540fc7fea321114f25bedfdddabb7714db4ab8673b97f` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `81dd85bd82335fadb8f301dec9a65efea4e53d42b87ba1d620b46ddf8eab523f` |
+| `packages/api-client/src/generated/sdk.gen.js` | `246b198fb7fd199fb6e849532a820e917a914a86458235d3dbf52f346affd380` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `d57e9d66c510c4a994af346c5f5e44399900f2b69abe2875f8e556f0f83191d4` |
+| `packages/api-client/src/index.ts` | `f68a9510e65c9bb0852d00396093fdfeb785d447f0ca649e4ee16bfd73aefcd0` |
+| `packages/runs/src/brainoid_runs/events.py` | `795d7fb8c4d6d96822b4067a19727a16c789f51ca7c4bde187e215328558b936` |
+| `services/api/src/brainoid_api/app.py` | `08d5ea3fe70a73bfe45f948ed0d86905e226499d4356c3c65b17e2f417257c0a` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `556f5af84a14f0ce3a071db775fe643709e2a8723a4f2a1582bf116ed9aee535` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `59f2c91ea44dcb29da0dc7f3179745a677f504a516f6911a1ceaedda8fc0e5dd` |
+| `services/worker/src/brainoid_worker/run_event_writer.py` | `b76193210090876ba6ab033cc8e7badcb0426020cd6671a23070330a0dccfa42` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `f5430c537e6867ce0443174231f86ea2d63a238beff14f4266408335da5b50d0` |
+| `specs/openapi.yaml` | `e816eb9c81c4260a73c97ff62b5c59e7c60f2c7c984508c7748c231c22184f31` |
+| `specs/run-events.schema.json` | `a78fd2e83489273466d70e5e33427b75895c51c3411675d9be8c6f96e071d408` |
+| `tests/emulator/test_sse_replay_integration.py` | `406bff0842600da7cdf25f5b00f81002a0d8f49f61264fe05b95a1969a7c0bb0` |
+| `tests/emulator/test_turn_run_integration.py` | `19b575349d1abb9773dc92427449b73a1267b51ce54143ed1f787d5312e46f98` |
+| `tests/test_api_contracts.mjs` | `909399b49031086a030b9034744c7d21fb6ad3ded892e9dd16195d64c4041348` |
+| `tests/test_run_events.py` | `07a2a12c10156db69108afeca87ec198e36727b97e712ea75547037b34759608` |
+| `tests/test_text_agent_core.py` | `dd7c9ca583dcc2e778189664537ab068221ae7e855032f0aac1204f8a056bbe8` |
+| `tests/test_turn_run.py` | `57d494ea231e18037c9eb72e6f45f6fef6b46fdc7d16744bbae29a03a1050b53` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/run05_review_r1` がmain/base/22files集合/全SHA一致、適用AGENTSなしを確認。
+- run/event同TX、suffix/message/completed原子確定、event読取後fresh認可TX、reader/output分離を確認。遅延write・deadline・既存job/checkpoint整合と受入試験を継続確認中、必須指摘は未確定。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run05_review_r1`: approve、必須/任意なし。全22filesと関連仕様/依存を確認、開始終了main/base/集合/全SHA一致、編集なし。
+- seq連続/同TX、client重複防止/欠番別run拒否、reader/output現在認可・取得後freshTX、期限/失効、batch write件数/最終prefix+suffix+message+terminal原子性、unknown再生成禁止を確認。
+- 直接Python test_run_events/test_text_agent_core/test_turn_run 59件成功（4.931秒）、Node API契約39件成功（12.135秒）、diff check成功。
+- setup/生成/check9/全Python311/Skill18/Node40/emulator87停止は提供証跡と区別。本番負荷/TTLpolicy配備/実provider端末は未検証。
+- 独立レビュー1回、未解決必須ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み22filesの作業/index/commit全SHA一致、main/base/対象集合/cached diff --check確認済み。
+- 実装コミット: `3011d889d2fee0c72cfcec954ac11108cca4d35a`。独立レビュー1回、最終approve/未解決必須なし。
+- 250ms/1KiB batch・seq再開・最終保存原子性・配送現在認可と固定24h・client重複防止をfake/emulator/Nodeで検証。TTLpolicy実配備/本番容量/実provider端末は後続境界。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.99秒、全9タスク成功、mypy141/docs1342errors0、台帳done22/todo74。起動時mise cache書込readonly警告はあったが検証は全成功。
+- 終了: 2026-10-26T02:22:34.978401+00:00。台帳・ログのみを記録コミット。
