@@ -317,7 +317,13 @@
       "implementation_commit": "efe71692b544b48b6a805af1a87cfdfc4b20b095"
     },
     "BA-APP-01": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "da96edcb5bc36cbdfdb4847ffd2c38e2b56b378e",
+      "updated_at": "2026-10-26T21:47:55.917744+00:00",
+      "log_anchor": "ba-app-01-20261026t203638z",
+      "review_rounds": 2,
+      "implementation_commit": "45b2b79ba08f1b0232344814747ccef644a79a12"
     },
     "BA-APP-02": {
       "status": "todo"
