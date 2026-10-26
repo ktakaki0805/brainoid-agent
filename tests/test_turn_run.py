@@ -632,6 +632,43 @@ class TurnRunTests(TurnRunFixture):
         time.sleep(0.05)
         self.assertEqual(self.store.data, before)
 
+    def test_revocation_cancels_pending_authority_without_inventing_storage_outage(self) -> None:
+        conversation = self.conversation()
+        accepted = self.turn(conversation)
+        run = ResourceId(accepted.json()["run_id"])
+        original = ReadBridge.read
+        hits = []
+
+        async def pending(bridge: ReadBridge, work: Callable[[], Any]) -> Any:
+            if work.__qualname__ == "Authorizer.check.<locals>.<lambda>":
+                hits.append("pending")
+                member = next(
+                    doc
+                    for path, doc in self.store.data.items()
+                    if path.startswith(f"tenants/{self.tenant}/memberships/")
+                    and doc["user_id"] == self.identity().user_id
+                )
+                member["authorization_version"] += 1
+                # LiveCancellation's independent read must observe revocation and
+                # cancel this pending authority await, without releasing any text.
+                await asyncio.Event().wait()
+            return await original(bridge, work)
+
+        with patch.object(ReadBridge, "read", pending):
+            self.execute(run)
+        self.assertEqual(hits, ["pending"])
+        self.assertEqual(self.model.requests, [])
+        job = self.jobs.get(self.tenant, job_id(self.tenant, KIND, run))
+        assert job is not None
+        self.assertEqual(job.status, "obsolete")
+        self.assertEqual(job.reason, "authorization_changed")
+        messages = [
+            doc
+            for path, doc in self.store.data.items()
+            if path.startswith(conversation_path(self.tenant, conversation) + "/messages/")
+        ]
+        self.assertEqual([doc["role"] for doc in messages], ["user"])
+
     def test_authority_bridge_saturation_is_bounded_and_safe_after_loop_close(self) -> None:
         bridge, release = ReadBridge(), Event()
 

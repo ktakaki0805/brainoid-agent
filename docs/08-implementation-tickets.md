@@ -125,7 +125,7 @@ IDの並びは分野別であり、実装の直列順序ではない。詳細に
 | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api) | 明示記憶の保存・出典・訂正API | M2 | P0・M | [BA-MEM-02](#ba-mem-02-entityの登録別名外部id照合api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤) |
 | [BA-MEM-04](#ba-mem-04-scope付き2hop検索と会話への文脈組込み) | scope付き2hop検索と会話への文脈組込み | M2 | P0・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-03](#ba-run-03-人格設定とテキストagentcore)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査) |
 | [BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter) | 埋め込みjobとvector検索adapter | M2 | P0・M | [BA-MEM-04](#ba-mem-04-scope付き2hop検索と会話への文脈組込み)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤) |
-| [BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承) | 会話要約と出典・scope・版の継承 | M2 | P1・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-02](#ba-run-02-google-gen-aiのmodelprovider-adapter)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行) |
+| [BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承) | 会話要約と出典・scope・版の継承 | M2 | P1・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-02](#ba-run-02-google-gen-aiのmodelprovider-adapter)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行)、[BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter) |
 | [BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止) | 忘却受付・削除台帳・元出典再利用抑止 | M2 | P0・M | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-06](#ba-run-06-型付きtoolexecutorと実行権限の検査) |
 | [BA-MEM-08](#ba-mem-08-派生データと子階層のpurge-worker) | 派生データと子階層のpurge worker | M2 | P0・M | [BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter)、[BA-MEM-06](#ba-mem-06-会話要約と出典scope版の継承)、[BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止) |
 | [BA-MEM-09](#ba-mem-09-認可付きエクスポート生成取得失効) | 認可付きエクスポート生成・取得・失効 | M5 | P0・M | [BA-MEM-07](#ba-mem-07-忘却受付削除台帳元出典再利用抑止)、[BA-MEM-08](#ba-mem-08-派生データと子階層のpurge-worker) |
@@ -1650,11 +1650,13 @@ AgentCoreからモデル固有のSDK型を分離し、設定したGoogle Cloud�
 | 担当ロール | Agent |
 | 段階・優先度・規模 | M2・P1・M |
 | 関連要件 | FR-004、FR-006 |
-| 依存PR | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-02](#ba-run-02-google-gen-aiのmodelprovider-adapter)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行) |
+| 依存PR | [BA-MEM-03](#ba-mem-03-明示記憶の保存出典訂正api)、[BA-RUN-01](#ba-run-01-outboxdispatcherworker-lease基盤)、[BA-RUN-02](#ba-run-02-google-gen-aiのmodelprovider-adapter)、[BA-RUN-04](#ba-run-04-会話messageturn受付と永続run実行)、[BA-MEM-05](#ba-mem-05-埋め込みjobとvector検索adapter) |
 
 **目的**
 
 長い会話を必要な文脈へ要約し、要約によって個人情報の共有範囲や削除状態が変わらないようにする。
+
+BA-MEM-05で追加した共通JobsのDB-only effect commit、本文なしjob属性、専用queue分離を要約にも利用するため、実装依存に含める。embedding handler自体には依存しない。
 
 **主な変更範囲**
 

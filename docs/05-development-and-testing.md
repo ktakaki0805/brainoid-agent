@@ -283,7 +283,7 @@ BA-FND-05の[固定fixture](../tests/fixtures/tenants/README.md)はtenant A/B、
 | T-007 | FR-005 | TTS中に停止、tool実行中にキャンセル | 発話停止と操作の取消可能性を区別し、実行済みを取消済みと表示しない |
 | T-008 | FR-006 | 明示的な記憶保存直後に再検索 | 永続化したfactの出典・scopeが一致し、保存前に成功を通知しない |
 | T-009 | FR-006 | 別室の同名照明、同名の別人 | 表示名だけでentityを統合しない。曖昧なら解決を求める |
-| T-010 | FR-006/013 | 訂正とembedding jobが同時に動く | stale versionを再保存せず、古い内容が検索に戻らない |
+| T-010 | FR-006/013 | 訂正とembedding/要約jobが同時に動く | stale versionを再保存せず、古い内容が検索に戻らない |
 | T-011 | FR-006/013 | forget後に古いjobを再送 | epoch/tombstoneを再確認し、要約・vector・cacheから復活させない |
 | T-012 | FR-007 / FR-008 | shared項目の作成者とadminが同じversionを更新 | 両者の更新権限を確認した上で最初のみ成功し、古いIf-Matchは412。権限のないmemberは別途拒否 |
 | T-013 | FR-009 | 同一reminderを二重配送 | 通知の重複を抑え、配信受付と利用者の確認を分けて保存 |

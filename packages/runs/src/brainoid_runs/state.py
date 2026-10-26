@@ -9,7 +9,12 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import get_args
 
-from brainoid_agent_core.context import ContextInput, ConversationContext, snapshot_message
+from brainoid_agent_core.context import (
+    ContextInput,
+    ConversationContext,
+    ConversationSummary,
+    snapshot_message,
+)
 from brainoid_agent_core.definition import AgentDefinition
 from brainoid_agent_core.types import ModelMessage, TextPart
 from brainoid_contracts import (
@@ -17,10 +22,12 @@ from brainoid_contracts import (
     DisplayPolicy,
     ResourceId,
     Scope,
+    UtcTimestamp,
     Visibility,
     normalize_utc,
 )
 from brainoid_contracts.guards import protect
+from brainoid_contracts.reuse import direct_user, reusable_text
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import Job
 from brainoid_jobs.models import Reason, job_id
@@ -31,7 +38,7 @@ from brainoid_policy.models import Action, ResourceKind
 from brainoid_policy.scopes import PolicyDenied
 from brainoid_policy.transactions import transaction_policy
 from brainoid_usage import QuotaExceeded, live_run
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from brainoid_runs.models import CredentialBinding, Message, Run
 
@@ -65,25 +72,43 @@ def history(
 ) -> tuple[list[Document], tuple[ModelMessage, ...], str]:
     base = conversation_path(tenant, conversation)
     documents = []
-    for path, doc in tx.collection(base + "/messages"):
-        public_message = view(Message, doc)
+    raw = tx.collection(base + "/messages")
+    for path, doc in raw:
         if (
-            path != base + "/messages/" + public_message.id
+            path != base + "/messages/" + str(doc.get("id"))
             or doc.get("tenant_id") != tenant
             or doc.get("conversation_id") != conversation
-            or doc.get("version") != 1
-            or doc.get("deletion_epoch") != 0
-            or doc.get("deleted") is not False
-            or doc.get("suppress_reuse") is not False
+            or type(doc.get("version")) is not int
+            or doc["version"] < 1
+            or type(doc.get("deletion_epoch")) is not int
+            or doc["deletion_epoch"] < 0
+            or type(doc.get("deleted")) is not bool
+            or type(doc.get("suppress_reuse")) is not bool
             or type(doc.get("sequence")) is not int
             or doc["sequence"] < 1
-            or public_message.role not in ("user", "assistant")
+            or doc.get("role") not in ("user", "assistant", "tool")
         ):
             raise PolicyDenied()
-        documents.append(doc)
-    documents.sort(key=lambda d: d["sequence"])
-    if len({d["sequence"] for d in documents}) != len(documents):
+    raw.sort(key=lambda pair: pair[1]["sequence"])
+    if len({doc["sequence"] for _, doc in raw}) != len(raw):
         raise PolicyDenied()
+    tainted = False
+    next_sequence = 1
+    for _, doc in raw:
+        if doc["sequence"] != next_sequence:
+            tainted = True
+        next_sequence = doc["sequence"] + 1
+        text = reusable_text(doc)
+        changed = text != doc.get("text") or doc["version"] != 1
+        if text is None or changed:
+            tainted = True
+        # Derived replies may have consumed any earlier source. Without a complete
+        # replacement proof they cannot survive a corrected/suppressed prefix.
+        if text is None or (tainted and not direct_user(doc)):
+            continue
+        if doc["role"] == "tool":
+            raise PolicyDenied()
+        documents.append({**doc, "text": text})
     messages: list[ModelMessage] = []
     for doc in documents:
         public = view(Message, doc)
@@ -115,6 +140,21 @@ def history(
 
 
 def history_hash(documents: list[Document], messages: tuple[ModelMessage, ...]) -> str:
+    if any(doc.get("version") != 1 or doc.get("suppressed_spans") for doc in documents):
+        return fingerprint(
+            [
+                [
+                    [
+                        view(Message, doc).model_dump(mode="json"),
+                        doc["sequence"],
+                        doc["version"],
+                        doc.get("suppressed_spans", []),
+                    ]
+                    for doc in documents
+                ],
+                [message.model_dump(mode="json") for message in messages],
+            ]
+        )
     # Preserve RUN-04 receipts for histories with one snapshot per public message.
     if len(documents) == len(messages):
         return fingerprint(
@@ -167,11 +207,13 @@ class RunState:
         credential_epoch: ResourceId | None,
         allow_untracked_bootstrap: bool = False,
         check_results: Callable[[Transaction, Job, Document, list[Document]], str] | None = None,
+        load_summary: Callable[[Transaction, Job, int], ConversationSummary | None] | None = None,
     ) -> None:
         self.ledger, self.now = ledger, now
         self.credential_epoch = credential_epoch
         self.allow_untracked = allow_untracked_bootstrap
         self.check_results = check_results
+        self.load_summary = load_summary
 
     def check(
         self, tx: Transaction, job: Job, *, waiting: bool = False, check_results: bool = True
@@ -299,6 +341,24 @@ class RunState:
                     for f in search.filters
                 ):
                     raise PolicyDenied()
+        summary = None
+        context_messages = messages[:-1]
+        if not waiting and check_results and self.load_summary is not None:
+            summary = self.load_summary(tx, job, run["input_sequence"])
+            if summary is not None:
+                included = {source.resource_id for source in summary.source_refs}
+                remaining: list[ModelMessage] = []
+                position = 0
+                for document in documents[:-1]:
+                    count = (
+                        len(document["model_messages"])
+                        if document.get("model_messages") is not None
+                        else 1
+                    )
+                    if document["id"] not in included:
+                        remaining.extend(context_messages[position : position + count])
+                    position += count
+                context_messages = tuple(remaining)
         request = ContextInput(
             context=job.grant.context,
             agent=definition,
@@ -310,7 +370,8 @@ class RunState:
                 scope=grant.scope,
                 version=grant.resource.version,
                 deletion_epoch=grant.resource.deletion_epoch,
-                messages=messages[:-1],
+                messages=context_messages,
+                summary=summary,
             ),
             user_text=run["input_text"],
             memory_scopes=scopes,
@@ -325,11 +386,14 @@ class RunState:
                 run["agent"],
                 run["input_message_id"],
                 grant.resource.model_dump(mode="json"),
+                summary.model_dump(mode="json") if summary is not None else None,
             ]
         )
         deadlines = [
             value for value in (live_job.lease_expires_at, family_expiry) if value is not None
         ]
+        if parent.get("expires_at") is not None:
+            deadlines.append(TypeAdapter(UtcTimestamp).validate_python(parent["expires_at"]))
         principals = [grant.principal]
         if job.output is not None:
             principals.append(policy.principal(job.tenant_id, job.output))

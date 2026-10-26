@@ -111,5 +111,8 @@ class CanonicalSources:
             authority=authority,
             deletion_epoch=metadata.deletion_epoch,
             deleted=metadata.deleted,
-            suppress_reuse=metadata.suppress_reuse,
+            # Fact SourceRef has no span identity. Any span suppression (including
+            # malformed markers) makes model reuse unprovable; ordinary UI READ
+            # still follows its separate policy. Never erase provenance to allow it.
+            suppress_reuse=metadata.suppress_reuse or document.get("suppressed_spans", []) != [],
         )

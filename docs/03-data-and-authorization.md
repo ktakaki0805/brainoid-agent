@@ -150,6 +150,8 @@ Firestoreのベクトル検索は最大2048次元で、ベクトルクエリの�
 
 BA-MEM-05の配置・世代・正本fenceは[vector契約](memory-vectors.md)を参照する。
 
+BA-MEM-06の直接ユーザー発言の要約、prefix出典・scope・版の継承と抑止は[会話要約契約](conversation-summaries.md)を参照する。
+
 ### 4.4 索引計画
 
 | 用途 | 初期クエリキー |

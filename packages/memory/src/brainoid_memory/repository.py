@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal, Protocol, Self, cast
+from typing import TYPE_CHECKING, Literal, Protocol, Self, cast
 
 from brainoid_contracts import (
     DeviceActorContext,
@@ -46,6 +46,9 @@ from brainoid_memory.models import (
     MemoryValue,
 )
 from brainoid_memory.sources import ResolvedSource, SourceResolver
+
+if TYPE_CHECKING:
+    from brainoid_memory.summaries import SummaryTransaction
 
 
 class VersionConflict(Exception):
@@ -210,6 +213,12 @@ class MemoryRepository:
         """Compose current fact access and atomic revisions with jobs and receipts."""
         _validated(TenantContext, context)
         return FactTransaction(self, tx, context, self._authority(tx, context))
+
+    def summaries(self, tx: Transaction, context: TenantContext) -> "SummaryTransaction":
+        from brainoid_memory.summaries import SummaryTransaction
+
+        _validated(TenantContext, context)
+        return SummaryTransaction(self, tx, context, self._authority(tx, context))
 
     def _ref(self, context: TenantContext, identity: ResourceId, kind: ResourceKind) -> ResourceRef:
         _validated(TenantContext, context)

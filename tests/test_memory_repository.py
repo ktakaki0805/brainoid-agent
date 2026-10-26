@@ -62,6 +62,18 @@ class MemoryRepositoryTests(unittest.TestCase):
     def save(self, **changes: object) -> Any:
         return self.repo.create_fact(self.context, FACT, fact_values(**changes))
 
+    def test_span_suppression_denies_fact_model_reuse_but_preserves_ui_read(self) -> None:
+        saved = self.save()
+        self.assertEqual(self.repo.get_fact(self.context, FACT, for_model=True), saved)
+        for spans in ([{"start": 0}], None, "invalid"):
+            with self.subTest(spans=spans):
+                self.store.data[self.source_path]["suppressed_spans"] = spans
+                self.assertEqual(self.repo.get_fact(self.context, FACT), saved)
+                with self.assertRaises(PolicyDenied):
+                    self.repo.get_fact(self.context, FACT, for_model=True)
+        self.store.data[self.source_path]["suppressed_spans"] = []
+        self.assertEqual(self.repo.get_fact(self.context, FACT, for_model=True), saved)
+
     def test_t009_same_names_are_independent_ids_and_tenants(self) -> None:
         self.repo.create_entity(self.context, BEDROOM_LIGHT, entity_values())
         for room, label, light, location in (

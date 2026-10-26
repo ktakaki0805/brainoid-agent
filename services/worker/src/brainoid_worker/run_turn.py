@@ -9,7 +9,7 @@ from threading import BoundedSemaphore, Thread
 from typing import Annotated, Literal
 from uuid import UUID, uuid5
 
-from brainoid_agent_core.context import ContextInput
+from brainoid_agent_core.context import ContextInput, ConversationSummary, SummarySource
 from brainoid_agent_core.core import RunBudget, TextAgentCore, TextRunResult
 from brainoid_agent_core.ports import CallControl, Clock, ModelProvider
 from brainoid_agent_core.types import (
@@ -191,9 +191,12 @@ class Authorizer:
         except PolicyDenied:
             return Failed(code="permission_denied")
         except asyncio.CancelledError:
-            # Core's finite wait expired/cancelled while authority was unavailable.
-            # Keep that category outside Core's normalized public result.
-            self.unavailable = PersistenceUnavailable()
+            # A live revocation can cancel this read while the watcher is stopping
+            # Core. That is not evidence of a storage outage. Infrastructure watcher
+            # errors still propagate via LiveCancellation.error; an unresponsive
+            # read that exceeds Core's deadline remains unavailable.
+            if not control.cancellation.cancelled:
+                self.unavailable = PersistenceUnavailable()
             raise
 
 
@@ -238,6 +241,31 @@ class RunTurn:
             credential_epoch=credential_epoch,
             allow_untracked_bootstrap=jobs.allow_untracked,
             check_results=self._check_results,
+            load_summary=self._load_summary,
+        )
+
+    def _load_summary(self, tx: Transaction, job: Job, before: int) -> ConversationSummary | None:
+        # RunState has already authorized this canonical parent in the same TX.
+        # No summary means no summary-specific caller/lease or dependency read set.
+        if not tx.collection(conversation_path(job.tenant_id, job.grant.ref.id) + "/summaries"):
+            return None
+        access = self.memory.open(tx, job)
+        summaries = access._repo.summaries(tx, job.grant.context)
+        record = summaries.latest(job.grant.ref.id, before=before)
+        if record is None:
+            return None
+        return ConversationSummary(
+            id=record.id,
+            text=record.text,
+            source_refs=tuple(
+                SummarySource(
+                    resource_id=source.resource_id,
+                    version=source.version,
+                    deletion_epoch=source.deletion_epoch,
+                )
+                for source in record.sources.messages
+                if source.included
+            ),
         )
 
     def _check_results(
