@@ -6075,3 +6075,544 @@ FR006/013、T011/T022。忘却要求の認可/対象版確認→独立削除台�
 
 - done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy219/docs1416/生成差分なし/契約互換成功、real22.08秒。raw `/tmp/ba-mem-07-parent-check.log`。
 - 台帳done32/todo64/blocked0。変更は台帳・作業ログのみ、記録2ファイルを別commitへ含める。
+
+## ba-mem-08-20261026t142051z
+
+- チケット: BA-MEM-08
+- 状態: done
+- 開始: 2026-10-26T14:20:51.045987+00:00
+- ブランチ: main
+- base commit: 6fdedf606b773bc1dd21757162573c2e3567d868
+- 開始時の変更: staged / unstaged / untracked ともなし
+- 選択: MEM07両commit/clean/check後、IDなしnextで依存順先頭を選択。MEM05/06/07のdoneと実装commitのHEAD祖先を確認。
+- 親担当: /root、実装担当: /root/mem08_implementation。独立レビューは各ラウンド新規担当。
+- 実装コミット: 75aaf84abebcec21ef2a6adab1f4b44b4433d2e1
+
+### 変更範囲と検証計画
+
+FR013・T011/T022。受付済み忘却/削除の原本・派生情報・子階層をhandlerごとに処理し、cursor/処理数/再試行理由をoperationへ保存。元sourceの再利用抑止と独立台帳を保持し、cache/export無効化hook・全関連処理の完了確認・24h超監視状態へ接続する。account/tenant削除の入口や最終owner条件はIAM10、復元訓練はOPS07。追加外部前提なし、fake/emulator検証。
+
+| 受入条件 | 検証予定 | 結果 |
+| --- | --- | --- |
+| 親削除だけで終えず子階層・派生データ処理 | collection handler、全vector世代、summary/job payload/通知等の現実装inventory、残存確認とsucceeded条件 | 未実施 |
+| 重複配送・中断再開で安全、再生成阻止 | page途中/commit応答喪失/lease・generation競合、旧embedding/summary job再送 | 未実施 |
+| tenant/owner外原本・共有寄稿を無条件削除しない | immutable intent/operation/tombstone exact binding、scope・ID・epoch、suppress vs delete、別tenant/creator負例 | 未実施 |
+| 運用と全体回帰 | hook失敗/再試行/24h超、setup/check/test、実Firestore paging/transaction、独立全差分レビュー | 未実施 |
+
+### 引継ぎ上の重要境界
+
+- MEM07のpurge envelopeはwaiting/専用memory_purge queue。元Fact grantは受付時監査情報で、削除後のFactや失効したrequesterを通常Jobsで再認可してpurgeを阻まない。独立intent・受理済みoperation・tombstone一致に限定した削除実行権限と通常jobの認可を区別し、lease/generation/worker caller/queueの検査は維持する。
+- 期限なしtarget reservation、独立tombstone/ledger、保持sourceのsuppressを消さず、原本や本文の再生成を削除権限から許さない。実cloud/課金provider/外部IAM・retention変更なし。
+- 親の静的準備 `/tmp/ba-mem-08-parent-prep.md` は確認計画であり、受入成功証拠ではない。既存Transactionはページングなし、Dispatcherの外部JobPages.pageはあり。実装担当が実store/全schemaからbounded scanと子階層inventoryを判断する。
+
+### 実装担当開始
+
+- 新規独立 `/root/mem08_implementation`（fork none）を起動。親metadata以外の書き手は同担当1名、main/baseは開始時から固定。spec/実collection/既存Jobs・pagingを直接読みarchitectureと受入対応を検討するよう依頼。
+- 元requester失効後の受理済み削除、狭いintent/tombstone権限、通常Jobsの認可維持、全vector世代/子階層/派生payload、bounded page、TX外hookの冪等性、完了/24h超を重点確認。scope外のIAM10入口/OPS07復元は追加しない。
+
+### 初期設計・現データinventory
+
+- 実装担当報告: 通常Jobsを緩めずmemory_purge専用executor、独立intent+operation+target tombstoneを各lease段階で検証、pageごとの消去とcursor/countを同TXへ保存する構成を検討。
+- 現inventoryはfacts、全世代memory_vectors_*、conversations/{id}/messages・summaries、runs/{id}/events、jobs checkpoints/result、run内memory_records/tool_bindings/continuation。通知/export/credentialsの実サービス入口は未実装のため登録handler/hook契約とfixture境界に留め、実サービス完了と記述しない。Firestore実limit paging/子collection発見を調査中。
+- 親からMEM07のsource suppress markerが先行operationから再利用されること/後続delete_sourceが強いmarkerへ更新することを確認依頼。自分Factのexact markerとsourceの保持・削除を区別し、合法な重複source忘却で先行purgeが永久停止しないよう評価する。未実装・未検証の設計確認であり成功証跡ではない。
+
+### 途中実装と追加確認
+
+- 専用PurgeJobs、Firestore list_documents(show_missing)/list_collection_idsのbounded pager、postorder walker、正規参照handlerを追加中との報告。source suppress本文を保持、派生assistantは本文/model_messagesごと消去、runを本文なし失敗receiptへ縮退、job checkpoint/result/tool receipt/子eventsを処理する構成。全vector世代はtenant直下collection IDsから発見。
+- sourceの先行suppress marker共有/後続delete強化は許容、自Fact markerはexact op照合と担当報告。まだ型・fake/emulator検証前の中間実装。
+- 親は `_run` のsource sequence以上を上限なしに選択する途中条件を確認し、忘却commit後の新しい独立turnまで削除しない受理範囲/provenanceの制限と負例を依頼。またlegacy source author根拠のrun/jobを先に消した後の再開が止まらないか確認依頼。正式review findingではなく設計中の確認。
+
+### 初期fake結果・受付時点の範囲確認
+
+- 担当報告: 初期fake7ケース中6成功、1件は元suppressed sourceをcopyした独立user fixtureへsuppress=trueを残した誤期待で補正中。正式command/count/raw/再実行結果は後で照合する。
+- postorder走査後にcursorをresetして変更ゼロの全再走査を必須にし、前page削除によるtoken skipを回収する設計。実Firestore境界テストは未実施。
+- 独立turn保持の途中条件 `run.created_at > intent.created_at` はreservation時刻と実受付commitの間を見落とす可能性があるため、親が再検討を依頼。ledger I/O中に作成され旧sourceを消費したrunを対象に含み、commit後の独立turnは保持する同TX序列/安全上限の根拠と負例が必要。必要な受付metadataの狭い追加はMEM08範囲内と整理。
+- 通知等の未実装サービスは明示登録の参照manifest型copy handler、cache/exportは失敗し得るinvalidation portという境界を検討中。実サービス提供済みとは記載しない。
+
+### 派生本文inventoryの追加確認
+
+- 親がMemoryMutationsを直接確認: `memory_effects/{effect}` はrecord/previous/requestにFact本文を保持。途中ROOTSに未収載のため、対象Fact/sourceに結び付くproofの消去/安全縮退と再配送時再生成拒否を追加依頼。無関係な新Fact原本は削除しない。
+- generic `idempotency_records` はbody_hash/参照receipt/認可bindingのみで本文を保存しない。`memory_forget_effects`もforget要求IDs主体。本文copyと恒久再生成fenceを区別する確認を行った。
+
+### 初期型/fakeと実Firestore失敗
+
+- 担当報告: 専用fake10件/mypy225files成功。受付commit同TXへ親next_sequence上限とpurge_accepted_atを追加し、ledger待ち中runは消去/受付後独立turn保持の回帰を通した。memory_effects record/previousとproposals.requestもinventory追加、追加回帰準備中。正式command/raw照合はhandoff待ち。
+- 親raw確認 `/tmp/ba-mem-08-emulator-focused-initial.log`:2件17.546秒/errors3。最初はhandler.stepのstore.run(apply)がAPIError temporarily_unavailable、続いてtearDown/次setUp resetがFirestore HTTP409。原因はまだ未確定、元raw保持。workerへのAPI翻訳adapter注入とcommit fault injection後のtransaction/並列worker終了の切分けを担当へ依頼。
+- emulator-start.logではdemo-brainoid Auth/Firestore起動を確認。担当のみemulator操作、親は同時起動しない。最終停止/ports確認は未実施。
+
+### 実Firestore重点検証の修正経緯と成功
+
+- 担当説明: 初回fault injectionのAborted前に実rollbackせずlockが残り、API用adapterがPersistenceUnavailableをAPIErrorへ変換していた。worker共通adapterとrollbackへ修正。元errors3 raw保持。
+- `/tmp/ba-mem-08-emulator-focused-second.log` 親raw確認:2件3.113秒、1FAIL/1ERROR。階層RPCに公式SDKの_rpc_metadata不足がありPersistenceUnavailable、別testの応答喪失hook未到達。metadataを追加して再実行。
+- `/tmp/ba-mem-08-emulator-focused-third.log` 親raw確認:2件14.460秒OK。ghost parent/6vector世代/page_size2、commit再試行・応答喪失/並行配送の重点検証。最終全suiteや最新追加handler全体の成功とはまだ扱わない。
+- hook失敗理由がpage_budgetで上書きされない変更は担当報告済み。追加infra分類・effect/proposal本文copy回帰と最終全検証は未完了。
+
+### 派生再生成の追加回帰・最終検証準備
+
+- 担当報告: in-flight embedding/summaryをpurgeし、旧job snapshotを再配置/再配送してもprovider追加呼出し/派生成果物再生成がないfakeが成功。正式command/count/rawはhandoffで照合予定。
+- 文書と監視理由を仕上げて最終snapshotを作成し、setup/check/test/全emulatorへ進む。任意prettier呼出しは未導入コマンドで失敗、依存追加はせず正規format/checkで検証するとの報告。この失敗を正規チェックの成功と混同しない。
+
+### Purge lease時間境界の確認依頼
+
+- 親が途中コードで、Jobs._liveのlease時刻判定後にPurgeJobs.acceptedの外部ledger.getがある点を確認。ledger/最後のDB read中に期限を越してから_saveが旧leaseを延長し物理delete/progressを書かないか、専用no-I/O guardと負例を担当へ評価依頼。
+- commit前期限切れは物理write拒否、期限内commit後の応答遅延は確定済み消去/cursorをrollback扱いせず次step/完了/追加hookを旧leaseで行わないという区別を明示。正式finding/失敗再現ではなく最終freeze前の確認点。
+
+### leaseとcursor権限の強化・freeze予定
+
+- 担当報告: 専用PurgeJobsだけGuardedTransactions化し、_live後の元lease期限をprotectで全write/callback完了/応答releaseへ保持。ledger get中/後半operation read中の時計前進でwrite/renew拒否を含むfake17件成功、mypy226files成功。
+- commit後応答遅延は確定進捗を保持し旧leaseの次step/hookを拒否する回帰も追加。通常Jobs/policyは変更せず。
+- 保存cursorのforce/pathが任意target追加権限にならないよう、毎stepで原本範囲または正規参照を再確認した派生ancestorへ束縛する対策を追加したと報告。最終snapshotに含めて全setup/check/test/全Firestore検証へ進む。最終件数/exit/raw/凍結一致の確認は未完了。
+
+### 固定snapshotのsetup/check/通常テスト成功
+
+- `/tmp/ba-mem-08-final-manifest.json` の12製品pathsを親SHA照合して一致。base=6fdedf606b773bc1dd21757162573c2e3567d868、担当はmain/base不変/index空も確認と報告。検証中製品freeze維持。
+- `final-setup.log`:固定8tools/uv88resolved86checked/frozen pnpm成功、担当exit0、real0.570秒。`final-check.log`:全9check成功/mypy226/docs1421（1239OK/182excluded/0errors）/生成差分なし、担当exit0、real4.056秒を親raw確認。
+- `final-test.log`:Python593件72.531秒/Skill18件0.061秒/Node40件15.305秒すべて成功、担当exit0、total92.341秒。親raw確認。
+- `fake-focused-final.log`は15件1.606秒OK/total2.010秒という先行結果であり、後から追加したlease境界等を含む最終18testの全通常suite結果と区別。最新全593が最終製品の根拠。
+- 全Firestore suiteは実行中（final-emulator-all.log）。正式コマンド/完了exit/件数/停止portはhandoff照合待ち。
+
+### 全Firestore成功・handoff確認中
+
+- `/tmp/ba-mem-08-final-emulator-all.log` 親raw確認:全154件284.308秒OK、total285.719秒。固定12pathでの全integration結果。exit/通常shutdown/ports最終確認は担当handoff待ち。
+- 実行はstandalone demo emulatorsに対し `.env.emulator.example` をset-aでsource、`PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests/emulator -p 'test_*.py'`。`mise run test-emulator` 直接呼出しとは区別し、同全test discoveryを実行。
+- `/tmp/ba-mem-08-handoff.md`下書きを親確認。構成入口、受付同TX上限/legacy receipt、unknown progress schema/rollback、各正負例、初期fake/source digest/read hook fixture誤りとprettier未導入失敗を記録。最終完了値と終了監査後にsnapshot/fresh独立R1へ進む。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/mem08_review_r1`（新規独立context）。base commit: `6fdedf606b773bc1dd21757162573c2e3567d868`。
+- 未追跡を含む最新全12files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `b6647fc7575d3a6aa1646b91b0c43d9803a50355031b6f6db516ced893cf00ff` |
+| `docs/06-deployment-and-operations.md` | `1587c04112f1a6f08e6caeb6f9aec326e0ba6a6d8f302dca495f1ea415080b6b` |
+| `docs/memory-forgetting.md` | `61e7d906c562a85ad862b33df893fde05449219e5bf419805874508a89b51ef7` |
+| `docs/memory-purge.md` | `c447dc29ffd9a45eb9f28a4dc41fd266e9a84499041177cabbd50ed80c8d71cd` |
+| `packages/memory/src/brainoid_memory/forget.py` | `cfb3e1fd7b355e2022eff556e1dfa8974db68e7ecb83f5c05d2e23d11acf88ae` |
+| `packages/persistence/src/brainoid_persistence/purge.py` | `eb8af63480eb215a981fb189d4b3642c35fc6c2c9d3c5cc1de9370a6a69dfa4d` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `6d4419a4c1937818c4c0755fcd7a539eb6ed49d12dd956e1c5e8bc4722027bf3` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `b78e9e8a0902b14a5db2875c91fd66a1ce34cd4ad537b2ffbd6f711f9b5ecdc4` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `6c694118260991eb1273ca72858b5cb159d48200135da28085c912579d89523c` |
+| `tests/emulator/test_purge_integration.py` | `a452163997f556669fde8ce26f827beabf7a9fa96daec94e4967b1804813e592` |
+| `tests/fakes/purge.py` | `41795b9c9bb1df4760f95affcf447feb47d4119d64fd3acd91ceb3bea7e7a6dc` |
+| `tests/test_memory_purge.py` | `d0373d2f1add1c35d148f42ecc708ff127e86d5983dfab75acef9514bda696f3` |
+
+### 最終引継ぎ・終了監査
+
+- `/root/mem08_implementation`が製品編集停止。正式handoff、final manifest、evidence-sha256を保存。親がfinal-workspace.log/ports.logとhandoff追記を直接確認。
+- 全154統合はexit0/284.308秒（wall285.719秒）。起動CLIへ単一SIGINT→Auth/Firestore/hub/logging正常shutdown、元session exit0。host namespaceで5port listener無しを確認。最初のsandbox ssはnetlink取得不可で閉鎖証拠にせず、host確認へ切替。
+- main/base不変/index空/diffcheck0、全12path/SHAがfreeze一致。全setup/check/test/統合の後に製品変更なし。
+- 最新全12pathsをR1 snapshotへ固定。新規独立 `/root/mem08_review_r1`で全差分レビューへ進む。
+
+### R1開始監査・直接境界確認中
+
+- `/root/mem08_review_r1`報告: main/base/index空/全12paths SHA/diffcheck成功。規約・受入・全worker/adapter実装を確認し、欠損派生親（特にvector）の子階層とauthority/cursorの独自負例を準備中。製品変更なし。
+- 初回auditはmise trust env未設定でPython起動前失敗、指定env再実行成功。製品失敗とは区別して保存。
+- 親は後続APP01の既存operation/purge委譲とMEM08の共通化目的に対し、現forget-only admissionでも必要な共通handler契約を満たすか直接仕様評価を依頼。後続API入口全体を今回へ拡張する指示ではない。
+
+### R1独自probeでの未消去・再開停止（正式判定前）
+
+- `/tmp/ba-mem-08-review-r1-probes-first.log` 親raw確認:5件0.305秒FAIL。担当はうち3件の具体的未達を確認したと報告。
+- 正式保存先run_proposalsに対しhandlerはproposalsを走査し、request本文が残ったままhook/operation succeeded。doc無しvector親ではchildren=falseで同FactIDのvector/chunks本文を飛ばしsucceeded。5回lease期限切れ再開で通常max_attemptsに達してjob failed attempts_exhausted、operation runningのまま再開不能。
+- 残るscope変更/旧grant版・epoch変更probeは、正規writer/復元の到達性と直接DB破損を区別して必須性を評価中。旧Fact grantは監査情報であり、再認可しないこと自体を問題とせず独立intent/受理operation/markerの権限範囲から判断するよう親も確認。5失敗すべてを必須findingと確定していない。
+- 製品freeze維持。全差分の正式report後に元実装担当へ修正を返す。
+
+### R1の正規履歴経路で推移コピー残存を再現
+
+- `/root/mem08_review_r1`報告、親rawの失敗要約を確認: `/tmp/ba-mem-08-review-r1-real-history-probe.log` 1件0.874秒FAIL、script `/tmp/ba_mem08_r1_real_history_probe.py`。
+- 正規HTTP受付→RunTurnでfirst turnが対象Factを検索、second turnはzzz_no_matchで検索結果空だがfirst回答を実model requestの履歴へ含め生成。forget→purge succeeded・hook完了後もsecondのjob checkpoint/result、run本文、events、assistant messageが残る。手書きDB破損ではなく正規生成経路。直接refだけのrun選択が履歴の推移依存を落とす4件目の必須候補。
+- 担当の直接既存purge18件1.935秒・追加正例5件0.404秒成功。正式command/全体判定はreport待ち。
+### 独立レビュー R1 正式結果・修正へ返却
+
+- 判定 `request_changes`、担当 `/root/mem08_review_r1`、必須4件。正式report `/tmp/ba-mem-08-review-r1-report.md`、終了audit `/tmp/ba-mem-08-review-r1-final-audit.log`。親が両artifactと正式終了通知を確認。main/base/index空/全12paths SHA一致、製品変更なし。
+- MEM08-R1-01/P1: 正規HTTP/RunTurnで対象Factの回答を履歴経由で消費した後続turnのbody/events/job checkpoint/resultが残存。canonicalな推移依存と受付上限を保ち、全copyを消去する修正と独立turn保持・再配送拒否を要求。
+- MEM08-R1-02/P1: actual run_proposalsをinventoryへ束縛しrequest/子階層を消去する。実Confirmations schema・途中再開・無関係proposal保持を検証。
+- MEM08-R1-03/P1: accepted Fact IDの欠損vector親もpostorderで子階層処理し、現在の祖先束縛を維持。実Firestore複数世代/2件page/多段ghost/再開/他Fact保持が必要。
+- MEM08-R1-04/P2: 5回のprocess停止/lease切れで通常attempt上限へ達し再開不能。専用purgeだけ安全な再開規則を実装し、通常Jobsの上限/outcome_unknownを維持する。
+- 直接実行は既存18件1.935秒・独自正例5件0.404秒成功、確定3負例0.282秒exit1・正規履歴1件0.874秒exit1。初回5診断の残る2件はDB直接破損で到達性未証明のため必須findingから除外。初回shell最終exitはcatの値なのでテストexitに流用しない。
+- 共通walker/handler登録点は提供されるがaccepted authorityはforget専用。APP01のstandalone削除には別typed intent/admission bindingが必要であり、架空Factを強制しない。将来入口全体は今回の追加必須findingにしない。receipt digest等は任意、実外部backend未提供という範囲を維持。
+- 台帳をin_progressへ戻しreview_rounds=1。元実装担当へ正式4件と各probeを返し、修正後は新規contextのR2で最新全差分を検査する。
+
+### R1修正設計と再レビュー準備
+
+- 元担当は直接依存runから同会話の履歴推移へ範囲を伝播し、operation配下の本文なし会話markerに先に根拠を保存する案を提示。turn admissionと忘却受付が同じtenant内barrierをTXで読む/更新するepochにより、既存run=0と受付後runを同一時刻でも区別し、source親next_sequence上限を併用する。まだ実装/検証完了ではない。
+- R1-02 actual run_proposals、R1-03 exact Fact vector ghostの祖先束縛、R1-04専用lease回収のattempt返却を修正予定。通常Jobs規則は維持。
+- 親はlegacy receipt/run・複数忘却のepoch順と、自己forgetで既存memory_records等を消してforget_operation_idを残すrunのstreamed本文も選択対象になるか確認依頼。R2の未検証項目一覧を `/tmp/ba-mem-08-r2-parent-checklist.md` に用意した。これは成功証拠ではない。
+
+### R1修正途中の重点検証
+
+- 親raw確認 `/tmp/ba-mem-08-r1fix-probes.log`:確定3件0.298秒OK、wall0.752秒。crash最終job succeeded/attempts1/operation succeeded/processed1。正式最終検証とは区別。
+- `/tmp/ba-mem-08-r1fix-initial-fake.log`:既存18件1.923秒、受付後独立turn保持1FAIL。新markerが既存source上限を越すケースとして担当が修正中。成功扱いしない。
+- `/tmp/ba-mem-08-r1fix-real-history-probe.log`はscripts import用PYTHONPATH不足で起動失敗。次のhistory-initial.logでは元正規履歴probeは残存path=[]となったが、追加3件がFakeClock.advanceへtimedeltaを渡したためTypeError。4件4.951秒/errors3、wall5.716秒。最終の履歴全回帰成功ではない。
+- 親はlegacy receiptのhistory_run_idsに直接user原文のrun IDまで含めると受付後の独立turnを依存扱いする可能性を指摘。実際に投影したderived本文だけのprovenanceへ限定する負例を依頼。
+
+### 履歴・再開の追加ケース進捗
+
+- 担当報告: source sequence上限をmarker判定より先へ移し、legacy新turnのhistory_run_idsを実投影assistant/toolだけへ限定。旧runは受付時刻fallback、旧receipt+新runは派生履歴ID、現receiptは同TXbarrier epochで区別する。
+- `/tmp/ba-mem-08-r1fix-focused-second.log`:24件8.985秒/2FAIL（追加fixtureの既存user原文を含む総数9に対し期待5）、wall9.742秒。原文保持は件数ではなくpurge前後document比較へ変更するよう親も依頼。
+- `/tmp/ba-mem-08-r1fix-focused-third.log`:26件11.726秒/1FAIL、wall12.527秒。通常HTTP推移・legacy・実proposal・自己forget・複数epochの5追加ケースは成功と担当報告。残るunknown-checkpoint負例の後、copy-on-commitで古くなったdict参照を更新していたfixture誤りを修正中。製品のstarted checkpoint拒否は通過。最終全成功は未確認。
+- 実Firestore多世代vector ghost/多段欠損とtenant barrier競合を追加検証してからfreeze予定。
+
+### 修正後の重点26件成功
+
+- `/tmp/ba-mem-08-r1fix-focused-fourth.log` 親raw確認:26件13.686秒OK、wall14.485秒。担当exit0。内訳は専用20・正規HTTP/RunTurn等5・R1正規履歴probe1。
+- user原文はpurge前path→document snapshotとの保持比較へ修正。型228files成功と担当報告（正式command/rawは最終handoffで照合）。
+- 実Firestoreは既存2件＋多段ghost vector＋admission barrier競合/retryの4件へ進む。demo Auth/Firestore起動を親raw確認、担当のみ操作。最新全suite/freezeはまだ未完了。
+
+### 実Firestore重点4件成功
+
+- `/tmp/ba-mem-08-r1fix-emulator-focused.log` 親raw確認:4件29.880秒OK、wall30.597秒。既存commit retry/応答喪失・並行leaseと、新規多世代/多段ghost/page2/他Fact保持、同時刻のforget→admission retryでbarrier再読込を含む。
+- 正式command/exitはhandoffで照合。担当へ全製品pathのfreeze SHA、最終setup/check/test/全Firestore、shutdown/ports/main/base/index空/最終SHAの引継ぎを依頼。
+
+### 最新16path固定版の最終検証進捗
+
+- `/tmp/ba-mem-08-r1fix-final-manifest.json` は2026-10-26T15:48:36.950024Zの16製品paths。親が全SHA一致を確認、追加はcontracts deletion barrier/API admission/history回帰/Firestore barrier回帰を含む。製品freeze維持。
+- final-setup.log:locked uv/frozen pnpm成功、担当exit0、wall0.581秒。final-check.log:全9check成功、担当exit0、wall4.315秒、Ruff/Mypy228・Biome24・docs1421（0errors）・generated client差分なし。親raw確認。
+- final-test.log:Python600件82.215秒OK、Skill18件0.090秒OK、Node40件16.450秒/40pass0fail、wall104.015秒を親raw確認。command exitは担当正式handoffで照合待ち。
+- final-emulator-all.logは実行中。R1fix-handoff.mdはpendingを明示した下書きとして親確認、成功値を先取りしない。
+
+### 最新固定版の全検証成功・最終監査へ
+
+- 担当正式通知で通常全test exit0を確認。16paths SHA再照合一致。
+- `/tmp/ba-mem-08-r1fix-final-emulator-all.log` 親raw確認:156件303.309秒OK、wall304.698秒、担当exit0。明示exportしたdemo emulatorsへ `PYTHONPATH=.:tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests/emulator -p 'test_*.py'`。直接mise run test-emulatorとは区別する。
+- setup/check/test/全Firestoreが最新16paths freezeで成功。担当は正常停止・5ports閉鎖・workspace/SHA照合・正式handoff確定へ進む。R2承認前であり完了扱いしない。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/mem08_review_r2`（新規独立context）。base commit: `6fdedf606b773bc1dd21757162573c2e3567d868`。
+- 未追跡を含む最新全16files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `b6647fc7575d3a6aa1646b91b0c43d9803a50355031b6f6db516ced893cf00ff` |
+| `docs/06-deployment-and-operations.md` | `1587c04112f1a6f08e6caeb6f9aec326e0ba6a6d8f302dca495f1ea415080b6b` |
+| `docs/memory-forgetting.md` | `12323c7c3adaef4750601aac16d8c85411cfa95ecea30ba02b66d239b97093f1` |
+| `docs/memory-purge.md` | `ae41c8a53cb79d57211692e7532452dd81d111f77bd9c01f610149f710cfc68c` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `d6a14fb11a76c947f289e6e2843ae06aef073ca6aa6a3013bb54072da7edf376` |
+| `packages/memory/src/brainoid_memory/forget.py` | `69fc10c463a73268826ed01f4f5386d520f7f30b970ab7403df4e023411c96fd` |
+| `packages/persistence/src/brainoid_persistence/purge.py` | `eb8af63480eb215a981fb189d4b3642c35fc6c2c9d3c5cc1de9370a6a69dfa4d` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `b1a1d7634f6e6139aec1bd40851574c7e3ff022f95ce4b399ee9db2a08975547` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `56c5502082e82b46f91bb942983d94b3a8d488c74a4980443ee660db19f42a9e` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `4cbffb08d504e7ce5466965396921b9df9484f19c6cbe8ff09d573e97c59b292` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `9b372464c1af2bac35f92767958343c5f2f6418becb756cc37ac4d5a5107c20f` |
+| `tests/emulator/test_purge_barrier_integration.py` | `432122f97075383432e789ad1a9cf3bfdf18a681f4b94358adb407244dfe87e3` |
+| `tests/emulator/test_purge_integration.py` | `e16ca8e7736f47d36f06df04edce97ec3625bcd45f47805dbf1e0e2abb7e5240` |
+| `tests/fakes/purge.py` | `41795b9c9bb1df4760f95affcf447feb47d4119d64fd3acd91ceb3bea7e7a6dc` |
+| `tests/test_memory_purge.py` | `2c72e7a96706a9b9175d7747ecfa25308489595b170e68dd9dbbd086b9d20ece` |
+| `tests/test_purge_history.py` | `168ea45ed1921ec69f72de974d19b6ddba1e4992f267c2d156d90ffbd57c8f11` |
+
+### R1修正正式引継ぎ・R2へ
+
+- 元実装担当が製品編集停止。正式handoff `/tmp/ba-mem-08-r1fix-handoff.md`、16path final manifest、evidence SHA表を確定。親が全path集合/main/base/index空/16SHAを独立照合した。
+- `/tmp/ba-mem-08-r1fix-final-workspace.log`:15:57:50Z、main/base不変、index空、exact16paths/changed_hashes=[]/diffcheck0。final-ports.logは5ports listener無し。emulator-start.logの単一SIGINT→Firestore/Auth/hub/logging正常停止と担当session exit0を確認。
+- R2 snapshotは最新16files全体、親metadata2filesのみ除外。新規独立 `/root/mem08_review_r2`へ全差分と正式R1指摘/最終検証の事実を渡す。元R1担当を再利用しない。
+
+### R2開始監査・全差分確認
+
+- `/root/mem08_review_r2`開始監査:main/base/index空、最新16path集合/全SHA一致。全製品差分と新walker/handler/authorityを確認し、前回proposal/ghost vector/期限切れ回収の対応分岐を直接確認したと報告。まだ承認ではない。
+- 自己forgetで別Fact参照が消える正規経路と履歴marker境界を独自検証中。親の追加確認点は到達性/実残存を未証明の質問として渡し、findingとは扱わない。製品freeze継続。
+
+### R2独自の別Fact自己forget経路で残存を再現
+
+- R2担当報告:専用purge20＋正規HTTP履歴5の25件を独立再実行して成功。
+- 追加質問を正規HTTP＋RunTurnで再現。Aをmemory.search後にBをself-forgetするrunはAの参照情報を消す。Bのpurge pendingのままAをforget/purgeすると、A operationがsucceededにもかかわらずrun/job/event/assistant本文が残る一方、A参照を持つtool receiptは消される。別operationの後続purgeに依存してAの消去完了を主張できない。
+- 担当は入力/診断出力を整理して再実行し正式findingへまとめる。件数/runtime/raw/全体判定は正式report待ち。新しい具体経路であり、前回修正全体に進展がないとは扱わない。製品freezeを維持し、結果確定後に元writerへ戻す。
+
+### R2の直接model context残存も確認
+
+- 担当はMEM08-R2-01/P1として2経路をまとめる予定。search→別Fact自己forgetではAのtool receiptだけ消えてrun/job/event/assistantに本文残存。tool検索なしの直接model context→別Fact自己forgetでもjob model checkpointが残る。両方A operation=succeeded/B=pending。
+- 親は `/tmp/ba_mem08_r2_cross_forget_probe.py` を直接確認。実model requestにAのsentinelが入るassert、正規turn/RunTurn完了、self-forget後のmemory_records/tool_bindings空、Bpending、Aのpurge完了と残存pathを検査する。tool receipt→runの伝播だけでは直接contextケースに不足する点も正式findingへ含めるよう依頼。
+- 正式report・限定回帰・終了SHAauditは待ち。製品未変更。
+
+### 独立レビュー R2 正式結果・追加修正へ
+
+- 判定 `request_changes`、担当 `/root/mem08_review_r2`、必須MEM08-R2-01/P1の1件。正式report `/tmp/ba-mem-08-review-r2-report.md` を親全文確認。終了 `/tmp/ba-mem-08-r2-final-audit.json` は16:07:54Z、main/base/index空/全16path/SHA一致/diffcheck0。製品変更なし。
+- R1-01元の推移履歴、R1-02actual run_proposals、R1-03vector ghost、R1-04attempt枯渇の元再現は独立再実行で解消。R2新規経路は別Fact self-forgetで全memory_records/tool_bindings/continuationが消されるためAの消去依存が失われ、BpendingのままAがsucceededとなる。直接contextケースはtool receipt自体が無いのでreceipt→run伝播だけでは不足する。
+- 必要修正: model再利用用snapshotを消しても、既に保存した本文の全消費Factについて本文なしcanonical消去依存を保持するかcopy自体を安全に除去。最後の正規証拠を消す前にrun/job/event/assistantへの対象情報を永続化し、exact tenant/run/Fact・bounded page・中断再開・複数operation順序・旧lease/再配送・原文/独立turn保持を検証する。固定notice後の旧model再利用禁止も維持。
+- 直接検証:専用25件10.754秒exit0（r2-existing-focused.log）、前回positive/probe/通常Jobs12件1.886秒exit0（r2-r1-and-jobs-probes.log）、正規新規2件2.032秒exit1（r2-cross-forget-canonical-final.log）。親が最終rawを確認。初回probeのdatetime stringify/入力文法/直接contextへの過剰stream assertはprobe側修正であり追加findingや成功根拠にしない。初回auditのmise trust起動失敗も正本auditと区別。
+- 任意inventory-schema整合test/外部receipt digestは必須扱いしない。現在のtrusted hook契約/未提供backend・将来typed admissionの境界を維持。
+- 台帳in_progress/review_rounds=2へ戻し、元実装担当へ正式R2-01を返す。R1四件は進展・解消済みで、同じ未進展の反復に該当しない。修正後は新規context R3で最新全差分を確認する。
+
+### R2修正設計・旧データの権限境界
+
+- 元担当報告:新self-forgetではclear前の正規memory_records/ResultBindingからtenant/run/Fact ID/version/deletion_epochだけの本文なし依存を同TX保存し、後のrun縮退でも全Fact依存を保持する。旧search receiptはcanonical結果からrunへ証拠を移送してから消去する案。
+- 旧direct-context job checkpointはOutcome（生成応答）でありcanonical入力snapshotを持たない。完全に失われた依存は本文/UUID substringから推測しない。担当は旧self-forget proofに束縛した派生本文の互換sweepを検討。
+- 親はA accepted intentだけで関連不明B派生本文を削除しない境界を確認依頼。Bの独立immutable intent+accepted operation+tombstoneまで検証した別の正当な削除権限へ束縛するか、正規Bpurgeの回収後Aを再開する等、証明不能時は偽succeededにしない。original probeはA/B別fake ledger backendで、本番共有backendとの差を明示して境界を緩めない。
+- これは実装中の設計確認であり成功証跡や追加必須finding確定ではない。
+
+### R2修正の互換方針確定
+
+- 担当はlegacy direct-contextの推測sweepを採らず、固定理由legacy_provenance_missingでAを再試行可能な未完了にする方式へ決定。正規Bpurgeが同runの全copyを消去・完了した後にAが再開する。
+- legacy searchは残るcanonicalreceiptのtenant/run/tool IDとMemoryRecord ID/version/epochを検査し、本文なし依存をrunへ原子的に移送してからreceipt削除。newmanifest版はclear前に完全な依存を保存し、BpendingでもA単独完了を可能にする。
+- 親はnew2経路成功とlegacy待機→B完了→A再開を対で検証し、既存cursor/counter/hook状態を失わないことを依頼。memory.pyのMEM07原認可/固定notice/旧model再利用禁止を維持した全差分をR3へ渡す。まだ実装検証前。
+
+### R2追加修正の初期回帰
+
+- `/tmp/ba-mem-08-r2fix-focused-initial.log` 親raw確認:既存purge/history25件10.844秒OK、wall11.647秒。担当報告で新complete manifestとlegacy complete=false部分証拠を分離済み。初回型検査7件のJsonValue/list等は修正中間段階（raw未保存、transcriptのみ）と区別。
+- 新direct/search・A/B順序・legacy未完了→回復の専用回帰を追加中。親はrun縮退時にtool_call_idsを落とすと後続receipt_recordsのexact tool bindingが失われないか確認依頼。正式再レビュー前の実装中確認。
+
+### 別Fact自己forgetの重点7件成功
+
+- `/tmp/ba-mem-08-r2fix-cross-second.log` 親raw確認:7件9.402秒OK、wall10.200秒。新A先行/B先行/legacy search/legacy direct待機→B完了後A再開の5件と元probe2件。
+- 元R2 probeは欠陥診断としてpurge後もcheckpointにsentinelがあるassertを持つため、修正検証用copyではそのpost-purge assertだけ非残存期待へ反転。purge前canonical request/実checkpointにAがある検査は維持し、元probeartifactは変更しない。両case最終remaining_paths=[]、A succeeded/Bpending、run failedを親raw確認。
+- 初回cross-initialは7件9.036秒/errors4、wall9.831秒。追加テストの短いIdempotency-Keyで新turnレスポンスがエラーになりrun_id取得失敗。製品消去漏れと区別し有効keyへ修正。mypy.logのAsyncIterator/AsyncGenerator注釈1件も修正中間段階。
+- tool_call_idsは本文なし束縛証拠としてrun縮退後も保持。legacy部分証拠の第三Fact負例とreceipt先行ページ順を追加中で、最終freezeはまだ。
+
+### 複数purgeの進捗・待機確認
+
+- 親が途中run縮退のpurged_by=current operationについて、同runをA/B両方が選ぶと印の交互上書きで変更ゼロpassに達しない可能性を確認依頼。単純なA先行/B先行に加えstepを交互に進める並行ケースを評価する。
+- legacy_provenance_missingの解除に別operation succeededを要求すると、複数legacy self-forgetのB/Cが相互待ちにならないかも未再現の設計質問として依頼。正当なowncleanupを進めて回復できることを確認し、無条件skipや偽successへ緩めない。未対応の旧状態は回復手順/限界を明記し、実証していない自動回復を主張しない。
+
+### 並行purgeと部分証拠の重点33件成功
+
+- `/tmp/ba-mem-08-r2fix-focused-fourth.log` 親raw確認:33件23.552秒OK、wall24.395秒。既存25＋新cross-forget8。A/B step交互実行、部分legacy receiptの第三Fact負例、foreign receipt束縛拒否を含む。
+- runのpurged_byは既存の最初の印を保持する更新となり、同じ本文なしrunを別operationが交互上書きし続けることを避ける。正式実装説明とfullscopeはhandoff/R3で確認する。
+- cross-third.logは8件10.572秒/errors1、wall11.333秒。部分証拠testの途中stepでRetryableError。担当による修正理由は正式handoff待ち、成功根拠には使わない。
+- 複数legacy self-forgetの相互待ち評価・回復方針/文書整理が残り、最終freeze前。
+
+### 複数legacyの相互待ちを回避する設計へ
+
+- 元担当は最初の不明runで停止すると相互待ちがあり得ると評価し、未知runを消さずbounded scanを継続して各operationが正規ownproofで選べるcopyを先に処理する方式へ修正予定。
+- 変更ゼロ確認と両hook receiptが揃った消去範囲だけ内部locally_verifiedを記録し、不明依存が残るoperation公開statusはsucceededにしない。別operationはこの正当な消去確認によって本文なしとなったrunの不明依存を解消し、2legacy交互処理が収束する検証を追加する。
+- 親はlocally_verifiedをrun単体の縮退だけでなくjob/proposal/tool/message/子階層copyと同じaccepted operationへ束縛し、hook失敗中には証明しないこと、全依存解消前の完了拒否・exact marker binding・counter重複なしを依頼。未実装/未検証の設計説明。
+
+### 複数legacy回復・確認権限の重点35件成功
+
+- `/tmp/ba-mem-08-r2fix-focused-fifth.log` 親raw確認:35件30.942秒OK、wall31.816秒。担当報告では複数legacy交互step収束、hook失敗中のlocal確認拒否、B独立intentが別backendで読めない確認印の拒否を追加。
+- local確認参照は別operationの専用jobをPurgeJobs.acceptedで再検証し、独立ledger/受理operation/exact tombstone・ゼロ変更pass/両hook・当該runの正規依存または自己proofへ束縛。不明依存が残る間公開succeeded不可、変更があればlocal確認取消。親がdocs/memory-purge.mdの明示説明を確認。
+- 担当は最終整理/全SHAfreeze後にsetup/check/test/全Firestoreへ進む。正式最終検証結果はまだ。
+
+### R2追加修正の最新19path固定・最終検証開始
+
+- 担当が2026-10-26T16:38:11Zで全19製品pathsをfreeze。`/tmp/ba-mem-08-r2fix-final-manifest.json`。親がexact path集合/全SHA/main/base/index空を照合。製品編集停止。
+- R2追加はmemory.py/新memory_erasure.py/worker handlersとresource/新cross-forgetテスト/既存history fixture共有/互換文書。最新全差分をR3で確認する。
+- final-setup.logはlocked uv/frozen pnpm成功、wall0.575秒。final-check.logは全9check成功、wall4.328秒、型/format230files、docs1422（1240OK/182excluded/0errors）。親raw確認、正式exitはhandoffで照合予定。
+- 最新通常全test/全156Firestoreは実行中、旧16path版の結果と取り違えない。
+
+### 最新19path版の通常全テスト成功
+
+- final-test.log親raw確認・担当exit0:Python610件109.560秒、Skill18件0.062秒、Node40件15.328秒（40pass/0fail）、wall130.403秒。setup/checkのexit0も担当正式通知で確認。
+- `/tmp/ba-mem-08-r2fix-handoff.md` pending明示下書きを親確認。third crossの1errorは1件graph検索がランダムFact ID順でA以外を選んだfixtureで、正規repository/検索を維持しID生成だけを固定したと説明。新meaningful10cases＋原認可/固定notice・通常Jobsを含む全suiteが最新凍結根拠。
+- 初期型検査7件に続きfixture method alias由来26件も中間失敗としてtranscript保存のみ、shared fixture抽出で修正。AsyncIterator注釈1件rawと区別し、最終230files成功を正本とする。
+- 全Firestore/停止/最終監査はまだ未完了。新cross-forgetケースは実HTTP/RunTurn＋transactional fakeで、追加専用emulator testを新設したとは記載しない。全既存156integrationは実行中。
+
+### 最終freeze後に旧完了operationの互換を追加確認
+
+- 担当が旧workerによるB succeeded/verifiedにlocally_verifiedが無く、既完了Bが通常recoveryされないためAが待機し続ける旧状態を発見。最終freezeを変更して互換と回帰を追加する予定。19path版の成功は旧固定版の証跡として保持し、新freeze成功へ流用しない。
+- 担当当初案は旧verified+succeededと既存pass/両hookを新local確認相当として受けるもの。親は旧workerに今回のinventory/依存漏れがあったため旧完了印だけではcopy全消去を保証しないと確認依頼。正規B権限で現workerが再走査/検証する狭い入口か安全な再検証手順を優先し、旧completed+Brun縮退+未消去proposal等の負例で偽A完了を拒否する。
+- 実行中全Firestoreは旧SHAでの完了または安全停止/exit/rawを保存後に編集し、途中SHA混在の結果を最新成功にしないよう依頼。新freeze後に必要全検証を実行。通常Jobsのterminal規則を緩めない。
+
+### 旧完了Bは現worker再検証へ限定
+
+- 元担当は旧verified flagの信頼拡大を採用しないと回答。accepted deletion専用revalidate_completedでcounter/受付範囲を保持し現inventoryを再走査、両hook再照合後に新local確認を立てる明示入口を追加予定。通常Jobs terminal規則は不変。旧B縮退run＋残存proposalの負例を追加する。
+- 変更前19path固定版の全Firestoreは156件306.218秒OK、wall307.211秒、担当exit0。編集前SHA一致を記録し、最終ラベルartifactをprecompatへ保全してから変更すると報告。この版の成功とこれからの最終版を区別する。
+
+### 旧完了再検証11件成功と旧schema確認
+
+- 担当報告:旧B succeeded/verified・縮退run・actual run_proposals/multilevel child残存から、正規B revalidate_completed→全再走査→A回復を含むcross11件22.169秒OK、wall22.982秒。旧flag承認の分岐なし、再検証開始時にdispatch/lease generationも進め旧配送拒否。
+- 19pathsを16:49:20Zで再freezeし必須検証へ進む通知。precompat全結果/SHA一致は保存済み。
+- 親は旧run schemaも再現する負例を追加確認依頼。初回12path workerの縮退keepはforget_operation_id/tool_call_ids/purge_dependenciesを持たず、purged_byだけの旧runがあり得る。unknown legacy判定がforget_operation_id存在だけに依存すると残存proposalを見逃さないか、別memory_forget_effects proofは保持したまま実際に落ちたfieldsも除いて評価する。未再現の最終確認であり、必要修正時はfreeze/全証跡をまた区別する。
+
+### 旧schema負例は再freeze済み回帰に包含
+
+- 担当回答:互換11件で既にpurge_dependencies/forget_operation_id/tool_call_idsをすべて除去し、purged_by=Bだけの旧run＋actual proposal/多段childを再現。legacy入口は(forget_operation_id OR purged_by)へ変更済み。A未完了→正規B再検証→A完了を確認済みで、16:49:20Z再freeze後の追加編集なし。
+- 親の最後の質問は既存回帰に包含されていたため追加修正要求なし。現19pathfreezeを維持して最終検証/停止監査へ継続。最新checkは担当exit0/wall3.945秒、通常/全Firestoreは継続中。
+
+### 最新通常suiteで順次forgetの1ERRORを確認
+
+- 16:49:20Z版final-test.log親raw確認:Python611件112.014秒、errors1、task失敗、wall117.638秒。test_sequential_forgets_order_turns_with_monotonic_epochのfinish_purgeがRetryableError。Skill/Nodeはこの失敗runでは後続未実行。製品SHAを固定したまま担当が原因調査中、raw保持。
+- 親はaccept_purgeが毎回別MemoryObjectsを作るfixtureと、先行operationの独立台帳参照が必要になった条件の不整合の可能性を確認依頼。実reason/manifest/backendから確認し、共有backendの正例と意図的別backend負例を区別して台帳検査を緩めない。
+- runtime/emulator test pathsが全てSHA不変でunit fixtureだけ修正する場合、実行中全Firestoreの成功証拠はその適用範囲で保持し、修正後は重点/通常全suite/checkを確認する方針を依頼。19path全体が完全同一と誤記せず、変わったfixture pathと不変runtime/emulator SHAをhandoffで明示する。製品変更なら必要な実DB回帰も更新する。
+
+### shared-ledger fixture修正・実Firestore証拠の適用範囲
+
+- `/tmp/ba-mem-08-r2fix-ledger-diagnosis.log` 親確認:第1operation succeeded/locally_verifiedだが第2backendからintent unreadable、第2はrunning/legacy_provenance_missing。製品の安全側拒否が正しいfixture不整合と確定。
+- 変更はtests/test_purge_history.pyの第2forgetを共有独立ledgerへ合わせる1pathだけ。正例＋意図的別backend拒否2件4.348秒OK/wall5.232秒（shared-ledger-focused.log）を親raw確認。
+- 最新final manifestは16:55:07.451961Z/19paths。親が全19SHA一致とemulator-manifest比較を実施し、差分は上記unitfixture1pathのみ、残る18path SHA不変を確認。emulator-scope-audit.jsonもruntime/emulator files不変・emulatorからfixture import無しを記録。
+- 全Firestore156件313.895秒OK、wall315.421秒、担当exit0（r2fix-final-emulator-all.log）。同一19path全体で実行したとは表現せず、実行中に変えたunitfixtureがこのsuiteの対象/依存外でruntime全SHA不変という適用根拠を残す。無理由な再実行はしない。
+- 失敗rawはr2fix-before-shared-ledger-test.logへ保全。最新fixtureのsetup/check/通常全suiteを仕上げ、停止・最終監査後にR3へ進む。
+
+### R2追加修正の最新全検証成功
+
+- 最新final-test.log親raw確認・担当exit0:Python611件104.831秒、Skill18件0.064秒、Node40件13.742秒/40pass0fail、wall123.213秒。
+- 最新setup/checkは担当exit0/wall0.616秒・4.171秒。最新19path manifestと親が全SHA/exact集合/main/base/index空を確認。製品編集停止。
+- 実Firestore156件313.895秒/315.421秒exit0はruntimeとemulatorの全SHA不変を条件に適用（unitfixture1pathのみ変更のscope auditを参照）。正常SIGINT後emulators全停止/CLI exit0、final-ports.logは5ports listener無しを親raw確認。
+- 正式handoff/最終workspace audit確定後、新規独立R3へ最新19paths全差分を渡す。前版のprecompat、before-shared-ledger失敗と最終成功を区別して保存。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/mem08_review_r3`（新規独立context）。base commit: `6fdedf606b773bc1dd21757162573c2e3567d868`。
+- 未追跡を含む最新全19files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `b6647fc7575d3a6aa1646b91b0c43d9803a50355031b6f6db516ced893cf00ff` |
+| `docs/06-deployment-and-operations.md` | `1587c04112f1a6f08e6caeb6f9aec326e0ba6a6d8f302dca495f1ea415080b6b` |
+| `docs/memory-forgetting.md` | `a0eaead8e61a0f3d17611bb3cc8f08fe65536f769b068f1ba0b1b0f8d53a2fea` |
+| `docs/memory-purge.md` | `ae523e4ff4a6800abba0cef4f311775e3274f7d3aff519dcc7eb364df352d3a7` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `d6a14fb11a76c947f289e6e2843ae06aef073ca6aa6a3013bb54072da7edf376` |
+| `packages/memory/src/brainoid_memory/forget.py` | `69fc10c463a73268826ed01f4f5386d520f7f30b970ab7403df4e023411c96fd` |
+| `packages/persistence/src/brainoid_persistence/purge.py` | `eb8af63480eb215a981fb189d4b3642c35fc6c2c9d3c5cc1de9370a6a69dfa4d` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `b1a1d7634f6e6139aec1bd40851574c7e3ff022f95ce4b399ee9db2a08975547` |
+| `services/worker/src/brainoid_worker/memory.py` | `43d06272583d1f74f9236d4b97e0732c25d49b2ab924cb1010414a7a4e756801` |
+| `services/worker/src/brainoid_worker/memory_erasure.py` | `66fc62a8ced41af017636bad6762686ca5b184cadc2da112795661ef1e8e332a` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `93efbe185780808e5cf1e2133793201d7a613c2a60581af49a9f6c3827d1dfb3` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `aefd709cea9f9bffb770ec979dd52e9345cd67029d2f94599fd26cddc8fa5e1b` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `ad05f3ef325a50fe9872dffe12c6d371bfc02b0bfa9e60f9c3c489d8ce70a8cd` |
+| `tests/emulator/test_purge_barrier_integration.py` | `432122f97075383432e789ad1a9cf3bfdf18a681f4b94358adb407244dfe87e3` |
+| `tests/emulator/test_purge_integration.py` | `e16ca8e7736f47d36f06df04edce97ec3625bcd45f47805dbf1e0e2abb7e5240` |
+| `tests/fakes/purge.py` | `41795b9c9bb1df4760f95affcf447feb47d4119d64fd3acd91ceb3bea7e7a6dc` |
+| `tests/test_memory_purge.py` | `2c72e7a96706a9b9175d7747ecfa25308489595b170e68dd9dbbd086b9d20ece` |
+| `tests/test_purge_cross_forget.py` | `3a4032b821284509e2a75578e365b1a8c8c3a3115fa653f71b35dbf7038f96ab` |
+| `tests/test_purge_history.py` | `c4b635d1b7218408941a319f4c1978abebf283872df5bc6b0b140c5f45980264` |
+
+### R2修正正式引継ぎ・新規R3開始
+
+- 正式handoff `/tmp/ba-mem-08-r2fix-handoff.md` のSHAは5f84d2c2feca0ace4c1fb42be1f3f5d851999b3ec0ddb8a13d5a46055db80f42。親が確定版/最終workspace監査を直接確認。16:58:27Z main/base/index空/exact19path/SHA一致/diffcheck0、runtime/emulator適用範囲の差分1pathを明記。
+- 元writer製品編集停止を受領。新規独立 `/root/mem08_review_r3`（fork none）へ最新19path全差分を渡した。元R1/R2担当は再利用しない。
+- R1/R2formal、最終検証値とraw、旧schema互換/独立backend/部分証拠/複数legacy/専用再検証の確認点を渡す。親checklistは未検証の質問集、writer handoffは事実証跡として扱い自己承認にしない。R3は全受入条件と最新全差分を独立確認する。
+
+### R3開始監査・独自の中断順序確認
+
+- `/root/mem08_review_r3`開始監査成功:main/base/index空、exact19paths/全SHA/diffcheck0。全実装/新規docを確認し、テスト全文と実producerを照合中。
+- 複数purgeが同じ派生subtreeを処理する際、一方が祖先を先に削除した後、他方の保存cursorが安全に進めるかを既存交互stepとは異なる中断順序で独自検証するとの報告。未確定の確認点、正式findingではない。
+
+### R3の派生祖先消失後の再開候補
+
+- R3担当は正規API/RunTurnのA検索→B自己forgetで、A purgeをcanonical search receipt配下の子copy走査(force cursor)で停止し、B purgeを先にsucceededへ進める独自probeを作成。A再取得直後の_readがChanged derived deletion scopeで失敗することを確認。`/tmp/ba_mem08_r3_overlap_probe.py`、`/tmp/ba-mem-08-r3-overlap-probe.log`。
+- run/receipt/intent/cursorは正規経路、子copyだけ子階層契約のsynthetic fixture。現producerが実際にその子docを保存しているとは主張しない。Bが親と子を正当に消した後にAの保存cursorが親の証拠を再取得できない可能性。
+- 通常recovery/redispatchで同cursorのまま止まるか、現在の子階層が空でも完了不能かを追加確認し必須性/影響を評価中。親は祖先消失を根拠に未承認の残存childまで削除する緩和をしない境界も依頼。正式判定前、製品freeze継続。
+
+### R3の通常再配送でもcursor停止を確認
+
+- `/tmp/ba-mem-08-r3-overlap-confirmed.log` 親raw確認:1件1.708秒FAIL、wall2.456秒。B succeeded後receipt subtree=[]なのに、Aの通常dispatcher/recovery/worker配送を3回行ってもoperation running/job pending handler_error、cursor/count不変、A Fact原本残存true。
+- 元probe初回は_readのValueError直結で1件1.685秒ERROR（wall2.440秒）だったが、確定版は通常recoveryを通したliveness不合格をassertする。正式severity/reportは担当確定待ち。既存fixtureとの合成child範囲を維持して記載する。
+
+### R3限定回帰と正式判定準備
+
+- 担当報告:既存purge/履歴/cross-forget＋R2修正probe38件35.629秒、R1元/正境界＋通常Jobs＋MEM07の17件3.589秒は全成功。旧R1/R2元指摘は解消と評価。
+- 新規再開不能をMEM08-R3-01/P2（bounded子階層/中断再開契約）として正式報告にまとめる予定。新指摘が残るためapprove不可。終了SHAaudit/正式reportは未受領、製品freeze継続。
+
+### 独立レビュー R3 正式結果・再開性修正へ
+
+- 判定request_changes、担当/root/mem08_review_r3、必須MEM08-R3-01/P2の1件。親が正式 `/tmp/ba-mem-08-review-r3-report.md` 全文を確認。終了 `/tmp/ba-mem-08-review-r3-final-audit.log` は17:07:59Z、main/base/index空/exact19paths/全SHA/diffcheck成功。製品変更なし。
+- 正規A検索→B自己forgetのreceipt配下に子階層契約の合成child1件を置き、A force cursor停止→Bが親子を消してsucceeded→A通常再配送3回でcursor/count不変・handler_error・Fact原本残存。first-party producerがこのchildを保存するという主張ではなく、明示されたbounded子階層/中断再開の組合せのliveness不良として必須P2。
+- 必要修正は他purgeが消去済みの空位置から安全にcursor進行/再走査し、祖先不在だけを新しい削除権限にせず根拠不明の残存child/別tenant・Fact/改ざんcursorを消さないこと。単純branch skipで残存を見逃しsucceededにする変更も不可。collection/document両cursor・異なるページ順・旧lease再取得・counter重複なしを検証する。
+- 直接38件35.629秒/全体36.572秒exit0、関連17件3.589秒/全体4.420秒exit0、独自初回1ERRORと通常recovery版1FAILは成功に含めない。旧R1四件/R2一件の元再現は独立確認で解消。初回audit mise trust未設定と探索rgの存在しない補助名exit2は製品/試験失敗と区別。
+- 任意producer inventory整合/代表cross-forget実Firestore接続testは今回の追加必須にしない。実Firestore156のruntime適用性をR3も独立確認、unitfixture1path差を全19SHA不変と誤記していない。
+- 台帳in_progress/review_rounds=3へ戻し、元writerへR3-01を返す。最新修正後は新規独立R4で全差分を確認する。前回指摘は解消済みで新しい中断順序の指摘、未進展反復ではない。
+
+### R3再開性修正の方針
+
+- 元担当は派生祖先が消えたcursorに削除権限を与えず、bounded pageの読取だけで空document/collectionを確認して進捗を進める方式を提示。実在childを見つけたら消さず固定理由未完了。新しい全再走査でもghost祖先を明示して辿り、単純skipによる残存見落としを避ける。
+- accepted原本/exact vector ID/生存canonical祖先の既存束縛は維持し、各commitで祖先を再確認。親はdoc/collection両cursorの通常recovery成功・未知child負例・実Firestoreでのmissing-parent返却を確認して最終scope/evidenceへ進めるよう依頼。未検証の設計段階。
+
+### R3修正の初回重点結果
+
+- `/tmp/ba-mem-08-r3fix-focused-initial.log` 親raw確認:40件47.478秒/2FAIL、wall48.390秒。receipt_first=trueのdocument/collection両cursorで最終processedがbefore+1期待より1多い。成功扱いしない。
+- 親は実際の追加変更先を確認して二重計上と正当な縮退を区別し、期待値だけを機械的に合わせないよう依頼。空branch進行時の実消去なしcount不増と最終replay安定を別途維持する。原因未確定、製品修正中。
+
+### 空branchの処理数差を実更新で切り分け・重点成功
+
+- count-diagnosis.log親確認:追加2件はtenants/.../jobs/d50d65d9-4b7b-56f5-a53c-4a6ea8f9383cの更新とFact...0065削除。count-job-binding.logでmemory_index jobと照合。receipt先行順の未訪問の正当な残処理であり、空branchの二重計上ではなかった。
+- テストは空branch単独stepのprocessed不増、残処理の増分、最終再配送の不変を別assertへ変更。r3fix-overlap-second.log親raw確認:4件13.640秒OK、wall14.409秒。doc/collection×page順・未知child拒否・ghost sibling再走査・tenant/原本cursor境界を含む。
+- r3fix-emulator-focused.log親raw確認:実Firestore追加2件11.267秒OK、wall12.019秒。selected receiptのdocument cursorから空subtree再開、collection cursorでlive ghost childを拒否する境界。正式command/exitと最終freeze全検証はhandoff待ち。
+
+### R3元再現の修正確認・20path最終freeze
+
+- r3fix-overlap-probe.log親raw確認:修正検証用copy1件2.096秒OK、wall2.821秒。通常再配送1〜3回ともA operation/job succeeded、原本無し、receipt subtree空、保存cursor前進。元probeは診断として毎回停止をassertするため、その欠陥期待を正常完了期待へ変更したcopyであり、元artifactは不変。
+- 実Firestore重点2件exit0/11.267秒も担当通知で確認。全20製品pathsを2026-10-26T17:25:02.649625Zでfreeze（r3fix-final-manifest.json）。親がexact path集合/全SHA/main/base/index空を確認。
+- 新runtime walker/ghost走査に対し、この最新snapshotでsetup/check/test/全158Firestoreへ進む。製品freeze維持、元R3finding解消の正式承認は新規R4で確認する。
+
+### 最新20path版のsetup/check成功
+
+- r3fix-final-setup.logはlocked uv/frozen pnpm成功、担当exit0/wall0.599秒。final-check.logは全9check成功、担当exit0/wall3.831秒、型/format231files、docs1422（1240OK/182excluded/0errors）。親raw確認。
+- R3修正はwalker/handler・関連doc・emulator境界test・fixture共有抽出・新overlap testの6pathsで、全20製品SHAをfreeze維持。最新通常全suite/全158Firestoreは継続中。
+
+### 最新20path版の通常全suite成功
+
+- r3fix-final-test.log親raw確認・担当exit0:Python615件130.559秒、Skill18件0.079秒、Node40件17.188秒/40pass0fail、wall153.094秒。
+- r3fix-handoff.md pending明示下書きを親確認。R3変更の6paths、欠損祖先のread-only確認/固定reason、ghost再走査、元probe修正期待の区別、合成child/実Firestore metadata fixtureの限界、count差診断と実行recipeを記録。
+- 途中型検査でemulator fixtureがAPI MemoryViewをmodel_recordへ渡した1件はcanonical Fact取得へ修正、失敗出力はtranscriptのみ。製品の型をfixtureへ合わせて緩めていない。最終231files check成功を正本とする。
+- 全158Firestoreと正常停止/ports/最終auditは未完了、正式handoff確定後R4へ。
+
+### R3修正の最終検証・終了監査
+
+- 全Firestore158件328.722秒OK、shell real328.073秒、担当exit0。親raw `/tmp/ba-mem-08-r3fix-final-emulator-all.log` を確認。setup/check/通常615+18+40と同じ20path freezeで成功。
+- 担当emulatorへSIGINT後、Firestore/Auth/hub/logging正常停止、launcher exit0。17:31:37Z host namespaceの8080/9099/9150/4400/4500 LISTEN無し。final-ports.log/final-workspace.logでmain/base/index空/exact20paths/全SHA/diffcheck0確認。
+- 正式 `/tmp/ba-mem-08-r3fix-handoff.md` SHA256 `5f4714ffc535e2889927d23e6c8ee18fe96e2753a08adf941646697c0ef2d649` を確認。元writer編集停止。親も全20SHAとmain/base/index空を照合。これから新規R4で最新全差分の独立確認へ進む。
+
+### 独立レビュー ラウンド4 対象固定
+
+- 担当 `/root/mem08_review_r4`（新規独立context）。base commit: `6fdedf606b773bc1dd21757162573c2e3567d868`。
+- 未追跡を含む最新全20files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `b6647fc7575d3a6aa1646b91b0c43d9803a50355031b6f6db516ced893cf00ff` |
+| `docs/06-deployment-and-operations.md` | `1587c04112f1a6f08e6caeb6f9aec326e0ba6a6d8f302dca495f1ea415080b6b` |
+| `docs/memory-forgetting.md` | `a0eaead8e61a0f3d17611bb3cc8f08fe65536f769b068f1ba0b1b0f8d53a2fea` |
+| `docs/memory-purge.md` | `80f804dc927f47b9d5527514f10f8cea315742598f7d111c5bd8748b833318c0` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `d6a14fb11a76c947f289e6e2843ae06aef073ca6aa6a3013bb54072da7edf376` |
+| `packages/memory/src/brainoid_memory/forget.py` | `69fc10c463a73268826ed01f4f5386d520f7f30b970ab7403df4e023411c96fd` |
+| `packages/persistence/src/brainoid_persistence/purge.py` | `eb8af63480eb215a981fb189d4b3642c35fc6c2c9d3c5cc1de9370a6a69dfa4d` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `b1a1d7634f6e6139aec1bd40851574c7e3ff022f95ce4b399ee9db2a08975547` |
+| `services/worker/src/brainoid_worker/memory.py` | `43d06272583d1f74f9236d4b97e0732c25d49b2ab924cb1010414a7a4e756801` |
+| `services/worker/src/brainoid_worker/memory_erasure.py` | `66fc62a8ced41af017636bad6762686ca5b184cadc2da112795661ef1e8e332a` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `93efbe185780808e5cf1e2133793201d7a613c2a60581af49a9f6c3827d1dfb3` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `e4d3f634be51da2557e322c4add8864bf439481f70208bffb349f19fb9898956` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `4328f37a960dcd9d08bb4e4193b8a18e27b6b70742025aa6939527b0ad886800` |
+| `tests/emulator/test_purge_barrier_integration.py` | `432122f97075383432e789ad1a9cf3bfdf18a681f4b94358adb407244dfe87e3` |
+| `tests/emulator/test_purge_integration.py` | `c1449284990301b47749d5ccea2301db7e728a5e144c0eedc02d19e1dcc55126` |
+| `tests/fakes/purge.py` | `41795b9c9bb1df4760f95affcf447feb47d4119d64fd3acd91ceb3bea7e7a6dc` |
+| `tests/test_memory_purge.py` | `2c72e7a96706a9b9175d7747ecfa25308489595b170e68dd9dbbd086b9d20ece` |
+| `tests/test_purge_cross_forget.py` | `74075b6e506b452d4cae69cfd875d962f3bd923e105725c2a2abb43f9d6dfabc` |
+| `tests/test_purge_history.py` | `c4b635d1b7218408941a319f4c1978abebf283872df5bc6b0b140c5f45980264` |
+| `tests/test_purge_overlap.py` | `c7f1b73fae5843f8ba8888ea3d750daca3a7228e8d96f73a57f63d651eeeea50` |
+
+### R4開始監査
+
+- 担当 `/root/mem08_review_r4` は新規fork none context。`/tmp/ba-mem-08-review-r4-start-audit.json` でmain/base/index空/exact20paths/全SHA/diffcheck一致を確認。適用AGENTS無し。最新全差分と実producerの独立照合中。
+- 親のticket_plan.py checkは96件/32done/1in_review/63todoで成功。done32件の実装hashすべてが現在HEADのancestorであることを別途確認。R4の最終判定前であり、MEM08は未完了。
+
+### R4重点46件成功
+
+- 親raw `/tmp/ba-mem-08-review-r4-focused.log` 確認、担当exit0。test_purge_overlap/cross_forget/history/memory_purge/forget_context_revalidation＋R3 adapted originalの46件52.444秒、shell real53.434秒。
+- 通常再配送3回ともA operation/job succeeded、原本無し、receipt subtree空、cursor前進。旧R1/R2修正とlegacy/交互処理/旧completed再検証/MEM07再認可を含む。
+- reviewer独自のページ取得中B完了、欠損祖先走査中lease期限切れ、旧元probe/通常Jobsは別検証中。中間成功であり、最終承認ではない。
+
+### R4独自競合・旧再現・通常Jobs16件成功
+
+- 親raw `/tmp/ba-mem-08-review-r4-independent-and-prior.log` 確認、担当exit0。16件8.293秒、shell real9.088秒。直接計62件。
+- 独自2件:page discovery後commit前に正規Bが親子削除完了してもAは正常完了。同区間lease期限切れではoperation/cursor/count/hookを更新せず、その後の通常recoveryで完了。
+- R1元の履歴/actual proposal/ghost vector/5回crash、R2 fixed元のdirect/search A→self-forget B（BpendingでもA完了・残存本文無し）、通常Jobs3件、既存肯定境界5件が成功。製品20SHAと提供evidence16SHA一致をreviewerも確認し、formal report/終了監査を作成中。
+
+### R4最終承認
+
+- 新規独立 `/root/mem08_review_r4`: **approve**、必須指摘0・必須未検証0・旧R1四件/R2-01/R3-01すべて解消。親が正式 `/tmp/ba-mem-08-review-r4-report.md` 全文を確認。SHA256 `f20735ca72751dc78c8a5e911d94856f7931f39aa2e46426301c432d6ca3d736`。
+- 全20差分と実producer/consumer照合。直接62件成功、提供setup/check/通常615+18+40/全Firestore158のrawとfreeze20SHA/証跡16SHAを別途確認。レビュー自身による全suite/emulator再実行とはしていない。
+- 終了audit17:42:51.433273Z、main/base/index空/exact20paths/全SHA/diffcheck0。製品/index/台帳/log変更無し。初回MISE trust未設定起動と探索補助filename不存在は製品テスト失敗と区別。
+- 任意のproducer inventory/schema整合回帰とcanonical HTTP cross-forgetを実Firestoreへ接続する代表testは、独立canonical fake経路＋実SDK境界＋全emulatorで必須充足と判断し今回追加しない。今後producer追加時の回帰改善として残す。
+- 未実施の実cloud/課金provider/実device cache・export・通知backend/backup/standalone deletion入口はdocs08§1とticket対象外。NoExternalCopiesはbackend無し構成のみ、未知child/legacy gapは未完了を保持して正規復旧する。物理消去はundo不可。
+- 親がstage直前の最新20SHAを再照合し、承認された製品pathだけを実装commitする。
+
+### 実装コミットと受入条件の完了
+
+- mainへ `75aaf84abebcec21ef2a6adab1f4b44b4433d2e1`（feat(memory): BA-MEM-08 add resumable memory purge workers）を作成。stage直前・index・commit後の20paths/全SHAがR4承認集合に一致。cached全diff `/tmp/ba-mem-08-staged.diff`、差分check成功。
+
+| 受入条件 | 最終根拠 | 結果 |
+| --- | --- | --- |
+| 子階層・派生情報を処理し残存確認後完了 | bounded postorder walker、全vector世代、actual proposal/run/job/tool/summary/effects inventory、ゼロ変更pass、Firestore158とR4直接検証 | 成功 |
+| 再配送・中断再開と再生成阻止 | cursor/count原子保存、8回crash、元lease/generation、同時purgeの欠損祖先doc/collection再開、古いembedding/summary/run拒否 | 成功 |
+| 範囲外原本・共有寄稿を無条件消去しない | accepted immutable ledger/operation/tombstone exact binding、canonical tenant/owner/author、未知child/legacyは未完了、共有source保持 | 成功 |
+| hook・完了・監視・通常機能回帰 | cache/export明示adapterのstable receipt、応答喪失/失敗再試行、24h状態、通常Jobs/MEM07回帰、setup/check/615+18+40 | 成功 |
+
+- R1必須4件、R2必須1件、R3必須1件を修正し、fresh R4全差分approve/必須0。最新全検証は同一20path freeze。R4直接62件と提供全suiteを区別して保存。
+- typed content-free消費Fact証拠を自己forgetで再利用snapshotを消す前に保持し、部分legacyをcompleteと誤認しない。複数operationは正規局所完了証拠を相互検証、旧completedは明示再検証して現inventory/hook完了を確かめる。
+- 稼働構成は専用Worker/Dispatcherと周期recovery/monitor。切戻しは専用queue停止、独立台帳/tombstone/予約/進捗/最小依存証拠を保持。物理消去は復元不可。実backend/backup/別ticket入口の未提供を今回成功に含めない。
+- 完了更新: 2026-10-26T17:46:39.692707+00:00。done metadata更新後の親最終checkと記録commitへ進む。
+
+### 親の最終検証
+
+- done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、Mypy231/docs1422/生成差分なし/契約互換成功、shell real22.119秒。raw `/tmp/ba-mem-08-parent-check.log`。
+- 台帳done33/todo63/blocked0。変更は台帳・作業ログのみ、記録2ファイルを別commitへ含める。
