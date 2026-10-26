@@ -3292,3 +3292,217 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.98秒、全9タスク成功、mypy127/docs1330errors0、台帳done20/todo76。
 - 終了: 2026-10-26T00:58:55.580002+00:00。台帳・ログのみを記録コミット。
+
+## ba-run-04-20261026t005951z
+
+- チケット: BA-RUN-04
+- 状態: done
+- 開始: 2026-10-26T00:59:51.172231+00:00
+- ブランチ / base commit: main / 0b66361f87df3e66e03500684dc46508aa4dd77a
+- 開始時の変更: なし
+- 選択: check成功（done20/todo76）、IDなしnext。依存RUN01/RUN03/IAM02は現履歴に存在。
+- 親担当: /root、実装担当: `/root/run04_implementation`（独立context）。
+- 実装コミット: 3cc92987e8bf710d82afa19854e20c142a7b2c7a
+
+### 受入条件と検証計画
+
+- 会話create/list/get/settings PATCHとmessage一覧・run取得を既存契約に合わせる。user/device/private session現在認可、ETag/冪等/cursorを適用。
+- turnの入力message/queued run/pending jobを同じtransactionで保存し、同key再送・commit応答喪失で増殖しない。
+- API停止後も別workerがCoreを実行し、現在権限・source版・leaseを再検査してfinal message/completedまたはfailedを保存。再配送で結果を照合し、失敗/結果不明から成功を捏造しない。
+- T001/T005/T031、二tenant/private/失効actor読書き拒否、API停止・worker再配送、provider失敗、fake/emulatorと全setup/check/testを検証。
+- SSEはRUN05、音声はVOICE01、取消/確認待ちはRUN07へ分離。外部前提なし。WorkerはAPI repositoryへ依存せず共通contracts/policy/jobs/Coreを使う。
+
+### 保存モデルとworker接続方針
+
+- 実装担当: 新共有workspace packageでconversationをjob source、message/runは親認可を継承。会話ごとactive_runでturnを直列化し競合409、受付時source版を維持してhistory revision/inputmessage/run/jobを同TX保存。完了で会話版/historyを進める。進行中settings更新は旧grantを更新せず失効。
+- Core全体をExecution.effectのdurable model stepへ、署名snapshotはTextRunResult.model_dumpから除外されるため内部checkpoint/historyで明示保持。started不明は再生成せず、job終端はGET/次受付reconcilerでrun失敗へ収束。
+- activity hookのread準備/writeを分離し同TXread-before-writeを維持。authorizerは現在family/account/ledger/agent期待版/history/親版/outputを確認。memoryはscope検査後empty adapter、実検索はMEM04。
+- 親からCoreの例外正規化でPolicyUnavailable/PersistenceUnavailableを恒久失敗へ潰さない組成と、受付時agent/history版固定を追加確認。
+
+### 共有層・受付repositoryの初稿
+
+- runs workspace packageに公開DTOと正本history/agent/credential/current policy reader、API repositoryに会話CRUD/list/messages、同TXturn/message/job、runGET終端reconcileを追加（検証前）。
+- PrivateSessionsはprepare_activityで全readを先行するhookへ分離。worker/routes/型/format/fake/emulatorはこれから。
+- authorizerは内容なしの基盤例外種別を外側へ保持し、Core終端後再throwしてWorker.defer_unavailableへ戻す方針。新外部依存なし、workspace memberのみ追加予定。
+
+### worker初回結合と待機境界
+
+- API/routes/worker接続。fake初回でprivate+shared_displayの検索scope不正組合せを検出・修正。read-after-write禁止のstrict fake transactionで主要8境界中7系統通過、device sessionを調査中。
+- 親の確認: asyncio.to_threadの待機をCoreが取消しても実threadは止まらず、asyncio.run default executor終了がworker返却を遅らせ得る。実装担当は最大同時数付きread-only daemon読取bridgeへ変更し、停止不能DBで返却有界/飽和503/残処理は書込不能を検証する方針。
+- content_filter/空stopはfailed、lengthは8000字以内のtruncated成功とする。
+- 親からeffect marker後の認可待機でlease失効する境界を確認し、Core authorizerにも同TX現在lease世代/期限fenceが必要か検証を依頼。bridgeのloop終了後callback/上限も確認する。
+
+### device sessionとleaseの結合修正
+
+- device session初回403はfixtureのdisplay capability不足、既存private-session試験と揃えて設定。次の404はprepare_activityがoutput_stamp付きturn grantをoutput=Noneで再検査したため、同じoutput Subjectをhookへ渡す修正を実施。初期fake9件成功、14件へ拡張中。
+- ReadBridgeは最大4 outstanding read-only daemon読取、待ちqueueなし・飽和PersistenceUnavailable、default executor不使用。
+- state.checkで正本jobを同TX読取しrunning/lease_generation/lease_expires_at/grant/outputを照合。blocked読取期限、late callback書込なし、loop終了後解放、lease期限切れmodel未呼出しを追加検証する。
+
+### fake14件成功とemulator開始
+
+- fake14件全成功（1.759秒）、mypy135 source files成功。追加emulatorファイルの型警告3件は修正後再確認予定。
+- 明示.env.emulator.exampleをsourceし全emulator suite開始。新規6件: 同時turn、受付commit応答喪失、completed checkpoint/最終commit応答喪失、private/別tenant/cleanup失効、device session活動、API終了後別process workerと再配送。
+- 停止/待機問題は現在なし。契約説明・専用文書・生成client整合とsetup/check/test全体を進める。
+
+### emulator初回と設定整合
+
+- 初回emulatorは既存76件成功、新規ファイルだけtests rootがPYTHONPATHになくshared fake import失敗。runnerへ明示PYTHONPATH=testsとfixture整理で修正。
+- focused新6件は5成功、API subprocessのみlocal-fakeと継承emulator envの不一致でstartup拒否。子APIを明示emulator設定create_appへ変更して再検証する。実接続fallbackなし。
+- setup成功、locked87packages・新外部distributionなし。generate-client成功。check全体実行中、Python136型/lint/format/互換/docsは成功。
+
+### 全回帰初回成功と最終補強
+
+- focused emulator新6件全成功（11.013秒）。202後API process終了→別worker process回収・完了→別process再配送でmessage2件維持を確認。
+- check全9/Python136型/生成物一致/互換breakingなし/docs0error成功。全test Python288（22.814秒）/Skill18/Node39成功。全emulator82（94.940秒）成功、今回既存device競合flakeなし。
+- 最終差分点検でdisplay_policy変更の同key再送（旧/新scope receipt binding）とCore完了後の出力Pi失効→最終commit拒否を補強。fake15件を再確認中。
+- 親がdemo.jsonの既存messagesにsequence/run_id/conversation_id等がなく、新API表示/履歴構築に不整合を確認。reset/seedで直る説明では現fixtureを再投入するだけなので、seed会話を開きturn継続する代表正例とfixture保存形式整合を依頼。
+
+### demo fixture互換とtitle契約
+
+- 実装担当が4会話/4messageの旧保存形を確認。現在形式へ揃え、合成入力に対応する履歴用failed runを4件追加（assistant成功応答は作らない）。shared/private双方のAPI一覧/message取得/turn継続正例、README件数/reset説明を更新する。
+- 最終点検でtitle DTO上限120が既存OpenAPI200と不一致と判明し200へ統一。先行82emulator/288+18+39成功は追加前証跡として保持、影響分を再検証する。
+
+### fixture整合後の検証
+
+- fake16件（1.995秒）、全Python290件（25.636秒）、最終check全9成功。seed shared/private一覧→message取得→turn継続正例成功。
+- demoは4会話/4messageのmetadataを更新、履歴用failed run4件追加で36documents。fixture書式でcheck:format一度失敗したが当該JSONだけBiome整形し最終check成功。
+- 最終emulator83件を実行中。
+
+### 最終emulator成功・レビュー前固定確認
+
+- 最終emulator83件（94.841秒）全成功、実装担当が編集停止。親はbase/main/空indexを確認し全28files manifestを/tmp/ba-run-04-review-r1.jsonへ保存。
+- 最終報告でfixture後はPython290のみ再実行、Skill18/Node39は追加前の成功と判明。親は最終版mise run test全体の290/18/39 exit0、emulator停止/5port閉鎖、manifest不変を追加確認依頼。成功未確認部分を最終版成功と扱わない。
+
+### 最終版全testと停止確認
+
+- 最終mise run test exit0、Python290（20.340秒）/Skill18/Node39全成功。最終emulator83/exit0とfirestore/auth/hub/logging停止ログ、127.0.0.1:8080/9099/4400/4500/9150すべてconnect_ex111を確認。
+- 検証前後28files全SHA一致、git diff --check成功、編集停止。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run04_review_r1`（新規独立context）、base commit: `0b66361f87df3e66e03500684dc46508aa4dd77a`。
+- 未追跡を含む最新全28files。親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `0a1bcc1a02004c0e7c642a08609537f186047a17d3882a17cad9061b6c86e846` |
+| `docs/conversations-and-runs.md` | `b3b550a337ec4d75607333e8b4a28ea8b96511d4154bc6a286c97ed805a842ef` |
+| `docs/text-agent-core.md` | `c602a58f14a900b10214f0ad3264b85c10ccb8befab91a73f5d9c3733135bccb` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `5959284744ba931bad2e0f8566fee011f4521a808b6086ebec7069a037ed38b2` |
+| `packages/api-client/src/generated/sdk.gen.js` | `5c03f9ae2dbb8018bd9f29fa3979dd665b96e3eb47301b89df9787bea2953087` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `2a0ddd22fe5e5476b338711cf8669b93ad34d02990d299873a30d9f679cbbddb` |
+| `packages/runs/pyproject.toml` | `fdd0b85e7cbb2b6a70749351bb284297b102e074365a8a01b927243df9841011` |
+| `packages/runs/src/brainoid_runs/__init__.py` | `8431a77e5eaf7bceca326ec36013360bf7887a07ee0b982e023fe5bedf0b76c3` |
+| `packages/runs/src/brainoid_runs/models.py` | `f585a69012d172161c91f073b351260cbc0dcaa15d6242709cdbecc7cfde5fdb` |
+| `packages/runs/src/brainoid_runs/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/runs/src/brainoid_runs/state.py` | `fcd52efa8e0ebcac83062bb03377c841f04a0d9a92376c32ec8db9084f73c5eb` |
+| `pyproject.toml` | `22dea5fc903d19b911a5e0b7414ef437ae2853c20896d97918fe634e675880bf` |
+| `scripts/demo_emulator.py` | `82edb3d06f9ccaefbf2735556fc8ee3feb3feb2a8a20f4da601f5f6abb165866` |
+| `services/api/pyproject.toml` | `995cc7e8ba31a1e62f05f1f2888bf7dab770f9936b5408357c9a4b5224b0e796` |
+| `services/api/src/brainoid_api/app.py` | `77e668ec8fdb0709e6d408d6af716dd2ef16e7d7f700b04487c9b90b4faaa1c1` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `71f4e8fef7cde7ae86098b82bf1b09ad12e616d803291e2e04604c8ed72c4c91` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `eb099705b7a12cc9cba25b1ae7d437ab963490825826908b71465190e08fa317` |
+| `services/api/src/brainoid_api/routes/conversations.py` | `1919566cc176d74b794202a0e59f885c371589480856a3601acf035634ae12a1` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `0661870a4ed5847d37bd8a5bc7b482661807eae4bdbda519a1a778734f5ac5ef` |
+| `services/worker/pyproject.toml` | `c75fd0e2fca879d07027b4d62624eb954d15d873396a2146a692abe0fe5a13da` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `a6a5bbae5418a124e51b2922cec3e653e889d36f451b0d463e77146f24ec57dc` |
+| `specs/openapi.yaml` | `99fd594898685fdb7e721203409492c7bc7499e6e75da5ee8c4ca1246cdc0393` |
+| `tests/emulator/test_turn_run_integration.py` | `7cfd0f39910d91ecdc02f573d129bb4cc1fbcfb0a78779bf904384050a83db5f` |
+| `tests/fakes/turn_model.py` | `4df7d060e59aba6a2875893548863fe0d2930e372dd4ab01760779bb8a9a14ee` |
+| `tests/fixtures/tenants/README.md` | `9c947547d114d9b5a8e80813877f634e95c1a4d86efe245f2df4018ee14b5027` |
+| `tests/fixtures/tenants/demo.json` | `f23b82b9ebd8fd139fc5bb75a3606bbe92c739aa9df088d030151dcfc6eceeef` |
+| `tests/test_turn_run.py` | `13bcafed561a9bd4173307f400ef7f2edff36b93c314615aaf7ef44556422754` |
+| `uv.lock` | `061f7ea2c11648a37c245cff8e4b99b8bb99d9c35efbaeefadf84940b12d5c02` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/run04_review_r1` 開始main/base/28files集合/全SHA一致、適用AGENTSなし。受付/worker/共有RunStateと仕様・基盤契約を確認中。
+- 必須候補: turn/RunStateが常時MEMORY searchを要求するため、conversationだけ許可したPi/private sessionが文字会話を拒否される可能性。既存testはconversation+memory.read固定、再現と要件照合を継続中。
+- 親read-only probe: ReadBridgeの遅延thread値/ValueErrorでasyncio debug・slow_callback_duration0を設定、短い合成markerのログ混入は両経路0（_chain_futureログ各4あり）。製品変更なし、必須指摘にはしない。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run04_review_r1`: request_changes。必須R1/P2一件、任意なし。開始終了main/base/28files集合/全SHA一致、製品編集なし、既存依存version変更なし。
+- R1: conversations.py:517とstate.py:230で無条件MEMORY search認可。allowed_scopes=[conversation]の有効Pi session・本人private/authenticated_session会話でGET200/turn404を直接再現。docs03:195はconversationとmemory.readを個別選択する契約。Coreにもmemory_scopes min_length1/常時searchがあるため、APIだけの例外握潰しや架空scope付与では解消できない。
+- 必要修正: memory利用権限がない場合、空scopeで検索を呼ばず文字生成する経路を受付/RunState/Coreへ。conversationのみPi sessionと同sessionを出力先とするスマホturnが202→completed、記憶検索0回、conversation失効/別tenant/別owner拒否を検証。
+- 他の受入: 同TX/同key増殖なし、独立worker、現在認可・lease、署名非公開、provider失敗/empty/filter成功message不作成を確認。直接fake16（2.029秒）/R1再現、全check/test/emulator83停止は提供証跡と区別。
+- 元実装担当へ修正を戻す。
+
+### R1 修正方針
+
+- 受付時に現在actorと出力先のmemory.readを明示的に交差し、双方に許可がある場合のみpolicy.searchでscope構築、なければ空scopeを保存。
+- RunStateは非空scopeのみ従来の検索認可を行い、Coreは空scopeでMemoryStore.searchを呼ばない。会話/出力先/session/family/leaseの再検査は常に維持。明示非空scopeの未認可拒否も回帰検証する。
+
+### R1 個別回帰成功
+
+- API/共有state/Core修正後fake16（2.105秒）/Core23（0.408秒）成功。conversation-only Pi session自身turnとスマホ→同session出力が202→completed、保存scope=[]、MemoryStore.search0回を確認。
+- 会話削除/別tenant/別owner拒否、明示非空scope未認可拒否も同fixtureで成功。出力先だけmemory権限不足の明示scope負例を補強し、文書と全check/test/emulatorへ進む。
+
+### R1 最終回帰途中
+
+- r1から9files変更: 既存対象6（API repository/共有state/run fake・emulator tests/関連文書2）と、追加対象Core context/core/test_text_agent_coreの3。出力先だけmemory.read不足時の明示非空scope拒否も追加。
+- 最終check全成功、生成client一致・契約schema変更なし。全testと83emulatorを実行中、製品編集は現時点で完了。
+
+### R1 最終検証成功
+
+- 最終check全9 exit0、mise run test Python291（23.863秒）/Skill18/Node39 exit0、明示設定の全emulator83（97.813秒）exit0。firestore/auth/hub/logging停止ログ、8080/9099/4400/4500/9150全閉鎖、diff --check成功。実装担当編集停止。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/run04_review_r2`（新規独立context）、base commit: `0b66361f87df3e66e03500684dc46508aa4dd77a`。
+- R1修正を含む最新全31files。r1から9変更、追加対象Core3filesを含む。親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `0a1bcc1a02004c0e7c642a08609537f186047a17d3882a17cad9061b6c86e846` |
+| `docs/conversations-and-runs.md` | `52d85caa4c38f313ed4fc1b6d87d23689f3da558af39ea2b2b37d3202cee917c` |
+| `docs/text-agent-core.md` | `a89aede2c576ccad968f9988d761389b023873e0f46a768d210f143c1e8f1934` |
+| `packages/agent_core/src/brainoid_agent_core/context.py` | `5c92431f0b97a392682b261e475b440ee126da1adda2de17eb3e5c3ebbb09a85` |
+| `packages/agent_core/src/brainoid_agent_core/core.py` | `d5004e3955cd80d835178245bb2658ef508bd7c95218c3cb69cc62bc764a4c3b` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `5959284744ba931bad2e0f8566fee011f4521a808b6086ebec7069a037ed38b2` |
+| `packages/api-client/src/generated/sdk.gen.js` | `5c03f9ae2dbb8018bd9f29fa3979dd665b96e3eb47301b89df9787bea2953087` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `2a0ddd22fe5e5476b338711cf8669b93ad34d02990d299873a30d9f679cbbddb` |
+| `packages/runs/pyproject.toml` | `fdd0b85e7cbb2b6a70749351bb284297b102e074365a8a01b927243df9841011` |
+| `packages/runs/src/brainoid_runs/__init__.py` | `8431a77e5eaf7bceca326ec36013360bf7887a07ee0b982e023fe5bedf0b76c3` |
+| `packages/runs/src/brainoid_runs/models.py` | `f585a69012d172161c91f073b351260cbc0dcaa15d6242709cdbecc7cfde5fdb` |
+| `packages/runs/src/brainoid_runs/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `packages/runs/src/brainoid_runs/state.py` | `d034223eb09dec1e53a11ec997015378d6eaec2546c78c54a8d9ec446711823f` |
+| `pyproject.toml` | `22dea5fc903d19b911a5e0b7414ef437ae2853c20896d97918fe634e675880bf` |
+| `scripts/demo_emulator.py` | `82edb3d06f9ccaefbf2735556fc8ee3feb3feb2a8a20f4da601f5f6abb165866` |
+| `services/api/pyproject.toml` | `995cc7e8ba31a1e62f05f1f2888bf7dab770f9936b5408357c9a4b5224b0e796` |
+| `services/api/src/brainoid_api/app.py` | `77e668ec8fdb0709e6d408d6af716dd2ef16e7d7f700b04487c9b90b4faaa1c1` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `71f4e8fef7cde7ae86098b82bf1b09ad12e616d803291e2e04604c8ed72c4c91` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `38bbf2b51255f8e8aa334ee1cdb16a7303a8e8fa3a96cb09bc59595e4fb23451` |
+| `services/api/src/brainoid_api/routes/conversations.py` | `1919566cc176d74b794202a0e59f885c371589480856a3601acf035634ae12a1` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `0661870a4ed5847d37bd8a5bc7b482661807eae4bdbda519a1a778734f5ac5ef` |
+| `services/worker/pyproject.toml` | `c75fd0e2fca879d07027b4d62624eb954d15d873396a2146a692abe0fe5a13da` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `a6a5bbae5418a124e51b2922cec3e653e889d36f451b0d463e77146f24ec57dc` |
+| `specs/openapi.yaml` | `99fd594898685fdb7e721203409492c7bc7499e6e75da5ee8c4ca1246cdc0393` |
+| `tests/emulator/test_turn_run_integration.py` | `3bf7961c17866c7550407a0ef2f932f48c92572e073e506c0ae0695bb305732f` |
+| `tests/fakes/turn_model.py` | `4df7d060e59aba6a2875893548863fe0d2930e372dd4ab01760779bb8a9a14ee` |
+| `tests/fixtures/tenants/README.md` | `9c947547d114d9b5a8e80813877f634e95c1a4d86efe245f2df4018ee14b5027` |
+| `tests/fixtures/tenants/demo.json` | `f23b82b9ebd8fd139fc5bb75a3606bbe92c739aa9df088d030151dcfc6eceeef` |
+| `tests/test_text_agent_core.py` | `b03e362dbeb4f4f14c2f52a393970d5bd17419ceb4682c5b0ae7796882556608` |
+| `tests/test_turn_run.py` | `8d5edebbeaacbc89f9eaf96f3cacd3d45a669c7a8e19da18f94e4309978b984e` |
+| `uv.lock` | `061f7ea2c11648a37c245cff8e4b99b8bb99d9c35efbaeefadf84940b12d5c02` |
+
+### 独立レビュー ラウンド2 途中確認
+
+- `/root/run04_review_r2` がmain/base/31files集合/全SHA一致、適用AGENTSなしを確認。API/routes/共有state/model/worker、fake16・emulator7試験全文を直接照合。
+- R1のactor/出力先それぞれmemory不足→空scope、明示非空注入拒否を実装/試験で確認。Core+run39件を直接実行中、現時点で追加必須なし。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/run04_review_r2`: approve、必須/任意なし、R1/P2解消。全31files/新規全文/関連契約を確認し、開始終了main/base/集合/全SHA一致、編集なし。
+- actor/output現在memory権限交差、空scopeのみ検索省略、明示非空scope拒否、既存会話権限・parent/child/lease/署名/再配送境界を確認。
+- 直接Core23+run16=39件成功（2.515秒）/diff check成功。lock追加brainoid-runsのみ、既存version変更・削除なし。
+- 全check/Python291/Skill18/Node39/emulator83停止は提供証跡と区別。独立レビュー2回、未解決必須ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み31filesの作業/index/commit全SHA一致、main/base/対象集合/cached diff --check確認済み。
+- 実装コミット: `3cc92987e8bf710d82afa19854e20c142a7b2c7a`。独立レビュー2回、R1/P2解消、最終approve/未解決必須なし。
+- 同TX会話turn受付と独立worker・再配送照合、現在parent/child/lease/出力先認可、記憶検索なし純文字経路、署名内部保持をfake/emulatorで検証。実provider/device/本番Tasks等は対象外、後続責務を文書化。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.96秒、全9タスク成功、mypy136/docs1338errors0、台帳done21/todo75。
+- 終了: 2026-10-26T01:49:04.798259+00:00。台帳・ログのみを記録コミット。
