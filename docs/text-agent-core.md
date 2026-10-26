@@ -2,7 +2,7 @@
 
 BA-RUN-03 は既存の初期 agent を [Agent API](../services/api/src/brainoid_api/routes/agents.py) から共有し、[TextAgentCore](../packages/agent_core/src/brainoid_agent_core/core.py) で一回の文字生成を実行する。永続 conversation/message/run、SSE、tool 実行、実記憶検索はこの実装に含めない。
 
-後続BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は、このCoreへ現在の親会話/history/agent/credential/leaseを読むContextAuthorizerを接続し、最終保存時にも再認可する。BA-RUN-05は任意の非同期`on_text` observerへ採用済み文字差分だけを渡す。observer待機にも同じ期限と有限cleanupを適用する。tool実行、実記憶検索は引き続き後続範囲となる。
+後続BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は、このCoreへ現在の親会話/history/agent/credential/leaseを読むContextAuthorizerを接続し、最終保存時にも再認可する。BA-RUN-05は任意の非同期`on_text` observerへ採用済み文字差分だけを渡す。observer待機にも同じ期限と有限cleanupを適用する。tool実行は[RUN-06](tool-execution.md)、実記憶検索は[MEM-04](memory-retrieval.md)で接続した。
 
 ## 人格の取得と更新
 
@@ -24,9 +24,11 @@ Core の実行依存は contracts と Pydantic のみ。`ModelProvider`、`Memor
 - 正本 agent の完全な設定と版、conversation の owner/scope/version/deletion epoch と内部履歴の内容・版が一致すること。
 - 返された全 memory と全出典に `MODEL_READ` を適用し、tenant/owner/scope、記憶・出典版、削除・訂正・suppress_reuse・有効期間、正本内容を確認すること。message/import の出典はそれを所有する conversation 等の認可も必要。
 
-最初の `check` が content を含まない認可 receipt を返す。検索結果を受けて prompt を作る直前、モデルの各イベント処理前、正常 snapshot 確定前、stream cleanup 後の返却直前にも同じ receipt で再確認する。記憶結果の検査対象は増やせるが、古い authority や入力版を新しい grant へ差し替えない。変更・拒否は `permission_denied`、buffer 内の本文・snapshot は返さない。実 source/history reader は BA-RUN-04 / BA-MEM-04 がこの port に接続する。今回の fake は既存 `Evaluator` と架空の正本を用い、検索 port 呼出し前の未知 Pi/private 拒否も検査する。
+最初の `check` が content を含まない認可 receipt を返す。検索結果を受けて prompt を作る直前、モデルの各イベント処理前、正常 snapshot 確定前、stream cleanup 後の返却直前にも同じ receipt で再確認する。記憶結果の検査対象は増やせるが、古い authority や入力版を新しい grant へ差し替えない。変更・拒否は `permission_denied`、buffer 内の本文・snapshot は返さない。実source/history readerはBA-RUN-04と[BA-MEM-04](memory-retrieval.md)がこのportに接続している。今回の fake は既存 `Evaluator` と架空の正本を用い、検索 port 呼出し前の未知 Pi/private 拒否も検査する。
 
-さらに Core は tenant/scope/confirmed 状態/出典存在/有効期間/件数を検査し、故障 MemoryStore が権限外候補を混ぜた場合は要求全体を拒否する。許可候補だけへの曖昧な fallback はしない。model request には人格、承認された履歴、記憶内容、今回の user text だけを選ぶ。`TenantContext`、UID、credential、現在認可 receipt は serialize しない。モデル入力上の人格・記憶はデータとして区切り、実際の権限はサーバー境界で保証する。
+`ContextAuthorizer.release(receipt)` は必須の同期・no-I/O portで、直前の成功した認可transaction/attemptが消費した全証跡と期限を保持する。receipt不一致・未取得・期限切れは拒否し、DB再読取やgrant更新は行わない。Coreは認可awaitの子task cleanup後、stream生成直前、最初を含む各provider iterator実行Task内でreleaseを呼ぶ。workerのReadBridgeからasync callerへの受渡し後も同じ全証跡を検査する。さらにMeteredModelのbyte計量後・started設定/実provider呼出し直前にも同じcapabilityを確認し、拒否時の使用量は未開始として扱う。新規検索結果が空でも、履歴・tool結果・自己訂正の過去入力とcaller/output期限を失わない。
+
+さらに Core は tenant/scope/confirmed 状態/出典存在/有効期間/件数を検査し、故障 MemoryStore が権限外候補を混ぜた場合は要求全体を拒否する。許可候補だけへの曖昧な fallback はしない。model request には人格、承認された履歴、記憶内容、今回の user text だけを選ぶ。`TenantContext`、UID、credential、現在認可 receipt は serialize しない。記憶は明示的なmodel projectionでresource ID・version・記録時刻・origin・content/source_refsを選び、tenant_id/owner_user_id/created_byを含めない。full canonical MemoryRecordとtool result/bindingはサーバーに保持し、投影済みToolReplyも正規resultから同じ投影を再計算して完全一致を検査する。モデル入力上の人格・記憶はデータとして区切り、実際の権限はサーバー境界で保証する。
 
 ## 予算と終端
 

@@ -105,6 +105,14 @@ class CheckpointTests(TurnRunFixture):
             headers={"Idempotency-Key": key, **headers},
         )
 
+    def test_injected_authority_configuration_reaches_composed_executor(self) -> None:
+        _, run = self.setup_run()
+        self.assertIs(self.handler.tool_authorizer, self.authority)
+        cast(ConfirmationAuthority, self.handler.tool_authorizer).waiting = False
+        self.execute(run)
+        self.assertEqual(self.get_run(run).json()["status"], "completed")
+        self.assertEqual(len(self.effect.calls), 1)
+
     def test_wait_restart_duplicate_confirmation_and_signed_continuation(self) -> None:
         conversation, run = self.setup_run()
         self.model.prefix = "確認します。" * 260  # type: ignore[attr-defined]

@@ -537,6 +537,16 @@ class Conversations:
                     if f.visibility != Visibility.PRIVATE or d != DisplayPolicy.SHARED_DISPLAY
                     if grant.scope.visibility == Visibility.PRIVATE
                     or f.visibility == Visibility.SHARED
+                    if {
+                        DisplayPolicy.NEVER: 0,
+                        DisplayPolicy.AUTHENTICATED_SESSION: 1,
+                        DisplayPolicy.SHARED_DISPLAY: 2,
+                    }[d]
+                    >= {
+                        DisplayPolicy.NEVER: 0,
+                        DisplayPolicy.AUTHENTICATED_SESSION: 1,
+                        DisplayPolicy.SHARED_DISPLAY: 2,
+                    }[grant.scope.display_policy]
                 ]
             activity = None
             if isinstance(identity, DeviceIdentity) and session is not None:

@@ -18,6 +18,7 @@ from brainoid_contracts import (
     Visibility,
     normalize_utc,
 )
+from brainoid_contracts.guards import protect
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.control_ledger import ControlLedger
@@ -183,6 +184,8 @@ class MemoryRepository:
         ledger: ControlLedger,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         allow_untracked_bootstrap: bool = False,
+        output: Subject | None = None,
+        before_finish: Callable[[], None] = lambda: None,
     ) -> None:
         self._store = store
         self._authorizer = authorizer
@@ -190,6 +193,8 @@ class MemoryRepository:
         self._ledger = ledger
         self._now = now
         self._allow_untracked = allow_untracked_bootstrap
+        self._output = output
+        self._before_finish = before_finish
 
     def entities(self, tx: Transaction, context: TenantContext) -> "EntityTransaction":
         """Compose DB-only entity operations with the caller's transaction.
@@ -248,6 +253,7 @@ class MemoryRepository:
 
     def _finish(self, authority: _Authority, *, model_fact: Fact | None = None) -> None:
         """No I/O: test proven deadlines after the last read and before effect/return."""
+        self._before_finish()
         now = normalize_utc(self._now())
         if not authority.caller.valid_from <= now < authority.caller.valid_to:
             raise PolicyDenied()
@@ -292,7 +298,7 @@ class MemoryRepository:
         assert state is not None
         if isinstance(record, Entity):
             state = _entity_target(state, record.kind)
-        scope = policy.search(ref.tenant_id, subject, ref.kind)
+        scope = policy.search(ref.tenant_id, subject, ref.kind, output=self._output)
         if not any(item.matches(state) for item in scope.filters):
             raise PolicyDenied()
 
@@ -306,7 +312,7 @@ class MemoryRepository:
         *,
         action: Action = Action.READ,
     ) -> T:
-        policy.resource(ref.tenant_id, subject, ref, action=action)
+        policy.resource(ref.tenant_id, subject, ref, action=action, output=self._output)
         document = tx.get(_path(ref))
         try:
             result = model.model_validate(document)
@@ -364,7 +370,9 @@ class MemoryRepository:
                 or (reuse and (resolved.suppress_reuse or resolved.deletion_epoch != 0))
             ):
                 raise PolicyDenied()
-            grant = policy.resource(context.tenant_id, subject, resolved.authority, action=action)
+            grant = policy.resource(
+                context.tenant_id, subject, resolved.authority, action=action, output=self._output
+            )
             authority = tx.get(_path(resolved.authority))
             if (
                 authority is None
@@ -497,6 +505,9 @@ class _MemoryTransaction:
         authority: _Authority,
     ) -> None:
         self._repo, self._tx, self._context, self._authority = repository, tx, context, authority
+        self._model_from: datetime | None = None
+        self._model_until: datetime | None = None
+        protect(tx, self.finish)
 
     @property
     def principal(self) -> Principal:
@@ -508,30 +519,72 @@ class _MemoryTransaction:
 
     def finish(self) -> None:
         self._repo._finish(self._authority)
+        now = normalize_utc(self._repo._now())
+        if (self._model_from is not None and now < self._model_from) or (
+            self._model_until is not None and now >= self._model_until
+        ):
+            raise PolicyDenied()
+
+    def _retain_validity(self, record: Fact) -> None:
+        self._model_from = max(self._model_from or record.valid_from, record.valid_from)
+        if record.valid_to is not None:
+            self._model_until = min(self._model_until or record.valid_to, record.valid_to)
+        self.finish()
+
+    def scopes(self) -> tuple[Scope, ...]:
+        allowed = self._authority.policy.search(
+            self._context.tenant_id,
+            self._authority.subject,
+            ResourceKind.MEMORY,
+            output=self._repo._output,
+        )
+        self.finish()
+        return tuple(
+            Scope(visibility=f.visibility, display_policy=d)
+            for f in allowed.filters
+            for d in sorted(f.display_policies)
+            if f.visibility != Visibility.PRIVATE or d != DisplayPolicy.SHARED_DISPLAY
+        )
+
+    def _candidates(self, kind: ResourceKind, scope: Scope | None) -> list[tuple[str, Document]]:
+        path = f"tenants/{self._context.tenant_id}/{kind}"
+        if scope is None:
+            return self._tx.collection(path)
+        if scope not in self.scopes():
+            raise PolicyDenied()
+        filters = {"visibility": str(scope.visibility), "display_policy": str(scope.display_policy)}
+        if scope.visibility == Visibility.PRIVATE:
+            if self.principal.user_id is None:
+                raise PolicyDenied()
+            filters["owner_user_id"] = self.principal.user_id
+        return self._tx.query(path, filters)
 
 
 class EntityTransaction(_MemoryTransaction):
     """Current entity access for atomic composition with receipts/provider indexes."""
 
-    def get(self, identity: ResourceId, *, write: bool = False) -> Entity:
+    def get(self, identity: ResourceId, *, write: bool = False, for_model: bool = False) -> Entity:
         result = self._repo._read(
             self._tx,
             self._authority.policy,
             self._authority.subject,
             self._repo._ref(self._context, identity, ResourceKind.ENTITY),
             Entity,
-            action=Action.WRITE if write else Action.READ,
+            action=Action.WRITE if write else Action.MODEL_READ if for_model else Action.READ,
         )
         self.finish()
         return result
 
-    def candidates(self, query: str | None = None) -> list[Entity]:
+    def candidates(self, query: str | None = None, *, scope: Scope | None = None) -> list[Entity]:
         """Filter access before inspecting labels, counting or forming cursor positions."""
-        scope = self._authority.policy.search(
-            self._context.tenant_id, self._authority.subject, ResourceKind.ENTITY
+        allowed = self._authority.policy.search(
+            self._context.tenant_id,
+            self._authority.subject,
+            ResourceKind.ENTITY,
+            output=self._repo._output,
         )
         results = []
-        for path, doc in self._tx.collection(f"tenants/{self._context.tenant_id}/entities"):
+        for path, doc in self._candidates(ResourceKind.ENTITY, scope):
             try:
                 identity = TypeAdapter(ResourceId).validate_python(doc.get("id"))
                 ref = self._repo._ref(self._context, identity, ResourceKind.ENTITY)
@@ -539,7 +592,7 @@ class EntityTransaction(_MemoryTransaction):
                 if state is None or path != _path(ref):
                     continue
                 state = _entity_target(state, doc.get("kind"))
-                if not any(f.matches(state) for f in scope.filters):
+                if not any(f.matches(state) for f in allowed.filters):
                     continue
                 record = self.get(ref.id)
             except PolicyUnavailable:
@@ -645,25 +698,28 @@ class FactTransaction(_MemoryTransaction):
             reuse=for_model,
         )
         self._repo._finish(self._authority, model_fact=record if for_model else None)
+        if for_model:
+            self._retain_validity(record)
         return record
 
-    def candidates(self) -> list[Fact]:
-        scope = self._authority.policy.search(
-            self._context.tenant_id, self._authority.subject, ResourceKind.MEMORY
+    def candidates(self, *, scope: Scope | None = None, for_model: bool = False) -> list[Fact]:
+        allowed = self._authority.policy.search(
+            self._context.tenant_id,
+            self._authority.subject,
+            ResourceKind.MEMORY,
+            output=self._repo._output,
         )
         results = []
-        for path, doc in self._tx.collection(
-            f"tenants/{self._context.tenant_id}/{ResourceKind.MEMORY}"
-        ):
+        for path, doc in self._candidates(ResourceKind.MEMORY, scope):
             try:
                 identity = TypeAdapter(ResourceId).validate_python(doc.get("id"))
                 ref = self._repo._ref(self._context, identity, ResourceKind.MEMORY)
                 state = resource_state(ref, doc)
                 if state is None or path != _path(ref):
                     continue
-                if not any(item.matches(state) for item in scope.filters):
+                if not any(item.matches(state) for item in allowed.filters):
                     continue
-                record = self.get(identity)
+                record = self.get(identity, for_model=for_model)
             except PolicyUnavailable:
                 raise
             except (PolicyDenied, ValidationError):
@@ -673,6 +729,44 @@ class FactTransaction(_MemoryTransaction):
                 results.append(record)
         self.finish()
         return sorted(results, key=lambda record: record.id)
+
+    def revision_input(self, identity: ResourceId) -> Fact:
+        """Historical input only. Caller MUST prove its own atomic supersession.
+
+        This never becomes a current confirmed result. Still recheck every original
+        dependency, validity, suppress_reuse and epoch as for a current model read.
+        """
+        record = self._repo._read(
+            self._tx,
+            self._authority.policy,
+            self._authority.subject,
+            self._repo._ref(self._context, identity, ResourceKind.MEMORY),
+            Fact,
+            action=Action.MODEL_READ,
+        )
+        if record.status != "superseded":
+            raise PolicyDenied()
+        self._repo._dependencies(
+            self._tx,
+            self._context,
+            self._authority.policy,
+            self._authority.subject,
+            record,
+            reuse=True,
+        )
+        self._repo._finish(
+            self._authority, model_fact=record.model_copy(update={"status": "confirmed"})
+        )
+        self._retain_validity(record)
+        return record
+
+    def entities(self) -> EntityTransaction:
+        return self._repo.entities(self._tx, self._context)
+
+    def finish_records(self, records: tuple[Fact, ...]) -> None:
+        self.finish()
+        for record in records:
+            self._repo._finish(self._authority, model_fact=record)
 
     def prepare(
         self,

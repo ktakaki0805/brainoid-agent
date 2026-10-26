@@ -86,6 +86,11 @@ class Registry:
         )
         self._registered: dict[str, Registration[Any]] = {}
 
+    def copy(self) -> "Registry":
+        result = Registry()
+        result._registered = dict(self._registered)
+        return result
+
     def register[A: Arguments](self, registration: Registration[A]) -> None:
         if registration.name not in self._names or registration.name in self._registered:
             raise ValueError("Tool is unknown or already registered")

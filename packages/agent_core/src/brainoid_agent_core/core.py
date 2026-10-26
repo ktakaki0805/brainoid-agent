@@ -189,7 +189,12 @@ class TextAgentCore:
             raise _Stopped(result)
         if not result or (stamp is not None and result != stamp):
             raise _Stopped(Failed(code="permission_denied"))
+        self._release(result)
         return result
+
+    def _release(self, stamp: str) -> None:
+        if stopped := self._authorizer.release(stamp):
+            raise _Stopped(stopped)
 
     async def run(
         self,
@@ -246,7 +251,11 @@ class TextAgentCore:
                     record.tenant_id != request.context.tenant_id
                     or record.content.scope not in request.memory_scopes
                     or record.status != "confirmed"
-                    or not record.content.source_refs
+                    or (
+                        not record.content.source_refs
+                        and (record.origin != "user_explicit" or record.created_by is None)
+                    )
+                    or record.deletion_epoch != 0
                     or record.content.valid_from > self._clock.now()
                     or (
                         record.content.valid_to is not None
@@ -275,11 +284,19 @@ class TextAgentCore:
                 snapshot = None
                 calls = []
                 count = 0
+                self._release(stamp)
                 stream = self._model.stream(model_request, control=control)
                 caller_cancelled = False
+
+                async def advance() -> ModelEvent:
+                    # _wait schedules a new task. Validate inside it, before the
+                    # generator body can hand input to MeteredModel/the provider.
+                    self._release(stamp)
+                    return await anext(stream)
+
                 try:
                     while True:
-                        event = await self._wait(anext(stream), control)
+                        event = await self._wait(advance(), control)
                         await self._check(request, records, stamp, control)
                         count += 1
                         if count > budget.max_model_events:

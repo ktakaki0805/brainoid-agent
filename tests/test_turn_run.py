@@ -407,7 +407,7 @@ class TurnRunTests(TurnRunFixture):
         self.assertEqual(
             self.store.data[f"tenants/{self.tenant}/private_sessions/{session.id}"], saved
         )
-        with patch("brainoid_worker.run_turn.EmptyMemory.search", new_callable=AsyncMock) as search:
+        with patch("brainoid_worker.run_turn.BoundMemory.search", new_callable=AsyncMock) as search:
             self.execute(run_id)
             search.assert_not_called()
         self.assertEqual(
@@ -435,7 +435,7 @@ class TurnRunTests(TurnRunFixture):
         self.assertEqual(
             self.store.data[f"tenants/{self.tenant}/runs/{phone_run}"]["memory_scopes"], []
         )
-        with patch("brainoid_worker.run_turn.EmptyMemory.search", new_callable=AsyncMock) as search:
+        with patch("brainoid_worker.run_turn.BoundMemory.search", new_callable=AsyncMock) as search:
             self.execute(phone_run)
             search.assert_not_called()
         self.assertEqual(self.get_run(phone_run).json()["status"], "completed")
@@ -460,7 +460,7 @@ class TurnRunTests(TurnRunFixture):
                 {"visibility": "private", "display_policy": "authenticated_session"}
             ]
             with patch(
-                "brainoid_worker.run_turn.EmptyMemory.search", new_callable=AsyncMock
+                "brainoid_worker.run_turn.BoundMemory.search", new_callable=AsyncMock
             ) as search:
                 self.execute(explicit_run)
                 search.assert_not_called()
@@ -493,7 +493,7 @@ class TurnRunTests(TurnRunFixture):
         )
         self.assertEqual(queued.status_code, 202)
         self.store.data[conversation_path(self.tenant, conversation)]["deleted"] = True
-        with patch("brainoid_worker.run_turn.EmptyMemory.search", new_callable=AsyncMock) as search:
+        with patch("brainoid_worker.run_turn.BoundMemory.search", new_callable=AsyncMock) as search:
             self.execute(ResourceId(queued.json()["run_id"]))
             search.assert_not_called()
         self.assertEqual(len(self.model.requests), 2)

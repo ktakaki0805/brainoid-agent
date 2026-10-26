@@ -49,6 +49,8 @@ class MemoryRecord(CoreValue):
     recorded_at: UtcTimestamp
     status: Literal["candidate", "confirmed", "superseded", "retracted"]
     deletion_epoch: NonNegativeInt = 0
+    origin: Literal["user_explicit", "imported", "inferred"] | None = None
+    created_by: FirebaseUid | None = None
 
 
 class MemoryAccess(CoreValue):

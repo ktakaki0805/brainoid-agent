@@ -267,7 +267,7 @@ class TurnRunIntegrationTests(TurnRunIntegrationFixture):
         before = self.db.document(path).get().to_dict()
         self.now += timedelta(seconds=10)
         self.assertEqual(accept(), accepted)
-        with patch("brainoid_worker.run_turn.EmptyMemory.search", new_callable=AsyncMock) as search:
+        with patch("brainoid_worker.run_turn.BoundMemory.search", new_callable=AsyncMock) as search:
             self.execute(accepted.run_id)
             search.assert_not_called()
         self.assertEqual(self.db.document(path).get().to_dict(), before)
@@ -288,7 +288,7 @@ class TurnRunIntegrationTests(TurnRunIntegrationFixture):
             ],
             [],
         )
-        with patch("brainoid_worker.run_turn.EmptyMemory.search", new_callable=AsyncMock) as search:
+        with patch("brainoid_worker.run_turn.BoundMemory.search", new_callable=AsyncMock) as search:
             self.execute(phone.run_id)
             search.assert_not_called()
         self.assertEqual(

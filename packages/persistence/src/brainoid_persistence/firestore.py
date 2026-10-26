@@ -36,6 +36,17 @@ class _Transaction:
             for snapshot in self._client.collection(path).stream(transaction=self._transaction)
         ]
 
+    def query(self, path: str, filters: dict[str, str]) -> list[tuple[str, Document]]:
+        query = self._client.collection(path).where(
+            filter=FieldFilter(next(iter(filters)), "==", next(iter(filters.values())))
+        )
+        for field, value in list(filters.items())[1:]:
+            query = query.where(filter=FieldFilter(field, "==", value))
+        return [
+            (item.reference.path, item.to_dict() or {})
+            for item in query.stream(transaction=self._transaction)
+        ]
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         query = self._client.collection(collection).where(filter=FieldFilter(field, "==", value))
         return [

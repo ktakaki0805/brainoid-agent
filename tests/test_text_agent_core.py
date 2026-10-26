@@ -65,6 +65,20 @@ class CurrentPolicy:
         self.memory: dict[str, MemoryRecord] = {}
         self.histories: dict[str, tuple[ModelMessage, ...]] = {}
         self.calls = 0
+        self.release_stamp: str | None = None
+        self.release_memories: tuple[MemoryRecord, ...] = ()
+
+    def release(self, receipt: str) -> Stopped | None:
+        if receipt != self.release_stamp:
+            return Failed(code="permission_denied")
+        now = self.clock.now()
+        if any(
+            record.content.valid_from > now
+            or (record.content.valid_to is not None and now >= record.content.valid_to)
+            for record in self.release_memories
+        ):
+            return Failed(code="permission_denied")
+        return None
 
     def policy(self) -> Any:
         return transaction_policy(MemoryTransaction(self.data), now=self.clock.now)
@@ -78,6 +92,7 @@ class CurrentPolicy:
         control: CallControl,
     ) -> str | Stopped:
         self.calls += 1
+        self.release_stamp = None
         try:
             policy = self.policy()
             if request.memory_scopes:
@@ -152,6 +167,7 @@ class CurrentPolicy:
                     if source_grant.resource.version != source.version:
                         return Failed(code="permission_denied")
             stamp = grant.principal.stamp + str(request.conversation.version) + str(agent.version)
+            self.release_stamp, self.release_memories = stamp, memories
             return stamp if previous in (None, stamp) else Failed(code="permission_denied")
         except PolicyDenied:
             return Failed(code="permission_denied")

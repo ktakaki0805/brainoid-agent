@@ -86,6 +86,18 @@ class CanonicalSources:
             source.kind == "message" and document.get("conversation_id") != authority.id
         ):
             raise PolicyDenied()
+        if source.kind == "message" and (
+            # Assistant/tool text can derive from earlier history even with empty
+            # local dependency arrays. Until recursive proof is supported, accept
+            # only direct user messages through every canonical locator adapter.
+            document.get("role") != "user"
+            or document.get("source_refs", []) != []
+            or any(
+                key in document
+                for key in ("memory_records", "tool_bindings", "model_message", "model_messages")
+            )
+        ):
+            raise PolicyDenied()
         try:
             metadata = _SourceMetadata.model_validate(
                 {key: document.get(key) for key in _SourceMetadata.model_fields}

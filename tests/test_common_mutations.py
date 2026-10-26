@@ -66,6 +66,13 @@ class MemoryTransaction:
             if key.rsplit("/", 1)[0] == path
         ]
 
+    def query(self, path: str, filters: dict[str, str]) -> list[tuple[str, Document]]:
+        return [
+            (p, d)
+            for p, d in self.collection(path)
+            if all(d.get(k) == v for k, v in filters.items())
+        ]
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         return [
             copy.deepcopy(document)

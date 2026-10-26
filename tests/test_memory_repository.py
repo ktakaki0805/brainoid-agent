@@ -406,6 +406,8 @@ class MemoryRepositoryTests(unittest.TestCase):
         self.store.data[path] = {
             **self.store.data[self.source_path],
             "conversation_id": CONVERSATION,
+            "role": "user",
+            "source_refs": [],
         }
         self.repo = MemoryRepository(
             self.store,
@@ -416,6 +418,23 @@ class MemoryRepositoryTests(unittest.TestCase):
             allow_untracked_bootstrap=True,
         )
         self.save(source_refs=[{"kind": "message", "resource_id": SOURCE, "version": 1}])
+        direct = dict(self.store.data[path])
+        derived: dict[str, Any]
+        for derived in (
+            {"role": "assistant"},
+            {"role": "tool"},
+            {"source_refs": [{"kind": "message", "resource_id": SOURCE, "version": 1}]},
+            {"source_refs": {}},
+            {"source_refs": None},
+            {"memory_records": []},
+            {"tool_bindings": []},
+            {"model_message": None},
+        ):
+            with self.subTest(derived=derived):
+                self.store.data[path] = {**direct, **derived}
+                with self.assertRaises(PolicyDenied):
+                    self.repo.get_fact(self.context, FACT, for_model=True)
+        self.store.data[path] = direct
         del self.store.data[parent]["suppress_reuse"]
         with self.assertRaises(PolicyDenied):
             self.repo.get_fact(self.context, FACT, for_model=True)

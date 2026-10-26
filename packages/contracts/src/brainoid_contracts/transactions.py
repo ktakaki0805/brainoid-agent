@@ -18,6 +18,10 @@ class Transaction(Protocol):
         """Read a canonical tenant collection in this transaction (including phantoms)."""
         ...
 
+    def query(self, path: str, filters: dict[str, str]) -> list[tuple[str, Document]]:
+        """Equality-filter a canonical collection before returning candidate content."""
+        ...
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         """Equality read, capped at two matches, in this same transaction.
 

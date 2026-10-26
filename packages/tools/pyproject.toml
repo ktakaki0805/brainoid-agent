@@ -5,6 +5,7 @@ description = "Shared tool execution package"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "brainoid-agent-core",
+    "brainoid-memory",
     "brainoid-contracts",
     "jsonschema==4.26.0",
     "pydantic==2.14.1",
@@ -18,3 +19,4 @@ build-backend = "uv_build"
 [tool.uv.sources]
 brainoid-agent-core = { workspace = true }
 brainoid-contracts = { workspace = true }
+brainoid-memory = { workspace = true }

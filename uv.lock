@@ -226,6 +226,7 @@ version = "0.1.0"
 source = { editable = "packages/memory" }
 dependencies = [
     { name = "brainoid-contracts" },
+    { name = "brainoid-jobs" },
     { name = "brainoid-policy" },
     { name = "pydantic" },
 ]
@@ -233,6 +234,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-jobs", editable = "packages/jobs" },
     { name = "brainoid-policy", editable = "packages/policy" },
     { name = "pydantic", specifier = "==2.14.1" },
 ]
@@ -322,6 +324,7 @@ source = { editable = "packages/tools" }
 dependencies = [
     { name = "brainoid-agent-core" },
     { name = "brainoid-contracts" },
+    { name = "brainoid-memory" },
     { name = "jsonschema" },
     { name = "pydantic" },
 ]
@@ -330,6 +333,7 @@ dependencies = [
 requires-dist = [
     { name = "brainoid-agent-core", editable = "packages/agent_core" },
     { name = "brainoid-contracts", editable = "packages/contracts" },
+    { name = "brainoid-memory", editable = "packages/memory" },
     { name = "jsonschema", specifier = "==4.26.0" },
     { name = "pydantic", specifier = "==2.14.1" },
 ]

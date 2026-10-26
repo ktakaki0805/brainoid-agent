@@ -3,7 +3,7 @@
 from uuid import UUID, uuid5
 
 from brainoid_agent_core.checkpoints import continuation_messages
-from brainoid_agent_core.types import ModelMessage, ToolReply
+from brainoid_agent_core.types import ModelMessage
 from brainoid_contracts import ResourceId
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import Job
@@ -15,6 +15,8 @@ from brainoid_runs.state import KIND, run_path
 from brainoid_tools import Registry, ResultAuthorizer, ResultBinding, ResultConsumer, ToolRejected
 from brainoid_tools.executor import Authorizer
 from brainoid_tools.reuse import receipt, verify_result
+
+from brainoid_worker.model_projection import tool_reply
 
 
 class ResultReuse:
@@ -87,16 +89,7 @@ class ResultReuse:
                     binding = bindings[index]
                     index += 1
                     request, result = binding.request, binding.result
-                    expected_reply = ToolReply(
-                        call_key=call.call_key,
-                        name=call.name,
-                        result={
-                            "status": result.status,
-                            "result": result.result,
-                            "error_code": result.error_code,
-                        },
-                        is_error=result.status == "failed",
-                    )
+                    expected_reply = tool_reply(call, result)
                     if (
                         request.call != call
                         or request.context != origin_job.grant.context

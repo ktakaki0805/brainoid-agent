@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from brainoid_contracts import ResourceId
+from brainoid_memory.retrieval import SearchInput
 from fastapi import APIRouter, Depends, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 
@@ -123,3 +124,22 @@ async def revise_memory(
     )
     response.headers["ETag"] = etag(result.version)
     return result
+
+
+@router.post(
+    "/tenants/{tenant_id}/memories:search",
+    response_model=MemoryPage,
+    operation_id="searchMemories",
+    responses={"default": {"model": ErrorResponse}},
+)
+async def search_memories(
+    tenant_id: ResourceId,
+    body: SearchInput,
+    identity: Reader,
+    memories: Repository,
+    session: Session,
+    request: Request,
+) -> MemoryPage:
+    return await run_in_threadpool(
+        memories.search, identity, tenant_id, body, _header(request, "Idempotency-Key"), session
+    )

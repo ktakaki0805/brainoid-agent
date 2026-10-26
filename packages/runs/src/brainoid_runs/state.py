@@ -12,7 +12,15 @@ from typing import get_args
 from brainoid_agent_core.context import ContextInput, ConversationContext, snapshot_message
 from brainoid_agent_core.definition import AgentDefinition
 from brainoid_agent_core.types import ModelMessage, TextPart
-from brainoid_contracts import ResourceId, Scope, Visibility, normalize_utc
+from brainoid_contracts import (
+    DeviceActorContext,
+    DisplayPolicy,
+    ResourceId,
+    Scope,
+    Visibility,
+    normalize_utc,
+)
+from brainoid_contracts.guards import protect
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import Job
 from brainoid_jobs.models import Reason, job_id
@@ -166,7 +174,7 @@ class RunState:
         self.check_results = check_results
 
     def check(
-        self, tx: Transaction, job: Job, *, waiting: bool = False
+        self, tx: Transaction, job: Job, *, waiting: bool = False, check_results: bool = True
     ) -> tuple[Document, Document, ContextInput, str]:
         current_job = tx.get(job_path(job.tenant_id, job.id))
         if current_job is None:
@@ -213,6 +221,7 @@ class RunState:
         except QuotaExceeded:
             raise PolicyDenied() from None
         view(Run, run)
+        family_expiry = None
         if run.get("credential") is not None:
             binding = CredentialBinding.model_validate(run["credential"])
             family = tx.get("device_credential_families/" + binding.family_id)
@@ -236,6 +245,7 @@ class RunState:
                 or binding.device_id != grant.context.actor.actor_id
             ):
                 raise PolicyDenied()
+            family_expiry = family["expires_at"]
         definition = agent(tx, job.tenant_id, parent["agent_id"])
         if definition.model_dump(mode="json") != run["agent"]:
             raise PolicyDenied()
@@ -259,7 +269,7 @@ class RunState:
         ):
             raise PolicyDenied()
         reuse_receipt = None
-        if not waiting:
+        if not waiting and check_results:
             if self.check_results is not None:
                 reuse_receipt = self.check_results(tx, job, run, documents)
             elif run.get("continuation") or any(d.get("model_messages") for d in documents):
@@ -274,6 +284,13 @@ class RunState:
                     grant.scope.visibility == Visibility.SHARED
                     and scope.visibility != Visibility.SHARED
                 ):
+                    raise PolicyDenied()
+                display = {
+                    DisplayPolicy.NEVER: 0,
+                    DisplayPolicy.AUTHENTICATED_SESSION: 1,
+                    DisplayPolicy.SHARED_DISPLAY: 2,
+                }
+                if display[grant.scope.display_policy] > display[scope.display_policy]:
                     raise PolicyDenied()
                 if not any(
                     f.visibility == scope.visibility
@@ -310,4 +327,23 @@ class RunState:
                 grant.resource.model_dump(mode="json"),
             ]
         )
+        deadlines = [
+            value for value in (live_job.lease_expires_at, family_expiry) if value is not None
+        ]
+        principals = [grant.principal]
+        if job.output is not None:
+            principals.append(policy.principal(job.tenant_id, job.output))
+        for principal in principals:
+            actor = principal.context.actor
+            if isinstance(actor, DeviceActorContext) and actor.private_session is not None:
+                deadlines.extend(
+                    (actor.private_session.expires_at, actor.private_session.idle_expires_at)
+                )
+
+        def finish() -> None:
+            now = normalize_utc(self.now())
+            if now < live_job.created_at or any(now >= deadline for deadline in deadlines):
+                raise PolicyDenied()
+
+        protect(tx, finish)
         return run, parent, request, receipt

@@ -1,6 +1,7 @@
 """One bounded writer per handler, with current authority inside each transaction."""
 
 import asyncio
+from collections.abc import Callable
 from concurrent.futures import Future
 from threading import BoundedSemaphore, Event, Thread
 
@@ -167,3 +168,37 @@ class RunEventWriter:
         self.timer.add_done_callback(lambda task: None if task.cancelled() else task.exception())
         if interrupted:
             raise asyncio.CancelledError
+
+
+async def memory_write[T](
+    bridge: WriteBridge, work: Callable[[], T], *, stopped: Callable[[], bool]
+) -> T:
+    """Memory DB work shares the event writer's single outstanding slot.
+
+    The canonical memory access also checks stopped immediately before DB writes.
+    Cancellation abandons the await, never claims rollback or permits a retry.
+    """
+    if stopped() or not bridge.slot.acquire(blocking=False):
+        raise PersistenceUnavailable()
+    future: Future[T] = Future()
+
+    def invoke() -> None:
+        try:
+            if future.set_running_or_notify_cancel():
+                try:
+                    if stopped():
+                        raise PolicyDenied()
+                    result = work()
+                except Exception as error:
+                    future.set_exception(error)
+                else:
+                    future.set_result(result)
+        finally:
+            bridge.slot.release()
+
+    try:
+        Thread(target=invoke, daemon=True, name="memory-db-writer").start()
+    except Exception:
+        bridge.slot.release()
+        raise PersistenceUnavailable() from None
+    return await asyncio.wrap_future(future)

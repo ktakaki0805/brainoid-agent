@@ -31,7 +31,7 @@
 | `packages/agent_core` | 会話実行とツール選択 | HTTP、Firebase SDK、Pi固有処理を持たない |
 | `packages/model_google` | Google Gen AI の ModelProvider adapter | 明示した Vertex 接続と SDK 変換。Core 最小依存には含めない。[利用・検証契約](google-model-provider.md) |
 | `packages/contracts` | ID・UTC時刻・timezone・version・scope・Contextの共通型 | 認可判断はIAM層に委ねる。[通信スキーマ対応表](contracts.md) |
-| `packages/memory` | 記憶の保存・検索・グラフ展開 | 認可済みcontextを必須にする |
+| `packages/memory` | 記憶の保存・検索・グラフ展開 | 認可済みcontextを必須にする。[scope検索と会話接続](memory-retrieval.md) |
 | `packages/tools` | ノート・タスク・Calendar・家電のツール | 入力検証、認可、確認、結果の正規化 |
 | `infra/gcp` | Terraform | 環境ごとの構成とIAMの正本 |
 | `tests` | 契約・結合・E2E・実機シナリオ | 本番データを持ち込まない |

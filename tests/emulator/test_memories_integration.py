@@ -11,6 +11,7 @@ from brainoid_api.repositories.entities import Entities, EntityCreate
 from brainoid_api.repositories.memories import Memories, MemoryCreate, MemoryRevision, MemoryView
 from brainoid_contracts import FirebaseUid, ResourceId
 from brainoid_jobs.models import job_id
+from brainoid_memory.retrieval import SearchInput
 from google.api_core.exceptions import Aborted, ServiceUnavailable
 from test_device_pairing_integration import DevicePairingIntegrationFixture
 
@@ -245,3 +246,43 @@ class MemoryIntegrationTests(DevicePairingIntegrationFixture):
         saved = self.db.document(path).get().to_dict()
         assert saved is not None
         self.assertEqual(saved["status"], "obsolete")
+
+    def test_scoped_search_canonical_revision_and_private_shared_entity(self) -> None:
+        first = self.create_memory()
+        private_body = MemoryCreate.model_validate(
+            {
+                **self.memory_body.model_dump(exclude_none=True),
+                "visibility": "private",
+                "display_policy": "never",
+                "value": "PRIVATE_EMULATOR_MEMORY",
+            }
+        )
+        private = self.memories.create(
+            self.identity(), self.tenant, private_body, "private-search-memory"
+        )
+        found = self.memories.search(
+            self.identity(),
+            self.tenant,
+            SearchInput(query="Synthetic person"),
+            "search-emulator-query",
+        )
+        self.assertEqual({item.id for item in found.items}, {first.id, private.id})
+        revised = self.revision(first.id)
+        found = self.memories.search(
+            self.identity(),
+            self.tenant,
+            SearchInput(query="Synthetic person"),
+            "search-emulator-query",
+        )
+        self.assertEqual({item.id for item in found.items}, {revised.id, private.id})
+        self.db.document(f"tenants/{self.tenant}/facts/{private.id}").update(
+            {"owner_user_id": "other-owner"}
+        )
+        found = self.memories.search(
+            self.identity(),
+            self.tenant,
+            SearchInput(query="Synthetic person"),
+            "search-emulator-query",
+        )
+        self.assertEqual([item.id for item in found.items], [revised.id])
+        self.assertNotIn("PRIVATE_EMULATOR_MEMORY", found.model_dump_json())

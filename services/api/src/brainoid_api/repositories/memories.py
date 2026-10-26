@@ -1,31 +1,34 @@
 """Explicit memory CRUD, atomic supersession and dormant indexing outbox."""
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Annotated, Self
-from uuid import uuid4
 
 from brainoid_contracts import (
     DisplayPolicy,
-    FirebaseUid,
     ResourceId,
     Scope,
-    UtcTimestamp,
     Version,
     Visibility,
 )
 from brainoid_jobs import Jobs
 from brainoid_memory import CanonicalSources, MemoryRepository
-from brainoid_memory.models import ClaimInput, Fact, FactInput, MemoryValue, SourceRef, Value
+from brainoid_memory.dto import MemoryCreate as MemoryCreate
+from brainoid_memory.dto import MemoryPage as MemoryPage
+from brainoid_memory.dto import MemoryRevision as MemoryRevision
+from brainoid_memory.dto import MemoryView as MemoryView
+from brainoid_memory.models import Fact
+from brainoid_memory.mutations import MemoryMutations
 from brainoid_memory.repository import FactTransaction, VersionConflict
+from brainoid_memory.retrieval import SearchInput, retrieve
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
-from pydantic import Field, JsonValue, field_validator, model_validator
+from pydantic import JsonValue
 
 from brainoid_api.auth.account_state import account_stamp
 from brainoid_api.auth.authorization import transaction_policy
-from brainoid_api.common.access import AuthorizedScope, fingerprint
-from brainoid_api.common.idempotency import Idempotency, MutationResult
+from brainoid_api.common.access import fingerprint
+from brainoid_api.common.idempotency import Idempotency
 from brainoid_api.common.pagination import Cursors, page_limit
 from brainoid_api.common.transactions import Transaction, TransactionStore
 from brainoid_api.common.versioning import require_if_match
@@ -34,71 +37,6 @@ from brainoid_api.repositories.device_credentials import DeviceCredentialReposit
 from brainoid_api.repositories.entities import EntityIdentity, _Access, _Caller
 from brainoid_api.repositories.memory_sources import SavedMessages
 from brainoid_api.repositories.tenants import Tenants
-
-
-class MemoryCreate(ClaimInput):
-    source_refs: Annotated[tuple[SourceRef, ...], Field(max_length=20)] = ()
-    valid_from: UtcTimestamp | None = None
-    valid_to: UtcTimestamp | None = None
-
-    @field_validator("valid_from", mode="before")
-    @classmethod
-    def nonnull_start(cls, value: object) -> object:
-        if value is None:
-            raise ValueError("A supplied valid_from cannot be null")
-        return value
-
-    @model_validator(mode="after")
-    def interval_and_sources(self) -> Self:
-        if self.valid_from is not None and self.valid_to is not None:
-            if self.valid_to <= self.valid_from:
-                raise ValueError("valid_to must follow valid_from")
-        if len(set(self.source_refs)) != len(self.source_refs):
-            raise ValueError("Duplicate sources")
-        return self
-
-    def fact(self, now: datetime) -> FactInput:
-        return FactInput.model_validate(
-            {
-                **self.model_dump(exclude_none=True),
-                "valid_from": self.valid_from or now,
-                "origin": "user_explicit",
-                "status": "confirmed",
-            }
-        )
-
-
-class MemoryRevision(MemoryValue):
-    replacement: MemoryCreate
-    reason: Annotated[str, Field(strict=True, max_length=500)] | None = None
-
-    @field_validator("reason", mode="before")
-    @classmethod
-    def nonnull_reason(cls, value: object) -> object:
-        if value is None:
-            raise ValueError("A supplied reason cannot be null")
-        return value
-
-
-class MemoryView(FactInput):
-    id: ResourceId
-    tenant_id: ResourceId
-    version: Version
-    created_at: UtcTimestamp
-    updated_at: UtcTimestamp
-    recorded_at: UtcTimestamp
-    created_by: FirebaseUid
-    deletion_epoch: Annotated[int, Field(strict=True, ge=0)]
-    owner_user_id: FirebaseUid | None = Field(default=None, exclude_if=lambda v: v is None)
-    supersedes_fact_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
-    object_entity_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
-    value: Value | None = Field(default=None, exclude_if=lambda v: v is None)
-    valid_to: UtcTimestamp | None = Field(default=None, exclude_if=lambda v: v is None)
-
-
-class MemoryPage(MemoryValue):
-    items: Annotated[list[MemoryView], Field(max_length=100)]
-    next_cursor: Annotated[str, Field(max_length=2048)] | None
 
 
 def policy_call[T](work: Callable[[], T]) -> T:
@@ -257,6 +195,34 @@ class Memories:
 
         return policy_call(run)
 
+    def search(
+        self,
+        identity: EntityIdentity,
+        tenant: ResourceId,
+        body: SearchInput,
+        key: str | None,
+        session: ResourceId | None = None,
+    ) -> MemoryPage:
+        if key is None or not 16 <= len(key) <= 128:
+            raise APIError(ErrorCode.INVALID_REQUEST)
+
+        def read(tx: Transaction) -> tuple[MemoryPage, FactTransaction, tuple[Fact, ...]]:
+            access = self._open(tx, identity, tenant, session)
+            found = retrieve(access, access.entities(), body)
+            logging.getLogger("brainoid_memory").info("memory_search %s", found.trace.model_dump())
+            return (
+                MemoryPage(items=[self._view(r) for r in found.records], next_cursor=None),
+                access,
+                found.records,
+            )
+
+        def run() -> MemoryPage:
+            page, access, records = self.store.run(read)
+            access.finish_records(records)
+            return page
+
+        return policy_call(run)
+
     def _mutate(
         self,
         identity: EntityIdentity,
@@ -269,81 +235,18 @@ class Memories:
         expected: Version | None = None,
         reason: str | None = None,
     ) -> MemoryView:
-        memory = ResourceId(str(uuid4()))
-        access: FactTransaction | None = None
-        epoch = 0
-
-        def authorize(tx: Transaction, replay: MutationResult | None) -> AuthorizedScope:
-            nonlocal access, epoch
-            access = self._open(tx, identity, tenant, session)
-            if (
-                access.principal.user_id is None
-                or "memory.write" not in access.principal.context.actor.allowed_scopes
-            ):
-                raise PolicyDenied(hidden=False)
-            # A revision receipt identifies the NEW record; always check both sides.
-            old = None if predecessor is None else access.get(predecessor, write=True)
-            epoch = 0 if old is None else old.deletion_epoch
-            record = old
-            if replay is not None:
-                if replay.resource_id is None:
-                    raise PolicyDenied()
-                record = access.get(replay.resource_id, write=True)
-                if record.supersedes_fact_id != predecessor:
-                    raise PolicyDenied()
-                if record.deletion_epoch != 0:
-                    raise PolicyDenied(hidden=False)
-            actual = Scope(visibility=body.visibility, display_policy=body.display_policy)
-            if record is not None:
-                actual = Scope(visibility=record.visibility, display_policy=record.display_policy)
-            return self._scope(tx, access, actual, stamp=epoch)
-
-        def mutate(tx: Transaction, current: AuthorizedScope) -> MutationResult:
-            assert access is not None
-            # A missing valid_from defaults to the committing attempt's server time.
-            # Request validation already checks supplied intervals; validate the
-            # implicit start too, without turning invalid business input into a 500.
-            recorded = self.now()
-            if body.valid_from is None and body.valid_to is not None and body.valid_to <= recorded:
-                raise APIError(ErrorCode.INVALID_REQUEST)
-            change = access.prepare(
-                memory,
-                body.fact(recorded),
-                predecessor=predecessor,
-                expected_version=expected,
-                expected_deletion_epoch=epoch,
+        return policy_call(
+            lambda: self._view(
+                MemoryMutations(self.store, self.jobs, now=self.now).mutate(
+                    lambda tx: self._open(tx, identity, tenant, session),
+                    body,
+                    key,
+                    predecessor=predecessor,
+                    expected=expected,
+                    reason=reason,
+                )
             )
-            self.jobs.add_created_memory(
-                tx,
-                grant=change.grant,
-                source=change.document,
-                before_write=access.finish,
-            )
-            access.save(change, source_already_created=True)
-            access.finish()
-            return MutationResult(
-                status_code=201 if predecessor is None else 200, resource_id=memory, version=1
-            )
-
-        def run() -> MemoryView:
-            result = self.idempotency.execute(
-                operation="memories.create"
-                if predecessor is None
-                else f"memories.revise:{predecessor}",
-                key=key,
-                body={
-                    "replacement": body.model_dump(mode="json", exclude_none=True),
-                    "version": expected,
-                    "reason": reason,
-                },
-                authorize=authorize,
-                mutate=mutate,
-            )
-            assert access is not None and result.resource_id is not None
-            access.finish()
-            return self.get(identity, tenant, result.resource_id, session)
-
-        return policy_call(run)
+        )
 
     def create(
         self,

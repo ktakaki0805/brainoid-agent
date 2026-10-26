@@ -1,15 +1,23 @@
 """Bound the request covered by a durable token reservation; preserve provider events."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 
 from brainoid_agent_core.ports import CallControl, ModelProvider
 from brainoid_agent_core.types import Completed, Failed, ModelEvent, ModelRequest, Usage
+from brainoid_agent_core.types.common import Stopped
 from brainoid_usage import Amounts
 
 
 class MeteredModel:
-    def __init__(self, provider: ModelProvider, input_limit: int) -> None:
+    def __init__(
+        self,
+        provider: ModelProvider,
+        input_limit: int,
+        *,
+        before_start: Callable[[], Stopped | None] = lambda: None,
+    ) -> None:
         self.provider, self.input_limit = provider, input_limit
+        self.before_start = before_start
         self.started = False
         self.completed = False
         self.observed = Amounts()
@@ -21,6 +29,9 @@ class MeteredModel:
         # declarations and continuation. Billing/provider tokenizer is not inferred.
         if len(request.model_dump_json().encode()) > self.input_limit:
             yield Failed(code="rate_limited")
+            return
+        if stopped := self.before_start():
+            yield stopped
             return
         self.started = True
         stream = self.provider.stream(request, control=control)

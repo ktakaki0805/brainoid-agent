@@ -1,6 +1,6 @@
 # 記憶の保存モデルとrepository
 
-BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` を提供する。FR-006/T-009の保存境界であり、EntityのHTTP・候補検索・provider登録は[BA-MEM-02](entities-api.md)で接続した。FactのHTTP・訂正は[BA-MEM-03](memories-api.md)で接続した。toolルート、検索、embedding処理、forgetは後続チケットで接続する。既存のagent coreのMemory型はポート用の値として維持し、この変更で実storeへ接続しない。
+BA-MEM-01は `brainoid_memory` にEntity/Factの保存型と `MemoryRepository` を提供する。FR-006/T-009の保存境界であり、EntityのHTTP・候補検索・provider登録は[BA-MEM-02](entities-api.md)で接続した。FactのHTTP・訂正は[BA-MEM-03](memories-api.md)で接続した。[BA-MEM-04の検索・Tool・会話接続](memory-retrieval.md)は同じ保存境界を使う。embedding処理とforgetは後続チケットで接続する。
 
 ## 1. 保存値と更新
 
