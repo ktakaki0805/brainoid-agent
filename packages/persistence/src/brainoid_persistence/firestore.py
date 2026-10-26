@@ -21,20 +21,36 @@ class PersistenceUnavailable(Exception):
         super().__init__("persistence_unavailable")
 
 
+class _AbortedBeforeCommit(Exception):
+    """A transactional SDK read aborted before any buffered writes were submitted."""
+
+
+def _read[T](work: Callable[[], T]) -> T:
+    try:
+        return work()
+    except Aborted:
+        # The pinned SDK retries commit Aborted only. Distinguish a read abort
+        # at the SDK boundary from arbitrary callback/business exceptions.
+        raise _AbortedBeforeCommit() from None
+
+
 class _Transaction:
     def __init__(self, client: Client, transaction: SDKTransaction) -> None:
         self._client = client
         self._transaction = transaction
 
     def get(self, path: str) -> Document | None:
-        snapshot = self._client.document(path).get(transaction=self._transaction)
-        return snapshot.to_dict()
+        return _read(
+            lambda: self._client.document(path).get(transaction=self._transaction).to_dict()
+        )
 
     def collection(self, path: str) -> list[tuple[str, Document]]:
-        return [
-            (snapshot.reference.path, snapshot.to_dict() or {})
-            for snapshot in self._client.collection(path).stream(transaction=self._transaction)
-        ]
+        return _read(
+            lambda: [
+                (snapshot.reference.path, snapshot.to_dict() or {})
+                for snapshot in self._client.collection(path).stream(transaction=self._transaction)
+            ]
+        )
 
     def query(self, path: str, filters: dict[str, str]) -> list[tuple[str, Document]]:
         query = self._client.collection(path).where(
@@ -42,17 +58,21 @@ class _Transaction:
         )
         for field, value in list(filters.items())[1:]:
             query = query.where(filter=FieldFilter(field, "==", value))
-        return [
-            (item.reference.path, item.to_dict() or {})
-            for item in query.stream(transaction=self._transaction)
-        ]
+        return _read(
+            lambda: [
+                (item.reference.path, item.to_dict() or {})
+                for item in query.stream(transaction=self._transaction)
+            ]
+        )
 
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         query = self._client.collection(collection).where(filter=FieldFilter(field, "==", value))
-        return [
-            snapshot.to_dict() or {}
-            for snapshot in query.limit(2).stream(transaction=self._transaction)
-        ]
+        return _read(
+            lambda: [
+                snapshot.to_dict() or {}
+                for snapshot in query.limit(2).stream(transaction=self._transaction)
+            ]
+        )
 
     def create(self, path: str, document: Document) -> None:
         self._transaction.create(self._client.document(path), document)
@@ -61,10 +81,12 @@ class _Transaction:
         query = self._client.collection_group("memberships").where(
             filter=FieldFilter("user_id", "==", user_id)
         )
-        return [
-            (snapshot.reference.path, snapshot.to_dict() or {})
-            for snapshot in query.stream(transaction=self._transaction)
-        ]
+        return _read(
+            lambda: [
+                (snapshot.reference.path, snapshot.to_dict() or {})
+                for snapshot in query.stream(transaction=self._transaction)
+            ]
+        )
 
     def set(self, path: str, document: Document) -> None:
         self._transaction.set(self._client.document(path), document)
@@ -97,11 +119,27 @@ class FirestoreTransactions:
             raise PersistenceUnavailable() from None
 
     def run[T](self, work: Callable[[Transaction], T]) -> T:
+        attempts = 0
+
         def invoke(transaction: SDKTransaction) -> T:
+            nonlocal attempts
+            attempts += 1
             return work(_Transaction(self._client, transaction))
 
         try:
-            return cast(T, transactional(invoke)(self._client.transaction(max_attempts=5)))
+            while attempts < 5:
+                try:
+                    # Count callbacks including the SDK's own commit retries: a
+                    # read/commit conflict mixture never multiplies the budget.
+                    return cast(
+                        T,
+                        transactional(invoke)(self._client.transaction(max_attempts=5 - attempts)),
+                    )
+                except _AbortedBeforeCommit:
+                    # The SDK has rolled back this known non-commit. All policy
+                    # and source reads run again inside a fresh transaction.
+                    continue
+            raise PersistenceUnavailable()
         except (GoogleAPICallError, RetryError):
             # A failed commit response may conceal a successful commit. The caller must
             # retry the same key; the durable record, not this exception, proves success.

@@ -1733,7 +1733,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1767,7 +1767,7 @@ paths:
       - deviceBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1801,7 +1801,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1836,7 +1836,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -2921,7 +2921,7 @@ paths:
     post:
       operationId: createTenantOperation
       summary: forget/delete/export/退出を受け付ける
-      description: forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。exportは明示local構成で提供。現在読める会話・メッセージ・Entity・記憶・ノートをJSON入りZIPにまとめる。my_dataは本人privateと本人の共有寄稿（共有会話の親metadataを含む）、visible_tenant_dataは現在読める共有範囲も含む。delete_resourceは未提供。
+      description: forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。exportは明示local構成で提供。現在読める会話・メッセージ・Entity・記憶・ノートをJSON入りZIPにまとめる。my_dataは本人privateと本人の共有寄稿（共有会話の親metadataを含む）、visible_tenant_dataは現在読める共有範囲も含む。delete_resourceはtarget_type=noteを提供。現在の作成者/admin編集権と期待版を検査し、独立削除台帳・tombstone・purge job保存後に202を返す。include_derived_memories=falseでは派生Factの物理消去を省くが、削除sourceのモデル再利用は禁止する。他のtarget_typeは未提供。
       security:
       - userBearer: []
       responses:

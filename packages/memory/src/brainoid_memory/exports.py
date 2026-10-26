@@ -394,7 +394,7 @@ class Exports:
             return fingerprint([key, "export-erased-v1"])
         token = "" if progress is None else progress["cursor"]
         boundary = None
-        if intent.kind == "forget_memory":
+        if intent.kind in ("forget_memory", "delete_resource"):
             accepted = self.store.run(
                 lambda tx: tx.get(operation_path(intent.tenant_id, intent.operation_id))
             )
@@ -416,7 +416,7 @@ class Exports:
                     continue
                 original = Job.model_validate(registry["job"])
                 selected = (
-                    intent.kind == "forget_memory"
+                    intent.kind in ("forget_memory", "delete_resource")
                     and registry["tenant_id"] == intent.tenant_id
                     and boundary is not None
                     and registry["purge_epoch"] < boundary

@@ -242,6 +242,9 @@ class MemoryRuntime:
         self.vector_search = vector_search
         self.handler = handler
         self.delegate = handler.tool_authorizer
+        from brainoid_worker.notes import NotesRuntime
+
+        self.notes = NotesRuntime(self)
 
     def stopped(self, control: CallControl) -> bool:
         return control.cancellation.cancelled or (
@@ -444,6 +447,8 @@ class MemoryRuntime:
         )
 
     def check(self, tx: Transaction, request: ToolExecution, arguments: Arguments) -> Authority:
+        if request.call.name.startswith("notes.") and self.notes.owns(arguments):
+            return self.notes.check(tx, request, arguments)
         if not request.call.name.startswith("memory."):
             if self.delegate is None:
                 raise ToolRejected("permission_denied")
@@ -778,6 +783,8 @@ class MemoryRuntime:
         *,
         consumer: ResultConsumer,
     ) -> ResultUse:
+        if request.call.name.startswith("notes.") and self.notes.owns(arguments):
+            return self.notes.check_result(tx, request, arguments, result, consumer=consumer)
         if not request.call.name.startswith("memory."):
             if not isinstance(self.delegate, ResultAuthorizer):
                 raise ToolRejected("permission_denied")

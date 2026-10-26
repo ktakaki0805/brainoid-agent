@@ -38,6 +38,7 @@ from brainoid_runs.state import RunState, conversation_path, run_path
 from brainoid_tools import Executor, Registry, ResultBinding
 from brainoid_tools.executor import Authorizer as ToolAuthorizer
 from brainoid_tools.memory import register_memory
+from brainoid_tools.notes import register_notes
 from brainoid_usage import Amounts, QuotaExceeded, Settlement, UsageLedger
 from pydantic import Field, JsonValue
 
@@ -237,6 +238,7 @@ class RunTurn:
         )
         self.tool_registry = tool_registry.copy() if tool_registry is not None else Registry()
         register_memory(self.tool_registry, self.memory)
+        register_notes(self.tool_registry, self.memory.notes)
         self.tool_authorizer = tool_authorizer or self.memory
         self.execution_authorizer = self.memory
         self.result_reuse = ResultReuse(self.tool_registry, self.execution_authorizer)
@@ -252,6 +254,10 @@ class RunTurn:
     def _load_summary(self, tx: Transaction, job: Job, before: int) -> ConversationSummary | None:
         # RunState has already authorized this canonical parent in the same TX.
         # No summary means no summary-specific caller/lease or dependency read set.
+        run = tx.get(run_path(job.tenant_id, job.operation_id))
+        if run is not None and run.get("note_update") is not None:
+            self.memory.notes.terminal_update(tx, job, run)
+            return None
         if not tx.collection(conversation_path(job.tenant_id, job.grant.ref.id) + "/summaries"):
             return None
         access = self.memory.open(tx, job)
@@ -276,6 +282,8 @@ class RunTurn:
     def _check_results(
         self, tx: Transaction, job: Job, run: Document, history: list[Document]
     ) -> str:
+        if run.get("note_update") is not None:
+            return self.memory.notes.terminal_update(tx, job, run)
         result = self.result_reuse.check(tx, job, run, history)
         self.memory.check_sources(tx, job, run, history)
         return result
@@ -334,7 +342,7 @@ class RunTurn:
             saved = tx.get(f"tenants/{job.tenant_id}/tool_executions/{tool_id}")
             if (
                 saved is None
-                or saved.get("name") != "memory.forget"
+                or saved.get("name") not in ("memory.forget", "notes.delete")
                 or saved.get("effect_id") != identity
                 or saved["authority"]["run_id"] != job.operation_id
             ):
@@ -345,9 +353,25 @@ class RunTurn:
             )
             return Outcome(
                 status="completed",
-                text=run.get("streamed_text", "")
-                + "忘却を受け付けました。対象記憶と元出典のモデル再利用を停止し、消去処理を待っています。別の出典や新しい発言から同じ内容を知る可能性は残ります。",
+                text=(
+                    "ノートの削除を受け付けました。消去処理を待っています。"
+                    if saved.get("name") == "notes.delete"
+                    else run.get("streamed_text", "")
+                    + "忘却を受け付けました。対象記憶と元出典のモデル再利用を停止し、消去処理を待っています。別の出典や新しい発言から同じ内容を知る可能性は残ります。"
+                ),
             ).model_dump(mode="json")
+
+        return self.jobs.store.run(read)
+
+    def _note_update_outcome(self, job: Job) -> JsonValue | None:
+        def read(tx: Transaction) -> JsonValue | None:
+            run, _, _, _ = self.state.check(tx, job)
+            if run.get("note_update") is None:
+                return None
+            self.memory.notes.terminal_update(tx, job, run)
+            return Outcome(status="completed", text=self.memory.notes.UPDATE_ACK).model_dump(
+                mode="json"
+            )
 
         return self.jobs.store.run(read)
 
@@ -355,6 +379,9 @@ class RunTurn:
         job, request, run = self._start(execution)
         while True:
             execution.check(renew=True)
+            if run.get("note_update") is not None:
+                if (updated := self._note_update_outcome(job)) is not None:
+                    return updated
             if run.get("forget_operation_id") is not None:
                 if (forgotten := self._forget_outcome(job)) is not None:
                     return forgotten
@@ -449,7 +476,10 @@ class RunTurn:
                             raise cancellation.error
 
                 result = asyncio.run(execute_tool())
-                if tool_request.call.name == "memory.forget":
+                if tool_request.call.name == "notes.update":
+                    if (updated := self._note_update_outcome(job)) is not None:
+                        return updated
+                if tool_request.call.name in ("memory.forget", "notes.delete"):
                     if (forgotten := self._forget_outcome(job)) is not None:
                         return forgotten
                 if tool_authority.unavailable is not None:
@@ -680,6 +710,10 @@ class RunTurn:
             run, parent, _, _ = self.state.check(tx, job)
         except PolicyUnavailable:
             raise AuthorizationUnavailable() from None
+        if run.get("note_update") is not None and outcome != Outcome(
+            status="completed", text=self.memory.notes.UPDATE_ACK
+        ):
+            raise PolicyDenied()
         message_id = ResourceId(str(uuid5(UUID(str(job.operation_id)), "final-message")))
         message_path = (
             conversation_path(job.tenant_id, job.grant.ref.id) + "/messages/" + message_id

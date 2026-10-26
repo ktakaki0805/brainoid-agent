@@ -16,6 +16,7 @@ from brainoid_api.services.private_sessions import (
 from brainoid_contracts import FirebaseUid, ResourceId
 from brainoid_policy.models import DeviceSubject, ResourceKind, ResourceRef
 from brainoid_policy.scopes import PolicyDenied, ResourceGrant
+from google.api_core.exceptions import Aborted
 from test_device_pairing_integration import KEY, DevicePairingIntegrationFixture
 
 
@@ -201,6 +202,36 @@ class PrivateSessionsIntegrationTests(DevicePairingIntegrationFixture):
         self.assertTrue(all(r is None or isinstance(r, PrivateSession) for r in results), results)
         self.assertEqual(self.start().status, "expired")
         self.assertEqual(self.snapshot(), replacement)
+
+    def test_read_abort_restarts_activity_without_extending_its_replay(self) -> None:
+        session = self.start()
+        grant = self.grant(session)
+        activity = ResourceId(str(uuid4()))
+        self.now += timedelta(seconds=50)
+        read = self.db._firestore_api.batch_get_documents
+        attempts = 0
+
+        def abort_once(*args: Any, **kwargs: Any) -> Any:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise Aborted("synthetic pre-commit read conflict")  # type: ignore[no-untyped-call]
+            return read(*args, **kwargs)
+
+        with patch.object(self.db._firestore_api, "batch_get_documents", abort_once):
+            updated = self.activity(session, grant, activity)
+        self.assertGreater(attempts, 1)
+        self.assertEqual(updated.idle_expires_at, session.created_at + timedelta(seconds=110))
+        self.now += timedelta(seconds=10)
+        self.assertEqual(self.activity(session, grant, activity), updated)
+        self.assertEqual(
+            len(
+                list(
+                    self.db.collection(f"tenants/{self.tenant}/private_session_activities").stream()
+                )
+            ),
+            1,
+        )
 
     def test_membership_regrant_and_device_generation_reject_old_session(self) -> None:
         session = self.start()

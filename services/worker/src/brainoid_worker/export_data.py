@@ -90,7 +90,8 @@ class ExportData:
                             # cannot be recaptured while it is awaiting erasure.
                             if (
                                 operation is not None
-                                and operation.get("operation", {}).get("kind") == "forget_memory"
+                                and operation.get("operation", {}).get("kind")
+                                in ("forget_memory", "delete_resource")
                                 and operation["operation"]["status"] != "succeeded"
                             ):
                                 raise RetryableError()

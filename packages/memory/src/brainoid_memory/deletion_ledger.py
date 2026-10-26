@@ -45,9 +45,10 @@ class LifecycleScope(MemoryValue):
 
 class DeletionIntent(MemoryValue):
     schema_version: Literal[1] = 1
-    kind: Literal["forget_memory", "leave_tenant", "delete_tenant", "delete_account"] = Field(
-        default="forget_memory", exclude_if=lambda value: value == "forget_memory"
-    )
+    kind: Literal[
+        "forget_memory", "leave_tenant", "delete_tenant", "delete_account", "delete_resource"
+    ] = Field(default="forget_memory", exclude_if=lambda value: value == "forget_memory")
+    include_derived_memories: bool = Field(default=True, exclude_if=lambda value: value is True)
     scopes: tuple[LifecycleScope, ...] = Field(default=(), exclude_if=lambda value: not value)
     operation_id: ResourceId
     tenant_id: ResourceId
@@ -58,6 +59,17 @@ class DeletionIntent(MemoryValue):
 
     @model_validator(mode="after")
     def bindings(self) -> Self:
+        if self.kind == "delete_resource":
+            if (
+                self.scopes
+                or len(self.targets) != 1
+                or self.targets[0].kind != "note"
+                or self.source_policy != "delete_source"
+            ):
+                raise ValueError("Note deletion requires one exact note target")
+            return self
+        if not self.include_derived_memories:
+            raise ValueError("Derived option only applies to resource deletion")
         if self.kind != "forget_memory":
             if self.targets or not self.scopes or self.source_policy != "delete_source":
                 raise ValueError("Lifecycle deletion has exact scopes, not source targets")

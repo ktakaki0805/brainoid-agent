@@ -15,6 +15,7 @@ CONTROL = frozenset(
         "deletion_tombstones",
         "membership_deletion_fences",
         "memory_forget_reservations",
+        "note_delete_reservations",
         "source_forget_reservations",
         "memory_forget_effects",
         "purge_barriers",
@@ -42,7 +43,7 @@ class ProfileParentUnknown(LegacyProvenanceMissing):
 
 
 class LifecycleHandlers(ForgetHandlers):
-    def root(self, name: str) -> bool:
+    def root(self, name: str, intent: DeletionIntent | None = None) -> bool:
         return True
 
     @staticmethod
@@ -149,7 +150,7 @@ class LifecycleHandlers(ForgetHandlers):
             return isinstance(run, str) and self.bound_selection(
                 tx, f"tenants/{tenant}/runs/{run}", intent
             )
-        if root == "memory_effects":
+        if root in {"memory_effects", "note_effects"}:
             return any(
                 isinstance(record, dict)
                 and record.get("visibility") == "private"

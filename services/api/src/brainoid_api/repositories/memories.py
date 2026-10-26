@@ -18,7 +18,7 @@ from brainoid_memory.dto import MemoryCreate as MemoryCreate
 from brainoid_memory.dto import MemoryPage as MemoryPage
 from brainoid_memory.dto import MemoryRevision as MemoryRevision
 from brainoid_memory.dto import MemoryView as MemoryView
-from brainoid_memory.forget import ForgetCreate, ForgetMemories, Operation
+from brainoid_memory.forget import DeleteNote, ForgetCreate, ForgetMemories, Operation
 from brainoid_memory.models import Fact
 from brainoid_memory.mutations import MemoryMutations
 from brainoid_memory.repository import FactTransaction, VersionConflict
@@ -304,7 +304,7 @@ class Memories:
         self,
         identity: EntityIdentity,
         tenant: ResourceId,
-        body: ForgetCreate,
+        body: ForgetCreate | DeleteNote,
         key: str | None,
     ) -> Operation:
         return policy_call(

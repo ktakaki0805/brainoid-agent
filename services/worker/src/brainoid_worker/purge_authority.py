@@ -71,7 +71,7 @@ class PurgeJobs(Jobs):
         if job.kind == LIFECYCLE_KIND:
             if (
                 intent is None
-                or intent.kind == "forget_memory"
+                or intent.kind in ("forget_memory", "delete_resource")
                 or intent.tenant_id != job.tenant_id
                 or saved is None
                 or saved.get("intent") != intent.model_dump(mode="json")
@@ -111,14 +111,14 @@ class PurgeJobs(Jobs):
         if (
             intent is None
             or intent.tenant_id != job.tenant_id
-            or intent.kind != "forget_memory"
+            or intent.kind not in ("forget_memory", "delete_resource")
             or saved is None
             or saved.get("intent") != intent.model_dump(mode="json")
             or saved.get("tenant_id") != job.tenant_id
             or saved.get("request_hash") != intent.request_hash
             or saved.get("operation", {}).get("operation_id") != intent.operation_id
-            or saved.get("operation", {}).get("kind") != "forget_memory"
-            or job.grant.ref.kind != "facts"
+            or saved.get("operation", {}).get("kind") != intent.kind
+            or job.grant.ref.kind != ("notes" if intent.kind == "delete_resource" else "facts")
             or job.grant.ref.id != intent.targets[0].resource_id
         ):
             raise ValueError("Unaccepted deletion")

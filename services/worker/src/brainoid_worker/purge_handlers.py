@@ -18,7 +18,21 @@ from brainoid_memory.deletion_ledger import DeletionIntent, DeletionTarget
 from brainoid_memory.forget import operation_path, target_path
 from pydantic import TypeAdapter
 
-from brainoid_worker.memory_erasure import ErasureDependencies, capture, receipt_records, retained
+from brainoid_worker.memory_erasure import (
+    ErasureDependencies,
+    NoteDependency,
+    capture,
+    receipt_notes,
+    receipt_records,
+    retained,
+)
+from brainoid_worker.note_erasure import (
+    fact_markers,
+    fact_selected,
+    note_copy,
+    note_targets,
+    sourced,
+)
 
 ROOTS = frozenset(
     {"conversations", "runs", "jobs", "tool_executions", "memory_effects", "run_proposals"}
@@ -34,6 +48,7 @@ class Decision:
     history: Document | None = None
     dependency_run: Document | None = None
     selected: bool = False
+    deletion_markers: tuple[tuple[str, Document], ...] = ()
 
 
 class LegacyProvenanceMissing(Exception):
@@ -76,22 +91,52 @@ class ForgetHandlers:
             lambda tx, identity: None
         )
 
-    def root(self, name: str) -> bool:
-        return name in ROOTS or name in self.registered or VECTOR.fullmatch(name) is not None
+    def root(self, name: str, intent: DeletionIntent | None = None) -> bool:
+        return (
+            name in ROOTS
+            or (
+                intent is not None
+                and (
+                    (intent.kind == "delete_resource" and name == "facts")
+                    or (
+                        bool(note_targets(intent))
+                        and name == "note_effects"
+                        and intent.source_policy == "delete_source"
+                    )
+                )
+            )
+            or name in self.registered
+            or VECTOR.fullmatch(name) is not None
+        )
 
     @staticmethod
-    def _records(document: Document, intent: DeletionIntent) -> bool:
+    def _records(document: Document, intent: DeletionIntent, tx: Transaction | None = None) -> bool:
         records = document.get("memory_records", [])
         if not isinstance(records, list):
             return False
         return any(
             isinstance(r, dict)
-            and r.get("memory_id") == intent.targets[0].resource_id
             and r.get("tenant_id") == intent.tenant_id
+            and (
+                sourced(
+                    {
+                        "tenant_id": intent.tenant_id,
+                        "source_refs": r.get("content", {}).get("source_refs", []),
+                    },
+                    intent,
+                )
+                or (
+                    tx is not None
+                    and isinstance(r.get("memory_id"), str)
+                    and fact_selected(tx, r["memory_id"], intent)
+                )
+            )
             for r in records
         )
 
-    def _bindings(self, document: Document, intent: DeletionIntent) -> bool:
+    def _bindings(
+        self, document: Document, intent: DeletionIntent, tx: Transaction | None = None
+    ) -> bool:
         results = [document.get("result", {})]
         results.extend(
             b.get("result", {}) for b in document.get("tool_bindings", []) if isinstance(b, dict)
@@ -99,7 +144,15 @@ class ForgetHandlers:
         return any(
             isinstance(r, dict)
             and isinstance(r.get("result"), dict)
-            and self._records({"memory_records": r["result"].get("memories", [])}, intent)
+            and (
+                self._records({"memory_records": r["result"].get("memories", [])}, intent, tx)
+                or (
+                    any(
+                        isinstance(n, dict) and note_copy(n, intent)
+                        for n in r["result"].get("notes", [])
+                    )
+                )
+            )
             for r in results
         )
 
@@ -142,9 +195,18 @@ class ForgetHandlers:
         evidence = retained(run)
         if (
             run.get("purged_by") == intent.operation_id
-            or (evidence is not None and evidence.matches(intent))
-            or self._records(run, intent)
-            or self._bindings(run, intent)
+            or (
+                evidence is not None
+                and (
+                    evidence.matches(intent)
+                    or (
+                        intent.kind == "delete_resource"
+                        and any(fact_selected(tx, f.memory_id, intent) for f in evidence.facts)
+                    )
+                )
+            )
+            or self._records(run, intent, tx)
+            or self._bindings(run, intent, tx)
         ):
             return True
         if run.get("forget_operation_id") == intent.operation_id:
@@ -158,7 +220,7 @@ class ForgetHandlers:
                 and proof.get("request", {}).get("target_id") == intent.targets[0].resource_id
             ):
                 return True
-        if (run.get("forget_operation_id") or run.get("purged_by")) and (
+        if (run.get("forget_operation_id") or run.get("purged_by") or run.get("note_update")) and (
             evidence is None or not evidence.complete
         ):
             recovered = self._legacy_dependencies(tx, run)
@@ -230,6 +292,7 @@ class ForgetHandlers:
     @staticmethod
     def _legacy_dependencies(tx: Transaction, run: Document) -> ErasureDependencies:
         records: list[MemoryRecord] = []
+        notes: list[NoteDependency] = []
         identities = run.get("tool_call_ids", [])
         # RunTurn permits at most eight steps of eight tool calls. Never scan a
         # collection to reconstruct a missing input or follow arbitrary model IDs.
@@ -239,7 +302,8 @@ class ForgetHandlers:
             saved = tx.get(f"tenants/{run['tenant_id']}/tool_executions/{identity}")
             if saved is not None:
                 records.extend(receipt_records(saved, run, identity))
-        return capture(run, records=records)
+                notes.extend(receipt_notes(saved, run, identity))
+        return capture(run, records=records, note_dependencies=notes)
 
     def decide(
         self,
@@ -252,7 +316,9 @@ class ForgetHandlers:
         parts = path.split("/")
         root = parts[2]
         if VECTOR.fullmatch(root) and len(parts) == 4:
-            selected = parts[3] == intent.targets[0].resource_id
+            selected = fact_selected(tx, parts[3], intent) and (
+                intent.kind != "delete_resource" or intent.include_derived_memories
+            )
             if (
                 selected
                 and doc is not None
@@ -261,12 +327,41 @@ class ForgetHandlers:
                 raise ValueError("Invalid vector binding")
             # An exact accepted Fact ID binds this ancestor even without a body.
             return Decision(erase=selected and doc is not None, children=selected)
+        if (
+            doc is None
+            and root == "facts"
+            and len(parts) == 4
+            and intent.kind == "delete_resource"
+            and intent.include_derived_memories
+            and fact_selected(tx, parts[3], intent)
+        ):
+            return Decision(children=True, selected=True)
         if doc is None:
             # Ghost ancestors can contain unproven children. The walker traverses
             # these without erasure authority and refuses completion on a live child.
-            return Decision(children=root in ROOTS or root in self.registered)
+            return Decision(
+                children=root in ROOTS
+                or root in {"facts", "note_effects"}
+                or root in self.registered
+            )
         if doc.get("tenant_id", intent.tenant_id) != intent.tenant_id:
             raise ValueError("Invalid canonical tenant")
+        if root == "facts" and len(parts) == 4:
+            selected = (
+                intent.kind == "delete_resource"
+                and intent.include_derived_memories
+                and sourced(doc, intent)
+            )
+            return Decision(
+                erase=selected,
+                children=selected,
+                deletion_markers=fact_markers(tx, parts[3], doc, intent) if selected else (),
+            )
+        if root == "note_effects" and len(parts) == 4:
+            selected = intent.source_policy == "delete_source" and note_copy(
+                doc.get("record", {}), intent
+            )
+            return Decision(erase=selected, children=selected)
         if root in self.registered and len(parts) == 4:
             selected = self.registered[root].select(doc, intent)
             return Decision(erase=selected, children=selected)
@@ -282,7 +377,7 @@ class ForgetHandlers:
                 if doc.get("role") == "user":
                     return Decision()
                 run = tx.get(f"tenants/{intent.tenant_id}/runs/{doc.get('run_id')}")
-                selected = self._records(doc, intent) or self._bindings(doc, intent)
+                selected = self._records(doc, intent, tx) or self._bindings(doc, intent, tx)
                 selected |= run is not None and self._run(tx, run, intent, cutoffs)
                 return Decision(erase=selected, children=selected)
         if root == "runs" and len(parts) == 4:
@@ -312,7 +407,8 @@ class ForgetHandlers:
             }
             evidence = (
                 self._legacy_dependencies(tx, doc)
-                if doc.get("forget_operation_id") and "purge_dependencies" not in doc
+                if (doc.get("forget_operation_id") or doc.get("note_update"))
+                and "purge_dependencies" not in doc
                 else capture(doc)
             )
             keep["purge_dependencies"] = evidence.model_dump(mode="json")
@@ -343,7 +439,9 @@ class ForgetHandlers:
                 return Decision()
             grant = doc.get("grant", {}).get("resource", {}).get("ref", {})
             selected = (
-                grant.get("kind") == "facts" and grant.get("id") == intent.targets[0].resource_id
+                grant.get("kind") == "facts"
+                and isinstance(grant.get("id"), str)
+                and fact_selected(tx, grant["id"], intent)
             )
             selected |= self._sources(doc.get("attributes", {}).get("sources", {}), intent)
             if doc.get("kind") == "run_turn":
@@ -366,7 +464,8 @@ class ForgetHandlers:
             selected = any(
                 isinstance(record, dict)
                 and record.get("tenant_id") == intent.tenant_id
-                and record.get("id") == intent.targets[0].resource_id
+                and isinstance(record.get("id"), str)
+                and fact_selected(tx, record["id"], intent)
                 for record in (doc.get("record"), doc.get("previous"))
             )
             return Decision(erase=selected, children=selected)
@@ -377,14 +476,17 @@ class ForgetHandlers:
         if root == "tool_executions" and len(parts) == 4:
             run_id = doc.get("authority", {}).get("run_id")
             run = tx.get(f"tenants/{intent.tenant_id}/runs/{run_id}") if run_id else None
-            if self._bindings(doc, intent) or (
+            if self._bindings(doc, intent, tx) or (
                 run is not None and self._run(tx, run, intent, cutoffs)
             ):
                 updated = None
                 if run is not None:
                     records = receipt_records(doc, run, parts[3])
-                    if records:
-                        dependencies = capture(run, records=records).model_dump(mode="json")
+                    notes = receipt_notes(doc, run, parts[3])
+                    if records or notes:
+                        dependencies = capture(
+                            run, records=records, note_dependencies=notes
+                        ).model_dump(mode="json")
                         if dependencies != run.get("purge_dependencies"):
                             updated = {**run, "purge_dependencies": dependencies}
                 return Decision(erase=True, children=True, dependency_run=updated)
@@ -411,6 +513,12 @@ class ForgetHandlers:
         if target.kind == "fact":
             if doc.get("owner_user_id") != job.grant.owner_user_id:
                 raise ValueError("Original owner changed")
+        elif intent.kind == "delete_resource" and target.kind == "note":
+            if (
+                doc.get("created_by") != job.grant.resource.created_by
+                or doc.get("owner_user_id") != job.grant.owner_user_id
+            ):
+                raise ValueError("Original note ownership changed")
         elif doc.get("created_by") is not None:
             if doc["created_by"] != saved.get("requested_by"):
                 raise ValueError("Source author changed")

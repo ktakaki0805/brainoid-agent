@@ -63,3 +63,5 @@ forget受付時のtenant purge epochをsnapshotに束縛する。forgetは当該
 切戻しでは新規受付と生成を停止し、旧URLを拒否したまま、現在版reaperとpurge hookを全artifact消去まで維持する。先にregistryや鍵を消さない。鍵紛失・object領域障害は取得不可とし、保存成功を推測しない。storage revoke markerの掃除は全遅延producerを停止したことを証明できる将来の保持設計が必要になる。
 
 fake/HTTP試験は本人/tenant境界、owner/adminと他人private、ZIP投影、遅延I/O、期限、各stream境界、scope変更、物理purge接続、再起動後の回収を扱う。実Firestore試験は同時受付、commit応答喪失、生成中forget、manifest変更、tenant purgeと独立registryを扱う。検証コマンドは `mise run setup`、`mise run check`、`mise run test`、明示emulator設定で `mise run test-emulator`。実行結果の正本は[作業ログ](implementation-log.md)とする。
+
+BA-APP-01の[ノートproducer](notes.md)は既存note公開投影へ接続する。noteのdelete_resourceもpurge_epoch失効・生成待機・export消去hookの対象とする。

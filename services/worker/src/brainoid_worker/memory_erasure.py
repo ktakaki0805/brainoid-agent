@@ -13,11 +13,18 @@ from brainoid_tools import Authority
 from brainoid_tools.reuse import ResultBinding
 from pydantic import Field, ValidationError
 
+from brainoid_worker.note_erasure import note_targets
+
 
 class FactDependency(CoreValue):
     memory_id: ResourceId
     version: Version
     deletion_epoch: Annotated[int, Field(strict=True, ge=0)]
+
+
+class NoteDependency(CoreValue):
+    note_id: ResourceId
+    version: Version
 
 
 class ErasureDependencies(CoreValue):
@@ -27,9 +34,20 @@ class ErasureDependencies(CoreValue):
     # False for old runs whose already-cleared direct inputs cannot be recovered.
     complete: bool
     facts: tuple[FactDependency, ...]
+    notes: tuple[NoteDependency, ...] = Field(default=(), exclude_if=lambda value: not value)
 
     def matches(self, intent: DeletionIntent) -> bool:
+        if self.tenant_id != intent.tenant_id:
+            return False
+        if any(
+            n.note_id == target.resource_id and n.version <= target.version
+            for n in self.notes
+            for target in note_targets(intent)
+        ):
+            return True
         target = intent.targets[0]
+        if intent.kind == "delete_resource":
+            return False
         return self.tenant_id == intent.tenant_id and any(
             fact.memory_id == target.resource_id
             and fact.version <= target.version
@@ -54,10 +72,7 @@ def result_records(result: ToolResult) -> tuple[MemoryRecord, ...]:
     return tuple(MemoryRecord.model_validate(r) for r in values)
 
 
-def receipt_records(saved: Document, run: Document, identity: str) -> tuple[MemoryRecord, ...]:
-    """Only exact canonical memory tool results; never model response JSON/text."""
-    if saved.get("name") not in {"memory.search", "memory.remember", "memory.revise"}:
-        return ()
+def _receipt_result(saved: Document, run: Document, identity: str) -> ToolResult | None:
     authority = Authority.model_validate(saved["authority"])
     if (
         authority.context.tenant_id != run.get("tenant_id")
@@ -68,18 +83,53 @@ def receipt_records(saved: Document, run: Document, identity: str) -> tuple[Memo
     ):
         raise ValueError("Invalid erasure receipt binding")
     if saved.get("result") is None:
-        return ()
+        return None
     result = ToolResult.model_validate(saved["result"])
     if result.tool_call_id != identity or result.operation_id != saved["effect_id"]:
         raise ValueError("Invalid erasure result binding")
-    return result_records(result)
+    return result
+
+
+def receipt_records(saved: Document, run: Document, identity: str) -> tuple[MemoryRecord, ...]:
+    """Only exact canonical memory tool results; never model response JSON/text."""
+    if saved.get("name") not in {"memory.search", "memory.remember", "memory.revise"}:
+        return ()
+    result = _receipt_result(saved, run, identity)
+    return () if result is None else result_records(result)
+
+
+def note_records(result: ToolResult, tenant: str) -> tuple[NoteDependency, ...]:
+    raw = result.result.get("notes", [])
+    if not isinstance(raw, list):
+        raise ValueError("Invalid note inventory")
+    notes = []
+    for note in raw:
+        if not isinstance(note, dict) or note.get("tenant_id") != tenant:
+            raise ValueError("Invalid erasure note tenant")
+        notes.append(
+            NoteDependency.model_validate({"note_id": note["id"], "version": note["version"]})
+        )
+    return tuple(notes)
+
+
+def receipt_notes(saved: Document, run: Document, identity: str) -> tuple[NoteDependency, ...]:
+    if saved.get("name") not in {"notes.create", "notes.list", "notes.update"}:
+        return ()
+    result = _receipt_result(saved, run, identity)
+    return () if result is None else note_records(result, run["tenant_id"])
 
 
 def capture(
-    run: Document, *, complete: bool = False, records: Iterable[MemoryRecord] = ()
+    run: Document,
+    *,
+    complete: bool = False,
+    records: Iterable[MemoryRecord] = (),
+    note_dependencies: Iterable[NoteDependency] = (),
 ) -> ErasureDependencies:
     previous = retained(run)
     known = set(previous.facts if previous is not None else ())
+    notes = set(previous.notes if previous is not None else ())
+    notes.update(note_dependencies)
     values = list(records)
     for raw in run.get("memory_records", []):
         try:
@@ -96,11 +146,16 @@ def capture(
             or binding.result.tool_call_id != binding.request.tool_call_id
         ):
             raise ValueError("Invalid erasure tool binding")
+        if binding.request.call.name in {"notes.create", "notes.list", "notes.update"}:
+            notes.update(note_records(binding.result, run["tenant_id"]))
         if binding.request.call.name in {"memory.search", "memory.remember", "memory.revise"}:
             values.extend(result_records(binding.result))
     for record in values:
         if record.tenant_id != run["tenant_id"]:
             raise ValueError("Invalid erasure memory tenant")
+        for source in record.content.source_refs:
+            if source.kind == "note":
+                notes.add(NoteDependency(note_id=source.resource_id, version=source.version))
         known.add(
             FactDependency(
                 memory_id=record.memory_id,
@@ -113,4 +168,5 @@ def capture(
         run_id=run["run_id"],
         complete=complete or (previous is not None and previous.complete),
         facts=tuple(sorted(known, key=lambda f: (f.memory_id, f.version, f.deletion_epoch))),
+        notes=tuple(sorted(notes, key=lambda n: (n.note_id, n.version))),
     )

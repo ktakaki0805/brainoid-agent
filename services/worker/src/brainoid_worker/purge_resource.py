@@ -22,6 +22,7 @@ from brainoid_worker.lifecycle_handlers import (
     LifecycleHandlers,
     ProfileParentUnknown,
 )
+from brainoid_worker.note_erasure import fact_selected
 from brainoid_worker.purge_authority import KIND, PurgeJobs
 from brainoid_worker.purge_handlers import VECTOR, Decision, ForgetHandlers, LegacyProvenanceMissing
 
@@ -134,7 +135,7 @@ class PurgeResource:
         return intent
 
     def _stack(self, intent: DeletionIntent, saved: Document | None = None) -> list[Document]:
-        if intent.kind != "forget_memory":
+        if intent.kind not in ("forget_memory", "delete_resource"):
             scopes = [
                 frame(f"tenants/{s.tenant_id}") for s in intent.scopes if s.tenant_id is not None
             ]
@@ -160,9 +161,13 @@ class PurgeResource:
         if job is None:
             raise LeaseLost()
         intent, saved = self.jobs.accepted(tx, job)
-        if intent.kind != "forget_memory" and not isinstance(self.handlers, LifecycleHandlers):
+        if intent.kind not in ("forget_memory", "delete_resource") and not isinstance(
+            self.handlers, LifecycleHandlers
+        ):
             raise ValueError("Lifecycle handler composition required")
-        if intent.kind == "forget_memory" and isinstance(self.handlers, LifecycleHandlers):
+        if intent.kind in ("forget_memory", "delete_resource") and isinstance(
+            self.handlers, LifecycleHandlers
+        ):
             raise ValueError("Forget handler composition required")
         if intent.kind == "delete_account" and self.account_finalizer is None:
             raise ValueError("Account provider finalizer required")
@@ -204,7 +209,7 @@ class PurgeResource:
     ) -> bool:
         cutoffs = saved["purge"]["cutoffs"]
         path = item["path"]
-        if intent.kind != "forget_memory":
+        if intent.kind not in ("forget_memory", "delete_resource"):
             assert isinstance(self.handlers, LifecycleHandlers)
             return self.handlers.bound(tx, path, intent, item["force"])
         base = f"tenants/{intent.tenant_id}"
@@ -220,15 +225,19 @@ class PurgeResource:
                 self.handlers.original(tx, target, intent, job, saved)
                 return True
         parts = path.split("/")
-        if not self.handlers.root(parts[2]):
+        if not self.handlers.root(parts[2], intent):
             raise ValueError("Cursor escapes registered derived inventory")
-        if (
-            VECTOR.fullmatch(parts[2])
-            and len(parts) >= 4
-            and parts[3] == intent.targets[0].resource_id
-        ):
+        if VECTOR.fullmatch(parts[2]) and len(parts) >= 4 and fact_selected(tx, parts[3], intent):
             ancestor = "/".join(parts[:4])
             self.handlers.decide(tx, ancestor, tx.get(ancestor), intent, cutoffs)
+            return True
+        if (
+            intent.kind == "delete_resource"
+            and intent.include_derived_memories
+            and parts[2] == "facts"
+            and len(parts) >= 4
+            and fact_selected(tx, parts[3], intent)
+        ):
             return True
         depth = 6 if parts[2] == "conversations" else 4
         if len(parts) >= depth:
@@ -433,6 +442,7 @@ class PurgeResource:
             doc = None
             related = None
             dependency_run = None
+            deletion_markers: tuple[tuple[str, Document], ...] = ()
             if not item["entered"]:
                 item["entered"] = True
                 if is_document and current_path != f"tenants/{current.tenant_id}":
@@ -453,6 +463,7 @@ class PurgeResource:
                         decision = self._decide(tx, current_path, doc, current, state)
                         related = decision.history
                         dependency_run = decision.dependency_run
+                        deletion_markers = decision.deletion_markers
                         item["erase"] = decision.erase
                         # Selection is rechecked at finalization, never stored bodies.
                         item["selected"] = (
@@ -472,7 +483,7 @@ class PurgeResource:
                 child = item["pending"].pop(0)
                 force = item["force"] or item.get("selected", False)
                 if current_path == f"tenants/{current.tenant_id}" and not self.handlers.root(
-                    child.rsplit("/", 1)[-1]
+                    child.rsplit("/", 1)[-1], current
                 ):
                     pass
                 else:
@@ -500,6 +511,7 @@ class PurgeResource:
                         decision = self._decide(tx, current_path, doc, current, state)
                         related = decision.history
                         dependency_run = decision.dependency_run
+                        deletion_markers = decision.deletion_markers
                         erase, replacement = decision.erase, decision.replacement
                     if erase or replacement is not None:
                         state["processed"] += 1
@@ -512,6 +524,8 @@ class PurgeResource:
                 if marker is None or related["sequence"] < marker["sequence"]:
                     marker_path = location
                     state["pass_changes"] += 1
+            for deletion_marker in deletion_markers:
+                tx.set(*deletion_marker)
             if marker_path is not None:
                 assert related is not None
                 tx.set(marker_path, related)
@@ -595,6 +609,7 @@ class PurgeResource:
                 saved = tx.get(path)
                 if saved is None or saved.get("operation", {}).get("kind") not in {
                     "forget_memory",
+                    "delete_resource",
                     "leave_tenant",
                     "delete_tenant",
                     "delete_account",

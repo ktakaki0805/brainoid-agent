@@ -2240,7 +2240,7 @@ export type ListNotesErrors = {
 export type ListNotesError = ListNotesErrors[keyof ListNotesErrors];
 export type ListNotesResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: NotePage;
 };
@@ -2272,7 +2272,7 @@ export type CreateNoteErrors = {
 export type CreateNoteError = CreateNoteErrors[keyof CreateNoteErrors];
 export type CreateNoteResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     201: Note;
 };
@@ -2301,7 +2301,7 @@ export type GetNoteErrors = {
 export type GetNoteError = GetNoteErrors[keyof GetNoteErrors];
 export type GetNoteResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Note;
 };
@@ -2338,7 +2338,7 @@ export type UpdateNoteErrors = {
 export type UpdateNoteError = UpdateNoteErrors[keyof UpdateNoteErrors];
 export type UpdateNoteResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Note;
 };
