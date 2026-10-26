@@ -93,6 +93,11 @@ def project(
                 if k in MemoryView.model_fields
             }
         ).model_dump(mode="json")
+    elif kind == "tasks":
+        from brainoid_memory.tasks import Tasks, view
+
+        record_task, _ = Tasks.get(access, item_id)
+        public = view(record_task).model_dump(mode="json")
     else:
         public = {"id": item_id, "version": document.get("version")}
         if parent_id:

@@ -90,3 +90,17 @@ def fact_markers(
         (selection_path(intent, identity), selection(intent, identity)),
         *(() if previous is not None else ((path, marker),)),
     )
+
+
+def task_copy(document: Document, intent: DeletionIntent) -> bool:
+    return (
+        intent.kind == "delete_resource"
+        and document.get("tenant_id") == intent.tenant_id
+        and any(
+            target.kind == "task"
+            and document.get("id") == target.resource_id
+            and type(document.get("version")) is int
+            and 1 <= document["version"] <= target.version
+            for target in intent.targets
+        )
+    )

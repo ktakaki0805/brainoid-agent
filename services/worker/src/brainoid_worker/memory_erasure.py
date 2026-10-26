@@ -27,6 +27,11 @@ class NoteDependency(CoreValue):
     version: Version
 
 
+class TaskDependency(CoreValue):
+    task_id: ResourceId
+    version: Version
+
+
 class ErasureDependencies(CoreValue):
     schema_version: Literal[1] = 1
     tenant_id: ResourceId
@@ -36,6 +41,8 @@ class ErasureDependencies(CoreValue):
     facts: tuple[FactDependency, ...]
     notes: tuple[NoteDependency, ...] = Field(default=(), exclude_if=lambda value: not value)
 
+    tasks: tuple[TaskDependency, ...] = Field(default=(), exclude_if=lambda value: not value)
+
     def matches(self, intent: DeletionIntent) -> bool:
         if self.tenant_id != intent.tenant_id:
             return False
@@ -43,6 +50,13 @@ class ErasureDependencies(CoreValue):
             n.note_id == target.resource_id and n.version <= target.version
             for n in self.notes
             for target in note_targets(intent)
+        ):
+            return True
+        if intent.kind == "delete_resource" and any(
+            task.task_id == target.resource_id and task.version <= target.version
+            for task in self.tasks
+            for target in intent.targets
+            if target.kind == "task"
         ):
             return True
         target = intent.targets[0]
@@ -119,17 +133,41 @@ def receipt_notes(saved: Document, run: Document, identity: str) -> tuple[NoteDe
     return () if result is None else note_records(result, run["tenant_id"])
 
 
+def task_records(result: ToolResult, tenant: str) -> tuple[TaskDependency, ...]:
+    raw = result.result.get("tasks", [])
+    if not isinstance(raw, list):
+        raise ValueError("Invalid task inventory")
+    tasks = []
+    for task in raw:
+        if not isinstance(task, dict) or task.get("tenant_id") != tenant:
+            raise ValueError("Invalid erasure task tenant")
+        tasks.append(
+            TaskDependency.model_validate({"task_id": task["id"], "version": task["version"]})
+        )
+    return tuple(tasks)
+
+
+def receipt_tasks(saved: Document, run: Document, identity: str) -> tuple[TaskDependency, ...]:
+    if saved.get("name") not in {"tasks.create", "tasks.list", "tasks.update"}:
+        return ()
+    result = _receipt_result(saved, run, identity)
+    return () if result is None else task_records(result, run["tenant_id"])
+
+
 def capture(
     run: Document,
     *,
     complete: bool = False,
     records: Iterable[MemoryRecord] = (),
     note_dependencies: Iterable[NoteDependency] = (),
+    task_dependencies: Iterable[TaskDependency] = (),
 ) -> ErasureDependencies:
     previous = retained(run)
     known = set(previous.facts if previous is not None else ())
     notes = set(previous.notes if previous is not None else ())
     notes.update(note_dependencies)
+    tasks = set(previous.tasks if previous is not None else ())
+    tasks.update(task_dependencies)
     values = list(records)
     for raw in run.get("memory_records", []):
         try:
@@ -146,6 +184,8 @@ def capture(
             or binding.result.tool_call_id != binding.request.tool_call_id
         ):
             raise ValueError("Invalid erasure tool binding")
+        if binding.request.call.name in {"tasks.create", "tasks.list", "tasks.update"}:
+            tasks.update(task_records(binding.result, run["tenant_id"]))
         if binding.request.call.name in {"notes.create", "notes.list", "notes.update"}:
             notes.update(note_records(binding.result, run["tenant_id"]))
         if binding.request.call.name in {"memory.search", "memory.remember", "memory.revise"}:
@@ -169,4 +209,5 @@ def capture(
         complete=complete or (previous is not None and previous.complete),
         facts=tuple(sorted(known, key=lambda f: (f.memory_id, f.version, f.deletion_epoch))),
         notes=tuple(sorted(notes, key=lambda n: (n.note_id, n.version))),
+        tasks=tuple(sorted(tasks, key=lambda n: (n.task_id, n.version))),
     )

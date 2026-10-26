@@ -62,7 +62,7 @@ class ExportData:
         scanned = 0
         collections = [
             f"tenants/{tenant}/{kind}"
-            for kind in ("operations", "conversations", "entities", "facts", "notes")
+            for kind in ("operations", "conversations", "entities", "facts", "notes", "tasks")
         ]
         while collections:
             collection = collections.pop(0)

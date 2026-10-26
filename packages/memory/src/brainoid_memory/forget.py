@@ -20,8 +20,9 @@ from pydantic import Field, TypeAdapter, ValidationError
 
 from brainoid_memory.deletion_ledger import DeletionIntent, DeletionLedger, DeletionTarget
 from brainoid_memory.models import Fact, MemoryValue
-from brainoid_memory.notes import Note, Notes, note_path
+from brainoid_memory.notes import Note, Notes
 from brainoid_memory.repository import FactTransaction, VersionConflict, _stored
+from brainoid_memory.tasks import Task, Tasks
 
 
 class ForgetCreate(MemoryValue):
@@ -34,6 +35,18 @@ class ForgetCreate(MemoryValue):
 class DeleteNote(MemoryValue):
     kind: Literal["delete_resource"]
     target_type: Literal["note"]
+    target_id: ResourceId
+    expected_version: Version
+    include_derived_memories: bool = Field(default=True, strict=True)
+
+    @property
+    def source_policy(self) -> Literal["delete_source"]:
+        return "delete_source"
+
+
+class DeleteTask(MemoryValue):
+    kind: Literal["delete_resource"]
+    target_type: Literal["task"]
     target_id: ResourceId
     expected_version: Version
     include_derived_memories: bool = Field(default=True, strict=True)
@@ -73,7 +86,8 @@ def target_path(tenant: ResourceId, target: DeletionTarget) -> str:
         if target.parent_id is None:
             raise PolicyDenied()
         return f"tenants/{tenant}/conversations/{target.parent_id}/messages/{target.resource_id}"
-    return f"tenants/{tenant}/{'facts' if target.kind == 'fact' else 'notes'}/{target.resource_id}"
+    collection = {"fact": "facts", "note": "notes", "task": "tasks"}[target.kind]
+    return f"tenants/{tenant}/{collection}/{target.resource_id}"
 
 
 class ForgetMemories:
@@ -88,12 +102,21 @@ class ForgetMemories:
         if document is None:
             raise PolicyDenied()
         principal = access.principal
+        service: type[Tasks] | type[Notes] = Notes
+        if document.get("operation", {}).get("kind") == "delete_resource":
+            try:
+                intent = DeletionIntent.model_validate(document.get("intent"))
+            except ValidationError:
+                raise PolicyDenied() from None
+            if intent.kind != "delete_resource":
+                raise PolicyDenied()
+            service = Tasks if intent.targets[0].kind == "task" else Notes
         if (
             principal.user_id is None
             or document.get("requested_by") != principal.user_id
             or document.get("tenant_id") != principal.context.tenant_id
             or (
-                "notes"
+                str(service.kind)
                 if document.get("operation", {}).get("kind") == "delete_resource"
                 else "memory.write"
             )
@@ -101,14 +124,14 @@ class ForgetMemories:
         ):
             raise PolicyDenied()
         scope = Scope.model_validate(document["scope"])
-        is_note = document.get("operation", {}).get("kind") == "delete_resource"
+        is_resource = document.get("operation", {}).get("kind") == "delete_resource"
         if (
-            is_note
+            is_resource
             and document.get("created_by") != principal.user_id
             and principal.role not in (Role.ADMIN, Role.OWNER)
         ):
             raise PolicyDenied()
-        if scope not in (Notes.scopes(access) if is_note else access.scopes()):
+        if scope not in (service.scopes(access) if is_resource else access.scopes()):
             raise PolicyDenied()
         access.finish()
         return Operation.model_validate(document["operation"])
@@ -127,12 +150,15 @@ class ForgetMemories:
         return result
 
     def prepare(
-        self, tx: Transaction, access: FactTransaction, body: ForgetCreate | DeleteNote
-    ) -> tuple[Fact | Note, ResourceGrant, tuple[DeletionTarget, ...], list[tuple[str, Document]]]:
+        self, tx: Transaction, access: FactTransaction, body: ForgetCreate | DeleteNote | DeleteTask
+    ) -> tuple[
+        Fact | Note | Task, ResourceGrant, tuple[DeletionTarget, ...], list[tuple[str, Document]]
+    ]:
         """Read only. A reservation never substitutes for current authority."""
         tenant = access.principal.context.tenant_id
-        if isinstance(body, DeleteNote):
-            note, grant = Notes.get(access, body.target_id, write=True)
+        if isinstance(body, (DeleteNote, DeleteTask)):
+            service = Tasks if isinstance(body, DeleteTask) else Notes
+            note, grant = service.get(access, body.target_id, write=True)
             if note.version != body.expected_version:
                 raise VersionConflict()
             return (
@@ -140,7 +166,7 @@ class ForgetMemories:
                 grant,
                 (
                     DeletionTarget(
-                        kind="note",
+                        kind=body.target_type,
                         resource_id=note.id,
                         version=note.version,
                         deletion_epoch=note.deletion_epoch + 1,
@@ -219,7 +245,7 @@ class ForgetMemories:
     def forget(
         self,
         open_access: Callable[[Transaction], FactTransaction],
-        body: ForgetCreate | DeleteNote,
+        body: ForgetCreate | DeleteNote | DeleteTask,
         key: str | None,
         *,
         effect: ResourceId | None = None,
@@ -227,12 +253,13 @@ class ForgetMemories:
         | None = None,
     ) -> Operation:
         body = type(body).model_validate(body.model_dump())
-        is_note = isinstance(body, DeleteNote)
+        is_resource = isinstance(body, (DeleteNote, DeleteTask))
+        service = Tasks if isinstance(body, DeleteTask) else Notes
 
         def reserved_path(tenant: ResourceId) -> str:
             return (
-                f"tenants/{tenant}/note_delete_reservations/{body.target_id}"
-                if is_note
+                f"tenants/{tenant}/{str(service.kind)[:-1]}_delete_reservations/{body.target_id}"
+                if is_resource
                 else reservation_path(tenant, body.target_id)
             )
 
@@ -244,7 +271,7 @@ class ForgetMemories:
             principal = access.principal
             if (
                 principal.user_id is None
-                or ("notes" if is_note else "memory.write")
+                or (str(service.kind) if is_resource else "memory.write")
                 not in principal.context.actor.allowed_scopes
             ):
                 raise PolicyDenied()
@@ -266,9 +293,9 @@ class ForgetMemories:
                     self.prepare(tx, access, body)
                 return saved, access
             record, _, targets, sources = self.prepare(tx, access, body)
-            if is_note:
+            if is_resource:
                 lock = tx.get(
-                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(note_path(tenant, record.id))}"
+                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(service.path(tenant, record.id))}"
                 )
                 if lock is not None and lock.get("operation_id") != identity:
                     raise APIError(ErrorCode.CONFLICT)
@@ -283,7 +310,7 @@ class ForgetMemories:
             intent = DeletionIntent(
                 kind=body.kind,
                 include_derived_memories=body.include_derived_memories
-                if isinstance(body, DeleteNote)
+                if isinstance(body, (DeleteNote, DeleteTask))
                 else True,
                 operation_id=identity,
                 tenant_id=tenant,
@@ -294,7 +321,7 @@ class ForgetMemories:
             )
             saved = {
                 "request_hash": request_hash,
-                **({"created_by": record.created_by} if is_note else {}),
+                **({"created_by": record.created_by} if is_resource else {}),
                 "tenant_id": tenant,
                 "requested_by": principal.user_id,
                 "scope": Scope(
@@ -305,9 +332,9 @@ class ForgetMemories:
             }
             access.finish()
             tx.create(reserved_path(tenant), saved)
-            if is_note:
+            if is_resource:
                 tx.set(
-                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(note_path(tenant, record.id))}",
+                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(service.path(tenant, record.id))}",
                     {"operation_id": identity},
                 )
             for path, _ in sources:
@@ -344,9 +371,9 @@ class ForgetMemories:
                 raise PolicyDenied()
             self.operation(current, saved)
             record, grant, targets, sources = self.prepare(tx, current, body)
-            if is_note:
+            if is_resource:
                 lock = tx.get(
-                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(note_path(tenant, record.id))}"
+                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(service.path(tenant, record.id))}"
                 )
                 if lock is None or lock.get("operation_id") != intent.operation_id:
                     raise PolicyDenied()
@@ -358,7 +385,9 @@ class ForgetMemories:
                 raise VersionConflict()
             tombstones = {}
             for target in targets:
-                kind = {"fact": "facts", "message": "messages", "note": "notes"}[target.kind]
+                kind = {"fact": "facts", "message": "messages", "note": "notes", "task": "tasks"}[
+                    target.kind
+                ]
                 path = tombstone_path(tenant, kind, target.resource_id, target.parent_id)
                 existing_marker = tx.get(path)
                 marker = {
@@ -429,10 +458,10 @@ class ForgetMemories:
             )
             current.finish()
             tx.set(purge_barrier_path(tenant), {"epoch": admission_epoch})
-            if isinstance(updated, Note):
-                tx.set(note_path(tenant, updated.id), updated.model_dump(mode="json"))
+            if isinstance(updated, (Note, Task)):
+                tx.set(service.path(tenant, updated.id), updated.model_dump(mode="json"))
                 tx.delete(
-                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(note_path(tenant, updated.id))}"
+                    f"tenants/{tenant}/source_forget_reservations/{fingerprint(service.path(tenant, updated.id))}"
                 )
             else:
                 tx.set(f"tenants/{tenant}/facts/{record.id}", _stored(updated, mode="json"))

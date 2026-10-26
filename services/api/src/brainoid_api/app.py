@@ -21,6 +21,7 @@ from brainoid_api.routes.operation_download import router as operation_download_
 from brainoid_api.routes.operations import router as operations_router
 from brainoid_api.routes.private_sessions import router as private_sessions_router
 from brainoid_api.routes.run_events import router as run_events_router
+from brainoid_api.routes.tasks import router as tasks_router
 from brainoid_api.routes.tenants import router as tenants_router
 from brainoid_api.routes.usage import router as usage_router
 from brainoid_api.routes.users import router as users_router
@@ -100,6 +101,7 @@ def create_app(
     app.include_router(entities_router, prefix="/v1")
     app.include_router(memories_router, prefix="/v1")
     app.include_router(notes_router, prefix="/v1")
+    app.include_router(tasks_router, prefix="/v1")
     app.include_router(operations_router, prefix="/v1")
     app.include_router(operation_download_router, prefix="/v1")
     app.include_router(private_sessions_router, prefix="/v1")

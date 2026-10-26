@@ -1880,7 +1880,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の権限で閲覧可能なタスク一覧。
           content:
             application/json:
               schema:
@@ -1917,7 +1917,7 @@ paths:
       - deviceBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: タスクを保存済み。現在のTaskとETagを返す。
           content:
             application/json:
               schema:
@@ -1951,7 +1951,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在の権限で閲覧可能なTask。
           content:
             application/json:
               schema:
@@ -1986,7 +1986,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: タスクを更新済み。同じ冪等キーの再送は重複更新しない。
           content:
             application/json:
               schema:

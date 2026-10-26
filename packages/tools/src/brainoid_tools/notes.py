@@ -34,12 +34,20 @@ class UpdateNoteArguments(Arguments):
     expected_version: Version
     changes: NotePatch
 
+    @property
+    def resource_id(self) -> ResourceId:
+        return self.note_id
+
 
 class DeleteNoteArguments(Arguments):
     """Requires direct user text: Delete note {note_id}."""
 
     note_id: ResourceId
     expected_version: Version
+
+    @property
+    def resource_id(self) -> ResourceId:
+        return self.note_id
 
 
 type NoteArguments = (

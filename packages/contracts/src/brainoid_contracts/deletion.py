@@ -42,7 +42,7 @@ def fenced_document(
         and marker.get("mode") == "suppress_reuse"
         and isinstance(target, dict)
         and target.get("kind")
-        == {"facts": "fact", "messages": "message", "notes": "note"}.get(kind)
+        == {"facts": "fact", "messages": "message", "notes": "note", "tasks": "task"}.get(kind)
         and target.get("resource_id") == identity
         and target.get("parent_id") == parent
     )

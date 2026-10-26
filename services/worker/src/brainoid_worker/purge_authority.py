@@ -118,7 +118,12 @@ class PurgeJobs(Jobs):
             or saved.get("request_hash") != intent.request_hash
             or saved.get("operation", {}).get("operation_id") != intent.operation_id
             or saved.get("operation", {}).get("kind") != intent.kind
-            or job.grant.ref.kind != ("notes" if intent.kind == "delete_resource" else "facts")
+            or job.grant.ref.kind
+            != (
+                {"note": "notes", "task": "tasks"}[intent.targets[0].kind]
+                if intent.kind == "delete_resource"
+                else "facts"
+            )
             or job.grant.ref.id != intent.targets[0].resource_id
         ):
             raise ValueError("Unaccepted deletion")
@@ -126,7 +131,9 @@ class PurgeJobs(Jobs):
             marker = tx.get(
                 tombstone_path(
                     intent.tenant_id,
-                    {"fact": "facts", "message": "messages", "note": "notes"}[target.kind],
+                    {"fact": "facts", "message": "messages", "note": "notes", "task": "tasks"}[
+                        target.kind
+                    ],
                     target.resource_id,
                     target.parent_id,
                 )

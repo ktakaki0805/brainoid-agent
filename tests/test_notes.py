@@ -170,7 +170,7 @@ class NotesHTTPTests(NotesFixture):
                 )
                 self.assertNotEqual(result.status_code, 200)
         self.assertEqual(self.delete_note(note, expected_version=True).status_code, 422)
-        self.assertEqual(self.delete_note(note, target_type="task").status_code, 422)
+        self.assertEqual(self.delete_note(note, target_type="reminder").status_code, 422)
 
     def test_delete_replay_hides_api_model_sources_and_stale_restoration(self) -> None:
         note = self.create_note().json()["id"]

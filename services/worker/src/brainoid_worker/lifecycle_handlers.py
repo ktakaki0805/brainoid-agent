@@ -16,6 +16,7 @@ CONTROL = frozenset(
         "membership_deletion_fences",
         "memory_forget_reservations",
         "note_delete_reservations",
+        "task_delete_reservations",
         "source_forget_reservations",
         "memory_forget_effects",
         "purge_barriers",
@@ -150,7 +151,13 @@ class LifecycleHandlers(ForgetHandlers):
             return isinstance(run, str) and self.bound_selection(
                 tx, f"tenants/{tenant}/runs/{run}", intent
             )
-        if root in {"memory_effects", "note_effects"}:
+        if root == "task_events":
+            return (
+                doc.get("visibility") == "private"
+                and isinstance(doc.get("owner_user_id"), str)
+                and subject_id(doc["owner_user_id"]) == scope.resource_id
+            )
+        if root in {"memory_effects", "note_effects", "task_effects"}:
             return any(
                 isinstance(record, dict)
                 and record.get("visibility") == "private"

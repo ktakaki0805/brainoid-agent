@@ -21,9 +21,11 @@ from pydantic import TypeAdapter
 from brainoid_worker.memory_erasure import (
     ErasureDependencies,
     NoteDependency,
+    TaskDependency,
     capture,
     receipt_notes,
     receipt_records,
+    receipt_tasks,
     retained,
 )
 from brainoid_worker.note_erasure import (
@@ -32,6 +34,7 @@ from brainoid_worker.note_erasure import (
     note_copy,
     note_targets,
     sourced,
+    task_copy,
 )
 
 ROOTS = frozenset(
@@ -97,7 +100,16 @@ class ForgetHandlers:
             or (
                 intent is not None
                 and (
-                    (intent.kind == "delete_resource" and name == "facts")
+                    (
+                        intent.kind == "delete_resource"
+                        and intent.targets[0].kind == "task"
+                        and name in {"task_effects", "task_events"}
+                    )
+                    or (
+                        intent.kind == "delete_resource"
+                        and intent.targets[0].kind == "note"
+                        and name == "facts"
+                    )
                     or (
                         bool(note_targets(intent))
                         and name == "note_effects"
@@ -146,6 +158,10 @@ class ForgetHandlers:
             and isinstance(r.get("result"), dict)
             and (
                 self._records({"memory_records": r["result"].get("memories", [])}, intent, tx)
+                or any(
+                    isinstance(t, dict) and task_copy(t, intent)
+                    for t in r["result"].get("tasks", [])
+                )
                 or (
                     any(
                         isinstance(n, dict) and note_copy(n, intent)
@@ -220,9 +236,12 @@ class ForgetHandlers:
                 and proof.get("request", {}).get("target_id") == intent.targets[0].resource_id
             ):
                 return True
-        if (run.get("forget_operation_id") or run.get("purged_by") or run.get("note_update")) and (
-            evidence is None or not evidence.complete
-        ):
+        if (
+            run.get("forget_operation_id")
+            or run.get("purged_by")
+            or run.get("note_update")
+            or run.get("task_update")
+        ) and (evidence is None or not evidence.complete):
             recovered = self._legacy_dependencies(tx, run)
             if recovered.matches(intent):
                 return True
@@ -293,6 +312,7 @@ class ForgetHandlers:
     def _legacy_dependencies(tx: Transaction, run: Document) -> ErasureDependencies:
         records: list[MemoryRecord] = []
         notes: list[NoteDependency] = []
+        tasks: list[TaskDependency] = []
         identities = run.get("tool_call_ids", [])
         # RunTurn permits at most eight steps of eight tool calls. Never scan a
         # collection to reconstruct a missing input or follow arbitrary model IDs.
@@ -303,7 +323,8 @@ class ForgetHandlers:
             if saved is not None:
                 records.extend(receipt_records(saved, run, identity))
                 notes.extend(receipt_notes(saved, run, identity))
-        return capture(run, records=records, note_dependencies=notes)
+                tasks.extend(receipt_tasks(saved, run, identity))
+        return capture(run, records=records, note_dependencies=notes, task_dependencies=tasks)
 
     def decide(
         self,
@@ -341,7 +362,7 @@ class ForgetHandlers:
             # these without erasure authority and refuses completion on a live child.
             return Decision(
                 children=root in ROOTS
-                or root in {"facts", "note_effects"}
+                or root in {"facts", "note_effects", "task_effects", "task_events"}
                 or root in self.registered
             )
         if doc.get("tenant_id", intent.tenant_id) != intent.tenant_id:
@@ -357,6 +378,9 @@ class ForgetHandlers:
                 children=selected,
                 deletion_markers=fact_markers(tx, parts[3], doc, intent) if selected else (),
             )
+        if root in {"task_effects", "task_events"} and len(parts) == 4:
+            selected = task_copy(doc.get("record", {}) if root == "task_effects" else doc, intent)
+            return Decision(erase=selected, children=selected)
         if root == "note_effects" and len(parts) == 4:
             selected = intent.source_policy == "delete_source" and note_copy(
                 doc.get("record", {}), intent
@@ -407,7 +431,11 @@ class ForgetHandlers:
             }
             evidence = (
                 self._legacy_dependencies(tx, doc)
-                if (doc.get("forget_operation_id") or doc.get("note_update"))
+                if (
+                    doc.get("forget_operation_id")
+                    or doc.get("note_update")
+                    or doc.get("task_update")
+                )
                 and "purge_dependencies" not in doc
                 else capture(doc)
             )
@@ -483,9 +511,10 @@ class ForgetHandlers:
                 if run is not None:
                     records = receipt_records(doc, run, parts[3])
                     notes = receipt_notes(doc, run, parts[3])
-                    if records or notes:
+                    tasks = receipt_tasks(doc, run, parts[3])
+                    if records or notes or tasks:
                         dependencies = capture(
-                            run, records=records, note_dependencies=notes
+                            run, records=records, note_dependencies=notes, task_dependencies=tasks
                         ).model_dump(mode="json")
                         if dependencies != run.get("purge_dependencies"):
                             updated = {**run, "purge_dependencies": dependencies}
@@ -513,12 +542,12 @@ class ForgetHandlers:
         if target.kind == "fact":
             if doc.get("owner_user_id") != job.grant.owner_user_id:
                 raise ValueError("Original owner changed")
-        elif intent.kind == "delete_resource" and target.kind == "note":
+        elif intent.kind == "delete_resource" and target.kind in {"note", "task"}:
             if (
                 doc.get("created_by") != job.grant.resource.created_by
                 or doc.get("owner_user_id") != job.grant.owner_user_id
             ):
-                raise ValueError("Original note ownership changed")
+                raise ValueError("Original resource ownership changed")
         elif doc.get("created_by") is not None:
             if doc["created_by"] != saved.get("requested_by"):
                 raise ValueError("Source author changed")

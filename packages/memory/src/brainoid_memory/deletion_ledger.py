@@ -14,7 +14,7 @@ from brainoid_memory.models import MemoryValue
 
 
 class DeletionTarget(MemoryValue):
-    kind: Literal["fact", "message", "note"]
+    kind: Literal["fact", "message", "note", "task"]
     resource_id: ResourceId
     parent_id: ResourceId | None = None
     version: Version
@@ -63,10 +63,10 @@ class DeletionIntent(MemoryValue):
             if (
                 self.scopes
                 or len(self.targets) != 1
-                or self.targets[0].kind != "note"
+                or self.targets[0].kind not in {"note", "task"}
                 or self.source_policy != "delete_source"
             ):
-                raise ValueError("Note deletion requires one exact note target")
+                raise ValueError("Resource deletion requires one exact note/task target")
             return self
         if not self.include_derived_memories:
             raise ValueError("Derived option only applies to resource deletion")
@@ -104,7 +104,7 @@ class DeletionIntent(MemoryValue):
         keys = [(t.kind, t.parent_id, t.resource_id) for t in self.targets]
         if (
             self.targets[0].kind != "fact"
-            or any(t.kind == "fact" for t in self.targets[1:])
+            or any(t.kind not in {"note", "message"} for t in self.targets[1:])
             or len(set(keys)) != len(keys)
         ):
             raise ValueError("A forget intent has one fact and unique sources")

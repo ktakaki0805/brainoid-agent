@@ -2370,7 +2370,7 @@ export type ListTasksErrors = {
 export type ListTasksError = ListTasksErrors[keyof ListTasksErrors];
 export type ListTasksResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の権限で閲覧可能なタスク一覧。
      */
     200: TaskPage;
 };
@@ -2402,7 +2402,7 @@ export type CreateTaskErrors = {
 export type CreateTaskError = CreateTaskErrors[keyof CreateTaskErrors];
 export type CreateTaskResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * タスクを保存済み。現在のTaskとETagを返す。
      */
     201: Task;
 };
@@ -2431,7 +2431,7 @@ export type GetTaskErrors = {
 export type GetTaskError = GetTaskErrors[keyof GetTaskErrors];
 export type GetTaskResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在の権限で閲覧可能なTask。
      */
     200: Task;
 };
@@ -2468,7 +2468,7 @@ export type UpdateTaskErrors = {
 export type UpdateTaskError = UpdateTaskErrors[keyof UpdateTaskErrors];
 export type UpdateTaskResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * タスクを更新済み。同じ冪等キーの再送は重複更新しない。
      */
     200: Task;
 };

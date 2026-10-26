@@ -243,8 +243,10 @@ class MemoryRuntime:
         self.handler = handler
         self.delegate = handler.tool_authorizer
         from brainoid_worker.notes import NotesRuntime
+        from brainoid_worker.tasks import TasksRuntime
 
         self.notes = NotesRuntime(self)
+        self.tasks = TasksRuntime(self)
 
     def stopped(self, control: CallControl) -> bool:
         return control.cancellation.cancelled or (
@@ -447,6 +449,8 @@ class MemoryRuntime:
         )
 
     def check(self, tx: Transaction, request: ToolExecution, arguments: Arguments) -> Authority:
+        if request.call.name.startswith("tasks.") and self.tasks.owns(arguments):
+            return self.tasks.check(tx, request, arguments)
         if request.call.name.startswith("notes.") and self.notes.owns(arguments):
             return self.notes.check(tx, request, arguments)
         if not request.call.name.startswith("memory."):
@@ -783,6 +787,8 @@ class MemoryRuntime:
         *,
         consumer: ResultConsumer,
     ) -> ResultUse:
+        if request.call.name.startswith("tasks.") and self.tasks.owns(arguments):
+            return self.tasks.check_result(tx, request, arguments, result, consumer=consumer)
         if request.call.name.startswith("notes.") and self.notes.owns(arguments):
             return self.notes.check_result(tx, request, arguments, result, consumer=consumer)
         if not request.call.name.startswith("memory."):

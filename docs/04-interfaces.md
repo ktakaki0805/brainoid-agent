@@ -126,7 +126,7 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 | 実行 | `/tenants/{t}/runs/{r}`、`/events`、`POST /runs/{r}:cancel` | 状態、SSE、生成停止 |
 | 音声 | `POST /tenants/{t}/audio-inputs`、`GET /tenants/{t}/speech-outputs/{s}/audio` | STT inputと認可付きTTS |
 | 記憶・エンティティ | `/tenants/{t}/entities`、`/memories`、`POST /memories:search` | 型付き登録、検索、訂正。忘却はoperation |
-| ノート・タスク | `/tenants/{t}/notes`、`/tasks` | 作成・一覧・取得・更新。削除はoperation。[ノートAPI/tool](notes.md)を提供 |
+| ノート・タスク | `/tenants/{t}/notes`、`/tasks` | 作成・一覧・取得・更新。削除はoperation。[ノートAPI/tool](notes.md)・[タスクAPI/tool](tasks.md)を提供 |
 | リマインダー | `/tenants/{t}/reminders`、`POST /reminders/{r}:snooze` | due_at、対象、取消し、新schedule_versionによる再設定 |
 | スマホ通知 | `/users/me/push-installations`、`/tenants/{t}/notifications`、`/notifications/{n}:ack` | FCM token登録と本人通知。本文をpushに入れない |
 | 外部連携 | `/tenants/{t}/integrations`、`/google-calendar/authorizations`、`/home-assistant` | 本人OAuth/端末HAのmetadata。秘密を返さない |
