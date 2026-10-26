@@ -5386,3 +5386,186 @@ BA-FND-01 独立レビュー第1回
 
 - done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy195/docs1395/生成差分なし/契約互換性成功、台帳done29/todo67/blocked0。real22.11秒、raw `/tmp/ba-mem-04-parent-check.log`。
 - 今回製品の未記録変更なし。台帳・本ログ2ファイルのみを記録コミット対象として検証する。
+
+## ba-mem-05-20261026t102141z
+
+- チケット: BA-MEM-05
+- 状態: done
+- 開始: 2026-10-26T10:21:41.613053+00:00
+- ブランチ: main
+- base commit: b61631a0d8dafc83d652f8727dc5022f5e9affe3
+- 開始時の変更: staged/unstaged/untrackedなし。祖先/repo製品範囲に適用AGENTSなし（node_modules内第三者assetのAGENTSは対象外）。
+- 選択: planner check成功done29/todo67、IDなしnextで選択。依存MEM04/RUN01のdoneと実装commitが現在履歴にあることを確認。
+- 実装担当: `/root/mem05_implementation`。親は選択/記録/commit担当。
+- 実装コミット: 58a551f19c1471c6627195fcd9b30183f87061d7
+
+### 範囲と検証計画
+
+- FR006 embeddingモデル/2048以下次元/版を明示設定、scope別vector索引と検索adapter、元Fact version/deletion_epochを外部生成前とcommit直前に再照合。候補正本をMEM04へ返す前に再照合し、モデル/次元変更用の別索引・job属性/checkpointを保持。
+- T010/T011: 訂正/forget競合の古い生成は保存せずobsolete、tenant/private候補隔離、設定と索引次元不一致を暗黙変換せず拒否。fake embedding/公式SDK境界のmockと必要なFirestore emulatorで正負例/再起動/失効/commitretryを検証。setup/check/test/独立全差分reviewを実施。
+- 検索品質/全体原価評価はQA03/04、自動モデル切替は対象外。実vector確認はOPS02 staging DBとOPEN005実embeddingモデル/次元が外部前提。docs08§1のfake/emulatorで独立merge・実provider確認は外部前提/後続結合へ分ける規定に基づき、ローカル契約検証と実staging未実施を区別する。実モデルやcloud構成を推測で確定せず、実配備は依頼範囲外。
+
+### 初期設計と公式仕様の照合
+
+- 元担当: 明示EmbeddingConfig(model/dimension/revision/index collection)+公式SDK adapter。検索は認可済scope取得→TX外queryembedding/scope_key prefilter nearest→新TX canonical全依存/version/epoch再照合→既存2hopへ接続。
+- 既存waiting memory_index envelopeから設定別IDのmemory_embed jobを生成し旧grantを維持。取得/外部生成前/commitで全canonical検査、vectorを共通checkpointへ保存せずstarted markerとatomic vector/succeeded commit、競合obsolete・曖昧失敗unknownで自動再課金を抑止する設計。
+- 元担当が公式Firebase/GenAI資料を確認し固定SDKソース照合中。親も公式vector検索資料 https://firebase.google.com/docs/firestore/vector-search を確認、scope prefilterに対応する索引・dimension・COLLECTION範囲を実queryと一致させる。manifest照合と実staging索引確認を区別、missingindex/dimensionを空結果/lexicalfallbackで隠さない。
+- 親はruntime有効化入口と既存待機/新規/モデル版変更再生成の到達経路、source/actor/session/lease/epoch/superseded失効、応答喪失resumeを実接続で検証するよう依頼。
+
+### 既存effect契約との整合確認
+
+- 親がJobs/Worker/Executionを直接読取。Handler.run外部I/Oはexecution.effect必須、Job status unknownはなくstarted checkpoint/Reason.outcome_unknownが既存契約。
+- 元担当へ、vectorを共通checkpointへ残さない設計とeffect/complete/restartの整合を説明・検証するよう依頼。必要なbusiness hookはonceeffect保証を維持し、completedmetadataのみ残りvector未commitなどの中断で再課金や誤successを起こさないことを確認する。
+
+### Vector adapterとeffect hookの実装方針
+
+- 元担当がSDK非依存EmbeddingConfig/VectorSearch phase分離、公式Firestore Vector/find_nearestとGenAI単発embed adapterを追加中。model/revision/dimension hashで索引collection分離、scope_key/statusをnearest前filter、manifest不整合/cloudindexerrorはfallbackせず例外。
+- 共通effectへcanonical再検査＋derivedwrite＋本文なしcheckpointを同一TXでcommitするhookを追加する方針。waiting→設定別pendingは旧grant/IDを保持し、生成前の取得leaseからfullcanonical検査する（waitingに架空期限を発行しない）。bounded page再走査/同設定同ID/新設定別ID。
+- 親はvector+checkpoint後/job succeeded前の中断窓、再開時既存vector/config/source根拠・存在しないvectorの誤success防止・再課金防止・read-before-writeを検証依頼。初期案のvector/job succeeded同TXとの違いを最終記録で正確に説明するよう依頼。
+
+### embedding送信内容の境界
+
+- 親はdocument embeddingへFact全dumpを送らず検索に必要なcanonical内容を明示投影し、tenant/creator/ownerUID・grant/checkpointを送らないことを確認依頼。MEM04で確立したmodel向け最小投影とserver full証跡保持を継承する。queryは正規user入力、権限外本文がdocument providerへ届かない負例を捕捉する。
+
+### 生成job初稿の検証報告
+
+- 元担当報告: 初期11tests成功。訂正/epoch/suppress/Entity/validity競合、lease expiry、unknown再課金抑止、checkpoint再開、SDK commitretry、設定別再生成、公式SDK query構築を含む。現時点/tmp raw未保存で親直接照合は未実施、実コマンド/件数/時間/終了を記録し以後pipefail+tee保存を依頼（保存目的だけの再実行不要）。
+- 実装はvector+completed checkpointを同TX、job succeededは後続Jobs.complete。再開は完成checkpointを再利用、finalcommitでvector実在/設定/版/epochを検査しmissingならobsolete。初期案との境界差をdocへ明示するよう依頼。
+- document投影はpredicate/value/qualifiers/Entity参照のみ、tenant/owner/creator/source本文/grantは送らない。実Firestore＋HTTP/worker接続とSDK embeddingtransport検証を追加中。
+
+### 初期raw検証の確認
+
+- 親raw直接確認 `/tmp/ba-mem-05-embedding-unit.log`: 12件0.365秒OK（real0.810秒）、`/tmp/ba-mem-05-vector-runtime.log`: 2件0.518秒OK（real1.252秒）。初期実装の関連検証であり最終全体合格とは区別。実コマンド/exitと検証範囲の引継ぎは継続して保存する。
+
+### SDK transportと実runtime構成入口
+
+- 元担当: 公式GenAI SDKをhttpx transportで実行、明示region/model/RETRIEVAL_DOCUMENT/dimension/autoTruncate=false、503単発を12件に含め確認。HTTP/Core/typed search2件も成功、shared会話scopeをquery前に絞る。実Firestore Vector save/nearest/訂正競合/SDKretry3件をemulator実行中、追加fixture型注釈修正中。
+- 親はtest属性代入だけを唯一の有効化経路にせず、API auth/runtime.pyのMemories構成へ明示config/factory等で注入する公開入口と、EmbeddingDispatcher/Worker登録手順・検証を成果物へ含めるよう確認依頼。
+
+### 初回Firestore vector統合成功
+
+- 親raw直接確認 `/tmp/ba-mem-05-embedding-emulator.log`: `PYTHONPATH=tests uv run --all-packages --locked --offline python -B -m unittest discover -s tests/emulator -p test_embedding_integration.py` をdemo-brainoid Auth/Firestoreで実行、3件4.398秒OK/Script exit0、real11.890秒、正常shutdown。
+- Scope fixtureのmodel_copyにstr enum値を置いたserializer warningあり、失敗ではないが最終型/fixture整合で確認。実staging索引の検証と混同しない。最終全体検証/公開構成入口は継続作業中。
+
+### 公開構成入口とsetup/check
+
+- 元担当: create_app(vector_search_factory=...)→authentication_lifespan→実Memories constructorへ接続（API所有FirestoreClientをfactoryが受け設定不備はstartup failure）、RunTurn(vector_search=...)公開注入、EmbeddingDispatcher.recoverが専用queueでwaiting/新規/世代別pendingを配送。docs/memory-vectors.mdとinfra/gcp/firestore-indexes/README.mdに構成/世代移行/staging未実施を記録。
+- 親raw直接確認: `/tmp/ba-mem-05-setup.log` locked/frozen setup成功real0.574秒、`check.log`全9成功real4.497秒。元担当型204files成功。実API factory→HTTP→Firestorevector1件とsource/membership負例を追加、全test/全Firestoreは実行中。
+
+### 全体test初回の競合fixture失敗
+
+- `/tmp/ba-mem-05-test.log` 親raw確認: Python521件62.912秒中8subcase失敗（status succeeded、期待obsolete）、全実行real66.687秒、Node/skillは未到達。初期passで最終成功としない。
+- 元担当分析: GraphStoreはTXごとにdata辞書を置換するがhookのpartialが旧辞書を捕捉し、競合が正本へ起きていなかった。呼出時self.store.data[path]をlookupするmutateへ修正。親も最新hookの動的lookupと期待obsolete維持を読取、元担当の関連12件再成功報告を受領。全test再実行予定。
+- 全emulatorは実行中に1errorが観測され、終了後の詳細を確認して修正予定。全体合格未確定。
+
+### 全test成功と全Firestore初回結果
+
+- `/tmp/ba-mem-05-test-corrected.log`: Python521/73.662秒・Skill18・Node40/15.965秒全成功、exit0/real93.681秒。親raw確認、最終vector再開検査強化前のrevisionとして保存。
+- `/tmp/ba-mem-05-emulator-all.log`: 全144件中、新規API構成fixtureがMemoryCreate再検証へ省略必須nullを含めた1error、他143成功・正常shutdown。元担当はexclude_noneへ修正する方針。
+- 元担当の最終自己確認でcompletedcheckpoint再開をadapter.currentへ集約、実在/設定/版/epochに加え実Vector型/次元/scope_key検査を強化。missing/corruptvector、commit応答喪失、forget後再送の回帰を追加して最終check/test/必要Firestoreを実行する。未レビューの作業中修正で、既存passを最新版の最終passとは扱わない。
+
+### 最終check/testのraw確認
+
+- 親raw直接確認 `/tmp/ba-mem-05-check-final.log`: 全9exit0/real4.671秒、mypy204/docs1403。`test-final.log`: Python524/64.199秒・Skill18/0.060秒・Node40/16.051秒全成功、real84.168秒。`unit-final.log`: 追加関連15件0.452秒OK、real0.914秒。
+- 実Firestore全件final再実行中。元担当の編集停止/差分引継ぎ/終了ports確認が揃った後に新規独立R1を開始する。
+
+### 親引継ぎのshared owner表現訂正
+
+- 親の開始時メッセージ中「shared owner=null必須」は不正確。モデルStoredMetadata.owner_user_idはfield必須・nullable、privateのみ非null必須。repositoryはsharedにもcreator UIDを保存し得る（EntityTransaction.create/FactTransaction.prepare）。
+- 元担当は実コードを優先してscope_keyへownerを渡すのをprivate時だけにし、shared索引を不要にowner分割しないよう修正済み。shared canonical ownerを強制null化する変更は不要と親が再確認・連絡。過去の説明だけから型不変条件を追加しない。
+
+### rollback shapeと専用queue共存の追加確認
+
+- 元担当がJob.attributes追加で非embedding旧jobにも空dictがserializeされる後方互換問題を発見。空attributesを出力しない形へ修正し、既存waiting shape維持回帰とembedding worker/queue drain注意を追加予定。既存check/test成功はこの追加前revisionとして扱う。
+- 親read-onlyで既存Dispatcher.recoverが全非terminalをkindfilterなしでdispatchすると確認。EmbeddingDispatcherだけのfilterではinteractive側がmemory_embedを先に配送し、RunTurn-only Workerのunknown_handler失敗/queue分離違反が起き得る。2dispatcherを同tenantで並行する実接続負例とroute/対象制約の整合を元担当へ要求。
+- 旧Dispatcherはterminal raw statusをskipするため、rollbackは全memory_embed終端化と未消費配送なしのdrain条件を明確にする。初期freeze後の追加修正は独立R1前なので最新全差分を後で固定する。
+
+### 専用queue修正の設計
+
+- 元担当が共通Dispatcher.queue_name（既定default）とJob.attributes.dispatch_queueを同TX prepare_dispatchで一致させる設計へ変更。memory_embedのみdispatch_queue=memory_embed、既存jobはdefaultを維持。dedicated/generic両dispatcherを同tenantで動かしinteractiveがembeddingを取得しない回帰を追加する。
+- rollback条件は新dispatch停止・全新job終端化・専用/既存queue drainを明記。queue routeとserialized shapeの最終修正後のcheck/test/Firestore結果を保存してからreviewへ移行する。
+
+### 全Firestore成功とqueue修正後の検証範囲
+
+- 親raw直接確認 `/tmp/ba-mem-05-emulator-final.log`: 全144件263.636秒OK/exit0、real274.899秒、正常shutdown。このprocessはqueue分離/空attributes省略追加前の製品を読込んだrevisionとして区別。
+- 元担当報告: 最新queue/shape修正後check9exit0/real3.805秒、全test再実行中。最新実Firestoreはembedding4件＋共通job recoveryを再検証。全144成功を最新版全suite再実行と表現しない。
+
+### queue/serialized shape修正後の最終検証
+
+- 親raw直接確認 `/tmp/ba-mem-05-check-routing.log`: 全9exit0/real3.805秒。`test-routing.log`: Python524件62.562秒・Skill18件0.061秒・Node40件14.500秒全成功、real80.982秒。
+- `emulator-routing.log`: 最新revisionで実Firestore embedding4件+job recovery8件=12件13.222秒OK/Script exit0、real22.989秒、正常shutdown。queue/shape追加前の全144成功と、追加後の関連12成功を区別。最新revisionで全Firestore再実行とは記載しない。
+- 最終編集停止/引継ぎ/port確認後、新規独立R1で全差分を固定してレビューする。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/mem05_review_r1`（新規独立context）。base commit: `b61631a0d8dafc83d652f8727dc5022f5e9affe3`。
+- 未追跡を含む最新全26files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `747efc670a8cf4f2f9f590f40d6e50c795a212edae4fe65de89cb2c945e6a327` |
+| `docs/jobs.md` | `6408a909cae35af539a089ef5b039fb04cb127ac75076eb4c5fadb5b8f35345a` |
+| `docs/memory-retrieval.md` | `37229e973fd62ecfafa839c56664694546333c151c6e978df7c0d30596863ee7` |
+| `docs/memory-vectors.md` | `7235de554ac57e1a6469ff593b2f67e6c8cf9da73b8a78a238d5a7eec7696aaa` |
+| `infra/gcp/firestore-indexes/README.md` | `8d7d3ce7663b56b85dc18c33c2ebf0465af3e530ed4597411c740ca73c5ec873` |
+| `packages/jobs/src/brainoid_jobs/models.py` | `d589da21f5f55a37e46c473bc46a9f88d64784c5b01d0901fad4fd531ecd904f` |
+| `packages/jobs/src/brainoid_jobs/repository.py` | `5ef63eec2fa47fcfc097962f6d7349dc4426999b1abb25b4346be7d01ea0ae34` |
+| `packages/memory/src/brainoid_memory/vector_store.py` | `76c7966c2566e373826274c098b41d9e445a6e14bfb8ed4427d8a3887c97b319` |
+| `packages/model_google/pyproject.toml` | `f5201095d29b49a274de6188fc40786aac8cc7ede848307524818783e0f4b7e1` |
+| `packages/model_google/src/brainoid_model_google/embeddings.py` | `6615de3d240cb275b3e723412347cd428665c1e86815b8bf815e7a4e4a149e1b` |
+| `packages/persistence/pyproject.toml` | `70e0c8117d404738d87af2d713329349a6a5bff67a3910c67c8f1144679a763f` |
+| `packages/persistence/src/brainoid_persistence/vectors.py` | `105eb6f5ba1c788d44cddc5b9acc2e6d81a75c19494815977cfd131616f07b93` |
+| `scripts/memory_vector_index.py` | `05fae23da8251868170ff306eb9a52ea08cfb8437083ff584484517ab7725ec2` |
+| `services/api/src/brainoid_api/app.py` | `87db48bd4aa51d41d566f82673f1158cd87f43709c80263c16269724aa6b577c` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `ff2a61b6df9f62c471c379965b0c5dcd5b63b7dc16e4572710cdf06960ebb652` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `515ab5a3d185baea3800198f1393cd1ce872bb8d78b8ef7502ff8192055d507b` |
+| `services/worker/src/brainoid_worker/dispatcher.py` | `4abb48d022a11380c19c02816c106bbf72ad69355de5ed80b0e567b91f7aeea8` |
+| `services/worker/src/brainoid_worker/embed_memory.py` | `3d0db3f23ee79074f02b5935adc2d073a8b03aeebc0ff0b52c5d931f6da41355` |
+| `services/worker/src/brainoid_worker/entry.py` | `0892c3f58c5512cdadf2f30f805b59d3bc39b57b1a8c4c15f1672cef84835fff` |
+| `services/worker/src/brainoid_worker/memory.py` | `e7266971c29c0fb6149922710c55977153eb1a85fff16f3a009d75d828191e0e` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `9cbba5d9246929edcda6390a05fd40f5c7732818abfa1768fd73e487058b3d68` |
+| `tests/emulator/test_embedding_integration.py` | `e5191152ae043f4c3f52d768fa0f318e9e42aaf2ab6e8fc3e6f49e88122eb404` |
+| `tests/fakes/embeddings.py` | `8cc1eaf55f37596fa26f8972d9d8b4cbad3060bf5a99e0a71d1bbf0b25e8defb` |
+| `tests/test_embedding_fencing.py` | `2ef451b376056951d5f30747b6e058fc5745b3da69d181d71d4834ea80962859` |
+| `tests/test_vector_runtime.py` | `ac4042633542f2f0fe6ba4759f5406efdd158bdda180e434f32bd723e5cc8360` |
+| `uv.lock` | `816fab91cafe3d68f87e2e1f9b966bfe210a23ac1f1fb69157873d6186fa5e57` |
+
+### 最終引継ぎと独立R1開始
+
+- `/root/mem05_implementation` が製品編集停止、`/tmp/ba-mem-05-handoff.md`確定。最終diffcheck成功/main維持、index/commit/親metadata変更なし。5ports closedを親raw確認（`emulator-ports.log`）。
+- 全26pathsを `/tmp/ba-mem-05-review-r1.json` に固定し、新規独立 `/root/mem05_review_r1` を開始。base b61631a0d8dafc83d652f8727dc5022f5e9affe3、台帳/logだけ除外。旧grant/生成fence/現在正本/scope/SDK/index/onceeffect/queue分離/旧shape・rollback、最新全testと実Firestore全144→追加後関連12の範囲差を明示して全差分レビュー依頼。
+- 親のsharedowner説明訂正、初回fixture誤り/修正、実staging外部前提未確定とdocs08§1のローカルmerge範囲を伝達。製品編集停止継続。
+
+### 独立R1開始確認
+
+- `/root/mem05_review_r1` がmain/HEADbase/index空/全26paths集合とSHA一致を確認。正本とadapter/job実装を直接読み、canonical fence・共通Jobs変更・公開入口の網羅を確認中。stagingはdocs08§1に基づく外部未検証として区別。
+
+### R1独立関連検証
+
+- 親raw直接確認: reviewer `/tmp/ba-mem-05-review-r1-unit.log` 15件0.445秒OK/real0.922秒、`runtime.log` 2件0.507秒OK/real1.254秒。生成/SDKとHTTP/Core/typedtoolの独立再実行成功。
+- reviewerは全26paths/周辺のscope前filter、canonical fence、effect checkpoint原子性を読了し、期限/世代/候補混入の追加反証を継続。正式判定未確定、製品固定維持。
+
+### R1独立追加反証
+
+- `/tmp/ba-mem-05-review-r1-adversarial.log`: 7件0.077秒OK/real0.474秒を親raw直接確認。started直後source失効/lease期限、生成終了時valid_to境界、vector/checkpoint後complete前source失効、実Vector次元/非有限破損、private/未知ID・epoch混入候補のscope交差、query認可応答遅延を検査。独自fixtureのenum serializer warningは結果失敗ではない。
+- reviewerは提供全suite・最新Firestore関連12の成功/正常shutdownも照合。現時点必須未解決なし、終了manifest照合と正式報告中。親も全26paths snapshot一致/index空を再確認、編集停止維持。
+
+### 独立レビューR1 最終承認
+
+- `/root/mem05_review_r1`: approve、必須未解決0・任意なし。正式報告 `/tmp/ba-mem-05-review-r1-report.md` を親も全文確認。終了証跡 `review-r1-integrity.log`、開始終了main/base/index空/全26paths集合とSHA一致、製品編集なし。
+- canonical生成fence/obsolete、事前scope queryと現在正本交差、次元/索引不一致検出、設定別再生成と旧grant、effect回復/再課金抑止、公開入口・同TXqueue分離、旧job shape/rollback・Core既存境界を承認。親のsharedowner訂正も実コードと一致と確認。
+- reviewer直接15unit+2HTTP/Core/tool+7追加反証成功。提供最新全check/test524+18+40、queue修正前全Firestore144→修正後関連12と正常shutdownを区別して確認。実staging/indexready/モデル品質費用はdocs08§1に従い外部未検証であり承認範囲外。
+- 親も全26paths一致/index空を再照合。最終承認後の製品変更なし。
+
+### 実装コミットと完了条件
+
+- mainへ `58a551f19c1471c6627195fcd9b30183f87061d7`（feat(memory): BA-MEM-05 add fenced embedding jobs and vector search）を作成。stage前/index/commit後の全26pathsとSHAが承認snapshot一致、cached全diff `/tmp/ba-mem-05-staged.diff`。
+- FR006/T010/T011: 明示モデル/版/次元の世代別vector、scope前filterと現canonical照合、外部生成前/保存前/再開時のfence、obsolete/unknown・無再課金回復、HTTP/Core/tool公開構成と専用queue分離を実装。旧job shape/rollback条件も明記。
+- 最終setup/check9/Python524+Skill18+Node40成功。実Firestore全144成功の後、最終queue/shape差分で関連12を再実行成功。独立R1が15+2+7直接検証、全差分approve/必須0/任意なし。
+- 実cloud/実model・staging索引READY/対応次元/品質費用は未実施。OPEN005/OPS02が外部前提、docs08§1に基づくローカル契約実装の完了。自動モデル切替/全体品質原価QA03/04は対象外、実配備を完了扱いにしない。
+- done metadata更新後の親最終checkと記録コミットを次に行う。
+
+### 親の最終検証
+
+- done metadata更新後、親が `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check` を実行。全9タスクexit0、mypy204/docs1403/生成差分なし/契約互換性成功。台帳done30/todo66/blocked0、real22.32秒、raw `/tmp/ba-mem-05-parent-check.log`。
+- 台帳・本ログ2ファイルだけを記録コミット対象として確認する。製品の未記録変更なし。
