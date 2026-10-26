@@ -4174,3 +4174,214 @@ BA-FND-01 独立レビュー第1回
 
 - 台帳done更新後の親 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit 0、22.05秒、全9タスク成功。mypy153・format153・文書1360行errors0、台帳done24/todo72。
 - 記録対象は台帳と作業ログのみ。完了日時: 2026-10-26T04:50:31.289690+00:00。
+
+## ba-run-08-20261026t045132z
+
+- チケット: BA-RUN-08
+- 状態: done
+- 開始: 2026-10-26T04:51:32.684825+00:00
+- ブランチ: main
+- base commit: 57c32ab0c65cc3d3e50eebc9197de286d6f664ae
+- 開始時の変更: staged / unstaged / untracked ともなし。祖先・対象AGENTSなし。
+- 選択: check成功(done24/todo72)、IDなしnextで依存順先頭。BA-RUN-04/BA-IAM-02のdoneと履歴内実装を確認。
+- 実装担当: `/root/run08_implementation`。親は記録とcommitのみ担当。
+- 実装コミット: 3b82f86dd7d5d62e805d7c4aa28a042b464c0a8c
+
+### 範囲と検証計画
+
+- tenant/user/device要求数・同時run、token/音声秒の共通予約精算、provider直前quota、終了・失敗・期限切れ照合、本人/tenant集計API。本文なし。音声adapter・監視alert・課金販売は対象外。追加外部前提なし、fake/emulatorで確認。
+- T-026: 同時要求上限/429、provider429、worker異常終了、消費不明の保留、再送重複防止、現在認可の本人/admin/別tenant/private/device境界。RUN07多段model/確認待ち/resume/cancelの予約解放・精算整合。
+- 必須共通setup/check/test、関連Firestore競合統合、独立レビューで全差分確認。
+
+### 初期調査と実装方針
+
+- 実装担当はturn受付のIdempotency TXとjob追加のread順、worker各model stepのdurable effect保存を確認。brainoid-usage共通層でtenant/user/device月次要求・token/音声秒と期間跨ぎ同時runを予約、本文なしledgerを予定。
+- provider直前にstep固定IDで個別予約、既知累積usage精算、不明予約額保持、run終端/取消/期限/job異常停止reconciler。既存Usage DTO・本人/member/admin境界維持、429 Retry-After。
+- 親から確認待ち枠の規則、cancel/TTLと実呼出し停止の区別、遅延結果・二重解放回帰検証を依頼。実装・検証は進行中。
+
+### 初稿の接続・初回検証
+
+- 共通層/HTTP/worker接続後mypy159files成功。`uv lock --offline` はbrainoid-usage追加のみ、既存distribution維持との担当報告。
+- run unitはsandbox TestClient初期化で無出力停止、Ctrl-Cで終了。require_escalated再実行中、停止した検証は成功扱いにしない。
+- 採用規則: UTC月次要求/資源、同時枠は月跨ぎ・確認待ち中も保持。開始済providerのcancelは即枠解放せずcallback終端/強制期限照合まで保持。不明unitは予約額保持、後日確定factのみ差分精算、実消費超過は全額計上。境界試験は続行中。
+
+### 初回unit結果と回帰修正
+
+- 新規usage unit8件成功（担当報告）: 競合admission/429 Retry-After/同key replay、既知・片側不明・provider429、音声遅延精算race、取消・期限・worker開始marker/queueTTL、本人/admin/別tenant/opaque UID/月跨ぎ。
+- 既存finite authority回帰が3.06秒>上限1.5秒で失敗。同期予約内の追加RunState.checkを原因と確認、予約TXはJobs現在lease/認可fenceを維持し詳細認可は既存Core非同期bridgeへ戻す修正。再実行待ち。新規test fixture型cast1件も修正中。
+- 親read-onlyでuv.lock差分を照合: 新規workspace brainoid-usageと関連内部依存のみ、既存外部distribution変更なし。
+
+### 必須検証の途中結果
+
+- `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run setup`: 成功、88resolve/86installed・Node6workspaces（担当報告）。
+- 同env `mise run check`: 全9check成功22.42秒、mypy161files、docs1370links/errors0、OpenAPI互換破壊なし・生成物一致。
+- 同env `mise run test`: Python387件成功34.250秒（旧377+usage9+checkpoint1）、Skill/Nodeは後続結果待ち。emulator全件進行中、現時点の途中dotを成功証跡には数えない。
+- 同期認可回帰修正後run16件成功2.653秒、checkpoint43件成功8.346秒。mypyのemulator to_dict optional6箇所をassert/or{}で補正後成功。
+
+### 全体テスト完了と境界整理
+
+- `mise run test` 完了: Python387成功34.250秒、Skill18成功0.088秒、Node40成功13.956秒。
+- その後RunStateからusage内部collection直読を共通公開read-only `live_run`へ移動。製品変更のため最終check・関連回帰を再実行予定、先の成功と最新差分の検証を混同しない。
+- usage内部4collections+server policy追加、外部distribution追加/更新なし。OpenAPI getUsage shape維持、説明・生成物更新。emulator全件は続行中。
+
+### 最終実装検証と編集停止
+
+- `/root/run08_implementation` 編集停止。full Firestore emulator105件成功140.604秒、正常shutdownログ、`ss`で8080/9099/9150/4400/4500 listenerなし（require_escalated）。
+- live_run抽出後の最終`mise run check` 全9check成功22.98秒・mypy161。関連run/usage/checkpoint68件成功12.026秒、`git diff --check`成功。
+- full Python387/Skill18/Node40成功はread-only live_run抽出前。抽出後は全check/関連68と区別して記録。最後にAPI/worker pyproject末尾空白2行のみ除去、機能変更なし。
+- setup成功、既存外部distribution維持。最新全差分の独立レビュー待ち。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run08_review_r1`（新規独立context）。base commit: `57c32ab0c65cc3d3e50eebc9197de286d6f664ae`。
+- 未追跡を含む最新全33files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `b2025a825d02eb93b455b88d44c8032ee2c5e590220a7d9ebfad4601d64ecd61` |
+| `docs/05-development-and-testing.md` | `6dce83402971ea623521b1345f968023d183b5c0057b1792b53c6e03b49a1867` |
+| `docs/conversations-and-runs.md` | `7487da686c8819b9fa098c6249c6e000af5ab121c948bfbfee95974bb4c78951` |
+| `docs/jobs.md` | `5723b20a9436f48f0567e03c9e1f42e41423b2e6f5f71e29b596e6af57f00503` |
+| `docs/usage.md` | `8a431037168a017ba2320f9c7c4e26f4612e032ce8979640b8d4fd5e853802d7` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `47f824309be936e5e327da9db45eade1b5450e73bb74af682f8d60502985b974` |
+| `packages/api-client/src/generated/sdk.gen.js` | `abfaaf41d9428adbfe41e1e0e5db86e7ef5accdc61f9435783836f8279a0ed27` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `a8bc24e300c042d80df7168cfb0740268d4641be28a4208928b86b70452ba737` |
+| `packages/runs/pyproject.toml` | `de9e07b647ce6826ba8d9e8e1ca091124a87fda61a12a995f6d3634b0d3315c8` |
+| `packages/runs/src/brainoid_runs/control.py` | `c916413f3f6e343734987452dec030906864cd29c8575816e29e6639cd651c83` |
+| `packages/runs/src/brainoid_runs/state.py` | `979659cb1fb401325dffff5ffe119d8dcb4e2e577df9517f2b6fcfd229a8cdc0` |
+| `packages/usage/pyproject.toml` | `8a5ba94ca10ef5257b7530d5862741fb2f062625b8b928ca7c3cf465c637e004` |
+| `packages/usage/src/brainoid_usage/__init__.py` | `ac5edbfe92b9c26fd41e9c68d7229ee5185ba877e7a8d88799bbcb6f9e50939a` |
+| `packages/usage/src/brainoid_usage/ledger.py` | `10e564f7ee50c245bc12481cc660234ac060bb5da26bc9c6f221d562ba27716a` |
+| `packages/usage/src/brainoid_usage/models.py` | `5eab9e83abe85eca66a9646500d82e24cc134d993d5a82016dab76c15fc081e2` |
+| `packages/usage/src/brainoid_usage/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `pyproject.toml` | `5ac76b6bd0ef58979a3040e57d18462e2d64972b85b5603a358075c2f27be803` |
+| `services/api/pyproject.toml` | `89eb92ba609c52f400c31b6b250a4d96113fbf22a2cc80ca344ca3e0233d3389` |
+| `services/api/src/brainoid_api/app.py` | `dbbef57fa4da9a9db9b3a41f7bab415dbc4441f89803b07c1c370978f8c559ca` |
+| `services/api/src/brainoid_api/errors.py` | `1fcdc50f7b806af309766451ebbfb7df1d08a2f8279e9f477a71668d446bdc0c` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `ea898f70535778c8d70b9e5769eb3f0f877ecc943e39bdc2e648bd939f3b5973` |
+| `services/api/src/brainoid_api/routes/usage.py` | `75962ea2bc799c2a4a8edbccea23a37db7d1781ea7d706d64e96d8de3b9342d4` |
+| `services/worker/pyproject.toml` | `3288d9e43c1c345da0849f78ed31c2c39d61c9044a6b859305448a7cdcc35457` |
+| `services/worker/src/brainoid_worker/entry.py` | `f3915392b90a13f7a60dddc6d3890a4b5931897577510e16c268011d6a6b54fc` |
+| `services/worker/src/brainoid_worker/metered_model.py` | `8ce55a9bc4c7bbde526bd2fa94c57522a120e2c7f8ac14f66a1b7fab93007d51` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `9a00f1efc7f2ea8a83f6fae8cb2227fcf0ac31a98d44ab05e044c7919d827101` |
+| `services/worker/src/brainoid_worker/usage_reconciler.py` | `fe761923912a193ffeb560d0eb3cd9308751bb1d32c753353cc59491fdfffa6d` |
+| `specs/openapi.yaml` | `2754e59f1fcf4dca901149e4ad15738bf251f2ec4b5806b5bc85395dda317bb2` |
+| `tests/emulator/test_usage_limits_integration.py` | `d4f961fd519eae64b64c916a0052b0e83f87354b4baea66554254181880584d0` |
+| `tests/test_foundation.py` | `43da14f94f61d77297e4b8896d4fb9059e620bad124fc2cfcd4f7b2cb38417b0` |
+| `tests/test_run_checkpoint.py` | `64545d357fb2b7dc80b259bc3028b3de34dd5dbbc50dbd5287a87cea6d382e4a` |
+| `tests/test_usage_limits.py` | `434027ec4c1823a98e6af21560219eb7059b8462206d0c8c3acfccf5e2e2f509` |
+| `uv.lock` | `3b2a94adeecb47924f771e0fe98e11e0514fb1303885ce068828f1acd79487c5` |
+
+### 独立レビュー ラウンド1 引継ぎ
+
+- 実装担当最終報告を受領、編集停止を確認。親でmanifest33pathsのworking SHA/base/main/index空/差分検査が一致。新規独立担当 `/root/run08_review_r1` を起動。
+- 最新全差分、正本、共通DoD、観測検証、抽出前full testと抽出後68件の区別、未実施の本番検証を伝達。型/有限停止・既知未知精算・月跨ぎ/待機/遅延/競合/閲覧境界と移行を直接確認するよう依頼。前回指摘なし。
+
+### 独立レビュー ラウンド1 直接検証
+
+- reviewer開始時main/HEADbase/manifest33SHA/対象集合一致。最新usage実装・tests・主要周辺差分を確認。
+- reviewer直接`test_usage_limits / test_turn_run / test_run_checkpoint`68tests成功10.808秒。
+- 候補: provider累積Usageが予約額を超えてCore length打切りすると、未完了扱いで元予約だけ保持し観測済み下限を過少計上する可能性。独立probeで確認中、現時点確定mustfix扱いにしない。
+
+### 独立レビュー ラウンド1 境界probe
+
+- reviewer `/tmp/ba_run_08_independent_review.py` の6probe中5成功/1失敗。input4096/output10予約にprovider Usage(input4096/output20)でCoreがlength終端、run completedだがledger4106のまま（観測下限4116）。
+- P2要修正候補: `services/worker/src/brainoid_worker/run_turn.py:499-514`。未確定をfinal扱いせず、未知保持額は観測済み累積値の下限以上へ増額すべき。正式全差分判定前のため製品固定を維持。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run08_review_r1`: request_changes、mustfix R1/P2 1件、任意なし。終了時main/base/全33paths SHA一致、全差分・周辺正本を確認、製品/index/metadata編集なし。
+- R1: `run_turn.py:499` 中断時の観測済み超過消費を過少計上。予約4096+10に観測4096+20、provider Completed前Core length終端でSettlement()→charged4106/unknown、観測下限4116。`max(予約額,観測累積量)`以上の未知保持が必要。途中量でrefund/final化せず、後日確定/競合でも差分精算を維持する。
+- 独立probe `/tmp/ba_run_08_independent_review.py::test_observed_overrun_during_length_stop_is_not_undercounted` で再現。他5probe成功（provider前未呼出し返却、途中失敗予約維持、完了入力超過、期限/遅延競合、membership失効）。
+- reviewer直接68tests10.808秒成功、6probeは5成功1失敗、diffcheck成功。setup/full387/18/40/check/emulator105は提供証跡と区別。
+- 競合429/原子受付/冪等/未知返却禁止/音声/月跨ぎ/待機再開/取消期限/本人admin他tenant/opaque UID/本文なし/現在認可/read-before-write/移行文書を確認。R1解消後に新規全差分レビューが必要。元実装担当へ修正を戻す。
+
+### R1修正方針
+
+- 元実装担当が再現箇所を確認。MeteredModelでUsageをCoreへ渡す前に単位別累積最大値を捕捉し、ledgerへ観測下限を保存。unknown保持額をmax(予約額,観測下限)へ増額。確定値と下限を分離し、低い途中量で返却せずlate finalは下限以上のみ受理する方針。
+- Core現在権限再検査でUsageを捨てる場合もadapter観測量を計上、並行観測/精算、下限fieldなし旧予約の互換を追加検証予定。製品修正中。
+
+### R1修正の初期検証
+
+- usage14件成功1.318秒（従来9+新規5）、mypy162files成功。元独立probe6件すべて成功0.492秒、指摘ケースはcharged4116/unknown/observed4096+20。
+- probe初回は/tmp起動でscripts import不足（PYTHONPATH=testsのみ）、PYTHONPATH=tests:.で再実行成功。
+- 新ledgerはobservedを単位別max保存。partial observeはstarted維持、final<下限は拒否しても下限保持、latefinal/観測/期限raceで全scope差分整合。Core eventlimit/失効/cancelでUsage未処理でもMeteredModel側観測計上の負例成功。最新共通検証・Firestoreは続行中。
+
+### R1修正後の全体検証
+
+- `mise run check`: 全9タスク成功22.59秒、mypy162、OpenAPI/生成物/format/lint/docs全合格。`git diff --check`成功。
+- `mise run test`: Python392件成功38.098秒、Skill18成功0.063秒、Node40成功14.303秒。追加5unitと既存finite authority等を全体で再確認。
+- 契約文書はunknown=max(予約,観測下限)、observeはstarted維持、確定値に矛盾する高い後発観測はunknownへ戻して保守的保持する規則を明記。Firestore全件実行中。
+
+### R1修正完了・最終検証
+
+- `/root/run08_implementation` 製品編集停止。変更: ledger、MeteredModel、RunTurn、usage unit/emulator、共通fake、usage文書。台帳/log/.git未変更。
+- 全`mise run test-emulator`107件成功148.080秒、正常shutdown、`ss`指定8080/9099/9150/4400/4500 listenerなし。最終diffcheck成功。
+- 指摘R1ケースcharged4116/unknownで解消、独立probe6/6、usage14/14、全check22.59秒/mypy162、full392/18/40成功。観測前Core採用拒否・latefact・競合・旧fieldなしを追加確認。新規R2全差分レビューへ。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/run08_review_r2`（新規独立context）。base commit: `57c32ab0c65cc3d3e50eebc9197de286d6f664ae`。
+- 未追跡を含む最新全34files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `b2025a825d02eb93b455b88d44c8032ee2c5e590220a7d9ebfad4601d64ecd61` |
+| `docs/05-development-and-testing.md` | `6dce83402971ea623521b1345f968023d183b5c0057b1792b53c6e03b49a1867` |
+| `docs/conversations-and-runs.md` | `7487da686c8819b9fa098c6249c6e000af5ab121c948bfbfee95974bb4c78951` |
+| `docs/jobs.md` | `5723b20a9436f48f0567e03c9e1f42e41423b2e6f5f71e29b596e6af57f00503` |
+| `docs/usage.md` | `de38d686f8cec77ea034c7dcbb66ba9626f51b8d096e9a1f13f3c811842f6420` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `47f824309be936e5e327da9db45eade1b5450e73bb74af682f8d60502985b974` |
+| `packages/api-client/src/generated/sdk.gen.js` | `abfaaf41d9428adbfe41e1e0e5db86e7ef5accdc61f9435783836f8279a0ed27` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `a8bc24e300c042d80df7168cfb0740268d4641be28a4208928b86b70452ba737` |
+| `packages/runs/pyproject.toml` | `de9e07b647ce6826ba8d9e8e1ca091124a87fda61a12a995f6d3634b0d3315c8` |
+| `packages/runs/src/brainoid_runs/control.py` | `c916413f3f6e343734987452dec030906864cd29c8575816e29e6639cd651c83` |
+| `packages/runs/src/brainoid_runs/state.py` | `979659cb1fb401325dffff5ffe119d8dcb4e2e577df9517f2b6fcfd229a8cdc0` |
+| `packages/usage/pyproject.toml` | `8a5ba94ca10ef5257b7530d5862741fb2f062625b8b928ca7c3cf465c637e004` |
+| `packages/usage/src/brainoid_usage/__init__.py` | `ac5edbfe92b9c26fd41e9c68d7229ee5185ba877e7a8d88799bbcb6f9e50939a` |
+| `packages/usage/src/brainoid_usage/ledger.py` | `f4cf1fc5d31362dc64d60ac0c843344d87f774a5586d8b0173aaceced90da8ed` |
+| `packages/usage/src/brainoid_usage/models.py` | `fbece5aee1c92eeb5292ce672ecc9e495444dcf4b18b2a269660756138b84262` |
+| `packages/usage/src/brainoid_usage/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `pyproject.toml` | `5ac76b6bd0ef58979a3040e57d18462e2d64972b85b5603a358075c2f27be803` |
+| `services/api/pyproject.toml` | `89eb92ba609c52f400c31b6b250a4d96113fbf22a2cc80ca344ca3e0233d3389` |
+| `services/api/src/brainoid_api/app.py` | `dbbef57fa4da9a9db9b3a41f7bab415dbc4441f89803b07c1c370978f8c559ca` |
+| `services/api/src/brainoid_api/errors.py` | `1fcdc50f7b806af309766451ebbfb7df1d08a2f8279e9f477a71668d446bdc0c` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `ea898f70535778c8d70b9e5769eb3f0f877ecc943e39bdc2e648bd939f3b5973` |
+| `services/api/src/brainoid_api/routes/usage.py` | `75962ea2bc799c2a4a8edbccea23a37db7d1781ea7d706d64e96d8de3b9342d4` |
+| `services/worker/pyproject.toml` | `3288d9e43c1c345da0849f78ed31c2c39d61c9044a6b859305448a7cdcc35457` |
+| `services/worker/src/brainoid_worker/entry.py` | `f3915392b90a13f7a60dddc6d3890a4b5931897577510e16c268011d6a6b54fc` |
+| `services/worker/src/brainoid_worker/metered_model.py` | `8bd712e18670851705c4c211df15712e0e7c937636bf8bd2bc112b7aaace17ed` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `724df15cb54b28ce273e964ac2e1705e72821caddbac38952de6fa63fc590aa8` |
+| `services/worker/src/brainoid_worker/usage_reconciler.py` | `fe761923912a193ffeb560d0eb3cd9308751bb1d32c753353cc59491fdfffa6d` |
+| `specs/openapi.yaml` | `2754e59f1fcf4dca901149e4ad15738bf251f2ec4b5806b5bc85395dda317bb2` |
+| `tests/emulator/test_usage_limits_integration.py` | `fdbd609cc1dbd8c22cde4f9f4da17c19b78cdb323b2eb33681ec9d8b64b8b83d` |
+| `tests/fakes/usage_model.py` | `7d4022f8057637d7057de2e45bd1a9f812f02607364aa570f21b2e01c20a3a53` |
+| `tests/test_foundation.py` | `43da14f94f61d77297e4b8896d4fb9059e620bad124fc2cfcd4f7b2cb38417b0` |
+| `tests/test_run_checkpoint.py` | `64545d357fb2b7dc80b259bc3028b3de34dd5dbbc50dbd5287a87cea6d382e4a` |
+| `tests/test_usage_limits.py` | `01703cc4dcbdff66fe068ff0c9aa568637ea3f44d30a9306670fcdb2d35e6ca0` |
+| `uv.lock` | `3b2a94adeecb47924f771e0fe98e11e0514fb1303885ce068828f1acd79487c5` |
+
+### 独立レビュー ラウンド2 開始・直接検証
+
+- `/root/run08_review_r2` 開始main/base/manifest34全SHA一致。新規ledger/models/usage route/metered/reconciler/fake/tests、tracked全差分と周辺を確認中。
+- reviewer直接UsageTests14+元独立probe6=20tests成功1.715秒。sandbox TestClient停止のためescalation再実行、停止分は成功扱いしない。
+- R1はcharged4116/observed4096+20/unknown・model1呼出しで解消確認。現時点mustfixなし、全差分/周辺最終確認待ち。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/run08_review_r2`: approve、必須/任意なし。R1/P2解消。開始・終了main/base/34paths全SHA一致、全tracked差分・新規全文・関連正本/周辺を確認、製品/index/metadata/.git変更なし。
+- 競合原子受付/429・再送非加算、tenant/user/device各上限と3主体精算一致、未知単位保持・下限・部分確定・超過/遅延/期限競合、枠と資源保持の分離・音声共通契約を確認。
+- 現在account/membership、member本人/owneradmin総量、selector/private session拒否、別tenant/失効membership/非activeaccount拒否を直接検証。本文/署名/tool引数のledger・DTO非混入。provider429非再実行、queue/cancel/月跨ぎ/waiting次段予算、jobs/Core/tools現在認可/lease/checkpointを確認。
+- 直接27件全成功: Usage14+元独立probe6=20件1.715秒、新独立probe4+有限認可/bridge/確認次段回帰3=7件0.536秒。`/tmp/ba_run_08_r2_probe.py`、diffcheck成功。sandbox停止は不合格扱いせずescalation再実行、自分の残留停止process終了済み。
+- 全check/Python392/Skill18/Node40/emulator107は提供証跡と区別。emulatorコード全文確認。最終approve、レビュー2回、未解決必須ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み34pathsのworking/index/commit SHA一致、main/base/cached対象集合/diffcheckを確認。
+- 実装コミット: `3b82f86dd7d5d62e805d7c4aa28a042b464c0a8c`。独立レビュー2回、最終approve、R1解消、未解決必須ゼロ。
+- 予約/未知保持/下限/確定/競合/音声共通/本人tenant取得をfake・Firestore・独立probeで確認。実provider・請求・本番負荷・配備は後続。
+
+### 親側最終検証と記録確定
+
+- 台帳done更新後、親`MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0、全9check成功22.03秒。mypy162、format162、docs1370/errors0、done25/todo71。
+- 記録対象は台帳・作業ログのみ。完了日時: 2026-10-26T05:31:37.350508+00:00。
