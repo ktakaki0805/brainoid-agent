@@ -7981,3 +7981,135 @@ FR008/AC008、T012。API/tool共通serviceでタスク作成・一覧・取得�
 
 - 親のdone更新後 `mise run check` はwhole22.082242秒/exit0。281Python/全TS・format/lint/contracts/client/compatibility/workflow/docs/tickets成功、38done/96。raw/result /tmp/ba-app-03-parent-record-check.{log,json}。
 - 終了: 2026-10-26T23:17:10.982066+00:00。台帳/logの2filesだけを記録commitする。
+
+## ba-app-04-20261026t231755z
+
+- チケット: BA-APP-04 期限走査と重複しない通知job（FR009/AC009/T013/T014/T038）。
+- 開始: 2026-10-26T23:17:55.549182+00:00、状態in_progress。main/base `619c6406f8cc3f0bc7881684155e8aee81195af5`、開始clean/index空。
+- 選択: APP03両commit/clean/全SHA確認後、planner check成功38done/96、ID指定なしnextでAPP04。依存APP03/RUN01 done+実装commit祖先確認。
+- 実装担当 /root/app04_implementation（新規別context）、レビューは各回新規独立context。親metadata/commit、製品writer1名。
+- 範囲: due/status有界走査、lease付き確保とoutbox/domain同TX、reminder+予定版の決定的通知ID、宛先別状態、配送直前の取消/世代/現在権限/表示方針、5分超の古い音声抑止、provider受付/displayed/userackの分離。
+- 受入検証計画: 二重走査/再配送/順不同/応答喪失/lease競合でも1世代1論理通知、取消/旧世代/現在失効の拒否、offline古通知の未確認保持と一斉音声なし。固定時計/fake配送先/実Firestoreと既存Jobs/currentpolicy/Reminders回帰、setup/check/通常全体/全emulator。
+- 追加外部前提なし。docs08§1のfake/emulator完了範囲。実Scheduler OPS03、FCM/通知API APP05、Pi同期DEV04、UI07は後続。実cloud/provider/課金/IAM/secret/deployは未実施。
+- レビュー/実装commitは未実施。実結果・失敗・指摘・修正を下へ追記する。
+
+### 通知sourceと可変配送状態の設計
+
+- Writer報告: 既存Jobsのexact source.versionを維持するため、本文をコピーしない固定世代source(ResourceKind.NOTIFICATION)へjobをbindし、配送直前にReminders/current_scheduleと現在target/task権限を再検査する方針。通知状態は別delivery子記録、同世代title編集は現在本文を参照する。
+- 新member/依存/lock追加なし、既存memory/policy/jobs/worker portへの必要最小限の統合を予定。新kindをreminders scope/現在owner/private-sessionと整合し、source単体で現在認可を迂回せず、export/lifecycle/purgeも含めて確認する。現時点は設計中で検証成功ではない。
+
+### 通知基盤の初回重点8件成功
+
+- Writerは本文なし固定通知source、別delivery子記録、有界lease/cursor走査、既存Jobs/Dispatcher/Worker配送handler、unknown照合を実装。provider受付/displayed/本人ackは独立状態。
+- targeted-01 `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_notifications.py` は8件.176秒OK、whole.562159秒/exit0。23:24:36.775442Z〜23:24:37.337603Z、raw/result /tmp/ba-app-04-targeted-01.{log,json}を親確認。
+- private device/current session/失効/task/export/lifecycle/応答喪失の拡充中。まだfreeze前であり最終検証/独立レビューは未実施。
+
+### 重点15件・型成功、lint修正中
+
+- targeted-02は15件.382秒OK、whole.768183秒/exit0。types-02はPython286sources成功、whole.323700秒/exit0。実raw/resultを親確認。
+- lint-01は7errors（import順序/未使用import5、loop変数closure2）、whole.048236秒/exit1。元raw保全し、最終freeze前に修正する。全体check成功とはまだ扱わない。
+
+### 親read-onlyの追加確認観点（finding未確定）
+
+- 現在の_claim/authorize_deliveryがshared通知のinitiatorを常にreminder.created_byから選ぶ点を親が確認。元creator退出後に保持されたshared reminderを現在adminが明示snooze/日時変更した正当な新世代と、単なるrejoinによる旧予定の復活を区別できるかwriterへ検証依頼。親の再現probeは未実施であり正式レビューfindingとはしない。受理した再予定への権限証拠を確認し、旧世代の無断付替えは行わない方針。
+
+### 正当な再予定主体の修正方針
+
+- Writerはcreated_by固定ではcreator退出後の正当admin再予定がskipされることを確認し、修正に着手。これはfreeze前の実装見直しであり、独立レビュー回数には数えない。
+- Reminders受理TXで世代別の内容なしimmutable schedule intent（受理主体・membership/tenant stamp・account stamp）を保存し、通知sourceをその世代の受理主体へbindする方針。title-onlyではintent不変、adminの明示snooze/日時変更が新intentを作る。
+- 旧予定のrejoin復活を防ぐためintent欠落/失効stampは配送不可。APP03既存データは明示再予定で新intentを導入する移行を文書化し、既存閲覧/取消と新規配送の境界を検証する。まだ修正後テスト成功ではない。
+
+### 重点20件まで拡充・型の修正中
+
+- targeted-03は18件3.002秒/whole3.577649秒、targeted-04は18件4.282秒/whole4.914604秒、targeted-05は20件3.751秒/whole4.561643秒、全exit0。各raw/resultを親確認。
+- types-03は286sources/.343583秒/exit0。機能追加後types-04は288sources・5errors/.777550秒/exit1（worker lambda推論、scenario callback型/Any/不要ignore、loss fixture list注釈）。元失敗保全して型修正中、最終freeze/checkは未実施。
+
+### 共有再予定主体・失効世代の実証
+
+- Writer報告: Reminders受理TXでScheduleIntent（世代/受理主体/tenant-member stamp/account stamp）を原子的に保存し、title-onlyはintent維持。creator退出→admin title編集では走査0、adminの明示snooze新世代はadmin grantで配送成功、creatorがauthorization_version+1でrejoinしただけの旧予定は配送0をactual service/scanner/workerで確認。
+- 通知関連20件とmypy288sources成功。intent欠落の既存予定は明示再予定で導入する移行を文書化。targeted emulator稼働中、freeze前。正式reviewでもこの修正と通常read/cancel互換を全差分から確認する。
+
+### 実Firestore重点15件・precheck成功
+
+- types-05は288sources/.457210秒/exit0で先の型5errorsを解消。precheck-01 `mise run check` はwhole3.422811秒/exit0（23:36:04.467480Z〜23:36:07.890292Z）。まだ正式freeze後のcheckではない。
+- targeted-emulator-01は15件18.747秒OK、whole25.903394秒/exit0、23:35:21.289363Z〜23:35:47.191271Z、全emulator正常shutdown。専用bashでのみemulator envを設定し、demo-brainoid Auth/Firestore上のtest_notifications_integration.pyを実行。raw/result /tmp/ba-app-04-targeted-emulator-01.{log,json}を親確認。
+
+### 事前全通常のfixture失敗・訂正
+
+- prenormal-01はPython785件180.264秒、whole187.911秒/exit1、唯一のERRORはNotificationTests.test_uncommitted_scan_creation_rolls_back_notification_and_jobのfault injector fail(*args)がpartial呼出のtenantキーワードに非対応でTypeError。実サービスの不具合とは区別しfixtureを**kwargs対応へ訂正。元raw/result /tmp/ba-app-04-prenormal-01.{log,json}を保全。
+- targeted-06は通知17件.549秒OK、whole1.086205秒/exit0。この成功は失敗した全通常の代用ではない。freeze後の正式setup/check/全通常/全emulatorを別phaseで同SHA実行する。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/app04_review_r1`（新規独立context）。base commit: `619c6406f8cc3f0bc7881684155e8aee81195af5`。
+- 未追跡を含む最新全21files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `896484f37950c445d6cb9c0424559f33818131734365ec06c6ba86e7a18c85ec` |
+| `docs/04-interfaces.md` | `223d20dd0974921096be44647bb3ce31312e20a671ba1cf9125ed8bd29d9c2c8` |
+| `docs/account-deletion.md` | `b5c19b11122a0c75e19a16313c673cc3fcf6944c47a67b6fce5e3d5656a518c6` |
+| `docs/data-export.md` | `959d17099b5c4a49490e18a2d7e684512048295010a727d4ab5a35c736674325` |
+| `docs/jobs.md` | `440b60414b44a45e6d639d0d0ba14d3dfc4f8c25afbf0468f822cb912f765c53` |
+| `docs/notifications.md` | `d9f4248f1a19304a634f494e08d12a209402b88b25c585a1ae6f9fd3a750117c` |
+| `docs/reminders.md` | `af0a26f40dd38f61777afac2f9432d46cae16a2f0c4eded1cf652a73682cf806` |
+| `packages/memory/src/brainoid_memory/export_manifest.py` | `f30d669ca1fd033b8c6dff2f312c129c9a86559d85b2202a0d2bde20626ea6fe` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `2822615202c15a0d220ad5767c0534260c5d42a5962f5c2630a639ff7bb081bd` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `13a64feaefba63cb7af1501239e38a9e42b31b035048a593471d71bdff620e3b` |
+| `packages/memory/src/brainoid_memory/reminders.py` | `0275f6c6fbca8b747488d9fc582505af03f33e2933df10598340aa31a0dd506e` |
+| `packages/policy/src/brainoid_policy/evaluator.py` | `9ebb6755aa4a47494a55ac1802d8f65e1a46155257aae4142ab1cf7c40743cad` |
+| `packages/policy/src/brainoid_policy/models.py` | `189ba016a39e2f3c6851cdebc6422f060a3f11f7750de2fc092c3ca544f5d361` |
+| `services/worker/src/brainoid_worker/export_data.py` | `41f4fb191eed3819ce6a177ac0cf7a4f497e9c1efa2d5e795136c76bdad5f82f` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `81a60e24673ebcd93908f76c9d997f0bde1fb35f419d986c5d4822c455be6799` |
+| `services/worker/src/brainoid_worker/notifications.py` | `842deb8b2fee8ace28c9f36555e324ab3a033b483cfc1b4eea65b3fcfb3cc8a4` |
+| `tests/emulator/test_notifications_integration.py` | `2892e2c28d5b72cd0a676e896a3f55c5a8d2a5923c00dde0b5b1b69a375dc90a` |
+| `tests/fakes/notification_scenarios.py` | `26ebdd0287a1813eedc8165d43759059eaca5f1011f4f88bc2d4ab1934ff236c` |
+| `tests/test_notification_export.py` | `d0bdb3750bd7d84304555c9b6f58e1e8177e1c4bac8fe249b17001acdd1a31c7` |
+| `tests/test_notification_lifecycle.py` | `5b2df9662cea7de9ef7bf55b63cb6b78650702a3bf197f1c06858039e54eccbc` |
+| `tests/test_notifications.py` | `df20ca970cdf97a6a6460f9f8435ffa0f3c02f17917c1ed32b7db69337e11916` |
+
+- 正式freeze全454product SHA一致を親独立照合、21変更paths/main/base/index空/diff-check成功。freeze JSON SHA a62063ad26bf653718b146504b4870189032ea6caa8f905bad05940dfecd3de3、aggregate27d41c2c36c0f674a4be3beb0e0f4620bb6eb1833f8cf1bbe5ec14e7b9427aad。
+- 最終setupは.583129秒/exit0、checkは3.398618秒/exit0、Python288sources/全TS/contracts/client/format/lint/docs/tickets成功。raw/JSONを親確認。全通常・全emulatorは同SHAで実行中、未完了を承認しない。
+
+### 同SHA最終通常テスト成功
+
+- final-normal `mise run test` はPython785件220.257秒、Skill18件.083秒、Node40件17.009016778秒、whole245.917892秒/exit0。23:41:16.149118Z〜23:45:22.052437Z。raw/result /tmp/ba-app-04-final-normal.{log,json}を親確認しR1へ共有。失敗したprenormalとは別保存。全emulatorは進行中。
+
+### 独立追加検証（正式判定前）
+
+- R1は全21paths/454SHA開始audit一致を保存。既存通知17件と独自6probeを実行成功。legacy intent欠落のread/cancelと明示再予定、creator退出後admin再予定、effect開始直後ackの送信抑止、unknown証拠欠落/失効の照合拒否、source.version厳密拒否、title編集の旧stamp復活拒否を確認。
+- 独自probe初回の短いIdempotency-Keyとv2旧ActorContextはfixture誤り、元source/raw/JSONを各版保存。v3は23:48:02.844984Z〜23:48:03.513462Z、whole.668469秒/exit0。製品変更なし。
+- export/lifecycle独自3件はhostで4.319秒/whole5.477172秒/exit0。最初のsandbox TestClient停止はreviewer所有sessionだけ中断(exit130)、focused-abort.jsonにwrapper中断のためstart/end未取得を明記。host再実行成功と区別する。全emulator/handoff前のためapprove未確定。
+
+### 同SHA最終全Emulatorと終了監査
+
+- final-emulatorは専用processだけ.env.emulator.exampleを設定し `mise run test-emulator`、203件576.878秒/whole585.931674秒/exit0、23:41:16.464079Z〜23:51:02.360825Z、Auth/Firestore/hub/logging正常shutdown。raw/result /tmp/ba-app-04-final-emulator.{log,json}を親確認。
+- 正式handoff /tmp/ba-app-04-handoff.md SHA401d2552088a8c7a066fc816b5f93d2b04c395638db36435560436a104641e87を親全文確認。writer exit-audit.json SHAe17dc1ec6bbd1e15ab279ce1c43a6d31b9338fc1f9ca1691f06b06a1080bdc2e、全454SHA/21paths/main/base/index空、全validation sessions閉鎖、全5ports閉鎖、4finalphase終了成功を保存。
+- 親host独立最終audit23:51:26.599032Z /tmp/ba-app-04-parent-final-audit.json SHAb91858068f4d2426ba87c8e9f72bd0865592178b53cd79e6bca7a2ecc5f44ea0は全454SHA/exact21paths/main/base/index空/diff0、4phase JSON/raw SHA・exit0、5ports全connect_ex111を確認。R1へ全証跡共有、正式判定待ち。
+
+### 独立レビューR1正式承認
+
+- 新規/root/app04_review_r1の正式判定approve、必須指摘/必須未検証0、任意改善要求なし。全21paths（追跡13/新規8）と周辺を確認したreport /tmp/ba-app-04-review-r1-report.md SHA5a2d9fcde890ee8b7fdc5b1794e84847d519343c5f7f6640cc4565740e361c3eを親全文確認。
+- 独自6probe＋export/lifecycle3件成功。初回実行の既存通知17件は各case成功だが独自fixture6件ERRORでsuite全体exit1だったことを区別し記録。v3の6件成功は.111秒、fullphaseは提供結果照合であり独立再実行とはしない。
+- end audit23:52:11.585558Z SHAd9bc607eb7da99a9ffc00bd13ef6f99e68d72bb1a1470456973b67a243e84a8f、全454SHA/21paths/main/base/index空/開始・writer終了一致、4phase JSON/raw SHAと親host証跡一致、正式handoff照合、diff0を確認。親snapshot workingも21paths一致。製品編集なし。
+
+### 完了結果
+
+- 状態done、実装commit `4026c5d65e94a483c856a6037fc8690c79129211`（`feat(notifications): BA-APP-04 add leased due scans and delivery jobs`）。承認21pathsだけstageしindex/commit各blob・作業tree SHAとR1 manifest一致、cached diff-check成功。完全stage差分 /tmp/ba-app-04-staged.diff SHA0dee45435db617c50bb07b76fa3c72346c25f0c1b017d7d34d7f3ff4e833a174。
+- tenant lease/永続cursorによる有界期限走査、世代別決定的通知ID、本文なし固定source・宛先receipt・Jobs outboxの同transaction作成を実装。現在の予定・受理主体stamp・宛先/session/task/独立台帳を配送直前とcommitで再検査する。
+
+| 受入条件 | 根拠 | 結果 |
+| --- | --- | --- |
+| 二重走査/job再配送でも同世代1論理通知 | actual scanner/Dispatcher/Worker、二重scan/queue、enqueue前後応答喪失、atomic rollback、lease再取得/completed再利用 | 成功 |
+| 取消/旧世代/失効主体の配送なし | T038旧job/ack、cancel前後、現在ScheduleIntent/target/private session/task/ledger、正当admin再予定と旧stamp復活拒否 | 成功 |
+| offline古通知は未確認・一斉読み上げなし | T014固定clock 299.999/300/300.001秒、offline後pending保持/再送0、current音声能力とexpires_at | 成功 |
+| 受付/表示/本人ackの分離 | provider receipt/device displayed/user acknowledged別保存、ack済送信抑止、現在本人取得のみ | 成功 |
+| 新producerの回帰 | 明示export/currentmanifest、member/account/tenant実purgeと遅いworker拒否、旧intent欠落のread/cancel/明示移行 | 成功 |
+
+- 同SHA最終setup/check（288Python/全TS等）、通常785+18+40件、全emulator203件成功。新規R1の1回でapprove、必須指摘/未検証0。独立probe6件・export/lifecycle3件成功、初回suite中の既存17case成功とsuite全体失敗を区別して上記に保存。
+- 新依存/lock/toolchain変更なし。docs/notifications.mdに最大100/pageでも全巡回は履歴数比例、元credentialを延長しない受理intent、旧予定の明示再予定移行、start/stop/drain順とunknown確定証拠限定回復を記載。切戻しでもsource/job/checkpoint/ledgerを削除して再実行しない。
+- 実FCM/通知HTTPはAPP05、実SchedulerはOPS03、Pi同期/表示はDEV04/UI07、実cloud/provider/端末/本番索引・負荷は未実施。外部effect開始後の取消は既効果を取り消せず、DBとのexactly-onceは保証しない。docs08§1のfake/emulator完了範囲で必須残課題なし。
+- 台帳done後の親mise run checkを行い、台帳/logの2filesだけ別記録commitに含める。
+
+- 台帳done後の親 `mise run check` はwhole22.103400190秒/exit0、288Python/全TS/contracts/client/compatibility/format/lint/workflow/docs/tickets成功、39done/96。raw/result /tmp/ba-app-04-parent-record-check.{log,json}。
+- 終了: 2026-10-26T23:54:27.090791+00:00。台帳/logの2filesだけ記録commitする。
