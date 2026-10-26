@@ -85,6 +85,7 @@ def _permission(kind: ResourceKind, action: Action) -> str:
         ResourceKind.NOTE: "notes",
         ResourceKind.TASK: "tasks",
         ResourceKind.REMINDER: "reminders",
+        ResourceKind.NOTIFICATION: "reminders",
         ResourceKind.EXPORT: "export",
     }[kind]
 

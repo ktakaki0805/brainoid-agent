@@ -70,6 +70,7 @@ class ExportData:
                 "notes",
                 "tasks",
                 "reminders",
+                "notifications",
             )
         ]
         while collections:

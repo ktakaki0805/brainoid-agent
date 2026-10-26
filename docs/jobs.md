@@ -1,6 +1,6 @@
 # 永続 job・dispatcher・worker
 
-BA-RUN-01 は業務更新と outbox を同じ transaction で保存し、プロセス停止後も同じ job を回収する。対象は [jobs](../packages/jobs/src/brainoid_jobs/repository.py)、[dispatcher](../services/worker/src/brainoid_worker/dispatcher.py)、[worker](../services/worker/src/brainoid_worker/entry.py)。会話・通知・purge の handler と実 Cloud Run/Tasks 配備は、それぞれ BA-RUN-04 / BA-APP-04 / BA-MEM-08 / BA-OPS-03 で追加する。
+BA-RUN-01 は業務更新と outbox を同じ transaction で保存し、プロセス停止後も同じ job を回収する。対象は [jobs](../packages/jobs/src/brainoid_jobs/repository.py)、[dispatcher](../services/worker/src/brainoid_worker/dispatcher.py)、[worker](../services/worker/src/brainoid_worker/entry.py)。会話・通知・purge の handler は BA-RUN-04 / [BA-APP-04](notifications.md) / BA-MEM-08 が提供し、実 Cloud Run/Tasks 配備は BA-OPS-03 で追加する。
 
 ## 保存と source の版
 

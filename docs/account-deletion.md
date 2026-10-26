@@ -19,7 +19,7 @@ BA-IAM-10 / FR-013 / AC-013 / T-022・T-034。`POST /v1/tenants/{tenant_id}/oper
 
 global account fenceはプロフィール不存在のbootstrap判定より先に評価し、profile物理消去後も再利用を拒否する。tenant fenceは全principalを拒否する。member fenceは本人の所属、private参照、model、通常job、export判定へ適用する。export生成・取得は `exportable` と現在のscope認可を両方通す必要がある。
 
-退出/accountの共有寄稿は本文を保持し、管理上のauthor IDも内容なしの出典識別として保持する。削除プロフィールから表示名を復元しない。sharedへの保存は独立した共有原本として扱い、本人のshared寄稿や他人privateを一括消去しない。本人privateの会話・記憶・entity・note/task/reminder、対応vector・run/job/tool receipt、private sessionと参照slot/receipt、本人通知・cache/exportコピー、private integrationの参照を選択する。accountはglobal profileとpush installation等の全子階層も消去する。
+退出/accountの共有寄稿は本文を保持し、管理上のauthor IDも内容なしの出典識別として保持する。削除プロフィールから表示名を復元しない。sharedへの保存は独立した共有原本として扱い、本人のshared寄稿や他人privateを一括消去しない。本人privateの会話・記憶・entity・note/task/reminder、対応vector・run/job/tool receipt、private sessionと参照slot/receipt、本人通知とdelivery子record・通知job/checkpoint・本人が受理したreminder_schedulesの本文なし証拠・cache/exportコピー、private integrationの参照を選択する。accountはglobal profileとpush installation等の全子階層も消去する。
 
 `entity_external_ids` はcanonical entityまたは同operationの永続選択証拠へ結合し、entityが先に消えても処理する。raw external ID・provider・integration参照と全子を消去し、hashを文書IDとする `entity_id`・`deletion_epoch`・`status: deleted` だけを再登録拒否のため保持する。他人private・shared・他tenantのindexは保持する。
 

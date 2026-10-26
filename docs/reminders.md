@@ -1,6 +1,6 @@
 # リマインダーと予定世代
 
-BA-APP-03 / FR-009 は [Reminders](../packages/memory/src/brainoid_memory/reminders.py) を HTTP と既定会話 tool から利用する。認可・transaction・冪等性はノート・タスクの [DirectResources](../packages/memory/src/brainoid_memory/direct_resources.py)、run・結果証拠は [DirectRuntime](../services/worker/src/brainoid_worker/direct_resources.py) を共有する。AC-009 の実配送・周期走査・通知本文取得・既読APIは BA-APP-04/05、UI は BA-UI-07 の範囲。繰り返し予定は提供しない。
+BA-APP-03 / FR-009 は [Reminders](../packages/memory/src/brainoid_memory/reminders.py) を HTTP と既定会話 tool から利用する。認可・transaction・冪等性はノート・タスクの [DirectResources](../packages/memory/src/brainoid_memory/direct_resources.py)、run・結果証拠は [DirectRuntime](../services/worker/src/brainoid_worker/direct_resources.py) を共有する。AC-009 のlocal期限走査・通知jobは [BA-APP-04の通知契約](notifications.md)、実provider・通知本文取得・既読HTTP APIは BA-APP-05、UI は BA-UI-07 の範囲。繰り返し予定は提供しない。
 
 ## API と時刻
 
@@ -31,6 +31,8 @@ user の通知先は opaque UID の完全一致で同 tenant の有効会員・a
 
 task_id は現在閲覧できる同 tenant の Task に限る。private Task を shared Reminder に関連付けない。取得・編集・tool result 再利用・export でも現在の Task 可視性を確認するため、関連 Task が削除・失効した Reminder は利用不可となる。task_id から本文や権限をコピーしない。Task 復旧時も既存の独立削除 fence を尊重する。
 
+BA-APP-04 は受理transactionに `reminder_schedules` の世代別ScheduleIntentを追加する。受理主体と当時のtenant/membership/account stampを本文なしで固定し、元token/sessionを延長しない。title編集では変更せず、adminによる日時変更・snoozeはそのadminを受理主体とする新世代を作る。intent欠落の既存予定や失効stampからの配送は拒否し、明示snooze/日時変更で新たに受理する。
+
 ## 遅延イベントの共通判定
 
 型付き ScheduleReference は tenant_id・reminder_id・schedule_version だけを持つ。`current_schedule(record, reference)` は正本の tenant・ID・予定版を一致確認し、削除・cancelled・expired を拒否する。title だけの変更では同じ予定として扱う。APP-04/05 の job・通知・ack・完了処理は、現在認可した同 transaction の正本にこの判定を使い、合格後だけ自身の状態遷移や配送 claim を実行する。判定自体は認可や配送 claim を発行しない。古い通知をクライアントで開く場合も最新世代を取得して確認する。
@@ -51,4 +53,4 @@ MEM-09 は明示的 ReminderView と content-free manifest を使い、actor・�
 
 既存データの一括移行や依存追加はない。切戻し時は reminder API/tool admission を止め、未確定 run/effect と受理済み lifecycle purge・export を対応版で回復・完了させる。先に旧workerへ切り替えたり、effect・ledger・fence を削除して再実行しない。
 
-[HTTP/tool/T-038](../tests/test_reminders.py)、[結果現在性・回復](../tests/test_reminder_regressions.py)、[lifecycle](../tests/test_reminder_lifecycle.py)、[Firestore競合・復旧](../tests/emulator/test_reminders_integration.py) を提供する。実cloud・provider・本番索引・実機通知は未検証で、BA-APP-04/05 と後続結合確認で扱う。
+[HTTP/tool/T-038](../tests/test_reminders.py)、[結果現在性・回復](../tests/test_reminder_regressions.py)、[lifecycle](../tests/test_reminder_lifecycle.py)、[Firestore競合・復旧](../tests/emulator/test_reminders_integration.py) を提供する。実cloud・provider・本番索引・実機通知は未検証で、BA-APP-05 と後続結合確認で扱う。

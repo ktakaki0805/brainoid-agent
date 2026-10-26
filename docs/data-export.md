@@ -15,6 +15,7 @@ BA-MEM-09 は FR-013 / AC-013、T-001 / T-022 に対応する。`POST /v1/tenant
 | Entities / canonical entities | kind/label/aliases/scope/時刻。provider external_refsを除外 |
 | MemoryMutations・Memories / canonical facts | 既存MemoryViewの明示field。source_refsは現在の正本から解決・認可 |
 | CanonicalSourcesが扱う既存notes | title/body/scope/時刻。suppressed原本は利用者の読取りとモデル再利用を区別 |
+| DueReminders / notifications | [本人通知](notifications.md)の公開projection。titleは現在Reminder、状態は宛先receiptから取得し、他人通知・schedule intent・内部grantを除外 |
 
 tool-roleのモデルプロトコル、run/summary/job/checkpoint、資格情報、OAuth/push、membership管理情報、provider設定は本文へ含めない。未実装のAPP/CAL/UI機能は対象producerとして仮定しない。将来producerの追加時は投影・依存検査・purge・manifestを同時に追加する。
 

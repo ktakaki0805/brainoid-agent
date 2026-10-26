@@ -89,6 +89,7 @@ class ResourceKind(StrEnum):
     NOTE = "notes"
     TASK = "tasks"
     REMINDER = "reminders"
+    NOTIFICATION = "notifications"
 
 
 class ResourceRef(Record):

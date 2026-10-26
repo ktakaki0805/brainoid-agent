@@ -69,6 +69,8 @@ def project(
         and grant.owner_user_id == access.principal.user_id
     )
     created = document.get("created_by") == access.principal.user_id
+    if kind == "notifications":
+        created = document.get("user_id") == access.principal.user_id
     if kind == "messages" and document.get("role") == "assistant":
         from brainoid_jobs.models import job_id
 
@@ -93,6 +95,10 @@ def project(
                 if k in MemoryView.model_fields
             }
         ).model_dump(mode="json")
+    elif kind == "notifications":
+        from brainoid_memory.notifications import public_notification
+
+        public = public_notification(access, item_id)
     elif kind == "reminders":
         from brainoid_memory.reminders import Reminders
         from brainoid_memory.reminders import view as reminder_view

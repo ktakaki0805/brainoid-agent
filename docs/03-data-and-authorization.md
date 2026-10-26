@@ -67,7 +67,9 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `notes/{id}` | title、body、scope、作成/更新actor、version/削除epoch | [ノートAPIとtool](notes.md)。件数・tool結果byte上限付き公開Note投影 |
 | `tasks/{id}` | title、status、due_at、assignee_user_id | 状態はopen/done/cancelled。[API/toolと現在認可](tasks.md) |
 | `reminders/{id}` | due_at、timezone、schedule_version、内容参照、通知先、状態 | 再予定で版を増加し旧通知を無効化。配信と本人確認を区別 |
-| `notifications/{id}` | 元reminder、対象主体、delivery状態 | 私的内容をpush payloadに含めない |
+| `reminder_schedules/{id}` | 受理した予定世代、受理主体、tenant/member/account stamp | 本文なしの固定証拠。token/sessionの期限を延長しない |
+| `notifications/{id}` | 元reminderと予定世代、対象主体、固定source | 本文をコピーしない。[通知契約](notifications.md) |
+| `notifications/{id}/deliveries/{target-fingerprint}` | provider受付、表示、本人確認の別receipt | opaque UIDをpathへ埋め込まず、現在認可で取得 |
 | `integrations/{id}` | provider、所有者、許可calendar/家電、secret_ref | OAuth token本文はSecret Manager |
 | `calendar_proposals/{id}` | 正規化操作、引数hash、本人、期限、状態、必要ならrun/tool_call/checkpoint | 一回確認。初期期限5分。confirm/deny後のresumeを永続化 |
 | `commands/{id}` | 操作、対象Pi/家電、期限、状態、観測結果 | 詳細はインターフェース仕様 |

@@ -25,7 +25,15 @@ CONTROL = frozenset(
 )
 PRIVATE = frozenset({"conversations", "facts", "entities", "notes", "tasks", "reminders"})
 PERSONAL = frozenset(
-    {"memberships", "private_sessions", "integrations", "notifications", "exports", "caches"}
+    {
+        "memberships",
+        "private_sessions",
+        "integrations",
+        "notifications",
+        "reminder_schedules",
+        "exports",
+        "caches",
+    }
 )
 # Closed inventory of local producers. Global discovery is available only to a
 # whole-tenant intent; membership/account deletion does not own tenant devices.
@@ -141,7 +149,7 @@ class LifecycleHandlers(ForgetHandlers):
             )
         if root == "jobs":
             ref = doc.get("grant", {}).get("resource", {}).get("ref", {})
-            if ref.get("tenant_id") != tenant or ref.get("kind") not in PRIVATE:
+            if ref.get("tenant_id") != tenant or ref.get("kind") not in PRIVATE | {"notifications"}:
                 return False
             return self.bound_selection(
                 tx, f"tenants/{tenant}/{ref['kind']}/{ref.get('id')}", intent

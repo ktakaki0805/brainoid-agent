@@ -270,7 +270,7 @@ membership/deviceの減権限・失効・owner移譲もDB外認可変更台帳�
 
 ### 6.3 リマインダーと通知
 
-BA-APP-03 の管理 API・tool・予定世代判定は[リマインダー実装契約](reminders.md)を参照。実配送は BA-APP-04/05 で扱う。
+BA-APP-03 の管理 API・tool・予定世代判定は[リマインダー実装契約](reminders.md)、BA-APP-04 のlocal期限走査・通知job・receiptは[通知実装契約](notifications.md)を参照。FCMと通知HTTP APIは BA-APP-05 で扱う。
 
 DBのdue_atを正本とし、Schedulerの定期走査とCloud Tasksで配信する。通知IDはreminder IDと予定版から決定し、同じ通知を重複作成しない。予定を変更・取消した場合は古い版のジョブを無効化する。
 

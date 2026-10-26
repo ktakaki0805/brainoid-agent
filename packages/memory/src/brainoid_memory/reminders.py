@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from typing import Annotated, Literal, Self
+from uuid import UUID, uuid5
 
 from brainoid_contracts import (
     DisplayPolicy,
@@ -16,9 +17,11 @@ from brainoid_contracts import (
 from brainoid_contracts.errors import APIError, ErrorCode
 from brainoid_contracts.transactions import Transaction
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
-from brainoid_policy.models import ResourceKind
+from brainoid_policy.evaluator import Evaluator
+from brainoid_policy.models import ResourceKind, ResourceRef, Subject, UserSubject
 from brainoid_policy.scopes import PolicyDenied, ResourceGrant
-from pydantic import Field, TypeAdapter, model_validator
+from brainoid_policy.transactions import transaction_policy
+from pydantic import Field, TypeAdapter, ValidationError, model_validator
 
 from brainoid_memory.direct_resources import DirectRecord, DirectResources
 from brainoid_memory.models import MemoryValue
@@ -120,6 +123,45 @@ class ScheduleReference(MemoryValue):
     schedule_version: Version
 
 
+class ScheduleIntent(MemoryValue):
+    """Immutable acceptance evidence for this generation, never a bearer grant."""
+
+    reference: ScheduleReference
+    user_id: FirebaseUid
+    accepted_version: Version
+    authorization_stamp: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+    account_stamp: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+
+
+def schedule_intent_path(reference: ScheduleReference) -> str:
+    identity = uuid5(UUID(reference.reminder_id), f"schedule:{reference.schedule_version}")
+    return f"tenants/{reference.tenant_id}/reminder_schedules/{identity}"
+
+
+def schedule_subject(tx: Transaction, policy: Evaluator, record: Reminder) -> UserSubject:
+    reference = ScheduleReference(
+        tenant_id=record.tenant_id, reminder_id=record.id, schedule_version=record.schedule_version
+    )
+    try:
+        intent = ScheduleIntent.model_validate(tx.get(schedule_intent_path(reference)))
+    except ValidationError:
+        raise PolicyDenied() from None
+    subject = UserSubject(user_id=intent.user_id)
+    if (
+        intent.reference != reference
+        or intent.accepted_version > record.version
+        or (record.owner_user_id is not None and intent.user_id != record.owner_user_id)
+        or policy.principal(record.tenant_id, subject).stamp != intent.authorization_stamp
+    ):
+        raise PolicyDenied()
+    try:
+        if account_stamp(tx, intent.user_id) != intent.account_stamp:
+            raise PolicyDenied()
+    except AccountUnavailable:
+        raise PolicyDenied() from None
+    return subject
+
+
 def current_schedule(record: Reminder, reference: ScheduleReference) -> bool:
     """Common fence; consumers must ALSO authorize current audience and their own transition."""
     return (
@@ -142,17 +184,32 @@ class Reminders(DirectResources[ReminderCreate, ReminderPatch, Reminder]):
     def linked(cls, access: FactTransaction, record: ReminderCreate | Reminder) -> None:
         tenant = access.principal.context.tenant_id
         policy = access._authority.policy
+        cls.authorize_links(
+            access._tx, policy, tenant, access.caller.subject, record, access.principal.user_id
+        )
+        if record.task_id is not None:
+            Tasks.get(access, record.task_id)
+        access.finish()
+
+    @staticmethod
+    def authorize_links(
+        tx: Transaction,
+        policy: Evaluator,
+        tenant: ResourceId,
+        subject: Subject,
+        record: ReminderCreate | Reminder,
+        owner: FirebaseUid | None,
+    ) -> None:
+        """Shared current dependency checks, including durable schedule consumers."""
         target = record.delivery_target
         if target.kind == "user":
             try:
                 uid = TypeAdapter(FirebaseUid).validate_python(target.id)
                 policy._member(tenant, uid)
-                account_stamp(access._tx, uid)
+                account_stamp(tx, uid)
             except (ValueError, AccountUnavailable):
                 raise PolicyDenied() from None
-            owner = (
-                record.owner_user_id if isinstance(record, Reminder) else access.principal.user_id
-            )
+            owner = record.owner_user_id if isinstance(record, Reminder) else owner
             if record.visibility == Visibility.PRIVATE and target.id != owner:
                 raise PolicyDenied()
         else:
@@ -176,10 +233,18 @@ class Reminders(DirectResources[ReminderCreate, ReminderPatch, Reminder]):
             ):
                 raise PolicyDenied()
         if record.task_id is not None:
-            task, _ = Tasks.get(access, record.task_id)
-            if task.visibility == Visibility.PRIVATE and record.visibility != Visibility.PRIVATE:
+            task = policy.resource(
+                tenant,
+                subject,
+                ResourceRef(tenant_id=tenant, kind=ResourceKind.TASK, id=record.task_id),
+            )
+            if task.resource.deletion_epoch:
                 raise PolicyDenied()
-        access.finish()
+            if (
+                task.scope.visibility == Visibility.PRIVATE
+                and record.visibility != Visibility.PRIVATE
+            ):
+                raise PolicyDenied()
 
     @classmethod
     def validate_body(cls, access: FactTransaction, body: ReminderCreate | ReminderPatch) -> None:
@@ -225,7 +290,30 @@ class Reminders(DirectResources[ReminderCreate, ReminderPatch, Reminder]):
     ) -> Callable[[], None]:
         if old is None and record.due_at <= self.now():
             raise APIError(ErrorCode.INVALID_REQUEST)
-        return lambda: None
+        if old is not None and old.schedule_version == record.schedule_version:
+            return lambda: None
+        reference = ScheduleReference(
+            tenant_id=record.tenant_id,
+            reminder_id=record.id,
+            schedule_version=record.schedule_version,
+        )
+        path = schedule_intent_path(reference)
+        if tx.get(path) is not None:
+            raise PolicyDenied()
+        # DirectResources already authenticated/authorized this accepted mutation
+        # with the independent ledger in the same transaction. Snapshot its durable
+        # user authority, not the HTTP token or ephemeral Pi session lifetime.
+        principal = transaction_policy(tx, now=self.now).principal(
+            record.tenant_id, UserSubject(user_id=record.updated_by)
+        )
+        intent = ScheduleIntent(
+            reference=reference,
+            user_id=record.updated_by,
+            accepted_version=record.version,
+            authorization_stamp=principal.stamp,
+            account_stamp=account_stamp(tx, record.updated_by),
+        )
+        return lambda: tx.create(path, intent.model_dump(mode="json"))
 
 
 reminder_path = Reminders.path
