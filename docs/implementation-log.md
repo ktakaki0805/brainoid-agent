@@ -2863,3 +2863,221 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.92秒、全9タスク成功、台帳done18/todo78。
 - 終了: 2026-10-25T23:33:47.853953+00:00。台帳・ログのみを記録コミット。
+
+## ba-run-02-20261025t233440z
+
+- チケット: BA-RUN-02
+- 状態: done
+- 開始: 2026-10-25T23:34:40.625078+00:00
+- ブランチ / base commit: main / 17cffc4b910af6388d905863a3efa92047269bb9
+- 開始時の変更: なし
+- 選択: check成功（done18/todo78）、IDなしnext。依存FND07実装は現履歴に存在。
+- 親担当: /root、実装担当: `/root/run02_implementation`（独立context）。
+- 実装コミット: 838104e0b3b17fe9a8c69eb60d0d0f62542a31a7
+
+### 受入条件と検証計画
+
+- Google Gen AI SDK型をadapter内に閉じ、FND07 ModelProviderの入力変換/text/tool/usage/finishを実装。
+- 型付きmodel/region/timeout/output上限、暗黙provider切替なし、429/timeout/壊れた構造化応答を秘密を含まない共通エラーへ。
+- fake transportで通常文/tool提案区別、途中失敗/引数破損/usage欠落・打切り・有限retry、取消/期限とstream解放、core SDK非依存を確認。全setup/check/test。
+- 正本docs08共通完了条件はfake/emulatorで独立完了を許し、実provider確認を外部前提/後続結合へ分離。OPEN-005は未確定、環境のmodel/project/region/credential関連変数も未設定（値は表示せず存在だけ確認）。実疎通は未実施として理由・上限付き手順を記録し、実model/region/課金枠を推測確定しない。
+- 音声/品質日本語比較はVOICE01/02・QA03対象外。
+
+### SDK選定と依存境界
+
+- 実装担当が公式metadata照会: google-genai2.33.0、Python>=3.10、Apache-2.0を確認し、独立member packages/model_googleへuv add固定・sync成功。追加6packages、既存版更新なし、core最小依存は維持。
+- tool往復のthought signature等を失わない共通opaque継続metadataの最小拡張を検討。model選定/実疎通完了とは扱わない。
+- 初回ports.py想定の探索2コマンドはexit2/1、正しいports/・types/を再読済み。
+
+### SDK streamとtool継続方針
+
+- SDK2.33.0のfunctionCall partial_args/will_continue、Part.thought_signature、自動継続を確認。AFC/自動継続を明示無効化し、非分割functionCallのみ受理、partial/will_continueは安全失敗。tool候補はfinish確定まで保留。
+- 共通ModelResponse(message: ModelMessage)の最終snapshotイベントとModelMessage.provider_state（JSON opaque/repr非表示）を最小追加する方針。RUN03はTextDelta再構成ではなく最終assistant messageを継続へ保持し、SDK型はcoreへ漏らさない。
+- 親から待機中cancel/deadline、task CancelledError、早期acloseのtransport解放、思考用partを表示deltaへ出さない境界も確認項目として共有。
+
+### adapter初稿と型検査
+
+- 実SDK+HTTPX fake transport、明示Vertex/project/region/model/baseURL、timeout/deadline、retry attempts1、AFC/continuation/partial-args stream無効、呼出し単位client/response解放を実装。
+- JSON Schemaはローカルrefのみ＋外部取得不能Registry。finish周辺usage trailerも読む設計、終端欠落/切断は失敗。
+- 初回mypy118filesで3診断（変数衝突/Literal/SDK AsyncIterator typing）、修正・テスト追加中。
+
+### 初回adapter試験のfixture修正
+
+- SDKがtoken空のAnonymousCredentialsでもrefreshを要求し、HTTP fake到達前にrefresh例外で初回試験停止。実通信なし。fixtureへ合成tokenを明示し再実行する。
+- 親の初稿確認を受け、SchemaError/参照失敗の非retryable invalid_arguments化、usage部分報告で既知累積値維持、BLOCK_REASON_UNSPECIFIEDと実拒否の区別を追加対応。
+
+### credential refresh境界の確認
+
+- 親が導入済みSDK _api_client.pyのasync_get_token_from_credentialsを確認。expired/空tokenではto_thread(refresh_auth)が独自Google Request経由でrefreshし、注入HTTPX timeout/transportの外になる。
+- 実装担当へ、refresh待機中の期限/取消/環境proxy/自動retryを明示し、bounded refresh境界または事前更新済み短命tokenをSDKが暗黙refreshできないsnapshotで渡す契約を検証するよう共有。fixture合成tokenだけで実経路を未検証にしない。
+
+### offline SDK試験18件成功
+
+- 実SDK+fake transport試験18件成功。初回2件はSDK2.33のinclude_thoughts/stream_function_call_argumentsがsnake_case送信されるpayload期待の誤りを修正。
+- 呼出開始時に事前更新済みtokenを検査しrefresh不能snapshotへコピー、空/期限切れはpermission_denied。SDK暗黙refresh/ADCを遮断、DebugConfig明示Noneで環境record/replayを無効化。
+- 実装担当がasyncio debug Task reprからSDK例外本文が出る事象を実測し、内部taskの戻り値/例外を隠してNoneで完了する方式へ修正。追加負例・文書・全check/testへ進む。
+
+### 追加負例・文書整備
+
+- 25件試験で事前期限切れfixtureをローカル時刻で作った1件のみ失敗し、固定2000年UTC相当へ修正、再実行中。mypy119files成功。
+- docs/google-model-provider.mdを作成中。RUN03のsnapshot確定はCompleted後、provider_stateをSSE/表示へ出さない、credential事前更新/token snapshot、実疎通未実施/後日最大3call・各10秒・64token手順を記録する。
+- SDK part署名/input binding、usage trailer/既知値保持、refresh禁止/debug非漏出の追加負例済み。文書完了後に全check/test予定。
+
+### 全検証・Core単独試験成功
+
+- adapter25件は0.800秒で全成功、待機なし。docs/google-model-provider.md新設/関連文書3件更新/依存導入記録済み。
+- 標準setup成功、check9/mypy119/docs1320links、全test Python238/Skill18/Node39成功。
+- Core-only隔離installは7distributionのみ、google/adapter無しでFND07 19tests成功。
+- 最終確認でCONTINUATION token付き負例を強化予定、変更後の確認・編集停止を待つ。
+
+### 編集停止・最終全体検証要求
+
+- 実装担当は最終追加後adapter26件0.846秒/mypy119/Ruff/docs1320errors0/diff --check成功を報告し編集停止。
+- 全体check9/test238+18+39後に1test・FINISH_REASON_UNSPECIFIED正規化・safe close製品変更があったため、親は最終固定版で全check/test（Python239予定）の再実行を指示。編集停止維持で検証結果待ち。
+- Core-only環境は`/tmp/ba-run-02-core-minimal`、7distribution・Google/adapterなし・既存Core19件成功。DB/公開通信変更なしのためemulator再実行不要。
+
+### 最終固定版の全検証成功
+
+- check exit0全9/mypy119/docs1320errors0、test exit0 Python239（17.565秒）/Skill18/Node39全成功。製品編集停止維持。既知iana-timezone警告とAPI key二重環境fixtureの固定警告のみ。
+- 実APIはOPEN-005外部前提未確定、emulatorはDB/HTTP契約変更なしのため未実施。SDK fake transportによる26件とCore-only19件で対象境界を検証。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run02_review_r1`（新規独立context）、base commit: `17cffc4b910af6388d905863a3efa92047269bb9`。
+- 製品13files全体/新規全文、親台帳/logのみ除外、既存無関係差分なし。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `a41e2722313f7dce1043754aae38dece5a545cdfae5150f1145cd42fbcdaf0b3` |
+| `docs/agent-core-contracts.md` | `3410bbfc9089193beb0683d9dcf15506f6a9411496ded3f7dc1ba944253f40a3` |
+| `docs/google-model-provider.md` | `3ade8f8813fdb85c1ccc862d61b62468a8695ffa15d6165857bd13d971ed23dc` |
+| `docs/toolchain.md` | `2cb77fcca9e4a8cc73190502d7f56ea6520ce14b21e459ce352a30632f2d2dfb` |
+| `packages/agent_core/src/brainoid_agent_core/types/__init__.py` | `06e94b5a6c2d30345d20d9e72899ae42bb07f7a627104cad5feeb2765f4d95a8` |
+| `packages/agent_core/src/brainoid_agent_core/types/model.py` | `9acd69c1988b963efee82b541ab266be2c4e8a4a42f3061bafe47ade75859c71` |
+| `packages/model_google/pyproject.toml` | `92673a5b2cc1c89ea23951f55fef7be6411846b9494d8fed04ce7c1a3f278fee` |
+| `packages/model_google/src/brainoid_model_google/__init__.py` | `0801a7e3e267b738cf9fc102adc7e54fd7d0009b742043d5dd97bd98e1fec0b0` |
+| `packages/model_google/src/brainoid_model_google/provider.py` | `17c29f5061aab8732a7101ea57e85221308c2bfbd2fcaa43b1b5136774cbbd7b` |
+| `packages/model_google/src/brainoid_model_google/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `pyproject.toml` | `019fa1c3272e0b6237b8316da3a43d3552b809ec5ce2abdcee091c5994da5c22` |
+| `tests/test_google_model.py` | `dd7be54a5f62606dd99feec90e9a264bb7415ca96b1fc9611324b50da68881bb` |
+| `uv.lock` | `9c3d6a0fc4152dd610dead421b734b9716ee039295fb664b114568d84139188c` |
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/run02_review_r1` が開始main/base/13files全SHA/差分集合一致を確認。チケット共通完了条件・Core契約を直接照合し、実装/26testsとSDK暗黙動作/境界を確認中。現時点の必須指摘未確定。
+
+### 独立レビュー ラウンド1 追加再現
+
+- レビュー担当のadapter26件独立実行は成功。追加fake HTTP試験でresponse_schema=number/object.numberにNaN/Infinity/{"n":NaN}を返すとTextDelta→ModelResponse→Completed(stop)を返す必須候補を再現。JSON parserが非有限値を許し構造不正拒否を満たさない。最終判定まで編集停止維持。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run02_review_r1`: request_changes。必須R1/P2一件、任意なし。全13files/周辺/SDKsource確認、開始終了main/base/集合/全SHA一致、index空、製品/記録変更なし。
+- R1: packages/model_google/src/brainoid_model_google/provider.py:531/:105（履歴:290）。TypeAdapter(JsonValue).validate_jsonがNaN/±Infinityを許し、構造化number/object内NaNがTextDelta→ModelResponse→Completed。1e9999のfloat overflowも成功。ToolCall.arguments_json内NaNをSDKが不正JSONでfake HTTPへ送信。
+- 修正要求: 入力・応答両境界でネストを含む非有限数を拒否、非retryable invalid_arguments終端一回。省略/null化禁止。NaN/±Infinity/1e400/object-array負例、応答delta/snapshot/Completedなし、入力dispatch0、有限数正例維持。
+- 根拠: Pydantic公式JSON parser拡張とRFC8259 section6。ほか入力変換/署名往復/設定明示/有限retry/取消期限解放/SDK隔離/外部疎通分離に必須指摘なし。
+- 直接adapter26/Core19/SDKなし7distribution環境Core19、check全9/diff --check成功。setup/全test239+18+39は提供証跡、実API/emulator未実施。元実装担当へ修正を返す。
+
+### R1 修正方針
+
+- 実装担当が再帰的有限数guardを共通化し、JSON文字列parse直後、要求全体mode=python（ToolReply/schema/provider_state等）、SDK応答Python値へ適用する方針。serialization前に検査しNaN→null変換で通過させない。Core raw arguments_json契約を維持、adapterで非retryable invalid_argumentsへ正規化。
+
+### R1 非有限数回帰成功
+
+- adapter31件1.432秒成功、mypy119/Ruff/diff --check成功。NaN/±Infinity/±1e400/1e9999をscalar/object/array/深いネストで確認、応答Failed一件のみ/入力dispatch0。
+- Core DTO通常構築は非有限数拒否、mutable nested JSONの後変更は可能。ToolReply/schema/provider_stateの後変更も要求Python値の先行guardで検出する回帰を追加。有限数正例補強後に編集停止し全check/testを実行する。
+
+### R1 最終検証成功
+
+- 編集停止版check9/mypy119/docs1320errors0、全test Python244（adapter31含む）/Skill18/Node39成功。
+- r1からprovider.py/test_google_model.py/docs/google-model-provider.mdのみ変更、依存/lock変更なし。編集停止維持。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/run02_review_r2`（新規独立context）、base commit: `17cffc4b910af6388d905863a3efa92047269bb9`。
+- R1修正を含む最新全13files差分/新規全文、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `a41e2722313f7dce1043754aae38dece5a545cdfae5150f1145cd42fbcdaf0b3` |
+| `docs/agent-core-contracts.md` | `3410bbfc9089193beb0683d9dcf15506f6a9411496ded3f7dc1ba944253f40a3` |
+| `docs/google-model-provider.md` | `6122d50b283e371b3a1404983106246d5c6bfc497b05a1060d5c54a2fad83ff0` |
+| `docs/toolchain.md` | `2cb77fcca9e4a8cc73190502d7f56ea6520ce14b21e459ce352a30632f2d2dfb` |
+| `packages/agent_core/src/brainoid_agent_core/types/__init__.py` | `06e94b5a6c2d30345d20d9e72899ae42bb07f7a627104cad5feeb2765f4d95a8` |
+| `packages/agent_core/src/brainoid_agent_core/types/model.py` | `9acd69c1988b963efee82b541ab266be2c4e8a4a42f3061bafe47ade75859c71` |
+| `packages/model_google/pyproject.toml` | `92673a5b2cc1c89ea23951f55fef7be6411846b9494d8fed04ce7c1a3f278fee` |
+| `packages/model_google/src/brainoid_model_google/__init__.py` | `0801a7e3e267b738cf9fc102adc7e54fd7d0009b742043d5dd97bd98e1fec0b0` |
+| `packages/model_google/src/brainoid_model_google/provider.py` | `9cc4b3d9af92958502c5a78767e4ac053a77bababa0aed4371853c0ffe9d9f85` |
+| `packages/model_google/src/brainoid_model_google/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `pyproject.toml` | `019fa1c3272e0b6237b8316da3a43d3552b809ec5ce2abdcee091c5994da5c22` |
+| `tests/test_google_model.py` | `8d8825ffbb7abd7966629e9a6ab1658f3b156fad9a1a240008f808e81508663b` |
+| `uv.lock` | `9c3d6a0fc4152dd610dead421b734b9716ee039295fb664b114568d84139188c` |
+
+### 独立レビュー ラウンド2 途中確認
+
+- `/root/run02_review_r2` が開始main/base/13files全SHA/対象集合一致を確認し正本共通完了条件/RUN02/FND07を直接照合。
+- provider全文で要求Python値/JSONparse直後/SDK応答Python値のguard、structured outputの検証完了前bufferを確認。署名履歴/SDK再送・環境/取消cleanupを確認中、必須指摘未確定。
+
+### 独立レビュー ラウンド2 警告経路確認
+
+- 親read-only probe: ToolReply.resultのネスト値を合成bytesへ後変更しModelRequest.model_dump(mode=python)したところ、Pydantic警告1件に合成本文が含まれた（warnings捕捉/contains_fixture=True）。実adapter再現と必須性判断をreview担当へ共有、製品未変更。
+- review担当直接adapter31/Core19成功、check継続中。mutable JSON後変更の警告/dispatch/終端を確認する。
+
+### 独立レビュー ラウンド2 最終判定
+
+- `/root/run02_review_r2`: request_changes。R1非有限数は解消。追加必須R2-01/P2一件。開始/終了main/base/13files全SHA/集合一致、製品/index/記録変更なし。
+- R2-01: provider.py:289 request.model_dump(mode=python)がmutable JSON不正型後変更で値を含むPydantic UserWarningをstderrへ出す。実adapter/fake HTTPでToolReply.result.x合成bytes後変更を再現、本文含有警告1・dispatch1・Completed。
+- 修正要求: 型を省略/変換で通さず、警告へ本文を出さないJSON適格性検査でdispatch前に非retryable invalid_argumentsへ。有限数guard維持。各mutable JSON入力経路の不正型後変更でdispatch0/Failed一回/警告・stderr・log合成本文なしを確認。
+- 直接adapter31/Core19/check全9成功。全test244等/Core最小環境は提供証跡、実provider未実施は仕様上外部前提で追加阻害事項なし。元実装担当へ返す。
+
+### R2-01 raw JSON検査の実装
+
+- request.model_dumpによる検査を廃止、CoreのJSON項目をraw値でstrict検査してからtry内deepcopy。不正objectのrepr/deepcopyを呼ばない。SDK native応答は有限数guardを維持し署名bytes/tupleを保持。
+- 4経路×7種（bytes/ネストbytes/object/tuple/整数key/byteskey/objectkey）の28subtestで警告/stderr/logなし・dispatch0・Failed一回を検証中。mypy119/Ruff成功。
+
+### R2-01 最終検証成功
+
+- 編集停止版check9/mypy119/docs1320errors0、全test Python245（adapter32含む）/Skill18/Node39全成功。
+- 28不正型ケースでwarnings/stderr/log合成本文なし、object repr/deepcopy未呼出、dispatch0/Failed一回。r2からprovider/test/docの3filesのみ変更、依存/lock変更なし。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/run02_review_r3`（新規独立context）、base commit: `17cffc4b910af6388d905863a3efa92047269bb9`。
+- R1/R2-01修正を含む最新全13files、親台帳/logのみ除外。全体を再確認。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `a41e2722313f7dce1043754aae38dece5a545cdfae5150f1145cd42fbcdaf0b3` |
+| `docs/agent-core-contracts.md` | `3410bbfc9089193beb0683d9dcf15506f6a9411496ded3f7dc1ba944253f40a3` |
+| `docs/google-model-provider.md` | `94ba6ce5df90b8b6dca2307f4481d1cb597720c65960c28b611e2e4b16a78952` |
+| `docs/toolchain.md` | `2cb77fcca9e4a8cc73190502d7f56ea6520ce14b21e459ce352a30632f2d2dfb` |
+| `packages/agent_core/src/brainoid_agent_core/types/__init__.py` | `06e94b5a6c2d30345d20d9e72899ae42bb07f7a627104cad5feeb2765f4d95a8` |
+| `packages/agent_core/src/brainoid_agent_core/types/model.py` | `9acd69c1988b963efee82b541ab266be2c4e8a4a42f3061bafe47ade75859c71` |
+| `packages/model_google/pyproject.toml` | `92673a5b2cc1c89ea23951f55fef7be6411846b9494d8fed04ce7c1a3f278fee` |
+| `packages/model_google/src/brainoid_model_google/__init__.py` | `0801a7e3e267b738cf9fc102adc7e54fd7d0009b742043d5dd97bd98e1fec0b0` |
+| `packages/model_google/src/brainoid_model_google/provider.py` | `a6fc25a4a2bc91b1035a926855d0a9ff60f0e1bd3a1357aff069c32d27a3d427` |
+| `packages/model_google/src/brainoid_model_google/py.typed` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `pyproject.toml` | `019fa1c3272e0b6237b8316da3a43d3552b809ec5ce2abdcee091c5994da5c22` |
+| `tests/test_google_model.py` | `c71ea4b6b4e92c61165143902b31ae0f4f887e82743cc9f5580485150404d4ca` |
+| `uv.lock` | `9c3d6a0fc4152dd610dead421b734b9716ee039295fb664b114568d84139188c` |
+
+### 独立レビュー ラウンド3 途中確認
+
+- `/root/run02_review_r3` 開始main/base/13files集合/全SHA一致、正本共通条件/RUN02/Core契約を直接確認。
+- provider全文629行/test921行/Core型/文書を確認、直接adapter32/Core19成功。R1/R2回帰も成功、現時点で必須未確定。SDKserializer/stream/retryと残境界を確認中。
+
+### 独立レビュー ラウンド3 最終判定
+
+- `/root/run02_review_r3`: approve、必須/任意なし、R1/P2・R2-01/P2解消。全差分13files/新規全文/周辺Core-fake/固定SDKを確認、開始終了main/base/集合/全SHA一致、編集/commitなし。
+- 明示設定/共通event/途中失敗/usage不明/有限retry/SDK隔離/取消期限close/CancelledError/終端一回を確認。finite guardとraw JSON先行検査の回帰、署名往復成功。lockの既存distribution更新0も確認。
+- 直接adapter32/Core19/check全9（mypy119/docs1320errors0）成功。全test245+18+39/Core最小7distributionは提供証跡。実provider未実施は共通条件の外部前提分離と整合し阻害条件なし。
+- 独立レビュー3回、未解決必須条件ゼロ。
+
+### 実装コミットと完了確認
+
+- 承認済み13filesの作業/index/commit全SHA一致、main/base/対象集合/cached diff --check確認済み。
+- 実装コミット: `838104e0b3b17fe9a8c69eb60d0d0f62542a31a7`。独立レビュー3回、R1/R2-01解消、最終approve/未解決必須なし。
+- 実SDK+fake transportで共通変換/署名履歴/usage/失敗/設定/取消期限解放/JSON適格性/情報非漏出を検証、SDKなしCore単独成功。実providerはOPEN005未確定につき未実施、後続上限付き手順を記録。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/22.00秒、全9タスク成功、台帳done19/todo77。
+- 終了: 2026-10-26T00:14:14.224651+00:00。台帳・ログのみを記録コミット。
