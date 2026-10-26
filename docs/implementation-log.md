@@ -3618,3 +3618,110 @@ BA-FND-01 独立レビュー第1回
 
 - 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/21.99秒、全9タスク成功、mypy141/docs1342errors0、台帳done22/todo74。起動時mise cache書込readonly警告はあったが検証は全成功。
 - 終了: 2026-10-26T02:22:34.978401+00:00。台帳・ログのみを記録コミット。
+
+## ba-run-06-20261026t023014z
+
+- チケット: BA-RUN-06
+- 状態: done
+- 開始: 2026-10-26T02:30:14.499390+00:00
+- ブランチ: main
+- base commit: 4800b5455aceb5e7f435fa341cec316db625ded3
+- 開始時変更: staged/unstaged/untrackedなし。ID指定なしplannerで選択、依存3件done/履歴確認済み。
+- 親担当: /root。実装担当: /root/run06_implementation。レビュー担当は各round新規起動。
+- 実装コミット: 2ad6016c796f1833948e71a95ae72202e1d7b338
+
+### 受入条件と検証計画
+
+- 既存tool schemaのname/arguments・未知field・許可tool検証、modelからtenant/actor/確認/予算を受け取らずサーバー注入。実行直前の現在権限と対象を再検査。
+- 永続tool_callとoperation/commandを関連付け、成功/明示失敗/確認待ち/結果不明を共通型へ正規化。応答喪失後の盲目再実行を拒否し再照合経路をfakeで検証。
+- 本文/tokenを含まない監査の追跡、T-018/T-029の不正tool/prompt権限拡張負例、setup/check/testと必要な永続化emulator試験。
+- 実業務handler登録・calendar.confirm公開は対象外。追加外部前提なし。Core/provider署名非公開・run既存文字経路を維持。
+
+### 実装構成方針
+
+- 実装担当はpackages/toolsへ既存JSON Schema全文検証・型付きhandler登録、共有TransactionStore上の永続started/result・同key/body衝突検査・サーバー専用認可hookを設ける方針。
+- hookは同TXで現在IAM/対象/確認/予算を解決、永続予算予約と開始markerを原子的に保存。外部handler/再照合はTX外。開始/I/O直前/保存/再利用/返却の現在認可を検査し、実policy/ledger/account fakeで権限変更を検証予定。
+- Core ToolResultへ永続ID付き明示失敗を追加、実行前拒否は既存Failedを維持する予定。schemaの配布形/既存spec同期、mutableargs/result snapshot、started commit応答喪失、有限JSON/size、同期DBと取消期限の境界も確認依頼。
+
+### schema配布・予算・型の境界
+
+- 既存toolは19種類。schemaをbrainoid_tools package resourceへ同梱し、specs正本との完全一致を検証予定。
+- Authorizer.check(tx, trusted envelope, typed args)を必須とし、現在IAM/account/ledger/対象は同TXで評価。未登録の実業務adapterは今回提供しない。
+- 実行予算はrun_id単位の永続counterを開始markerと同時に予約。schema/typedArgs/handler結果をsnapshot化、malformed result/例外はunknownとして専用照合handlerへ進める。
+- Core公開型変更はToolResult.failed/error_code、text run loopへのtool実行接続は後続境界とする。
+
+### 初回検証と照合競合の扱い
+
+- 新tool実行試験16件と対象mypy成功との報告。全setup/check/test・emulatorは未実施。
+- 親read-onlyで照合中の未到着と失敗を区別する必要を確認依頼。reconcileのnot_found/unavailableはunknownへ固定し、元実行の遅延成功と競合する試験を追加する。
+- waiting→confirmedを現receiptの再送で通すことはせず、RUN07の専用consume/transition境界を明記。Python task取消は伝播してstartedを保持し、handlerのCallControl協調と同期DB SDK timeoutのadapter責務を文書化する。
+
+### 追加22件と自己操作version
+
+- 追加22試験成功: inflight lookup not_found→unknown/遅延成功、開始/完了commit応答喪失、account/ledger失効、command相関、取消、返却前認可、自己操作version1→2成功と再送・他者version3拒否を確認。
+- docs/tool-execution.mdへhook責務、自己mutationの原子的証拠、RUN07確認遷移、同期SDK/handler協調停止の境界を記載。
+- uv lock --offline/uv run rebuild実施。全check/testを開始、親から今回setupも実施するよう確認。共有Firestore adapterは変更せず、copy-on-commit/read-before-write fakeの受入試験を根拠として今回emulator未実施予定。独立レビューで十分性を確認する。
+
+### setup・初回全体検証・配布導入
+
+- mise run setup成功。初回全check9件成功（mypy145）、全test Python333（既存311+新22）/Skill18/Node40成功。
+- lock差分はtoolsの既存固定依存宣言追加だけで他package version不変。
+- /tmp独立venvへ非editable・dev依存なしで固定lock導入（13packages）。repo外cwdで同梱schemaを利用しCalendar正例とoffsetなし時刻/不正timezone/不正date拒否を確認。
+- read-before-write強制fakeとcommit後期限切れ本文抑止の試験を追加したため、最終全testを再実行中。承認用snapshotはこの最終版の検証終了後に固定する。
+
+### 最終版全体検証と編集停止
+
+- 実装担当が製品編集停止を報告。mise run setup/check全9種/test全成功。最終Python335（追加24）/Skill18/Node40、mypy145 files、git diff --check成功。
+- minimal非editable固定lock導入とrepo外cwdで同梱schema/Calendar形式検査成功。emulatorは共有adapter未変更でcopy-on-commit/read-before-write fake検証のため今回未実施。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/run06_review_r1`（新規独立context）。base commit: `4800b5455aceb5e7f435fa341cec316db625ded3`。
+- 未追跡を含む最新全12files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/05-development-and-testing.md` | `27ed320150b4e1664e5e475b4885df3812cb4c58f618bf947addf9421b812353` |
+| `docs/agent-core-contracts.md` | `3d46d6b8e1b70e6b567ba3ba8c7e3bd781945be3593412c76c81d91206b9be8d` |
+| `docs/tool-execution.md` | `10f574335cf8c12380c7c7fa954d2afd24c5b1568b3c5dffd635139e91edfe06` |
+| `packages/agent_core/src/brainoid_agent_core/types/tools.py` | `5f9ff008b42613668965c10ff9221e6b8d5049d755184970d379a8b777c45426` |
+| `packages/tools/pyproject.toml` | `378e066fac2a5ae7f4911803d398eaca59aab030350eb81e55b63b695a3a39d2` |
+| `packages/tools/src/brainoid_tools/__init__.py` | `54008dfc4589baad4915a92eae6095d75f346108a69d290f887b6c36a5d4a087` |
+| `packages/tools/src/brainoid_tools/executor.py` | `e358eaf2096ee445e4960581aad8f61a94c9a4febba8a8a51e8130505768c073` |
+| `packages/tools/src/brainoid_tools/registry.py` | `5ccf4429120cc5188efb73dc57686cde1ad4abbeb2e8c054db4ac67b66a66d55` |
+| `packages/tools/src/brainoid_tools/results.py` | `bc03a317f92d4143fd8fd13421eb9f37c5affc79122bdea11d660adbfdf36309` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `f20ff059bc259b920acc9fc04155aff41869f7164cf17099e7b5d71cf0b4d060` |
+| `tests/test_tool_execution.py` | `a674cdae2f3ad3ef58675fc27a1b2067c9ac91784c939f805505d5e30d679fb1` |
+| `uv.lock` | `36203d3bac504ddf838a8a25bdc3e2c54975cbdab950756f7bc3e093c4ec85af` |
+
+### 実装担当からの最終引継ぎ
+
+- 編集停止、製品12paths。配布導入コマンド: `uv sync --package brainoid-tools --no-dev --no-editable --locked --offline`（別UV_PROJECT_ENVIRONMENT、repo外cwd検査）。
+- 途中の失敗: Calendar fixtureのintegration_id/change階層誤り、Literal narrowing/create_model型指定、lint例外変数参照を修正後、最終全検証成功。失敗を成功扱いせず最終版で再実行済み。
+- `/root/run06_review_r1`へ最新全差分/新規file/manifest・正本と検証事実を渡した。emulator未実施理由・実業務/run/resume後続境界もレビュー対象に含む。
+
+### 独立レビュー ラウンド1 途中確認
+
+- `/root/run06_review_r1`: 開始時main/HEAD=base、対象12paths/全SHA一致、祖先AGENTSなしを確認。実行層/登録/文書を読み、永続再送/再照合と既存Core/IAM契約を照合中。必須指摘は未確定。
+
+### 独立レビュー ラウンド1 直接検証
+
+- reviewer直接 `test_tool_execution test_agent_core test_text_agent_core` 計68件成功。
+- 既存TransactionStore/Firestore adapter/transaction_policy/account_stampを照合済み。削除/scope変更/不正結果の境界を追加検証中、最終判定・終了時SHAは待機。
+
+### 独立レビュー ラウンド1 最終判定
+
+- `/root/run06_review_r1`: approve、必須/未検証必須なし。開始終了main/base/対象12paths/全SHA一致、編集なし。
+- 正本schema/型/注入拒否、Authorityの予約/I/O直前/保存/返却再取得検査、開始marker/key衝突/予算同TX・外部handlerはTX外、応答喪失/再送/再照合・監査非漏出を確認。業務Authorizerの信頼契約/後続境界と既存Core/IAM/TransactionStore/Firestore adapter/lock整合を確認。
+- 直接検証: tool_execution/agent_core/text_agent_core 68件成功。追加で対象削除の開始前/実行中/再取得、scope/owner変更、actor差替え、proposalなし確認待ちを拒否。不正status/過大/非JSON結果を本文なしunknownへ正規化。diff checkと開始終了SHA成功。
+- setup/check9/全Python335/Skill18/Node40/別venv配布検証は提供証跡と区別。emulator/実provider/実業務/run接続未実施は今回受入を妨げる未検証事項ではないと判断。
+- 任意提案: reviewer追加確認の対象削除/scope/owner変更を将来業務adapter接続時に永続回帰へ追加。今回は共通hook契約の直接検証済み、業務adapter未登録のため後続接続時に実対象の試験とする。未解決必須ゼロ、レビュー1回。
+
+### 実装コミットと完了確認
+
+- 承認済み12pathsのworking/index/commit全SHA一致、main/base/対象集合/cached diff --checkを確認。
+- 実装コミット: `2ad6016c796f1833948e71a95ae72202e1d7b338`。独立レビュー1回、approve、未解決必須ゼロ。
+- schema/現在認可/永続予算と重複防止/unknown再照合/本文なし監査を24追加試験と独立レビューで検証。実業務接続/確認resumeは後続。
+
+- 親の完了記録前 `MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache mise run check`: exit0/22.02秒、全9タスク成功、mypy145/docs1349errors0、台帳done23/todo73。
+- 終了: 2026-10-26T02:58:16.497665+00:00。台帳・ログのみ記録コミット。

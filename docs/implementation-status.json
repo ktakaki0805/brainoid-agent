@@ -203,7 +203,13 @@
       "review_rounds": 1
     },
     "BA-RUN-06": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "4800b5455aceb5e7f435fa341cec316db625ded3",
+      "updated_at": "2026-10-26T02:57:34.453623+00:00",
+      "log_anchor": "ba-run-06-20261026t023014z",
+      "review_rounds": 1,
+      "implementation_commit": "2ad6016c796f1833948e71a95ae72202e1d7b338"
     },
     "BA-RUN-07": {
       "status": "todo"
