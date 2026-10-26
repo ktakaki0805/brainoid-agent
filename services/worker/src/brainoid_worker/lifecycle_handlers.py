@@ -157,7 +157,7 @@ class LifecycleHandlers(ForgetHandlers):
                 and isinstance(doc.get("owner_user_id"), str)
                 and subject_id(doc["owner_user_id"]) == scope.resource_id
             )
-        if root in {"memory_effects", "note_effects", "task_effects"}:
+        if root in {"memory_effects", "note_effects", "task_effects", "reminder_effects"}:
             return any(
                 isinstance(record, dict)
                 and record.get("visibility") == "private"

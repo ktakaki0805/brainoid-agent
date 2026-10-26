@@ -93,6 +93,12 @@ def project(
                 if k in MemoryView.model_fields
             }
         ).model_dump(mode="json")
+    elif kind == "reminders":
+        from brainoid_memory.reminders import Reminders
+        from brainoid_memory.reminders import view as reminder_view
+
+        record_reminder, _ = Reminders.get(access, item_id)
+        public = reminder_view(record_reminder).model_dump(mode="json")
     elif kind == "tasks":
         from brainoid_memory.tasks import Tasks, view
 

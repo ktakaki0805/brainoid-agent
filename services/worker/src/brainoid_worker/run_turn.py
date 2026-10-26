@@ -39,6 +39,7 @@ from brainoid_tools import Executor, Registry, ResultBinding
 from brainoid_tools.executor import Authorizer as ToolAuthorizer
 from brainoid_tools.memory import register_memory
 from brainoid_tools.notes import register_notes
+from brainoid_tools.reminders import register_reminders
 from brainoid_tools.tasks import register_tasks
 from brainoid_usage import Amounts, QuotaExceeded, Settlement, UsageLedger
 from pydantic import Field, JsonValue
@@ -241,6 +242,7 @@ class RunTurn:
         register_memory(self.tool_registry, self.memory)
         register_notes(self.tool_registry, self.memory.notes)
         register_tasks(self.tool_registry, self.memory.tasks)
+        register_reminders(self.tool_registry, self.memory.reminders)
         self.tool_authorizer = tool_authorizer or self.memory
         self.execution_authorizer = self.memory
         self.result_reuse = ResultReuse(self.tool_registry, self.execution_authorizer)
@@ -257,6 +259,9 @@ class RunTurn:
         # RunState has already authorized this canonical parent in the same TX.
         # No summary means no summary-specific caller/lease or dependency read set.
         run = tx.get(run_path(job.tenant_id, job.operation_id))
+        if run is not None and run.get("reminder_update") is not None:
+            self.memory.reminders.terminal_update(tx, job, run)
+            return None
         if run is not None and run.get("task_update") is not None:
             self.memory.tasks.terminal_update(tx, job, run)
             return None
@@ -287,6 +292,8 @@ class RunTurn:
     def _check_results(
         self, tx: Transaction, job: Job, run: Document, history: list[Document]
     ) -> str:
+        if run.get("reminder_update") is not None:
+            return self.memory.reminders.terminal_update(tx, job, run)
         if run.get("task_update") is not None:
             return self.memory.tasks.terminal_update(tx, job, run)
         if run.get("note_update") is not None:
@@ -375,7 +382,13 @@ class RunTurn:
     def _direct_update_outcome(self, job: Job) -> JsonValue | None:
         def read(tx: Transaction) -> JsonValue | None:
             run, _, _, _ = self.state.check(tx, job)
-            runtime = self.memory.tasks if run.get("task_update") is not None else self.memory.notes
+            runtime = (
+                self.memory.reminders
+                if run.get("reminder_update") is not None
+                else self.memory.tasks
+                if run.get("task_update") is not None
+                else self.memory.notes
+            )
             if run.get(runtime.update_marker) is None:
                 return None
             runtime.terminal_update(tx, job, run)
@@ -387,7 +400,10 @@ class RunTurn:
         job, request, run = self._start(execution)
         while True:
             execution.check(renew=True)
-            if run.get("note_update") is not None or run.get("task_update") is not None:
+            if any(
+                run.get(marker) is not None
+                for marker in ("note_update", "task_update", "reminder_update")
+            ):
                 if (updated := self._direct_update_outcome(job)) is not None:
                     return updated
             if run.get("forget_operation_id") is not None:
@@ -484,7 +500,12 @@ class RunTurn:
                             raise cancellation.error
 
                 result = asyncio.run(execute_tool())
-                if tool_request.call.name in ("notes.update", "tasks.update"):
+                if tool_request.call.name in (
+                    "notes.update",
+                    "tasks.update",
+                    "reminders.update",
+                    "reminders.snooze",
+                ):
                     if (updated := self._direct_update_outcome(job)) is not None:
                         return updated
                 if tool_request.call.name in ("memory.forget", "notes.delete", "tasks.delete"):
@@ -718,6 +739,10 @@ class RunTurn:
             run, parent, _, _ = self.state.check(tx, job)
         except PolicyUnavailable:
             raise AuthorizationUnavailable() from None
+        if run.get("reminder_update") is not None and outcome != Outcome(
+            status="completed", text=self.memory.reminders.UPDATE_ACK
+        ):
+            raise PolicyDenied()
         if run.get("task_update") is not None and outcome != Outcome(
             status="completed", text=self.memory.tasks.UPDATE_ACK
         ):

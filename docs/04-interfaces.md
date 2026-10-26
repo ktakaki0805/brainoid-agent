@@ -270,6 +270,8 @@ membership/deviceの減権限・失効・owner移譲もDB外認可変更台帳�
 
 ### 6.3 リマインダーと通知
 
+BA-APP-03 の管理 API・tool・予定世代判定は[リマインダー実装契約](reminders.md)を参照。実配送は BA-APP-04/05 で扱う。
+
 DBのdue_atを正本とし、Schedulerの定期走査とCloud Tasksで配信する。通知IDはreminder IDと予定版から決定し、同じ通知を重複作成しない。予定を変更・取消した場合は古い版のジョブを無効化する。
 
 再通知は `POST reminders/{id}:snooze` に未来のdue_at/timezone/expected_versionを指定する。サーバーはversionを照合し、schedule_versionを増加してstatusをscheduledへ戻し、旧通知と旧jobを無効化する。通常のPATCHでdue_atを変更した場合も同じ予定版更新を行う。既に届いたpushは取り消せない場合があるため、開いたクライアントは最新schedule_versionを確認し、古い本文・読み上げを表示しない。

@@ -1,4 +1,4 @@
-"""Transactional writes shared only by explicit notes and tasks."""
+"""Transactional writes shared by explicit notes, tasks and reminders."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -62,9 +62,15 @@ class DirectResources[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
     def validate_body(cls, access: FactTransaction, body: Create | Patch) -> None:
         pass
 
-    @staticmethod
-    def prepare_write(tx: Transaction, old: Record | None, record: Record) -> Callable[[], None]:
+    def prepare_write(
+        self, tx: Transaction, old: Record | None, record: Record
+    ) -> Callable[[], None]:
         return lambda: None
+
+    def patched(self, old: Record, body: Patch) -> Record:
+        return self.record_type.model_validate(
+            {**old.model_dump(), **body.model_dump(exclude_unset=True)}
+        )
 
     @staticmethod
     def text(record: Record) -> str:
@@ -261,8 +267,7 @@ class DirectResources[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                     raise VersionConflict()
                 record = self.record_type.model_validate(
                     {
-                        **old.model_dump(),
-                        **body.model_dump(exclude_unset=True),
+                        **self.patched(old, self.patch_type.model_validate(body)).model_dump(),
                         "version": old.version + 1,
                         "updated_at": self.now(),
                         "updated_by": uid,

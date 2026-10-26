@@ -34,6 +34,13 @@ from brainoid_tools.notes import (
     UpdateNoteArguments,
 )
 from brainoid_tools.registry import Invocation
+from brainoid_tools.reminders import (
+    CreateReminderArguments,
+    ListRemindersArguments,
+    ReminderArguments,
+    SnoozeReminderArguments,
+    UpdateReminderArguments,
+)
 from brainoid_tools.results import HandlerResult
 from brainoid_tools.reuse import receipt
 from brainoid_tools.tasks import (
@@ -45,7 +52,12 @@ from brainoid_tools.tasks import (
 )
 from pydantic import BaseModel, TypeAdapter
 
-from brainoid_worker.memory_erasure import NoteDependency, TaskDependency, capture
+from brainoid_worker.memory_erasure import (
+    NoteDependency,
+    ReminderDependency,
+    TaskDependency,
+    capture,
+)
 from brainoid_worker.run_event_writer import memory_write
 
 if TYPE_CHECKING:
@@ -57,7 +69,7 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
         self,
         memory: "MemoryRuntime",
         *,
-        kind: Literal["note", "task"],
+        kind: Literal["note", "task", "reminder"],
         service: DirectResources[Create, Patch, Record],
         view: Callable[[Record], BaseModel],
     ) -> None:
@@ -65,13 +77,38 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
         self.handler = memory.handler
         self.kind, self.service, self.view = kind, service, view
         self.update_marker = kind + "_update"
-        self.UPDATE_ACK = "ノートを更新しました。" if kind == "note" else "タスクを更新しました。"
+        self.UPDATE_ACK = {
+            "note": "ノートを更新しました。",
+            "task": "タスクを更新しました。",
+            "reminder": "リマインダーを更新しました。",
+        }[kind]
+
+    def patch_body(
+        self,
+        args: UpdateNoteArguments
+        | UpdateTaskArguments
+        | UpdateReminderArguments
+        | SnoozeReminderArguments,
+    ) -> Patch:
+        if isinstance(args, SnoozeReminderArguments):
+            if self.kind != "reminder":
+                raise PolicyDenied()
+            # The validated subtype retains the snooze discriminator through proof/replay.
+            return self.service.patch_type.model_validate(args.changes)
+        return self.service.patch_type.model_validate(args.changes.model_dump(exclude_unset=True))
 
     def owns(self, arguments: Arguments) -> bool:
         types = (
             (CreateNoteArguments, ListNotesArguments, UpdateNoteArguments, DeleteNoteArguments)
             if self.kind == "note"
             else (CreateTaskArguments, ListTasksArguments, UpdateTaskArguments, DeleteTaskArguments)
+            if self.kind == "task"
+            else (
+                CreateReminderArguments,
+                ListRemindersArguments,
+                UpdateReminderArguments,
+                SnoozeReminderArguments,
+            )
         )
         return isinstance(arguments, types)
 
@@ -99,27 +136,55 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
             marker.get("effect_id") != effect
             or saved is None
             or proof is None
-            or saved.get("name") != f"{self.kind}s.update"
+            or saved.get("name")
+            not in (
+                {"reminders.update", "reminders.snooze"}
+                if self.kind == "reminder"
+                else {f"{self.kind}s.update"}
+            )
             or saved.get("effect_id") != effect
             or saved.get("tool_call_id") != call
             or saved.get("authority", {}).get("run_id") != job.operation_id
             or Authority.model_validate(saved["authority"]).context != job.grant.context
         ):
             raise PolicyDenied()
-        args = (UpdateNoteArguments if self.kind == "note" else UpdateTaskArguments).model_validate(
-            {
-                self.kind + "_id": marker["target_id"],
-                "expected_version": marker["expected_version"],
-                "changes": proof["request"],
-            }
+        args: (
+            UpdateNoteArguments
+            | UpdateTaskArguments
+            | UpdateReminderArguments
+            | SnoozeReminderArguments
         )
+        if saved["name"] == "reminders.snooze":
+            args = SnoozeReminderArguments.model_validate(
+                {
+                    "reminder_id": marker["target_id"],
+                    "expected_version": marker["expected_version"],
+                    "due_at": proof["request"]["due_at"],
+                    "timezone": proof["request"]["timezone"],
+                }
+            )
+        else:
+            update_type = (
+                UpdateNoteArguments
+                if self.kind == "note"
+                else UpdateTaskArguments
+                if self.kind == "task"
+                else UpdateReminderArguments
+            )
+            args = update_type.model_validate(
+                {
+                    self.kind + "_id": marker["target_id"],
+                    "expected_version": marker["expected_version"],
+                    "changes": proof["request"],
+                }
+            )
         if not self.intent(run["input_text"], args):
             raise PolicyDenied()
         access = self.memory.open(tx, job)
         note = self.service.proof(
             access,
             effect,
-            self.service.patch_type.model_validate(args.changes.model_dump(exclude_unset=True)),
+            self.patch_body(args),
             args.resource_id,
             args.expected_version,
         )
@@ -143,6 +208,19 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
 
     @staticmethod
     def intent(text: str, args: Arguments) -> bool:
+        if isinstance(args, CreateReminderArguments):
+            payload = json.dumps(
+                args.model_dump(mode="json", exclude_unset=True), ensure_ascii=False, sort_keys=True
+            )
+            return text == f"Create reminder {payload}" or text == f"リマインダーを作成 {payload}"
+        if isinstance(args, (UpdateReminderArguments, SnoozeReminderArguments)):
+            payload = json.dumps(
+                args.changes.model_dump(mode="json", exclude_unset=True, exclude={"snooze"}),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            verb = "Snooze" if isinstance(args, SnoozeReminderArguments) else "Update"
+            return text == f"{verb} reminder {args.reminder_id}: {payload}"
         # Match the full direct user instruction, including actual title/body and
         # requested scope. Retrieved/model text cannot establish these bindings.
         if isinstance(args, CreateTaskArguments):
@@ -185,13 +263,15 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                 text.casefold() == f"Delete note {args.resource_id}".casefold()
                 or text == f"ノート {args.resource_id} を削除"
             )
-        return isinstance(args, (ListNotesArguments, ListTasksArguments))
+        return isinstance(args, (ListNotesArguments, ListTasksArguments, ListRemindersArguments))
 
     def check(self, tx: Transaction, request: ToolExecution, arguments: Arguments) -> Authority:
         try:
             job, run, expected = self.memory._target(tx, request)
             access = self.memory.open(tx, job)
-            if not isinstance(arguments, (ListNotesArguments, ListTasksArguments)):
+            if not isinstance(
+                arguments, (ListNotesArguments, ListTasksArguments, ListRemindersArguments)
+            ):
                 message = tx.get(
                     conversation_path(job.tenant_id, job.grant.ref.id)
                     + "/messages/"
@@ -205,7 +285,9 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                     raise PolicyDenied()
             effect = ResourceId(str(uuid5(UUID(request.tool_call_id), "brainoid-tool-effect")))
             scope = expected.conversation.scope
-            if isinstance(arguments, (ListNotesArguments, ListTasksArguments)):
+            if isinstance(
+                arguments, (ListNotesArguments, ListTasksArguments, ListRemindersArguments)
+            ):
                 self.service.scopes(access)
                 execution = tx.get(
                     f"tenants/{job.tenant_id}/tool_executions/{request.tool_call_id}"
@@ -245,31 +327,59 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                     UpdateNoteArguments,
                     CreateTaskArguments,
                     UpdateTaskArguments,
+                    CreateReminderArguments,
+                    UpdateReminderArguments,
+                    SnoozeReminderArguments,
                 ),
             ):
                 body = (
                     self.service.create_type.model_validate(
                         arguments.model_dump(exclude_unset=True)
                     )
-                    if isinstance(arguments, (CreateNoteArguments, CreateTaskArguments))
-                    else self.service.patch_type.model_validate(
-                        arguments.changes.model_dump(exclude_unset=True)
+                    if isinstance(
+                        arguments,
+                        (CreateNoteArguments, CreateTaskArguments, CreateReminderArguments),
                     )
+                    else self.patch_body(arguments)
                 )
                 identity = (
                     arguments.resource_id
-                    if isinstance(arguments, (UpdateNoteArguments, UpdateTaskArguments))
+                    if isinstance(
+                        arguments,
+                        (
+                            UpdateNoteArguments,
+                            UpdateTaskArguments,
+                            UpdateReminderArguments,
+                            SnoozeReminderArguments,
+                        ),
+                    )
                     else None
                 )
                 version = (
                     arguments.expected_version
-                    if isinstance(arguments, (UpdateNoteArguments, UpdateTaskArguments))
+                    if isinstance(
+                        arguments,
+                        (
+                            UpdateNoteArguments,
+                            UpdateTaskArguments,
+                            UpdateReminderArguments,
+                            SnoozeReminderArguments,
+                        ),
+                    )
                     else None
                 )
                 if tx.get(self.service.effect_path(job.tenant_id, effect)) is not None:
                     note = self.service.proof(access, effect, body, identity, version)
                     scope = Scope(visibility=note.visibility, display_policy=note.display_policy)
-                elif isinstance(arguments, (UpdateNoteArguments, UpdateTaskArguments)):
+                elif isinstance(
+                    arguments,
+                    (
+                        UpdateNoteArguments,
+                        UpdateTaskArguments,
+                        UpdateReminderArguments,
+                        SnoozeReminderArguments,
+                    ),
+                ):
                     note, _ = self.service.get(
                         access, arguments.resource_id, write=True, for_model=True
                     )
@@ -314,7 +424,7 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
     async def execute_direct(
         self,
         name: str,
-        invocation: Invocation[NoteArguments | TaskArguments],
+        invocation: Invocation[NoteArguments | TaskArguments | ReminderArguments],
         *,
         control: CallControl,
         reconcile: bool = False,
@@ -341,7 +451,7 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                 return self.memory.open(tx, job, control)
 
             args = invocation.arguments
-            if isinstance(args, (ListNotesArguments, ListTasksArguments)):
+            if isinstance(args, (ListNotesArguments, ListTasksArguments, ListRemindersArguments)):
                 if reconcile:
                     return HandlerResult(status="outcome_unknown")
 
@@ -360,7 +470,7 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                         access, query=getattr(args, "query", ""), for_model=True
                     ):
                         if (
-                            isinstance(args, ListTasksArguments)
+                            isinstance(args, (ListTasksArguments, ListRemindersArguments))
                             and args.status is not None
                             and getattr(note, "status", None) != args.status
                         ):
@@ -465,19 +575,35 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
             else:
                 body = (
                     self.service.create_type.model_validate(args.model_dump(exclude_unset=True))
-                    if isinstance(args, (CreateNoteArguments, CreateTaskArguments))
-                    else self.service.patch_type.model_validate(
-                        args.changes.model_dump(exclude_unset=True)
+                    if isinstance(
+                        args, (CreateNoteArguments, CreateTaskArguments, CreateReminderArguments)
                     )
+                    else self.patch_body(args)
                 )
                 identity = (
                     args.resource_id
-                    if isinstance(args, (UpdateNoteArguments, UpdateTaskArguments))
+                    if isinstance(
+                        args,
+                        (
+                            UpdateNoteArguments,
+                            UpdateTaskArguments,
+                            UpdateReminderArguments,
+                            SnoozeReminderArguments,
+                        ),
+                    )
                     else None
                 )
                 version = (
                     args.expected_version
-                    if isinstance(args, (UpdateNoteArguments, UpdateTaskArguments))
+                    if isinstance(
+                        args,
+                        (
+                            UpdateNoteArguments,
+                            UpdateTaskArguments,
+                            UpdateReminderArguments,
+                            SnoozeReminderArguments,
+                        ),
+                    )
                     else None
                 )
                 if reconcile:
@@ -499,7 +625,13 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                             f"tenants/{invocation.context.tenant_id}/tool_executions/{invocation.tool_call_id}"
                         )
                         assert saved is not None and isinstance(
-                            args, (UpdateNoteArguments, UpdateTaskArguments)
+                            args,
+                            (
+                                UpdateNoteArguments,
+                                UpdateTaskArguments,
+                                UpdateReminderArguments,
+                                SnoozeReminderArguments,
+                            ),
                         )
                         path = run_path(
                             invocation.context.tenant_id, ResourceId(saved["authority"]["run_id"])
@@ -516,6 +648,13 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                                     NoteDependency(note_id=record.id, version=record.version),
                                 )
                                 if self.kind == "note"
+                                else (),
+                                reminder_dependencies=(
+                                    ReminderDependency(
+                                        reminder_id=record.id, version=record.version
+                                    ),
+                                )
+                                if self.kind == "reminder"
                                 else (),
                                 task_dependencies=(
                                     TaskDependency(task_id=record.id, version=record.version),
@@ -545,7 +684,15 @@ class DirectRuntime[Create: Scope, Patch: MemoryValue, Record: DirectRecord]:
                         expected=version,
                         effect=invocation.effect_id,
                         extra=retire
-                        if isinstance(args, (UpdateNoteArguments, UpdateTaskArguments))
+                        if isinstance(
+                            args,
+                            (
+                                UpdateNoteArguments,
+                                UpdateTaskArguments,
+                                UpdateReminderArguments,
+                                SnoozeReminderArguments,
+                            ),
+                        )
                         else None,
                     )
                 notes = [note]

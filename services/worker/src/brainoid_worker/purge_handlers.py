@@ -21,10 +21,12 @@ from pydantic import TypeAdapter
 from brainoid_worker.memory_erasure import (
     ErasureDependencies,
     NoteDependency,
+    ReminderDependency,
     TaskDependency,
     capture,
     receipt_notes,
     receipt_records,
+    receipt_reminders,
     receipt_tasks,
     retained,
 )
@@ -241,6 +243,7 @@ class ForgetHandlers:
             or run.get("purged_by")
             or run.get("note_update")
             or run.get("task_update")
+            or run.get("reminder_update")
         ) and (evidence is None or not evidence.complete):
             recovered = self._legacy_dependencies(tx, run)
             if recovered.matches(intent):
@@ -313,6 +316,7 @@ class ForgetHandlers:
         records: list[MemoryRecord] = []
         notes: list[NoteDependency] = []
         tasks: list[TaskDependency] = []
+        reminders: list[ReminderDependency] = []
         identities = run.get("tool_call_ids", [])
         # RunTurn permits at most eight steps of eight tool calls. Never scan a
         # collection to reconstruct a missing input or follow arbitrary model IDs.
@@ -324,7 +328,14 @@ class ForgetHandlers:
                 records.extend(receipt_records(saved, run, identity))
                 notes.extend(receipt_notes(saved, run, identity))
                 tasks.extend(receipt_tasks(saved, run, identity))
-        return capture(run, records=records, note_dependencies=notes, task_dependencies=tasks)
+                reminders.extend(receipt_reminders(saved, run, identity))
+        return capture(
+            run,
+            records=records,
+            note_dependencies=notes,
+            task_dependencies=tasks,
+            reminder_dependencies=reminders,
+        )
 
     def decide(
         self,
@@ -435,6 +446,7 @@ class ForgetHandlers:
                     doc.get("forget_operation_id")
                     or doc.get("note_update")
                     or doc.get("task_update")
+                    or doc.get("reminder_update")
                 )
                 and "purge_dependencies" not in doc
                 else capture(doc)

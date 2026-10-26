@@ -2030,7 +2030,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（永続化済みの現在のリマインダー）
           content:
             application/json:
               schema:
@@ -2069,7 +2069,7 @@ paths:
       - deviceBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（永続化済みの現在のリマインダー）
           content:
             application/json:
               schema:
@@ -2103,7 +2103,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（永続化済みの現在のリマインダー）
           content:
             application/json:
               schema:
@@ -2138,7 +2138,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（永続化済みの現在のリマインダー）
           content:
             application/json:
               schema:
@@ -2216,7 +2216,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功（永続化済みの現在のリマインダー）
           content:
             application/json:
               schema:

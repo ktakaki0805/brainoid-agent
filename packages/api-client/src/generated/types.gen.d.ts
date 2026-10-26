@@ -2500,7 +2500,7 @@ export type ListRemindersErrors = {
 export type ListRemindersError = ListRemindersErrors[keyof ListRemindersErrors];
 export type ListRemindersResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（永続化済みの現在のリマインダー）
      */
     200: ReminderPage;
 };
@@ -2532,7 +2532,7 @@ export type CreateReminderErrors = {
 export type CreateReminderError = CreateReminderErrors[keyof CreateReminderErrors];
 export type CreateReminderResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（永続化済みの現在のリマインダー）
      */
     201: Reminder;
 };
@@ -2561,7 +2561,7 @@ export type GetReminderErrors = {
 export type GetReminderError = GetReminderErrors[keyof GetReminderErrors];
 export type GetReminderResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（永続化済みの現在のリマインダー）
      */
     200: Reminder;
 };
@@ -2598,7 +2598,7 @@ export type UpdateReminderErrors = {
 export type UpdateReminderError = UpdateReminderErrors[keyof UpdateReminderErrors];
 export type UpdateReminderResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（永続化済みの現在のリマインダー）
      */
     200: Reminder;
 };
@@ -2663,7 +2663,7 @@ export type SnoozeReminderErrors = {
 export type SnoozeReminderError = SnoozeReminderErrors[keyof SnoozeReminderErrors];
 export type SnoozeReminderResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功（永続化済みの現在のリマインダー）
      */
     200: Reminder;
 };

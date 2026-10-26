@@ -23,7 +23,7 @@ class ExportCreate(MemoryValue):
 
 
 class ManifestEntry(MemoryValue):
-    kind: Literal["conversations", "messages", "entities", "facts", "notes", "tasks"]
+    kind: Literal["conversations", "messages", "entities", "facts", "notes", "tasks", "reminders"]
     resource_id: ResourceId
     parent_id: ResourceId | None = None
     version: Version
