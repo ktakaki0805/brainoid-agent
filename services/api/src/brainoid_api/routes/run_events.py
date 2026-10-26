@@ -105,13 +105,18 @@ def next_batch(
             expired = now.timestamp() >= identity.exp or now.timestamp() < identity.iat
         if expired:
             raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
-        return Batch(event, doc["status"] in ("completed", "failed") and after >= latest)
+        if doc["status"] == "cancelled":
+            # No cursor jump and no buffered text after cancellation. Use run GET.
+            return Batch(None, True)
+        return Batch(
+            event, doc["status"] in ("completed", "failed", "cancelled") and after >= latest
+        )
 
     batch = repo.store.run(read)
     # Event retrieval may block. A fresh authority transaction after that I/O is
     # the delivery boundary; never yield a previously authorized buffer wholesale.
-    repo.store.run(lambda tx: read(tx, delivery=True))
-    return batch
+    current = repo.store.run(lambda tx: read(tx, delivery=True))
+    return current if current.terminal else batch
 
 
 async def stream(

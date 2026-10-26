@@ -26,6 +26,8 @@ from brainoid_agent_core.types import (
     ModelResponse,
     TextDelta,
     TimedOut,
+    ToolCall,
+    ToolDefinition,
     ToolRequested,
     Usage,
 )
@@ -51,6 +53,7 @@ class TextRunResult(CoreValue):
     usage: Usage = Field(default_factory=Usage)
     # Internal continuation only; serialization must not expose signatures/candidates.
     response: ModelMessage | None = Field(default=None, repr=False, exclude=True)
+    tool_calls: tuple[ToolCall, ...] = Field(default=(), repr=False, exclude=True)
 
 
 class _Stopped(Exception):
@@ -195,6 +198,8 @@ class TextAgentCore:
         control: CallControl,
         budget: RunBudget | None = None,
         on_text: Callable[[str], Awaitable[None]] | None = None,
+        continuation: tuple[ModelMessage, ...] = (),
+        tools: tuple[ToolDefinition, ...] = (),
     ) -> TextRunResult:
         budget = budget or RunBudget()
         deadline = self._clock.monotonic() + budget.timeout_seconds
@@ -254,6 +259,15 @@ class TextAgentCore:
             await self._check(request, records, stamp, control)
             model_request = build_context(
                 request, records, max_output_tokens=budget.max_output_tokens
+            )
+
+            from brainoid_agent_core.checkpoints import continuation_messages
+
+            model_request = model_request.model_copy(
+                update={
+                    "messages": (*model_request.messages, *continuation_messages(continuation)),
+                    "tools": tools,
+                }
             )
 
             async def generate() -> TextRunResult:
@@ -325,14 +339,15 @@ class TextAgentCore:
                                     ]
                                     if visible != text or snapshot_calls != calls:
                                         raise _Stopped(Failed(code="invalid_arguments"))
-                                # FND-07 text-only providers may omit ModelResponse. Text
-                                # still completes, without inventing a continuation snapshot.
-                                # Tool candidates remain unexecuted and unexposed either way.
                                 await self._check(request, records, stamp, control)
                             else:
                                 snapshot = None
                             return TextRunResult(
-                                text=text, usage=usage, terminal=event, response=snapshot
+                                text=text,
+                                usage=usage,
+                                terminal=event,
+                                response=snapshot,
+                                tool_calls=tuple(calls),
                             )
                         else:
                             raise _Stopped(event)

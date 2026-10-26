@@ -55,7 +55,18 @@ class Failed(Event):
     payload: FailedPayload
 
 
-type RunEvent = Annotated[Started | Text | Completed | Failed, Field(discriminator="type")]
+class CancelledPayload(Record):
+    external_action_may_have_completed: bool
+
+
+class Cancelled(Event):
+    type: Literal["run.cancelled"] = "run.cancelled"
+    payload: CancelledPayload
+
+
+type RunEvent = Annotated[
+    Started | Text | Completed | Failed | Cancelled, Field(discriminator="type")
+]
 EVENT = TypeAdapter(RunEvent)
 
 

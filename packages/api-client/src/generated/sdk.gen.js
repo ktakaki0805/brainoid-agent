@@ -622,7 +622,7 @@ export const streamRunEvents = (options) => (options.client ?? client).sse.get({
 /**
  * 生成と未実行ツールを停止
  *
- * 実行済み外部副作用は取消しを保証しない。別途状態確認・補償が必要。
+ * 現在の会話POST権限と保存された開始者の一致を検査し、生成と未実行処理を停止する。本人ユーザーは本人端末から停止可能。Piは同一device/sessionを要求する。冪等再送にも現在認可を要求し、終端runは維持する。実行済み外部副作用の取消しは保証しない。
  */
 export const cancelRun = (options) => (options.client ?? client).post({
     security: [{

@@ -75,3 +75,5 @@ queue.drain(worker)
 追加した外部distributionはない。既存の固定済み Firestore/Pydantic/FastAPI を新memberでも宣言し、google-auth 2.62.0 の requests extra をworkerの直接依存にした。Google保守・Apache-2.0・Python 3.13対応は既存lockと導入metadataで確認し、[公式source](https://github.com/googleapis/google-cloud-python/tree/main/packages/google-auth)を参照した。旧単独repositoryはarchive済みで、保守先はgoogle-cloud-pythonへ移管されている。署名鍵取得と、明示構成したTasks endpointへの送信が実adapterの外部接続であり、IAM権限付与・資源作成は行わない。通常テストはネットワークを代替し、emulator試験はdemo/loopback限定。配布時は既存依存と推移依存のlicense表示を維持する。
 
 既存DBの移行は不要。新規jobはschema_version=1で保存する。切戻し時はdispatcher/workerを停止してjobを保持し、本文・grantをログへ出さず固定理由を運用で確認する。互換性のないjobを旧workerに処理させない。本番Tasks/OIDC/IAM、Scheduler、索引・負荷検証、業務handlerの結果照合はこのローカル合格の範囲に含めない。
+
+BA-RUN-07の確認待ちは`waiting` jobとしてleaseを解放し、通常recover/acquireは配送しない。内部確認transactionが同じcanonical jobをpendingへ戻し、dispatch/lease世代を進める。正常な待機移行は失敗attemptを消費しない。業務toolは`execution.effect`と同等のstart/result fenceを持つExecutorを利用し、モデルcheckpointとは別に一回開始・結果再利用を保証する。詳細は[確認checkpointと再開](conversations-and-runs.md#確認checkpointと再開)を参照。

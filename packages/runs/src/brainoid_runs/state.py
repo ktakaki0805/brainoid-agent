@@ -75,33 +75,53 @@ def history(
     documents.sort(key=lambda d: d["sequence"])
     if len({d["sequence"] for d in documents}) != len(documents):
         raise PolicyDenied()
-    messages = []
+    messages: list[ModelMessage] = []
     for doc in documents:
         public = view(Message, doc)
-        message = (
-            ModelMessage.model_validate(doc["model_message"])
-            if doc.get("model_message") is not None
-            else ModelMessage(role=public.role, parts=(TextPart(text=public.text),))
-        )
-        if (
-            message.role != public.role
-            or any(p.type != "text" for p in message.parts)
-            or "".join(p.text for p in message.parts if p.type == "text") != public.text
-        ):
+        if doc.get("model_messages") is not None:
+            from brainoid_agent_core.checkpoints import continuation_messages
+
+            snapshots = tuple(ModelMessage.model_validate(m) for m in doc["model_messages"])
+            if (
+                not snapshots
+                or snapshots[-1].role != "assistant"
+                or any(p.type != "text" for p in snapshots[-1].parts)
+            ):
+                raise PolicyDenied()
+            continuation_messages(snapshots[:-1])
+        else:
+            snapshots = (
+                ModelMessage.model_validate(doc["model_message"])
+                if doc.get("model_message") is not None
+                else ModelMessage(role=public.role, parts=(TextPart(text=public.text),)),
+            )
+            if snapshots[0].role != public.role or any(
+                p.type != "text" for p in snapshots[0].parts
+            ):
+                raise PolicyDenied()
+        if "".join(p.text for m in snapshots for p in m.parts if p.type == "text") != public.text:
             raise PolicyDenied()
-        messages.append(snapshot_message(message))
+        messages.extend(snapshot_message(m) for m in snapshots)
     return documents, tuple(messages), history_hash(documents, tuple(messages))
 
 
 def history_hash(documents: list[Document], messages: tuple[ModelMessage, ...]) -> str:
+    # Preserve RUN-04 receipts for histories with one snapshot per public message.
+    if len(documents) == len(messages):
+        return fingerprint(
+            [
+                [
+                    view(Message, doc).model_dump(mode="json"),
+                    doc["sequence"],
+                    message.model_dump(mode="json"),
+                ]
+                for doc, message in zip(documents, messages, strict=True)
+            ]
+        )
     return fingerprint(
         [
-            [
-                view(Message, doc).model_dump(mode="json"),
-                doc["sequence"],
-                message.model_dump(mode="json"),
-            ]
-            for doc, message in zip(documents, messages, strict=True)
+            [[view(Message, doc).model_dump(mode="json"), doc["sequence"]] for doc in documents],
+            [message.model_dump(mode="json") for message in messages],
         ]
     )
 
@@ -113,7 +133,7 @@ def failed_projection(tx: Transaction, document: Document) -> Document:
     outcome, exhausted attempts). Public reads/next admission converge these runs
     without publishing their buffered result or reviving a job.
     """
-    if document["status"] not in ("queued", "running"):
+    if document["status"] not in ("queued", "running", "waiting_confirmation"):
         return document
     tenant, run = ResourceId(document["tenant_id"]), ResourceId(document["run_id"])
     doc = tx.get(f"tenants/{tenant}/jobs/{job_id(tenant, KIND, run)}")
@@ -137,21 +157,27 @@ class RunState:
         now: Callable[[], datetime],
         credential_epoch: ResourceId | None,
         allow_untracked_bootstrap: bool = False,
+        check_results: Callable[[Transaction, Job, Document, list[Document]], str] | None = None,
     ) -> None:
         self.ledger, self.now = ledger, now
         self.credential_epoch = credential_epoch
         self.allow_untracked = allow_untracked_bootstrap
+        self.check_results = check_results
 
-    def check(self, tx: Transaction, job: Job) -> tuple[Document, Document, ContextInput, str]:
+    def check(
+        self, tx: Transaction, job: Job, *, waiting: bool = False
+    ) -> tuple[Document, Document, ContextInput, str]:
         current_job = tx.get(job_path(job.tenant_id, job.id))
         if current_job is None:
             raise PolicyDenied()
         live_job = Job.model_validate(current_job)
         if (
-            live_job.status != "running"
+            live_job.status != ("waiting" if waiting else "running")
             or live_job.lease_generation != job.lease_generation
-            or live_job.lease_expires_at is None
-            or live_job.lease_expires_at <= self.now()
+            or (
+                not waiting
+                and (live_job.lease_expires_at is None or live_job.lease_expires_at <= self.now())
+            )
             or live_job.grant != job.grant
             or live_job.output != job.output
         ):
@@ -177,7 +203,8 @@ class RunState:
             or run.get("conversation_id") != job.grant.ref.id
             or parent.get("active_run_id") != job.operation_id
             or parent.get("history_revision", 0) != run.get("history_revision")
-            or run.get("status") not in ("queued", "running")
+            or run.get("status")
+            not in (("waiting_confirmation",) if waiting else ("queued", "running"))
         ):
             raise PolicyDenied()
         view(Run, run)
@@ -226,6 +253,12 @@ class RunState:
             or history_hash(documents[:-1], messages[:-1]) != run["history_hash"]
         ):
             raise PolicyDenied()
+        reuse_receipt = None
+        if not waiting:
+            if self.check_results is not None:
+                reuse_receipt = self.check_results(tx, job, run, documents)
+            elif run.get("continuation") or any(d.get("model_messages") for d in documents):
+                raise PolicyDenied()
         scopes = tuple(Scope.model_validate(s) for s in run["memory_scopes"])
         if scopes:
             search = policy.search(
@@ -266,6 +299,7 @@ class RunState:
                 grant.principal.stamp,
                 grant.output_stamp,
                 run["history_hash"],
+                reuse_receipt,
                 run["agent"],
                 run["input_message_id"],
                 grant.resource.model_dump(mode="json"),

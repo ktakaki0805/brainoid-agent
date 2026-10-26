@@ -205,7 +205,12 @@ class Jobs:
         def work(tx: Transaction) -> Delivery | None:
             job = self._read(tx, tenant, identity)
             now = normalize_utc(self.now())
-            if job is None or job.status in TERMINAL or job.available_at > now:
+            if (
+                job is None
+                or job.status in TERMINAL
+                or job.status == "waiting"
+                or job.available_at > now
+            ):
                 return None
             if job.status == "running":
                 if job.lease_expires_at is not None and job.lease_expires_at > now:
@@ -266,7 +271,7 @@ class Jobs:
                 or job.status in TERMINAL
                 or job.available_at > now
                 or delivery.dispatch_generation != job.dispatch_generation
-                or job.status == "running"
+                or job.status in ("running", "waiting")
             ):
                 return None
             reason = self._invalid_reason(tx, job)

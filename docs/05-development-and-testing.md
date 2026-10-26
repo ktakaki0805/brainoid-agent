@@ -236,7 +236,7 @@ BA-RUN-03 の[文字 Core と人格 API 試験](text-agent-core.md)は同じ age
 
 BA-RUN-01 の[永続job試験](jobs.md)は固定時計・fake queueでenqueue前後、leaseとcheckpoint、現在認可を検査し、Firestore emulatorでは別processの再起動後回収と同時leaseを確認する。業務handlerと本番Tasks配備は後続チケットで接続する。
 
-BA-RUN-06 の[型付き tool 実行試験](tool-execution.md)は既存 schema 全体、型付き登録、現在認可、永続予算、重複実行、応答喪失と再照合、本文を含まない監査を fake で確認する。業務 handler と確認後の run 再開は後続チケットで接続する。
+BA-RUN-06 の[型付き tool 実行試験](tool-execution.md)は既存 schema 全体、型付き登録、現在認可、永続予算、重複実行、応答喪失と再照合、本文を含まない監査を fake で確認する。BA-RUN-07の[確認checkpoint試験](../tests/test_run_checkpoint.py)は取消、確認結果の重複、署名を保持した継続、session失効と期限回収を検査し、Firestoreでは別process再開と確認/取消競合を検査する。実業務handlerは後続チケットで接続する。
 
 BA-IAM-07 の[端末ペアリング試験](device-pairing.md)は fake clock で5分/60秒/15分の境界、5回失敗、専用 token と秘密再送を確認し、Firestore emulatorで同時交換・同時rotation・commit応答喪失を検証する。APIの端末provider/keyring/epochは同文書に従って明示し、合成鍵をstaging/productionへ持ち込まない。
 

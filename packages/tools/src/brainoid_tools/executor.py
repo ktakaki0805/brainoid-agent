@@ -24,6 +24,17 @@ from brainoid_tools.registry import Arguments, Invocation, Registration, Registr
 from brainoid_tools.results import HandlerResult, ToolRejected, correlate
 
 
+def execution_fingerprint(request: ToolExecution, canonical: str) -> str:
+    context_data = request.context.model_dump(mode="json")
+    context_data["actor"]["allowed_scopes"] = sorted(request.context.actor.allowed_scopes)
+    return hashlib.sha256(
+        json.dumps(
+            [context_data, request.call.name, canonical, request.idempotency_key],
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+
+
 class Authority(CoreValue):
     """Server-selected current state. receipt binds account, source, target and authority."""
 
@@ -60,11 +71,14 @@ class Executor:
         registry: Registry,
         authorizer: Authorizer,
         clock: Clock,
+        *,
+        infrastructure_errors: tuple[type[Exception], ...] = (),
     ) -> None:
         self.store = store
         self.registry = registry
         self.authorizer = authorizer
         self.clock = clock
+        self.infrastructure_errors = infrastructure_errors
 
     def _stopped(self, control: CallControl) -> Cancelled | TimedOut | None:
         if control.cancellation.cancelled:
@@ -135,19 +149,7 @@ class Executor:
         started = False
         try:
             registration, arguments, canonical = self.registry.validate(request.call)
-            context_data = request.context.model_dump(mode="json")
-            context_data["actor"]["allowed_scopes"] = sorted(request.context.actor.allowed_scopes)
-            digest = hashlib.sha256(
-                json.dumps(
-                    [
-                        context_data,
-                        request.call.name,
-                        canonical,
-                        request.idempotency_key,
-                    ],
-                    sort_keys=True,
-                ).encode()
-            ).hexdigest()
+            digest = execution_fingerprint(request, canonical)
             base = f"tenants/{request.context.tenant_id}"
             path = f"{base}/tool_executions/{request.tool_call_id}"
 
@@ -169,6 +171,11 @@ class Executor:
                         raise ToolRejected("conflict")
                     if Authority.model_validate(saved["authority"]) != authority:
                         raise ToolRejected("permission_denied")
+                    if saved.get("state") == "ready" and not reconcile:
+                        # Confirmation made this previously unstarted effect executable.
+                        # Claim and lease/authority checks share this transaction.
+                        tx.set(path, {**saved, "state": "started", "result": None})
+                        return Prepared(authority, None)
                     return Prepared(authority, saved)
                 if reconcile:
                     raise ToolRejected("conflict")
@@ -184,6 +191,7 @@ class Executor:
                         "tool_call_id": request.tool_call_id,
                         "effect_id": identity,
                         "name": registration.name,
+                        "effect_kind": registration.effect_kind,
                         "fingerprint": digest,
                         "authority": authority.model_dump(mode="json"),
                         "state": "started",
@@ -204,12 +212,18 @@ class Executor:
                 previous = prepared.existing.get("result")
                 if previous is not None:
                     result = ToolResult.model_validate(previous)
-                    if not reconcile or result.status != "outcome_unknown":
+                    if (
+                        not reconcile
+                        or result.status != "outcome_unknown"
+                        or prepared.existing.get("external_claim") is not None
+                    ):
                         self.store.run(lambda tx: self._check(tx, request, arguments, current))
                         if self._stopped(control) is not None:
                             return self._unknown(request, identity, registration)
                         return result
-                if not reconcile:
+                # A business worker owns external-claim reconciliation. The original
+                # proposal handler cannot resolve or replace that separate operation.
+                if not reconcile or prepared.existing.get("external_claim") is not None:
                     replay_unknown = True
             # A second current transaction immediately precedes I/O or waiting result.
             self.store.run(lambda tx: self._check(tx, request, arguments, current))
@@ -249,6 +263,8 @@ class Executor:
                     result = correlate(
                         outcome, request.tool_call_id, identity, registration.effect_kind
                     )
+                except self.infrastructure_errors:
+                    raise
                 except Exception:
                     # Includes malformed/unexpected handler return values and response loss.
                     outcome = HandlerResult(status="outcome_unknown")
@@ -274,6 +290,8 @@ class Executor:
             if self._stopped(control) is not None:
                 return self._unknown(request, identity, registration)
             return result
+        except self.infrastructure_errors:
+            raise
         except ToolRejected as exc:
             code = exc.code
             # Fixed rejection category only; never expose the candidate name/body.

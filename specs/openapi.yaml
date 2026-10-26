@@ -1339,13 +1339,13 @@ paths:
     post:
       operationId: cancelRun
       summary: 生成と未実行ツールを停止
-      description: 実行済み外部副作用は取消しを保証しない。別途状態確認・補償が必要。
+      description: 現在の会話POST権限と保存された開始者の一致を検査し、生成と未実行処理を停止する。本人ユーザーは本人端末から停止可能。Piは同一device/sessionを要求する。冪等再送にも現在認可を要求し、終端runは維持する。実行済み外部副作用の取消しは保証しない。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在のrun状態
           content:
             application/json:
               schema:

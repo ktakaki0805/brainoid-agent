@@ -3,6 +3,13 @@
 from brainoid_tools.executor import Authority, Authorizer, Executor
 from brainoid_tools.registry import Arguments, Handler, Invocation, Registration, Registry
 from brainoid_tools.results import HandlerResult, ToolRejected
+from brainoid_tools.reuse import (
+    ResultAuthorizer,
+    ResultBinding,
+    ResultConsumer,
+    ResultSource,
+    ResultUse,
+)
 
 __all__ = [
     "Arguments",
@@ -14,5 +21,10 @@ __all__ = [
     "Invocation",
     "Registration",
     "Registry",
+    "ResultAuthorizer",
+    "ResultBinding",
+    "ResultConsumer",
+    "ResultSource",
+    "ResultUse",
     "ToolRejected",
 ]

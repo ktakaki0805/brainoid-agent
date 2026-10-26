@@ -507,7 +507,7 @@ class Conversations:
                 if old is None:
                     raise APIError(ErrorCode.CONFLICT)
                 prior = failed_projection(tx, old)
-                if prior["status"] in ("queued", "running"):
+                if prior["status"] in ("queued", "running", "waiting_confirmation"):
                     raise APIError(ErrorCode.CONFLICT)
             definition = policy_call(lambda: agent(tx, tenant, parent["agent_id"]))
             _, _, history_digest = policy_call(lambda: history(tx, tenant, conversation))
@@ -641,3 +641,48 @@ class Conversations:
             return view(Run, updated)
 
         return self.store.run(read)
+
+    def cancel_run(
+        self,
+        identity: AgentIdentity,
+        tenant: ResourceId,
+        run_id: ResourceId,
+        key: str | None,
+        session: ResourceId | None = None,
+    ) -> Run:
+        from brainoid_jobs import Job
+        from brainoid_jobs.models import job_id
+        from brainoid_jobs.repository import path as job_path
+        from brainoid_runs.control import cancellation
+
+        def authorize(tx: Transaction, replay: MutationResult | None) -> AuthorizedScope:
+            doc = tx.get(run_path(tenant, run_id))
+            if doc is None or doc.get("tenant_id") != tenant or doc.get("run_id") != run_id:
+                raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
+            grant, current = self.access(
+                tx, identity, tenant, doc["conversation_id"], session, action=Action.POST
+            )
+            saved = tx.get(job_path(tenant, job_id(tenant, KIND, run_id)))
+            if saved is None:
+                raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
+            job = Job.model_validate(saved)
+            actor, initiator = grant.principal, job.grant.principal
+            if actor.subject != initiator.subject and not (
+                isinstance(actor.subject, UserSubject)
+                and actor.user_id is not None
+                and actor.user_id == initiator.user_id
+            ):
+                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
+            return current
+
+        def mutate(tx: Transaction, current: AuthorizedScope) -> MutationResult:
+            doc = tx.get(run_path(tenant, run_id))
+            assert doc is not None
+            current.ensure_live(self.now())
+            policy_call(lambda: cancellation(tx, self.jobs, doc))
+            return MutationResult(status_code=200, resource_id=run_id)
+
+        self.idempotency.execute(
+            operation=f"runs.cancel:{run_id}", key=key, body={}, authorize=authorize, mutate=mutate
+        )
+        return self.get_run(identity, tenant, run_id, session)

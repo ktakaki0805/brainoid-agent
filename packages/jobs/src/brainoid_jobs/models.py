@@ -24,8 +24,9 @@ Reason = Literal[
     "outcome_unknown",
     "retry_requested",
     "lease_expired",
+    "cancelled",
 ]
-Status = Literal["pending", "running", "succeeded", "obsolete", "failed"]
+Status = Literal["pending", "running", "waiting", "succeeded", "obsolete", "failed"]
 TERMINAL = frozenset({"succeeded", "obsolete", "failed"})
 
 

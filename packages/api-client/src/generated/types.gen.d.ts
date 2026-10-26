@@ -1881,7 +1881,7 @@ export type CancelRunErrors = {
 export type CancelRunError = CancelRunErrors[keyof CancelRunErrors];
 export type CancelRunResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在のrun状態
      */
     200: Run;
 };

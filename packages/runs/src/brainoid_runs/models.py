@@ -100,12 +100,14 @@ class RunAccepted(Record):
 class Run(Record):
     run_id: ResourceId
     conversation_id: ResourceId
-    status: Literal["queued", "running", "completed", "failed"]
+    status: Literal["queued", "running", "waiting_confirmation", "completed", "failed", "cancelled"]
     version: Version
     last_event_seq: Annotated[int, Field(strict=True, ge=0)] = 0
     created_at: UtcTimestamp
     final_message_id: ResourceId | None = None
     error_code: str | None = None
+    waiting_proposal_id: ResourceId | None = None
+    checkpoint_version: Version | None = None
 
 
 class CredentialBinding(Record):

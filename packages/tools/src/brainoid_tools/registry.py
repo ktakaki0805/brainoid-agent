@@ -7,7 +7,7 @@ from typing import Any, Literal, Protocol
 
 from brainoid_agent_core.context import require_json
 from brainoid_agent_core.ports import CallControl
-from brainoid_agent_core.types import ToolCall
+from brainoid_agent_core.types import ToolCall, ToolDefinition
 from brainoid_contracts import IanaTimezone, ResourceId, TenantContext, normalize_utc
 from jsonschema import Draft202012Validator, FormatChecker  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -96,6 +96,17 @@ class Registry:
         ):
             raise ValueError("Arguments must forbid extra fields and coercion")
         self._registered[registration.name] = registration
+
+    def definitions(self, allowed: tuple[str, ...]) -> tuple[ToolDefinition, ...]:
+        return tuple(
+            ToolDefinition(
+                name=name,
+                description=name,
+                parameters=registration.arguments_type.model_json_schema(),
+            )
+            for name, registration in self._registered.items()
+            if name in allowed
+        )
 
     def validate(self, call: ToolCall) -> tuple[Registration[Any], Arguments, str]:
         if call.name not in self._registered:

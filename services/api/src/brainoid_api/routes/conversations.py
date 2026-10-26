@@ -197,3 +197,26 @@ async def get_run(
     result = await run_in_threadpool(repo.get_run, identity, tenant_id, run_id, session)
     response.headers["ETag"] = etag(result.version)
     return result
+
+
+@router.post(
+    "/tenants/{tenant_id}/runs/{run_id}:cancel",
+    response_model=Run,
+    response_model_exclude_none=True,
+    operation_id="cancelRun",
+    responses=ERRORS,
+)
+async def cancel_run(
+    tenant_id: ResourceId,
+    run_id: ResourceId,
+    identity: Reader,
+    repo: Repository,
+    session: Session,
+    request: Request,
+    response: Response,
+) -> Run:
+    result = await run_in_threadpool(
+        repo.cancel_run, identity, tenant_id, run_id, _header(request, "Idempotency-Key"), session
+    )
+    response.headers["ETag"] = etag(result.version)
+    return result
