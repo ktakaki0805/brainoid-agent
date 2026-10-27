@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Callable
 from concurrent.futures import Future
+from functools import partial
 from threading import BoundedSemaphore, Event, Thread
 
 from brainoid_agent_core.ports import Clock
@@ -184,17 +185,21 @@ async def memory_write[T](
 
     def invoke() -> None:
         try:
-            if future.set_running_or_notify_cancel():
-                try:
-                    if stopped():
-                        raise PolicyDenied()
-                    result = work()
-                except Exception as error:
-                    future.set_exception(error)
-                else:
-                    future.set_result(result)
+            if not future.set_running_or_notify_cancel():
+                return
+            try:
+                if stopped():
+                    raise PolicyDenied()
+                result = work()
+            except Exception as error:
+                complete = partial(future.set_exception, error)
+            else:
+                complete = partial(future.set_result, result)
         finally:
             bridge.slot.release()
+        # An awaiting caller may immediately reconcile/start its next DB operation.
+        # Publish completion only after the outstanding-write slot is available.
+        complete()
 
     try:
         Thread(target=invoke, daemon=True, name="memory-db-writer").start()

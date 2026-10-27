@@ -66,7 +66,8 @@ class Delivery:
     """
 
     kind: str
-    load: Callable[[Transaction, ConnectionBinding], dict[str, Any]]
+    load: Callable[[Transaction, ConnectionBinding], dict[str, Any] | None]
+    completed: Callable[[bool], None] | None = None
 
 
 class DeviceConnection:
@@ -80,6 +81,12 @@ class DeviceConnection:
         self._pending: set[asyncio.Task[Any]] = set()
         self.closed = False
         self._overflow = asyncio.Event()
+        self._failure_code = 1013
+
+    def fail(self, code: int = 1011) -> None:
+        """A trusted watch/task failure closes the connection through owned cleanup."""
+        self._failure_code = code
+        self._overflow.set()
 
     async def io[T](self, call: Callable[[], T]) -> T:
         return await self._io(lambda admit: call())
@@ -123,11 +130,19 @@ class DeviceConnection:
     async def send(self, kind: str, payload: dict[str, Any]) -> None:
         await self._transmit(Delivery(kind, lambda tx, binding: payload))
 
+    async def enqueue_wait(self, delivery: Delivery) -> None:
+        """Bounded, cancellation-cooperative backpressure for an owned watch pump."""
+        if self.closed or delivery.kind in {"hello_ack", "heartbeat_ack"}:
+            raise ProtocolError()
+        await self._queue.put(delivery)
+
     async def _transmit(self, delivery: Delivery) -> None:
         async with self._send_lock:
 
             def prepare(tx: Transaction) -> Any:
                 payload = delivery.load(tx, self.binding)
+                if payload is None:
+                    return None, release_guard(tx)
                 text = encode(
                     envelope(
                         delivery.kind,
@@ -143,10 +158,16 @@ class DeviceConnection:
             )
             # Retain all resource/credential/lease deadlines through thread handoff.
             guard.finish()
+            if text is None:
+                if delivery.completed is not None:
+                    delivery.completed(False)
+                return
             if self.closed:
                 raise ProtocolError()
             async with asyncio.timeout(SEND_TIMEOUT):
                 await self._socket.send_text(text)
+            if delivery.completed is not None:
+                delivery.completed(True)
 
     async def deliver(self) -> None:
         while True:
@@ -154,7 +175,7 @@ class DeviceConnection:
 
     async def overflow(self) -> None:
         await self._overflow.wait()
-        raise ProtocolError(1013)
+        raise ProtocolError(self._failure_code)
 
     async def monitor(self) -> None:
         while True:
@@ -164,12 +185,14 @@ class DeviceConnection:
     async def receive(self) -> None:
         while True:
             frame = await receive_frame(self._socket)
-            if (
-                frame["type"] != "heartbeat"
-                or frame["connection_generation"] != self.binding.generation
-            ):
-                # DEV-04/05 will add separately reviewed inbound registrations.
+            if frame.get("connection_generation") != self.binding.generation:
                 raise ProtocolError()
+            if frame["type"] != "heartbeat":
+                handler = self._gateway.handlers.get(frame["type"])
+                if handler is None:
+                    raise ProtocolError()
+                await self._transmit(handler(frame["payload"]))
+                continue
             # The optional session ID is telemetry, never a watch selector or idle renewal.
             expires = await self._io(
                 lambda admit: self._gateway.leases.heartbeat(self.binding, admit=admit)
@@ -206,9 +229,11 @@ class DeviceGateway:
         leases: DeviceLeases,
         *,
         hooks: Sequence[DeliveryHook] = (),
+        handlers: dict[str, Callable[[dict[str, Any]], Delivery]] | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self.leases, self.hooks, self.sleep = leases, tuple(hooks), sleep
+        self.handlers = dict(handlers or {})
 
     @asynccontextmanager
     async def _hooks(self, connection: DeviceConnection) -> AsyncIterator[None]:

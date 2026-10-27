@@ -5,7 +5,7 @@ This module performs no network I/O and never grants a physical execution start.
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import uuid4
 
 from brainoid_contracts import FirebaseUid, ResourceId, Scope, UtcTimestamp, Version, Visibility
@@ -149,6 +149,19 @@ class ActorCredential(CredentialBinding):
     family_expires_at: UtcTimestamp
 
 
+class CommandDelivery(MemoryValue):
+    sequence: Version
+    family_id: ResourceId
+    credential_epoch: ResourceId
+    private_session_id: ResourceId | None = None
+
+
+class CommandExecution(MemoryValue):
+    generation: Version
+    claimed_at: UtcTimestamp
+    expires_at: UtcTimestamp
+
+
 class CommandRecord(Command, Scope):
     schema_version: Literal[1] = 1
     deletion_epoch: Annotated[int, Field(strict=True, ge=0)] = 0
@@ -161,6 +174,10 @@ class CommandRecord(Command, Scope):
     account_stamp: str | None
     binding: Binding
     actor_credential: ActorCredential | None = None
+    delivery: CommandDelivery | None = None
+    accepted_execution_id: ResourceId | None = None
+    execution: CommandExecution | None = None
+    status_receipts: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 def command_path(tenant: ResourceId, identity: ResourceId) -> str:

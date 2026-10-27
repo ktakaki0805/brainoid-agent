@@ -444,7 +444,8 @@
                 }
               },
               "required": [],
-              "additionalProperties": false
+              "additionalProperties": false,
+              "minProperties": 1
             },
             "error_code": {
               "type": "string",

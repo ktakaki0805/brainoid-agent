@@ -249,7 +249,7 @@ BA-DEV-02の[端末台帳](device-storage.md)は受領/cursorの同時commit、e
 
 取消しとstart claimは同じ状態を原子的に更新する。queued/delivered/acceptedでもまだclaimされていなければcancelledへ移せる。claim済みのrunning以降は409を返し、必要なら別操作で新しい目標状態を設定する。旧接続の処理やgrantの遅延もgeneration・command ID・観測で照合する。serverがACKを送ったことだけを家電成功としない。
 
-BA-APP-06の[command受付契約](commands.md)はHTTP create/get/cancelと既定home.set_stateを提供する。cancelのIf-Matchは任意で、指定時は期待版を検査する。実claim/grant・配送・HA実行はDEV-05/06/07で接続する。未構成の信頼済みinventoryからcommandを作成しない。
+BA-APP-06の[command受付契約](commands.md)はHTTP create/get/cancelと既定home.set_stateを提供する。cancelのIf-Matchは任意で、指定時は期待版を検査する。BA-DEV-05の[実claim/grant・配送・結果ACK契約](device-gateway.md#durable-command-boundary-ba-dev-05)は同じcanonical文書を使う。HA実行はDEV-07で接続する。未構成の信頼済みinventoryからcommandを作成しない。
 
 Cloud Tasksの重複実行は起こり得るため、worker・通知・provider操作はジョブIDと処理状態で冪等にする。キューが順序やexactly-onceを保証すると仮定しない。[公式資料](https://docs.cloud.google.com/tasks/docs/common-pitfalls)
 

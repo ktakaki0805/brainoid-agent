@@ -1,6 +1,6 @@
 # 家電 command の受付
 
-BA-APP-06 は FR-011 / AC-011、T-018 / T-036 の API 側を実装する。[共有サービス](../packages/memory/src/brainoid_memory/commands.py)を HTTP と既定 `home.set_state` が使う。外部通信・配送・start grant・Pi 実行・HA 観測は行わない。DEV-05/07 と DEV-06 で接続する。
+BA-APP-06 は FR-011 / AC-011、T-018 / T-036 の API 側を実装する。[共有サービス](../packages/memory/src/brainoid_memory/commands.py)を HTTP と既定 `home.set_state` が使う。BA-DEV-05 が永続配送・start grant・結果ACKを接続する（[gateway契約](device-gateway.md#durable-command-boundary-ba-dev-05)）。HA呼出し・Pi実行はDEV-07、inventory連携はDEV-06で接続する。
 
 ## HTTP と状態
 
@@ -10,7 +10,7 @@ GET `/commands/{id}` は現在の状態と ETag を返す。未claimのまま期
 
 POST `/commands/{id}:cancel` は元のactor、現在の権限、`queued/delivered/accepted`、execution IDなし、未期限切れを同じtransactionで検査する。Idempotency-Keyは必須、If-Matchは任意。指定した古い版は412、claim済みや取消済みの別要求は409 `conflict`、未claimの期限切れはGETや作成再送によるexpired保存の前後を問わず410（古いIf-Matchより優先）。claim済みは期限後も409。同keyの取消し再送は現在認可で同じ結果を取得する。claim側も同じcommand文書をtransactionで読み更新することで競合を直列化する。取消しが先ならgrantを出せず、claimが先なら取消しは409になる。
 
-保存・配送・受領は物理成功ではない。`outcome_unknown`、`failed`、`running` を `succeeded` に変換しない。保存された `succeeded` の公開には観測状態が必須。今回の製品には実行結果を成功にするwriterがない。
+保存・配送・受領は物理成功ではない。`outcome_unknown`、`failed`、`running` を `succeeded` に変換しない。保存された `succeeded` の公開には観測状態が必須。DEV-05の結果writerはclaim済みexecution IDと操作に一致する観測を検査し、ACKだけを物理成功にしない。
 
 ## 対象・権限と入力
 
@@ -29,7 +29,7 @@ canonical entityは同tenant、未削除、未抑止のapplianceで、外部参�
 
 `home_targets/{external_key}` は公開API/toolから書き込めない内部snapshot。external_keyはMEM-02のtenant/integration/provider/opaque external IDのhashで、本文にはtenant_id、device_id、entity_id、唯一のreference、version、active/revoked、allowed_actionsを保存する。integrationにも同じdevice_idを必要とする。書込元は将来のDEV-06 provider検証adapterであり、利用者の申告やモデルJSONから生成しない。今回その実adapterや自動importは実装しない。snapshotがなければfail closedでcommandを作成しない。fake/emulator検証だけが合成snapshotを投入する。
 
-DEV-06は現在integration・device認可とprovider inventoryを確認し、versionを単調に進め、失効snapshotをactiveへ戻さず新しい検証を必要とする。entity・索引・inventoryの対応は原子的に保ち、削除fenceを検査して旧snapshotの復元を拒否する。command側は削除fenceと現在のsnapshotを毎回確認する。対象照合は固定pathのpoint readで、機器一覧を毎要求scanしない。新しい常駐watch・provider呼出し・クラウドresource・依存追加はない。
+DEV-06は現在integration・device認可とprovider inventoryを確認し、versionを単調に進め、失効snapshotをactiveへ戻さず新しい検証を必要とする。entity・索引・inventoryの対応は原子的に保ち、削除fenceを検査して旧snapshotの復元を拒否する。command側は削除fenceと現在のsnapshotを毎回確認する。対象照合は固定pathのpoint readで、機器一覧を毎要求scanしない。DEV-05の端末限定watchはcommandを監視する。provider呼出し・クラウドresource・依存追加はない。
 
 ## 会話・削除・export
 

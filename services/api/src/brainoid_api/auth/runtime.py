@@ -30,6 +30,8 @@ from brainoid_api.auth.firebase_identity import (
 from brainoid_api.auth.profiles import FirestoreProfiles, ProfileReader
 from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
+from brainoid_api.device_command_watch import command_gateway
+from brainoid_api.device_commands import DeviceCommands
 from brainoid_api.device_gateway import DeviceGateway
 from brainoid_api.device_leases import DeviceLeases
 from brainoid_api.errors import APIError, ErrorCode
@@ -130,6 +132,16 @@ async def authentication_lifespan(
         tenants = Tenants(store, cursors, ledger=ledger)
         devices = DeviceCredentialRepository(store, tenants, ledger, device_tokens)
         sessions = PrivateSessions(store, tenants, ledger, devices)
+        memories = Memories(
+            store,
+            tenants,
+            cursors,
+            ledger=ledger,
+            credentials=devices,
+            allow_untracked_bootstrap=True,
+            vector_search=(vector_search_factory(client) if vector_search_factory else None),
+            deletion_ledger=DeletionLedger(objects),
+        )
         yield AuthServices(
             FirebaseIdentityVerifier(app, settings),
             FirestoreProfiles(client),
@@ -164,22 +176,15 @@ async def authentication_lifespan(
                 # records and pending ledger denies still require their fence.
                 allow_untracked_bootstrap=True,
             ),
-            Memories(
-                store,
-                tenants,
-                cursors,
-                ledger=ledger,
-                credentials=devices,
-                allow_untracked_bootstrap=True,
-                vector_search=(vector_search_factory(client) if vector_search_factory else None),
-                deletion_ledger=DeletionLedger(objects),
-            ),
+            memories,
             # Lifecycle provider finalization is explicitly composed by local tests.
             # No production admission until its provider/cache/export worker is wired.
             DeletionRequests(store, DeletionLedger(objects), ledger)
             if settings.app_env == "local-emulator"
             else None,
-            device_gateway=DeviceGateway(DeviceLeases(store, devices)),
+            device_gateway=command_gateway(
+                DeviceLeases(store, devices), client, DeviceCommands(memories)
+            ),
         )
     finally:
         try:
