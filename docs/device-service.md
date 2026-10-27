@@ -1,6 +1,6 @@
 # Pi 常駐サービスとローカル UI 境界
 
-BA-DEV-01、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、SQLite、家電操作、更新はこの実装にはまだ接続していない。
+BA-DEV-01/02、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、家電操作、更新はまだ接続していない。
 
 ## 起動・設定検査・停止
 
@@ -10,11 +10,13 @@ workspace の `mise run setup` 後、非 root の開発ユーザーで次を実�
 fixture_dir=$(mktemp -d /tmp/brainoid-device-demo.XXXXXX)
 mkdir -m 755 "$fixture_dir/display"
 mkdir -m 700 "$fixture_dir/private"
+mkdir -m 700 "$fixture_dir/state"
 printf '%s\n' '<!doctype html><title>Device fixture</title><p>Local service fixture</p>' > "$fixture_dir/display/index.html"
 export DEVICE_HOST=127.0.0.1
 export DEVICE_PORT=8765
 export DEVICE_STATIC_DIR="$fixture_dir/display"
 export DEVICE_CREDENTIALS_DIR="$fixture_dir/private"
+export DEVICE_STATE_DIR="$fixture_dir/state"
 mise exec -- uv run --all-packages --locked --offline python -B -m brainoid_device check
 mise exec -- uv run --all-packages --locked --offline python -B -m brainoid_device serve
 ~~~
@@ -27,8 +29,9 @@ mise exec -- uv run --all-packages --locked --offline python -B -m brainoid_devi
 | `DEVICE_PORT` | 1024〜65535 の十進数。0 による自動選択はしない |
 | `DEVICE_STATIC_DIR` | `index.html` を含む、存在する絶対 canonical directory |
 | `DEVICE_CREDENTIALS_DIR` | サービス実行 UID 所有の mode 0700 directory。空なら未登録状態で起動可能 |
+| `DEVICE_STATE_DIR` | 資格情報・staticとは別の既存 canonical directory。サービス UID 所有、mode 0700。SQLiteとその管理fileだけを置く |
 
-root 実行は拒否する。設定不足・不正な値・読めないファイル・危険な権限は、設定名と固定理由を stderr に出して exit 2。渡された値、ファイル内容、URL、traceback は出さない。`check` の成功は `device_configuration_ok` と exit 0 であり、listen しない。`serve` は開始・終了の固定イベントだけを出す。bind 失敗・startup の例外/期限超過・cleanup 失敗は exit 1、SIGINT/SIGTERM による正常終了は exit 0。起動 hook の待機中でも、停止要求を受けて協調的に cleanup を完了した場合は listen 未開始のまま exit 0 とする。HTTP access log と runtime library の内容を含むログを無効にしている。
+root 実行は拒否する。設定不足・不正な値・読めないstatic/credential・危険な権限は、設定名と固定理由を stderr に出して exit 2。渡された値、ファイル内容、URL、traceback は出さない。`check` の成功は `device_configuration_ok` と exit 0 であり、listen しない。`check` もSQLiteの作成/migration・読書き検査・未完了resetの再開を行い、保存層の復旧が必要なら固定 `device_storage_recovery_required` と exit 1。`serve` は保存層の復旧状態でもlocal health/stateを提供し、通信・家電操作の前提を閉じる。開始・終了は固定イベントだけを出す。bind 失敗・startup の例外/期限超過・cleanup 失敗は exit 1、SIGINT/SIGTERM による正常終了は exit 0。起動 hook の待機中でも、停止要求を受けて協調的に cleanup を完了した場合は listen 未開始のまま exit 0 とする。HTTP access log と runtime library の内容を含むログを無効にしている。
 
 ## HTTP 契約
 
@@ -36,10 +39,10 @@ root 実行は拒否する。設定不足・不正な値・読めないファイ
 
 | method / path | 条件・応答 |
 | --- | --- |
-| `GET/HEAD /healthz` | loopback/Host/Origin 検査後、session 不要。正常 200 `{"status":"ok"}`、停止中・所有 task の異常時は 503 `{"status":"unavailable"}` |
+| `GET/HEAD /healthz` | loopback/Host/Origin 検査後、session 不要。正常 200 `{"status":"ok"}`、停止中・所有 task の異常・保存層の復旧待ち/reset未完了時は 503 `{"status":"unavailable"}` |
 | `GET/HEAD /`、`/index.html`、明示された asset path | 検査済み UI snapshot を配信。session 不要。未知 path は 404。SPA fallback・directory listing は行わない |
 | `POST /local/session` | 正確な Origin と `X-Brainoid-Local: 1` が必須。200 で `csrf_token` と残秒 `expires_in`、HttpOnly Cookie を返す |
-| `GET/HEAD /local/state` | 現在の Cookie が必須。`status`（running/stopping）、`instance_id`（プロセス生成ごとの UUID）、`started_at`（UTC）、`software_version` だけを返す |
+| `GET/HEAD /local/state` | 現在の Cookie が必須。`status`（running/stopping）、`instance_id`（プロセス生成ごとの UUID）、`started_at`（UTC）、`software_version`、`storage_status`（unregistered/ready/reset_pending/recovery_required）を返す。tenant・cursor・資格情報参照は返さない |
 | `DELETE /local/session` | Origin、現在の Cookie と、その session に結び付く `X-CSRF-Token` が必須。204 で session を消去し Cookie を期限切れにする |
 
 全要求は body なし。Content-Length は省略または 0 に限り、transfer encoding は拒否する。WebSocket と CORS は提供しない。アプリケーションのエラー本文は固定 `{"error":"code"}`。未対応 method は 405 `{"error":"method_not_allowed"}` と `application/json` を返し、`Allow` は対象 path の対応 method を保持する。状態変更の Origin 不足/不一致と CSRF 不備は 403、session 不備は 401、session 上限は 429、重複 security header は 400。HTTP 構文の不正や runtime の過負荷拒否は h11/Uvicorn がアプリケーションより先に応答する場合があり、その応答は JSON 契約の対象外とする。
@@ -67,9 +70,9 @@ await fetch('/local/session', {
 
 ## 保存領域と配信範囲
 
-static と credential directory は同一・親子関係を禁止する。両 directory の全祖先を directory FD から `O_NOFOLLOW` で開く。祖先は root またはサービス UID 所有で、group/other に書込可能なものを拒否する。root 所有 sticky directory（開発用 `/tmp` 等）は例外とし、その内部のサービス所有 entry は他 UID が差し替えられない。設定検査後に祖先を symlink へ差し替えても開かない。資格情報は保持した directory FD に対して操作するため、後から pathname を差し替えても別領域には書き込まない。
+static・credential・state directory は相互に同一・親子関係を禁止する。各 directory の全祖先を directory FD から `O_NOFOLLOW` で開く。祖先は root またはサービス UID 所有で、group/other に書込可能なものを拒否する。root 所有 sticky directory（開発用 `/tmp` 等）は例外とし、その内部のサービス所有 entry は他 UID が差し替えられない。設定検査後に祖先を symlink へ差し替えても開かない。資格情報は保持した directory FD に対して操作するため、後から pathname を差し替えても別領域には書き込まない。
 
-credential file はサービス UID 所有、mode 0600、通常 file、hardlink なし、64KiB 以下。起動時と read 時に検査する。`CredentialStore.write` は同じ private directory に mode 0600 の一時 file を作り、fsync/atomic replace で置き換える。現在のサービスに credential の HTTP read/write route はない。今後の cloud adapter がこの store を直接使う。
+credential file はサービス UID 所有、mode 0600、通常 file、hardlink なし、64KiB 以下。起動時と read 時に検査する。`CredentialStore.write` は同じ private directory に mode 0600 の一時 file を作り、fsync/atomic replace で置き換える。read/write/resetはdirectory inodeの非blocking flockで直列化し、競合時は有限に失敗する。reset中の専用markerは既存・再生成・別processのstoreを遮断する。未完了resetで残った不正fileは読まずに削除を再試行する。現在のサービスに credential の HTTP read/write route はない。今後のadapterは保存層のreadyと現在の認可を確認した上でstoreを使う。
 
 static は root/サービス UID 所有、group/other 書込不可、通常 file のみ。symlink、hardlink、隠し entry、許可外拡張子を拒否する。HTML/JS/CSS/SVG/PNG/JPEG/WebP/AVIF/ICO/WOFF/WOFF2 を受け入れる。1 file 8MiB、総量64MiB、directoryを含め4096 entry、深さ16まで。設定 JSON、source map、資格情報を配信物に含めない。起動時に検査済み bytes を読み込み、要求時に filesystem path を開かない。起動後の file/symlink 差替えも配信内容を変更しない。UI の更新には service restart が必要である。URL の percent escape、backslash、`.`/`..` component を拒否し、path+query 2048 bytes、header合計8KiB に制限する。
 
@@ -79,9 +82,9 @@ static は root/サービス UID 所有、group/other 書込不可、通常 file
 
 終了時は listener を閉じ、HTTP 処理を最大3秒待ち、所有 task を cancel、直接の子に SIGTERM を送る。子を最大3秒待ち、残る子を SIGKILL してさらに最大3秒で reap する。task（起動 hook を含む）の取消完了は最大3秒、event loop の最終 drain は1秒。停止要求からの待機上限は HTTP 3秒 + 子の TERM/KILL/reap 6秒 + task 3秒 + 最終 drain 1秒で計13秒。起動中は HTTP 待機を必要とせず、起動期限5秒を停止要求後に追加しない。繰返しの停止信号でも lifespan cleanup を省略しない。取消を無視する task が残れば正常終了を主張せず exit 1 とする。拡張は cancel に協力し、未登録・daemonize した子を作らない。CPU を同期的に占有する拡張や OS 側で停止不能なプロセスの最終上限は unit の `TimeoutStopSec=15` と `KillMode=control-group` が担い、孫プロセスも cgroup 全体で回収する。
 
-unit は `brainoid-agent` 専用 User/Group、UMask=0077、StateDirectory mode 0700、読取専用 system/home 保護、権限昇格禁止、空 capability set、core dump 禁止を定義する。[環境設定例](../packaging/systemd/device.env.example)は秘密値を含まない。`/opt/brainoid/.venv/bin/python`、built display directory、`/etc/brainoid/device.env` と専用ユーザーの準備が導入前提。実機導入・kiosk・audio 権限調整は BA-DEV-09/BA-VOICE-04 の範囲とする。このチケットは host のユーザー作成、unit install/start を実行しない。
+unit は `brainoid-agent` 専用 User/Group、UMask=0077、資格情報用 `brainoid-agent` とSQLite用 `brainoid-agent-state` の2つの StateDirectory（mode 0700）、読取専用 system/home 保護、権限昇格禁止、空 capability set、core dump 禁止を定義する。`serve` 自体が設定検査するため、復旧用local APIを妨げる `ExecStartPre check` は置かない。[環境設定例](../packaging/systemd/device.env.example)は秘密値を含まない。`/opt/brainoid/.venv/bin/python`、built display directory、`/etc/brainoid/device.env` と専用ユーザーの準備が導入前提。実機導入・kiosk・audio 権限調整は BA-DEV-09/BA-VOICE-04 の範囲とする。このチケットは host のユーザー作成、unit install/start を実行しない。
 
-初回導入の新規サービスなので既存データ migration はない。切戻しは service を停止して前の package/UI/env の組へ戻す。UI snapshot と session は再作成される。credential directory を削除する切戻しはしない。
+DEV-01からの更新はcredential directoryをそのまま維持し、新しいstate directoryと `DEVICE_STATE_DIR` を用意する。SQLiteの初回作成・旧版migration・切戻し/破損復旧は[保存層の運用手順](device-storage.md#移行と復旧)に従う。UI snapshot と session は再作成される。credentialやcommand台帳を削除する切戻しはしない。
 
 ## 検証と限界
 

@@ -34,8 +34,10 @@ class DeviceFixture(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.static = self.root / "display"
         self.private = self.root / "private"
+        self.state = self.root / "state"
         self.static.mkdir(mode=0o755)
         self.private.mkdir(mode=0o700)
+        self.state.mkdir(mode=0o700)
         (self.static / "index.html").write_text("<!doctype html><title>Device fixture</title>")
         (self.static / "app.js").write_text('document.title = "synthetic UI";')
         self.env = {
@@ -43,6 +45,7 @@ class DeviceFixture(unittest.TestCase):
             "DEVICE_PORT": "8765",
             "DEVICE_STATIC_DIR": str(self.static),
             "DEVICE_CREDENTIALS_DIR": str(self.private),
+            "DEVICE_STATE_DIR": str(self.state),
         }
 
     def settings(self, **overrides: str) -> Settings:
@@ -107,6 +110,9 @@ class DeviceSettingsTests(DeviceFixture):
             {"DEVICE_STATIC_DIR": str(self.root)},
             {"DEVICE_STATIC_DIR": str(self.private)},
             {"DEVICE_CREDENTIALS_DIR": str(self.root)},
+            {"DEVICE_STATE_DIR": str(self.private)},
+            {"DEVICE_STATE_DIR": str(self.static)},
+            {"DEVICE_STATE_DIR": str(self.root)},
             {"DEVICE_STATIC_DIR": "relative"},
             {"DEVICE_STATIC_DIR": str(self.root / "missing")},
         ):
@@ -245,7 +251,8 @@ class DeviceBoundaryTests(DeviceFixture):
                 self.assertEqual(client.get("/app.js").status_code, 200)
                 self.assertEqual(client.get("/local/state").json(), before)
             self.assertEqual(
-                set(before), {"status", "instance_id", "started_at", "software_version"}
+                set(before),
+                {"status", "instance_id", "started_at", "software_version", "storage_status"},
             )
             self.assertNotIn(SECRET, json.dumps(before))
             self.assertNotIn(str(self.private), json.dumps(before))

@@ -121,6 +121,8 @@ Home Assistantは利用者のLAN上のinstanceを最初の連携先とする。�
 
 配備先はversionごとに分け、検証と展開が成功してから起動先をatomicに切り替える。SQLite migrationは互換性を確認し、rollbackに必要な状態を保つ。再起動前に個人セッションを終了し、進行中の家電操作を結果不明のまま再実行しない。
 
+BA-DEV-02の[保存層の移行・復旧手順](device-storage.md#移行と復旧)は、別の `DEVICE_STATE_DIR`、transaction migration、future版拒否、破損/欠落時の操作禁止を定める。command台帳を消して旧版を動かす切戻しや、稼働中のhot journal削除は行わない。
+
 配布は開発端末→少数pilot→残りの順に行う。健康確認にはservice起動、local UI、SQLite読書き、クラウド認証、protocol互換、音声device列挙を含める。更新後に正常化しなければ直前の検証済みアプリへ戻し、再失敗では更新を停止する。正確な待機時間・回数は実機検証で固定する。
 
 OS更新はアプリ更新と別releaseとする。初期の回復手段は検証済みOS imageの再書込みと再登録であり、OS全体の自動A/B rollbackが完成しているとは扱わない。長期間offlineの端末には、互換性確認前に古いcommandを送らない。
@@ -130,6 +132,8 @@ OS更新はアプリ更新と別releaseとする。初期の回復手段は検�
 紛失はサーバーでdeviceを失効させ、既存streamと個人sessionを終了する。オンライン失効の反映目標は60秒。Piは資格情報、Home Assistant token、private cache、音声bufferを消去して再登録待ちへ戻る。物理的に回収できないoffline端末の保存領域消去まで遠隔で保証しないため、private情報の通常の長期保存を行わない。
 
 移譲時はクラウドの登録解除、端末のlocal reset、Home Assistant側のcredential失効、再起動後の未登録状態を確認する。新tenantへtokenや記憶cacheを引き継がない。
+
+BA-DEV-02の[内部local reset](device-storage.md#local-reset)は、durable markerで資格情報取得を遮断してからcloud/HA file・私的一時データ・SQLite登録/cursor/台帳を消去する。途中失敗・再起動では全消去完了までmarkerを保持し、通信/操作を再開しない。確認UIと実機での移譲操作はBA-DEV-09で接続する。
 
 ## 6. 監視と日常点検
 

@@ -239,6 +239,8 @@ stateDiagram-v2
 
 `delivered` は送信した、`accepted` はPiが受領した状態であり、成功ではない。Piは実行前にcommand IDをSQLiteに記録し、同じIDの再配送には保存済み状態を返す。commandに含まれるtenant/device/target、generation、期限、本人session、operation型と範囲を検査する。serverとPiの両方で `expires_at` を確認し、端末時計が信用できない場合は実行を拒否して時刻同期を要求する。
 
+BA-DEV-02の[端末台帳](device-storage.md)は受領/cursorの同時commit、execution IDと開始/結果の保存、既定7日の安全な掃除、保存障害時の復旧状態とlocal resetを提供する。wireのschemaや実行認可を代行せず、配送・grant・HAの接続はDEV-05/06/07で行う。
+
 成功条件は対象のHA操作が受理され、期待する状態を観測できることとする。照明のon/off、輝度設定、空調の目標温度・モード設定に限定し、`toggle` は使わない。`outcome_unknown` はネット切断などで結果を確定できない状態で、成功とも失敗とも表示しない。HAの現在状態・execution IDを照合してから再試行を判断する。
 
 実行直前にPiは `command_start` をexecution IDと現在generation付きで送る。APIは状態・期限・認可・sessionをFirestore transactionで検査し、実行可能なcommandをrunningへ原子的にclaimしてgrantを返す。Piは同じgeneration・execution IDの有効なgrantを確認して初めてHAを呼ぶ。grant応答喪失時は同じexecution IDで照合し、推測して実行しない。SQLiteの開始/完了記録により、同じgrantの再受信で再実行しない。

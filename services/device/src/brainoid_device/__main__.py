@@ -23,6 +23,9 @@ def main() -> int:
         settings = load_settings()
         application = DeviceApplication(settings)
         if args.command == "check":
+            if application.storage.snapshot().status not in {"unregistered", "ready"}:
+                print("device_storage_recovery_required", file=sys.stderr)
+                return 1
             print("device_configuration_ok")
             return 0
         print("device_starting", flush=True)

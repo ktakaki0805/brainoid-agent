@@ -29,6 +29,7 @@ class Settings:
     port: int
     static_dir: Path
     credentials_dir: Path
+    state_dir: Path
 
     def __post_init__(self) -> None:
         if self.host not in {"127.0.0.1", "::1"}:
@@ -37,10 +38,14 @@ class Settings:
             raise ConfigurationError("DEVICE_PORT: requires an unprivileged TCP port (1024..65535)")
         directory(str(self.static_dir), "DEVICE_STATIC_DIR")
         directory(str(self.credentials_dir), "DEVICE_CREDENTIALS_DIR")
-        if self.static_dir.is_relative_to(
-            self.credentials_dir
-        ) or self.credentials_dir.is_relative_to(self.static_dir):
-            raise ConfigurationError("DEVICE_STATIC_DIR: must be separate from credential storage")
+        directory(str(self.state_dir), "DEVICE_STATE_DIR")
+        paths = (self.static_dir, self.credentials_dir, self.state_dir)
+        for index, path in enumerate(paths):
+            for other in paths[index + 1 :]:
+                if path.is_relative_to(other) or other.is_relative_to(path):
+                    raise ConfigurationError(
+                        "DEVICE_STATIC_DIR: storage directories must be separate"
+                    )
 
     @property
     def authority(self) -> str:
@@ -56,7 +61,13 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     source = os.environ if env is None else env
     if os.geteuid() == 0:
         raise ConfigurationError("service user: must be a non-root account")
-    names = ("DEVICE_HOST", "DEVICE_PORT", "DEVICE_STATIC_DIR", "DEVICE_CREDENTIALS_DIR")
+    names = (
+        "DEVICE_HOST",
+        "DEVICE_PORT",
+        "DEVICE_STATIC_DIR",
+        "DEVICE_CREDENTIALS_DIR",
+        "DEVICE_STATE_DIR",
+    )
     for name in names:
         if not source.get(name):
             raise ConfigurationError(f"{name}: required")
@@ -72,6 +83,5 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         raise ConfigurationError("DEVICE_PORT: requires an unprivileged TCP port (1024..65535)")
     static_dir = directory(source["DEVICE_STATIC_DIR"], "DEVICE_STATIC_DIR")
     credentials_dir = directory(source["DEVICE_CREDENTIALS_DIR"], "DEVICE_CREDENTIALS_DIR")
-    if static_dir.is_relative_to(credentials_dir) or credentials_dir.is_relative_to(static_dir):
-        raise ConfigurationError("DEVICE_STATIC_DIR: must be separate from credential storage")
-    return Settings(source["DEVICE_HOST"], int(port_value), static_dir, credentials_dir)
+    state_dir = directory(source["DEVICE_STATE_DIR"], "DEVICE_STATE_DIR")
+    return Settings(source["DEVICE_HOST"], int(port_value), static_dir, credentials_dir, state_dir)

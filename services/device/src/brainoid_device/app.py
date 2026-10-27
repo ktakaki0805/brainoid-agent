@@ -1,4 +1,4 @@
-"""Local-only service composition; no cloud, audio, or device-control adapters yet."""
+"""Local service and durable storage; no cloud/audio/device-control adapters yet."""
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -13,6 +13,7 @@ from starlette.types import ASGIApp
 
 from brainoid_device.assets import load_assets
 from brainoid_device.config import Settings
+from brainoid_device.ledger import DeviceStorage
 from brainoid_device.local_api import LocalBoundary, Sessions, error
 from brainoid_device.runtime import Runtime
 from brainoid_device.storage import CredentialStore
@@ -31,6 +32,9 @@ class DeviceApplication:
         self.startup_stopped = False
         self._stop_requested = asyncio.Event()
         sessions = Sessions()
+        self.storage = DeviceStorage(
+            settings.state_dir, self.credentials, cleanup_private=sessions.clear
+        )
 
         @asynccontextmanager
         async def lifespan(app: Starlette) -> AsyncIterator[None]:
@@ -48,10 +52,16 @@ class DeviceApplication:
                     self.shutdown_failed = True
                     raise RuntimeError("device_resource_shutdown_failed") from None
                 finally:
+                    self.storage.close()
                     self.credentials.close()
 
         async def health(request: Request) -> Response:
-            healthy = self.runtime.running and not self.runtime.resource_failed
+            storage = self.storage.snapshot()
+            healthy = (
+                self.runtime.running
+                and not self.runtime.resource_failed
+                and storage.status in {"ready", "unregistered"}
+            )
             return JSONResponse(
                 {"status": "ok" if healthy else "unavailable"}, status_code=200 if healthy else 503
             )
@@ -65,6 +75,7 @@ class DeviceApplication:
                     "instance_id": self.runtime.instance_id,
                     "started_at": self.runtime.started_at,
                     "software_version": "0.1.0",
+                    "storage_status": self.storage.snapshot().status,
                 }
             )
 
@@ -139,4 +150,5 @@ class DeviceApplication:
             await asyncio.gather(stopping, return_exceptions=True)
 
     def close(self) -> None:
+        self.storage.close()
         self.credentials.close()

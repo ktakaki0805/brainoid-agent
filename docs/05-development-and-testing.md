@@ -229,6 +229,8 @@ GitHub上でのActions有効化、fork実行の承認方針、必須checkとbran
 
 Piの常駐基盤は[ローカルサービスの起動と検証](device-service.md)を参照する。built UIの存在を仮定せずsynthetic assetsで設定・loopback・session/CSRF・プロセス寿命を検証する。
 
+Piの[SQLite台帳とreset](device-storage.md)は実process中断/再起動、旧版migration、重複command/grant、期限掃除、read-only/破損/容量上限、資格情報を含むreset中断をローカルfixtureで検証する。`DEVICE_STATE_DIR` はstatic/credentialと別の0700領域を明示する。cloud/HAを呼ばない保存層の検証にEmulatorは不要。
+
 ## 6. モックとfixture
 
 BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合は [共通認可](authorization.md) の責務である。BA-IAM-02は現在のmembership/device/sessionと正本resourceをtransaction内で再検査し、表形式unitと実Firestore emulatorで検証する。
