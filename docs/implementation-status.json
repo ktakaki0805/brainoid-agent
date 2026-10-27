@@ -461,7 +461,13 @@
       "status": "todo"
     },
     "BA-DEV-08": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "b71a8f8ea3f8b4c2aa0f437addccc0dd24b2b845",
+      "updated_at": "2026-10-27T20:57:36.738366+00:00",
+      "log_anchor": "ba-dev-08-20261027t200442z",
+      "review_rounds": 2,
+      "implementation_commit": "1b16164ed3c257c67b7ae7250447bd9a77682093"
     },
     "BA-DEV-09": {
       "status": "todo"
