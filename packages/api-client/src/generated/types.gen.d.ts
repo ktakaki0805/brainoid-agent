@@ -543,8 +543,14 @@ export type PushInstallationPatch = {
 export type Notification = unknown & {
     id: ResourceId;
     tenant_id: ResourceId;
+    /**
+     * 初回は1。現在Reminderの編集と配送receiptの更新で単調増加する公開版。固定source版とは別でGET・ackのETagに対応する。
+     */
     version: Version;
     created_at: UtcTimestamp;
+    /**
+     * 現在Reminderと配送receiptの更新時刻の新しい方。同時刻の更新はversionで識別する。
+     */
     updated_at: UtcTimestamp;
     reminder_id: ResourceId;
     title: string;
@@ -2689,7 +2695,7 @@ export type RegisterPushInstallationErrors = {
 export type RegisterPushInstallationError = RegisterPushInstallationErrors[keyof RegisterPushInstallationErrors];
 export type RegisterPushInstallationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     201: PushInstallation;
 };
@@ -2721,7 +2727,7 @@ export type RemovePushInstallationErrors = {
 export type RemovePushInstallationError = RemovePushInstallationErrors[keyof RemovePushInstallationErrors];
 export type RemovePushInstallationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     204: void;
 };
@@ -2753,7 +2759,7 @@ export type RefreshPushInstallationErrors = {
 export type RefreshPushInstallationError = RefreshPushInstallationErrors[keyof RefreshPushInstallationErrors];
 export type RefreshPushInstallationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: PushInstallation;
 };
@@ -2784,11 +2790,40 @@ export type ListNotificationsErrors = {
 export type ListNotificationsError = ListNotificationsErrors[keyof ListNotificationsErrors];
 export type ListNotificationsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: NotificationPage;
 };
 export type ListNotificationsResponse = ListNotificationsResponses[keyof ListNotificationsResponses];
+export type GetNotificationData = {
+    body?: never;
+    headers?: {
+        /**
+         * device bearerに追加するセッション参照。単独では認証しない。
+         */
+        'X-Private-Session'?: ResourceId;
+    };
+    path: {
+        tenant_id: ResourceId;
+        notification_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/notifications/{notification_id}';
+};
+export type GetNotificationErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type GetNotificationError = GetNotificationErrors[keyof GetNotificationErrors];
+export type GetNotificationResponses = {
+    /**
+     * 成功
+     */
+    200: Notification;
+};
+export type GetNotificationResponse = GetNotificationResponses[keyof GetNotificationResponses];
 export type AckNotificationData = {
     body: NotificationAck;
     headers: {
@@ -2817,7 +2852,7 @@ export type AckNotificationErrors = {
 export type AckNotificationError = AckNotificationErrors[keyof AckNotificationErrors];
 export type AckNotificationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Notification;
 };

@@ -5,12 +5,14 @@ from uuid import uuid4
 
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.repositories.memories import Memories
+from brainoid_api.repositories.push_installations import PushInstallations
 from brainoid_api.repositories.tenants import Tenants
 from brainoid_api.services.deletion_requests import DeleteTenant
 from brainoid_contracts import FirebaseUid
 from brainoid_contracts.deletion import subject_id
 from brainoid_contracts.transactions import Transaction
 from brainoid_memory.notifications import KIND, notification_id, notification_path
+from brainoid_memory.push_installations import PushCreate, claim_path, installation_path
 from brainoid_memory.reminders import (
     ReminderCreate,
     ReminderPatch,
@@ -22,8 +24,10 @@ from brainoid_memory.repository import FactTransaction
 from brainoid_worker.entry import Worker
 from brainoid_worker.local import LOCAL_AUTHORIZATION, LocalCaller
 from brainoid_worker.notifications import DispatchNotification, DueReminders
+from brainoid_worker.push_notifications import PushNotifications
 from fakes.notification_scenarios import FakeNotifications
 from fakes.purge import FakePurgePages
+from fakes.push_scenarios import FakePush
 from test_deletion_requests import KEY, OWNER, USER, DeletionFixture
 
 
@@ -114,6 +118,20 @@ class NotificationLifecycleTests(DeletionFixture):
         worker.handle(LOCAL_AUTHORIZATION, delivery.model_dump(mode="json"))
         self.assertEqual(len(provider.calls), 1)
 
+    def test_account_purge_retains_token_transferred_to_another_current_account(self) -> None:
+        cursors = Cursors(b"k" * 32, now=lambda: self.now)
+        tenants = Tenants(self.store, cursors, ledger=self.authz, now=lambda: self.now)
+        registrations = PushInstallations(tenants)
+        body = PushCreate(fcm_token="SYNTHETIC_TRANSFERRED_TOKEN", platform="ios", app_version="1")
+        old = registrations.mutate(self.identity(USER), body, "old-push-registration")
+        new = registrations.mutate(self.identity(OWNER), body, "new-push-registration")
+        assert old is not None and new is not None
+        operation = self.accept(account=True)
+        self.drain(operation, subject_id(USER))
+        self.assertNotIn(installation_path(old.id), self.store.data)
+        self.assertIn(installation_path(new.id), self.store.data)
+        self.assertEqual(self.store.data[claim_path(body.fcm_token)]["user_id"], OWNER)
+
     def test_real_producers_are_purged_by_member_account_and_tenant_intents(self) -> None:
         for kind in ("member", "account", "tenant"):
             with self.subTest(kind=kind):
@@ -129,6 +147,17 @@ class NotificationLifecycleTests(DeletionFixture):
                     allow_untracked_bootstrap=True,
                 )
                 service = Reminders(self.store, now=lambda: self.now)
+                registrations = []
+                for user in (USER, OWNER):
+                    installation = PushInstallations(tenants).mutate(
+                        self.identity(user),
+                        PushCreate(
+                            fcm_token="synthetic-purge-" + user, platform="android", app_version="1"
+                        ),
+                        "push-purge-" + user,
+                    )
+                    assert installation is not None
+                    registrations.append(installation)
                 ids = []
                 for actor, visibility in ((USER, "private"), (USER, "shared"), (OWNER, "private")):
 
@@ -161,9 +190,10 @@ class NotificationLifecycleTests(DeletionFixture):
                 self.now += timedelta(seconds=1)
                 scanner = DueReminders(self.normal, FakePurgePages(self.store))
                 self.assertEqual(scanner.scan(self.tenant).created, 3)
-                provider = FakeNotifications()
+                provider = FakePush()
+                push = PushNotifications(self.normal, self.tenant, provider)
                 worker = Worker(
-                    self.normal, LocalCaller(), {KIND: DispatchNotification(self.normal, provider)}
+                    self.normal, LocalCaller(), {KIND: DispatchNotification(self.normal, push)}
                 )
                 deliveries = []
                 from brainoid_jobs.models import job_id
@@ -196,6 +226,14 @@ class NotificationLifecycleTests(DeletionFixture):
                     self.assertIsNone(
                         self.normal.get(self.tenant, job_id(self.tenant, KIND, identity))
                     )
+                self.assertEqual(
+                    installation_path(registrations[0].id) in self.store.data, kind != "account"
+                )
+                self.assertEqual(
+                    claim_path("synthetic-purge-" + USER) in self.store.data, kind != "account"
+                )
+                self.assertIn(installation_path(registrations[1].id), self.store.data)
+                self.assertIn(claim_path("synthetic-purge-" + OWNER), self.store.data)
                 other = notification_path(self.tenant, ids[2])
                 self.assertEqual(other in self.store.data, kind != "tenant")
                 count = len(provider.calls)

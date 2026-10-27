@@ -131,6 +131,8 @@ class ScheduleIntent(MemoryValue):
     accepted_version: Version
     authorization_stamp: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
     account_stamp: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+    recipient_stamp: str | None = None
+    recipient_account_stamp: str | None = None
 
 
 def schedule_intent_path(reference: ScheduleReference) -> str:
@@ -159,6 +161,18 @@ def schedule_subject(tx: Transaction, policy: Evaluator, record: Reminder) -> Us
             raise PolicyDenied()
     except AccountUnavailable:
         raise PolicyDenied() from None
+    if record.delivery_target.kind == "user":
+        recipient = TypeAdapter(FirebaseUid).validate_python(record.delivery_target.id)
+        try:
+            recipient_account = account_stamp(tx, recipient)
+        except AccountUnavailable:
+            raise PolicyDenied() from None
+        if (
+            policy.principal(record.tenant_id, UserSubject(user_id=recipient)).stamp
+            != intent.recipient_stamp
+            or recipient_account != intent.recipient_account_stamp
+        ):
+            raise PolicyDenied()
     return subject
 
 
@@ -312,6 +326,21 @@ class Reminders(DirectResources[ReminderCreate, ReminderPatch, Reminder]):
             accepted_version=record.version,
             authorization_stamp=principal.stamp,
             account_stamp=account_stamp(tx, record.updated_by),
+            recipient_stamp=transaction_policy(tx, now=self.now)
+            .principal(
+                record.tenant_id,
+                UserSubject(
+                    user_id=TypeAdapter(FirebaseUid).validate_python(record.delivery_target.id)
+                ),
+            )
+            .stamp
+            if record.delivery_target.kind == "user"
+            else None,
+            recipient_account_stamp=account_stamp(
+                tx, TypeAdapter(FirebaseUid).validate_python(record.delivery_target.id)
+            )
+            if record.delivery_target.kind == "user"
+            else None,
         )
         return lambda: tx.create(path, intent.model_dump(mode="json"))
 

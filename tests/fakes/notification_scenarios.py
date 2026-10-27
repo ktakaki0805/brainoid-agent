@@ -64,7 +64,7 @@ class FakeNotifications:
         return self.receipts.get(key)
 
 
-class NotificationScenarios(unittest.TestCase):
+class NotificationFixture(unittest.TestCase):
     store: Any
 
     def setup_notifications(self) -> None:
@@ -181,6 +181,8 @@ class NotificationScenarios(unittest.TestCase):
         self.dispatcher.recover(TENANT)
         self.queue.drain(self.worker)
 
+
+class NotificationScenarios(NotificationFixture):
     def test_due_boundary_double_scan_duplicate_queue_and_separate_receipts(self) -> None:
         record = self.reminder()
         self.assertEqual(self.scanner.scan(TENANT).created, 0)

@@ -2248,12 +2248,12 @@ paths:
     post:
       operationId: registerPushInstallation
       summary: 本人スマホのpush送信先登録
-      description: 本人スマホのpush送信先登録
+      description: 本人専用。有効登録は最大20件。同tokenの再登録は旧登録を停止し、別本人へのtoken移動も旧経路を失効する。秘密tokenは応答しない。
       security:
       - userBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -2281,7 +2281,7 @@ paths:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -2318,7 +2318,7 @@ paths:
       - userBearer: []
       responses:
         '204':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
         default:
           description: 共通エラー
           content:
@@ -2342,7 +2342,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -2361,6 +2361,42 @@ paths:
       - *id003
       - *id004
       - *id007
+  /tenants/{tenant_id}/notifications/{notification_id}:
+    get:
+      operationId: getNotification
+      summary: 現在の本人・端末権限で通知本文を取得
+      description: 現在の予定世代・受理主体・宛先所属・表示方針を検査する。旧通知は本文を返さない。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 成功
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付き公開Notification version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: notification_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
   /tenants/{tenant_id}/notifications/{notification_id}:ack:
     post:
       operationId: ackNotification
@@ -2371,7 +2407,12 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付き公開Notification version
           content:
             application/json:
               schema:
@@ -4796,9 +4837,13 @@ components:
       properties:
         id: *id001
         tenant_id: *id001
-        version: *id010
+        version:
+          $ref: '#/components/schemas/Version'
+          description: 初回は1。現在Reminderの編集と配送receiptの更新で単調増加する公開版。固定source版とは別でGET・ackのETagに対応する。
         created_at: *id008
-        updated_at: *id008
+        updated_at:
+          $ref: '#/components/schemas/UtcTimestamp'
+          description: 現在Reminderと配送receiptの更新時刻の新しい方。同時刻の更新はversionで識別する。
         reminder_id: *id001
         title: *id009
         status:

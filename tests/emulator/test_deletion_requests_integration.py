@@ -145,6 +145,73 @@ class DeletionIntegrationTests(unittest.TestCase):
     def test_settings_tenant_reservation_is_serialized(self) -> None:
         self._settings_reservation("tenant")
 
+    def test_push_global_account_erasure_uses_bounded_pages_and_keeps_new_token_owner(self) -> None:
+        from brainoid_api.repositories.push_installations import PushInstallations
+        from brainoid_memory.push_installations import PushCreate, claim_path, installation_path
+        from test_deletion_requests import FakeFinalizer
+
+        tenants = Tenants(
+            self.store,
+            Cursors(b"k" * 32, now=lambda: self.now),
+            ledger=self.ledger,
+            now=lambda: self.now,
+        )
+        registrations = PushInstallations(tenants)
+        personal = registrations.mutate(
+            self.identity("demo-a-member"),
+            PushCreate(fcm_token="SYNTHETIC_MEMBER_TOKEN", platform="ios", app_version="1"),
+            "member-push-registration",
+        )
+        transferred = registrations.mutate(
+            self.identity("demo-a-member"),
+            PushCreate(fcm_token="SYNTHETIC_TRANSFER_TOKEN", platform="ios", app_version="1"),
+            "before-push-transfer",
+        )
+        current = registrations.mutate(
+            self.identity(),
+            PushCreate(fcm_token="SYNTHETIC_TRANSFER_TOKEN", platform="ios", app_version="1"),
+            "after-push-transfer",
+        )
+        assert personal is not None and transferred is not None and current is not None
+        operation = self.requests.create(
+            self.identity("demo-a-member"),
+            DeleteAccount(kind="delete_account", confirm=True),
+            "real-push-account-delete",
+        )
+        jobs = PurgeJobs(Jobs(self.store, self.ledger, now=lambda: self.now), self.deletions)
+        handler = PurgeResource(
+            jobs,
+            FirestorePurgePages(self.db),
+            handlers=LifecycleHandlers(),
+            hooks={"cache": NoExternalCopies(), "export": NoExternalCopies()},
+            account_finalizer=FakeFinalizer(),
+            page_size=1,
+            step_budget=5000,
+        )
+        queue = LocalQueue()
+        account = subject_id("demo-a-member")
+        PurgeDispatcher(handler, self.store, queue).recover(account)
+        queue.drain(Worker(jobs, LocalCaller(), {KIND: handler}))
+        saved = self.db.document(operation_path(account, operation.operation_id)).get().to_dict()
+        assert saved is not None
+        self.assertEqual(saved["operation"]["status"], "succeeded", saved)
+        for path in (
+            installation_path(personal.id),
+            installation_path(transferred.id),
+            claim_path("SYNTHETIC_MEMBER_TOKEN"),
+        ):
+            self.assertFalse(self.db.document(path).get().exists)
+        self.assertTrue(self.db.document(installation_path(current.id)).get().exists)
+        retained = self.db.document(claim_path("SYNTHETIC_TRANSFER_TOKEN")).get().to_dict()
+        assert retained is not None
+        self.assertEqual(retained["user_id"], "demo-a-owner")
+        with self.assertRaises(APIError):
+            registrations.mutate(
+                self.identity("demo-a-member"),
+                PushCreate(fcm_token="SYNTHETIC_MEMBER_TOKEN", platform="ios", app_version="1"),
+                "late-push-registration",
+            )
+
     def test_global_device_credentials_use_official_bounded_pages(self) -> None:
         from brainoid_api.auth.device_tokens import DeviceTokens
         from brainoid_api.repositories.device_credentials import (

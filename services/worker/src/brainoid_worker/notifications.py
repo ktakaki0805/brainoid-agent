@@ -26,10 +26,12 @@ from brainoid_memory.notifications import (
     delivery_path,
     notification_id,
     notification_path,
+    public_version,
     read_delivery,
     read_notification,
 )
 from brainoid_memory.reminders import Reminder, ScheduleReference, reminder_path, schedule_subject
+from brainoid_policy.accounts import account_stamp
 from brainoid_policy.models import (
     Action,
     DeviceSubject,
@@ -176,6 +178,19 @@ class DueReminders:
             else subject.user_id,
             due_at=record.due_at,
             scheduled_by=subject.user_id,
+            recipient_stamp=policy.principal(
+                tenant,
+                UserSubject(
+                    user_id=TypeAdapter(FirebaseUid).validate_python(record.delivery_target.id)
+                ),
+            ).stamp
+            if record.delivery_target.kind == "user"
+            else None,
+            recipient_account_stamp=account_stamp(
+                tx, TypeAdapter(FirebaseUid).validate_python(record.delivery_target.id)
+            )
+            if record.delivery_target.kind == "user"
+            else None,
             visibility=record.visibility,
             display_policy=record.display_policy,
             owner_user_id=record.owner_user_id,
@@ -229,7 +244,11 @@ class DueReminders:
             dispatch_after=now,
         )
         delivery = DeliveryState(
-            notification_id=notification.id, target=notification.target, updated_at=now
+            notification_id=notification.id,
+            target=notification.target,
+            updated_at=now,
+            projection_version=1,
+            reminder_version=record.version,
         )
         self._lease(tx, tenant, token)
         tx.create(source_path, notification.model_dump(mode="json"))
@@ -257,7 +276,9 @@ class DispatchNotification:
         reminder, output = authorize_delivery(tx, self.jobs._policy(tx), record)
         if record.due_at > self.jobs.now():
             raise PolicyDenied()
-        return record, read_delivery(tx, record), reminder, output
+        delivery = read_delivery(tx, record)
+        public_version(delivery, reminder)
+        return record, delivery, reminder, output
 
     def run(self, execution: Execution) -> JsonValue:
         try:
@@ -278,6 +299,7 @@ class DispatchNotification:
             expires = record.due_at + VOICE_WINDOW
             payload: dict[str, JsonValue] = {
                 "tenant_id": record.tenant_id,
+                "job_lease_generation": execution.lease.generation,
                 "notification_id": record.id,
                 "target_kind": record.target.kind,
                 "target_id": record.target.id,
@@ -321,15 +343,18 @@ class DispatchNotification:
             return
         receipt = RECEIPT.validate_python(result)
         now = normalize_utc(self.jobs.now())
+        dispatch_reminder = receipt == "accepted" and reminder.status == "scheduled"
         updated = delivery.model_copy(
             update={
                 "provider": receipt,
-                "updated_at": now,
+                "projection_version": public_version(delivery, reminder) + 1,
+                "reminder_version": reminder.version + int(dispatch_reminder),
+                "updated_at": max(now, delivery.updated_at, reminder.updated_at),
                 "accepted_at": delivery.accepted_at or (now if receipt == "accepted" else None),
             }
         )
         tx.set(delivery_path(record), updated.model_dump(mode="json"))
-        if receipt == "accepted" and reminder.status == "scheduled":
+        if dispatch_reminder:
             tx.set(
                 reminder_path(job.tenant_id, reminder.id),
                 reminder.model_copy(

@@ -68,7 +68,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `tasks/{id}` | title、status、due_at、assignee_user_id | 状態はopen/done/cancelled。[API/toolと現在認可](tasks.md) |
 | `reminders/{id}` | due_at、timezone、schedule_version、内容参照、通知先、状態 | 再予定で版を増加し旧通知を無効化。配信と本人確認を区別 |
 | `reminder_schedules/{id}` | 受理した予定世代、受理主体、tenant/member/account stamp | 本文なしの固定証拠。token/sessionの期限を延長しない |
-| `notifications/{id}` | 元reminderと予定世代、対象主体、固定source | 本文をコピーしない。[通知契約](notifications.md) |
+| `notifications/{id}` | 元reminderと予定世代、対象主体、固定source | source/grant版は1。公開版は現在Reminderとreceiptから算出し初回1・更新ごと増加。本文をコピーしない。[通知契約](notifications.md) |
 | `notifications/{id}/deliveries/{target-fingerprint}` | provider受付、表示、本人確認の別receipt | opaque UIDをpathへ埋め込まず、現在認可で取得 |
 | `integrations/{id}` | provider、所有者、許可calendar/家電、secret_ref | OAuth token本文はSecret Manager |
 | `calendar_proposals/{id}` | 正規化操作、引数hash、本人、期限、状態、必要ならrun/tool_call/checkpoint | 一回確認。初期期限5分。confirm/deny後のresumeを永続化 |
@@ -77,7 +77,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `operations/{id}` | export/delete/forgetなどの非同期処理 | 進捗・失敗理由。所有者または適切な管理者のみ |
 | `deletion_tombstones/{id}` | 削除対象ID、epoch、削除範囲、時刻 | 本文なし。復活防止のため保持 |
 | `audit_events/{id}` | actor、操作、対象ID、結果、request_id | 本文・認証token・音声を含めない |
-| `users/{user_id}/push_installations/{id}` | app installation、FCM token、端末OS | 利用者専用。退出/失効時に通知経路を再評価 |
+| `push_installations/{id}`、`push_token_claims/{hash}` | app installation、FCM token、登録generation、単一token所有claim | 利用者専用global資源。UIDはpathに使わない。account削除で消去。tenant退出時は配送権限を再評価。[通知契約](notifications.md) |
 
 [tenant 作成](tenants.md) 前の冪等記録は `user_operations/{user_hash}/idempotency_records/{request_hash}` に保存する。本人の現在状態と再送対象の現在 owner を確認し、tenant・owner・初期 agent と同じ transaction で commit する。削除・復元ではこの user 名前空間も対象にする。
 

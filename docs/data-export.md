@@ -66,3 +66,5 @@ forget受付時のtenant purge epochをsnapshotに束縛する。forgetは当該
 fake/HTTP試験は本人/tenant境界、owner/adminと他人private、ZIP投影、遅延I/O、期限、各stream境界、scope変更、物理purge接続、再起動後の回収を扱う。実Firestore試験は同時受付、commit応答喪失、生成中forget、manifest変更、tenant purgeと独立registryを扱う。検証コマンドは `mise run setup`、`mise run check`、`mise run test`、明示emulator設定で `mise run test-emulator`。実行結果の正本は[作業ログ](implementation-log.md)とする。
 
 BA-APP-01の[ノートproducer](notes.md)は既存note公開投影へ接続する。noteのdelete_resourceもpurge_epoch失効・生成待機・export消去hookの対象とする。
+
+BA-APP-05の通知HTTPとexportは同じ現在認可付きprojectionを使用する。global installationの秘密token、token ownership claim、通知配下のpush batch、recipient/account stampはexport対象外。[通知契約](notifications.md)を参照。

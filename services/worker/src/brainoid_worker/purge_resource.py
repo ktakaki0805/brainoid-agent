@@ -12,6 +12,7 @@ from brainoid_jobs.models import job_id
 from brainoid_memory.deletion_ledger import DeletionIntent
 from brainoid_memory.forget import operation_path, target_path
 from brainoid_memory.lifecycle import KIND as LIFECYCLE_KIND
+from brainoid_memory.push_installations import ACCOUNT_GLOBALS
 from brainoid_policy.control_ledger import LedgerError
 from pydantic import JsonValue
 
@@ -143,6 +144,7 @@ class PurgeResource:
                 # Bounded show_missing discovers unknown global parents too. The
                 # account handler selects only this canonical UID, never a path guess.
                 scopes.append(frame("users"))
+                scopes.extend(frame(collection) for collection in ACCOUNT_GLOBALS)
             if intent.kind == "delete_tenant":
                 scopes.extend(frame(collection) for collection in DEVICE_GLOBALS)
             return scopes

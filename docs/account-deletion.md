@@ -46,3 +46,5 @@ cache/exportのadapterは明示必須。外部コピーが存在しない構成�
 [単体・HTTP試験](../tests/test_deletion_requests.py)は300秒境界、別user/tenant、最後owner、複数所属、予約中join/create/移譲、台帳前後/DB応答喪失、同key、private/共有・全子階層、再招待、provider retry、旧forget JSONを検証する。[emulator試験](../tests/emulator/test_deletion_requests_integration.py)は実Firestoreのowner競合・opaque UID・受付commit応答喪失・公式paged子階層消去を検証する。実provider・実課金接続・デプロイは検証対象外である。
 
 [producer回帰試験](../tests/test_deletion_inventory.py)は全3種の設定PATCH競合とledger/DB障害後再送、正規entity登録後のindex縮退・原本消去後の再開、正規pairing/refresh後の秘密消去・job再配送・全replay拒否・他tenant保持を検証する。emulatorでも設定予約の独立transactionとglobal credentialのshow_missing/postorderを検証する。
+
+BA-APP-05のglobal `push_installations` と `push_token_claims` はaccountのcanonical UIDで選択して消去する。tenant退出/削除では他tenant用の登録を保持する。通知配下のpush batchはsourceと共に消す。token・登録generationと遅い無効応答の境界は[通知契約](notifications.md)を参照。

@@ -4,6 +4,7 @@ from brainoid_contracts.access import fingerprint
 from brainoid_contracts.deletion import subject_id
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_memory.deletion_ledger import DeletionIntent
+from brainoid_memory.push_installations import ACCOUNT_GLOBALS
 
 from brainoid_worker.purge_handlers import VECTOR, Decision, ForgetHandlers, LegacyProvenanceMissing
 
@@ -91,6 +92,14 @@ class LifecycleHandlers(ForgetHandlers):
                 isinstance(identity, str)
                 and "/" not in identity
                 and self.bound_selection(tx, f"{binding[0]}/{identity}", intent)
+            )
+        if parts[0] in ACCOUNT_GLOBALS:
+            return (
+                len(parts) == 2
+                and intent.kind == "delete_account"
+                and doc is not None
+                and isinstance(doc.get("user_id"), str)
+                and subject_id(doc["user_id"]) == intent.scopes[0].resource_id
             )
         if parts[0] == "users":
             return (
@@ -210,6 +219,15 @@ class LifecycleHandlers(ForgetHandlers):
             if force and not selected:
                 raise ValueError("Changed device credential scope")
             return selected if len(parts) > 2 else True
+        if parts[0] in ACCOUNT_GLOBALS:
+            if intent.kind != "delete_account" or (len(parts) == 1 and force):
+                raise ValueError("Unaccepted global push scope")
+            if len(parts) <= 2:
+                return True
+            selected = self.bound_selection(tx, "/".join(parts[:2]), intent)
+            if force and not selected:
+                raise ValueError("Changed push ownership")
+            return selected
         if parts[0] == "users":
             if intent.kind != "delete_account":
                 raise ValueError("Unaccepted global scope")

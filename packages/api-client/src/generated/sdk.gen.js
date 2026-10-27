@@ -1125,7 +1125,7 @@ export const snoozeReminder = (options) => (options.client ?? client).post({
 /**
  * 本人スマホのpush送信先登録
  *
- * 本人スマホのpush送信先登録
+ * 本人専用。有効登録は最大20件。同tokenの再登録は旧登録を停止し、別本人へのtoken移動も旧経路を失効する。秘密tokenは応答しない。
  */
 export const registerPushInstallation = (options) => (options.client ?? client).post({
     security: [{
@@ -1188,6 +1188,24 @@ export const listNotifications = (options) => (options.client ?? client).get({
             type: 'http'
         }],
     url: '/tenants/{tenant_id}/notifications',
+    ...options
+});
+/**
+ * 現在の本人・端末権限で通知本文を取得
+ *
+ * 現在の予定世代・受理主体・宛先所属・表示方針を検査する。旧通知は本文を返さない。
+ */
+export const getNotification = (options) => (options.client ?? client).get({
+    security: [{
+            key: 'userBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'deviceBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/tenants/{tenant_id}/notifications/{notification_id}',
     ...options
 });
 /**

@@ -128,7 +128,7 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 | 記憶・エンティティ | `/tenants/{t}/entities`、`/memories`、`POST /memories:search` | 型付き登録、検索、訂正。忘却はoperation |
 | ノート・タスク | `/tenants/{t}/notes`、`/tasks` | 作成・一覧・取得・更新。削除はoperation。[ノートAPI/tool](notes.md)・[タスクAPI/tool](tasks.md)を提供 |
 | リマインダー | `/tenants/{t}/reminders`、`POST /reminders/{r}:snooze` | due_at、対象、取消し、新schedule_versionによる再設定 |
-| スマホ通知 | `/users/me/push-installations`、`/tenants/{t}/notifications`、`/notifications/{n}:ack` | FCM token登録と本人通知。本文をpushに入れない |
+| スマホ通知 | `/users/me/push-installations`、`/tenants/{t}/notifications`、`/tenants/{t}/notifications/{n}`、`/tenants/{t}/notifications/{n}:ack` | FCM token登録と本人通知。本文をpushに入れない |
 | 外部連携 | `/tenants/{t}/integrations`、`/google-calendar/authorizations`、`/home-assistant` | 本人OAuth/端末HAのmetadata。秘密を返さない |
 | Calendar | `/integrations/{i}/calendar-events`、`/calendar-proposals`、`/calendar-proposals/{p}:confirm`、`:reject` | 参照→内容提案→本人確認/否認→checkpoint再開 |
 | 家電操作 | `POST /tenants/{t}/commands`、`GET /commands/{c}`、`POST /commands/{c}:cancel` | 保存・配送・実行観測を分離 |
@@ -270,7 +270,9 @@ membership/deviceの減権限・失効・owner移譲もDB外認可変更台帳�
 
 ### 6.3 リマインダーと通知
 
-BA-APP-03 の管理 API・tool・予定世代判定は[リマインダー実装契約](reminders.md)、BA-APP-04 のlocal期限走査・通知job・receiptは[通知実装契約](notifications.md)を参照。FCMと通知HTTP APIは BA-APP-05 で扱う。
+BA-APP-03 の管理 API・tool・予定世代判定は[リマインダー実装契約](reminders.md)、BA-APP-04 のlocal期限走査・通知job・receiptは[通知実装契約](notifications.md)を参照。BA-APP-05の本人installation・通知一覧/単体取得/ack・FCM汎用payloadと失敗回復も同契約に記載する。
+
+公開Notificationは初回version=1から本文・receipt更新で版を進め、単体GET/ackは同じ公開版のETagを返す。更新時刻は現在Reminderとreceiptの新しい方で、同時刻の変更も版で区別する。内部sourceと保存済み配送grantの固定版とは別である。同key再送・同じackの再確認は現在内容を返し、追加の更新を行わない。
 
 DBのdue_atを正本とし、Schedulerの定期走査とCloud Tasksで配信する。通知IDはreminder IDと予定版から決定し、同じ通知を重複作成しない。予定を変更・取消した場合は古い版のジョブを無効化する。
 
