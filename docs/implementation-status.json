@@ -371,7 +371,13 @@
       "implementation_commit": "0f2fce2190728c8db39b9b20797bb6d4aadd0c37"
     },
     "BA-CAL-01": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "ce5f13c63025e3b3c8cd970ede1b88701bd33875",
+      "updated_at": "2026-10-27T04:48:37.574610+00:00",
+      "log_anchor": "ba-cal-01-20261027t032734z",
+      "review_rounds": 3,
+      "implementation_commit": "5ed62f03791cbd8404e1785197ddea27deb60e05"
     },
     "BA-CAL-02": {
       "status": "todo"
