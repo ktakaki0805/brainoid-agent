@@ -50,6 +50,39 @@ def project(
         raise PolicyDenied()
     if not exportable(tx, tenant, kind, item_id, document, parent=parent_id):
         return None
+    if kind == "integrations":
+        from brainoid_contracts import DisplayPolicy, Scope
+        from brainoid_contracts.access import AuthorizedScope
+        from brainoid_policy.accounts import account_stamp
+
+        from brainoid_memory.calendar_oauth import integration_view
+
+        if access.principal.user_id is None:
+            raise PolicyDenied()
+        current = AuthorizedScope(
+            context=access.principal.context,
+            scope=Scope(visibility=Visibility.PRIVATE, display_policy=DisplayPolicy.NEVER),
+            owner_user_id=access.principal.user_id,
+            authorization_stamp=fingerprint(
+                [access.principal.stamp, account_stamp(tx, access.principal.user_id)]
+            ),
+        )
+        if (
+            document.get("provider") != "google_calendar"
+            or document.get("visibility") != "private"
+            or document.get("owner_user_id") != access.principal.user_id
+            or document.get("binding") != current.binding()
+        ):
+            return None
+        public = integration_view(document).model_dump(mode="json")
+        access.finish()
+        return ManifestEntry(
+            kind="integrations",
+            resource_id=item_id,
+            version=document["version"],
+            deletion_epoch=document["deletion_epoch"],
+            fingerprint=fingerprint([public, document.get("binding"), document.get("secret_ref")]),
+        ), public
     ref = ResourceRef(
         tenant_id=tenant,
         kind=ResourceKind.CONVERSATION if parent_id else ResourceKind(kind),

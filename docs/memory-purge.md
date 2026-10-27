@@ -95,3 +95,5 @@ workerにはHTTP向け例外へ変換するAPI adapterでなく共通persistence
 BA-MEM-09の[一時export物理消去](data-export.md)を有効にする構成では、forget用・lifecycle用の両PurgeResourceのexport hookに `Exports` を注入する。tenant配下のexports metadataが先に消えるため、global registryからobjectを追跡する。`NoExternalCopies` はexport backendなしの場合だけに用いる。
 
 BA-APP-01の[note削除](notes.md)は同じ専用memory_purge workerへ単一note targetを渡す。source由来Factの限定消去証拠はoperation配下purge_factsに保持し、別forgetが所有するtombstoneは保持する。
+
+BA-CAL-01の[Calendar OAuth](calendar-oauth.md)はprivate authorization attemptとintegrationをlifecycle inventoryへ追加する。外部資格情報には明示calendar hookを必要とし、hook不足・未確定追加では削除完了を宣言しない。必要hookは進捗に保存し、canonical削除後も省略できない。

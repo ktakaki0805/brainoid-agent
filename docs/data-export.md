@@ -68,3 +68,5 @@ fake/HTTP試験は本人/tenant境界、owner/adminと他人private、ZIP投影�
 BA-APP-01の[ノートproducer](notes.md)は既存note公開投影へ接続する。noteのdelete_resourceもpurge_epoch失効・生成待機・export消去hookの対象とする。
 
 BA-APP-05の通知HTTPとexportは同じ現在認可付きprojectionを使用する。global installationの秘密token、token ownership claim、通知配下のpush batch、recipient/account stampはexport対象外。[通知契約](notifications.md)を参照。
+
+BA-CAL-01は[Calendar OAuth](calendar-oauth.md)の本人integration公開metadataをexportの閉集合へ追加する。OAuth attempt・付与scope・secret reference・tokenは含めず、現在の所有者/認可bindingとmanifestを再確認する。

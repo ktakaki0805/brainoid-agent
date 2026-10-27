@@ -2444,12 +2444,12 @@ paths:
     get:
       operationId: listIntegrations
       summary: 連携一覧（秘密を返さない）
-      description: 連携一覧（秘密を返さない）
+      description: 本人のGoogle Calendar連携metadataを一覧する。Calendar service未構成時は503。秘密は返さない。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 本人が現在参照できるCalendar連携metadata
           content:
             application/json:
               schema:
@@ -2471,12 +2471,12 @@ paths:
     post:
       operationId: startGoogleCalendarAuthorization
       summary: 本人がGoogle Calendar OAuthを開始
-      description: 本人がGoogle Calendar OAuthを開始
+      description: 本人がGoogle Calendar OAuthを開始する。Calendar service未構成時は503。
       security:
       - userBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 登録済みproviderへの認可URLと有効期限
           content:
             application/json:
               schema:
@@ -2503,11 +2503,11 @@ paths:
     get:
       operationId: completeGoogleCalendarAuthorization
       summary: Google OAuth callback
-      description: stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。URLはaccess logでredact。
+      description: stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。Calendar service未構成時は503。URLはaccess logでredact。
       security: []
       responses:
         '303':
-          description: 成功（契約上の応答。実装は未提供）
+          description: callback処理後に固定allowlistの復帰先へ移動
           headers:
             Location:
               schema:

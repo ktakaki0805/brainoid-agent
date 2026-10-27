@@ -98,7 +98,11 @@ class PurgeResource:
         step_budget: int = 1000,
         account_finalizer: AccountFinalizer | None = None,
     ) -> None:
-        if set(hooks) != {"cache", "export"} or not 1 <= page_size <= 100 or step_budget < 1:
+        if (
+            set(hooks) not in ({"cache", "export"}, {"cache", "export", "calendar"})
+            or not 1 <= page_size <= 100
+            or step_budget < 1
+        ):
             raise ValueError("Explicit cache/export adapters and bounded pages required")
         self.jobs, self.pages, self.hooks = jobs, pages, dict(hooks)
         self.account_finalizer = account_finalizer
@@ -130,7 +134,9 @@ class PurgeResource:
             or state.get("locally_verified") is not True
             or state.get("pass_changes") != 0
             or state.get("passes", 0) < 1
-            or set(state.get("receipts", {})) != {"cache", "export"}
+            or set(state.get("receipts", {}))
+            not in ({"cache", "export"}, {"cache", "export", "calendar"})
+            or (state.get("calendar_required") and "calendar" not in state.get("receipts", {}))
         ):
             return None
         return intent
@@ -202,6 +208,8 @@ class PurgeResource:
                 "overdue": False,
                 "verified": False,
             }
+        if saved["purge"].get("calendar_required") and "calendar" not in self.hooks:
+            raise RetryableError()
         if saved["purge"]["stack"]:
             self._bound_path(tx, job, intent, saved, saved["purge"]["stack"][-1])
         return job, intent, saved
@@ -284,6 +292,20 @@ class PurgeResource:
         state: Document,
     ) -> Decision:
         try:
+            if (
+                isinstance(self.handlers, LifecycleHandlers)
+                and doc is not None
+                and (
+                    "/calendar_authorizations/" in path
+                    or ("/integrations/" in path and doc.get("provider") == "google_calendar")
+                )
+                and self.handlers.selected(tx, path, doc, intent)
+            ):
+                # A canonical deletion without its external credential erasure is
+                # incomplete; never let NoExternalCopies certify this producer.
+                state["calendar_required"] = True
+                if "calendar" not in self.hooks:
+                    raise LegacyProvenanceMissing()
             return self.handlers.decide(tx, path, doc, intent, state["cutoffs"])
         except LegacyProvenanceMissing as error:
             # Continue bounded discovery so another unknown run cannot prevent

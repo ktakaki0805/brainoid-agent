@@ -1233,7 +1233,7 @@ export const ackNotification = (options) => (options.client ?? client).post({
 /**
  * 連携一覧（秘密を返さない）
  *
- * 連携一覧（秘密を返さない）
+ * 本人のGoogle Calendar連携metadataを一覧する。Calendar service未構成時は503。秘密は返さない。
  */
 export const listIntegrations = (options) => (options.client ?? client).get({
     security: [{
@@ -1247,7 +1247,7 @@ export const listIntegrations = (options) => (options.client ?? client).get({
 /**
  * 本人がGoogle Calendar OAuthを開始
  *
- * 本人がGoogle Calendar OAuthを開始
+ * 本人がGoogle Calendar OAuthを開始する。Calendar service未構成時は503。
  */
 export const startGoogleCalendarAuthorization = (options) => (options.client ?? client).post({
     security: [{
@@ -1265,7 +1265,7 @@ export const startGoogleCalendarAuthorization = (options) => (options.client ?? 
 /**
  * Google OAuth callback
  *
- * stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。URLはaccess logでredact。
+ * stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。Calendar service未構成時は503。URLはaccess logでredact。
  */
 export const completeGoogleCalendarAuthorization = (options) => (options.client ?? client).get({ url: '/oauth/google-calendar/callback', ...options });
 /**

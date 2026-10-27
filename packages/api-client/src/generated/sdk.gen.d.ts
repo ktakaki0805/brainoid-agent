@@ -436,19 +436,19 @@ export declare const ackNotification: <ThrowOnError extends boolean = false>(opt
 /**
  * 連携一覧（秘密を返さない）
  *
- * 連携一覧（秘密を返さない）
+ * 本人のGoogle Calendar連携metadataを一覧する。Calendar service未構成時は503。秘密は返さない。
  */
 export declare const listIntegrations: <ThrowOnError extends boolean = false>(options: Options<ListIntegrationsData, ThrowOnError>) => RequestResult<ListIntegrationsResponses, ListIntegrationsErrors, ThrowOnError>;
 /**
  * 本人がGoogle Calendar OAuthを開始
  *
- * 本人がGoogle Calendar OAuthを開始
+ * 本人がGoogle Calendar OAuthを開始する。Calendar service未構成時は503。
  */
 export declare const startGoogleCalendarAuthorization: <ThrowOnError extends boolean = false>(options: Options<StartGoogleCalendarAuthorizationData, ThrowOnError>) => RequestResult<StartGoogleCalendarAuthorizationResponses, StartGoogleCalendarAuthorizationErrors, ThrowOnError>;
 /**
  * Google OAuth callback
  *
- * stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。URLはaccess logでredact。
+ * stateにuser/tenant/nonce/期限/return_targetを束縛。codeかerrorのどちらか。固定allowlistへ303。Calendar service未構成時は503。URLはaccess logでredact。
  */
 export declare const completeGoogleCalendarAuthorization: <ThrowOnError extends boolean = false>(options: Options<CompleteGoogleCalendarAuthorizationData, ThrowOnError>) => RequestResult<CompleteGoogleCalendarAuthorizationResponses, CompleteGoogleCalendarAuthorizationErrors, ThrowOnError>;
 /**

@@ -40,6 +40,7 @@ from brainoid_api.repositories.invitations import Invitations
 from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.memories import Memories
 from brainoid_api.repositories.tenants import Tenants
+from brainoid_api.services.calendar_authorization import CalendarAuthorization
 from brainoid_api.services.deletion_requests import DeletionRequests
 from brainoid_api.services.export_requests import ExportRequests
 from brainoid_api.services.private_sessions import PrivateSessions
@@ -62,6 +63,7 @@ class AuthServices:
     memories: Memories | None = None
     deletion_requests: DeletionRequests | None = None
     exports: ExportRequests | None = None
+    calendar: CalendarAuthorization | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]

@@ -252,7 +252,7 @@ Cloud Tasksの重複実行は起こり得るため、worker・通知・provider�
 
 ### 6.1 Calendarの確認と競合
 
-OAuth開始は本人スマホから行い、scope_profileをread/read_writeで分ける。callbackのstateをuser/tenant/nonce/期限に束縛し、成功後は登録済みの復帰先へ戻す。URLのcode/token/stateはアクセスログでredactする。
+BA-CAL-01は[Calendar OAuth](calendar-oauth.md)の開始・匿名callback・本人metadata一覧を提供する。未構成runtimeは503で閉じる。OAuth開始は本人スマホから行い、scope_profileをread/read_writeで分ける。callbackのstateをuser/tenant/nonce/期限に束縛し、成功後は登録済みの復帰先へ戻す。URLのcode/token/stateはアクセスログでredactする。
 
 `calendar-proposals` は作成/変更/削除の正規化内容、対象、本人、args_hash、初期5分の期限を保存する。実行confirmは本人スマホからのみ受け、同じproposalとhashに対して一度だけ進める。日時はtimezoneを含めて表示し、endがstartより後であることを検査する。終日予定はdateで表現し、終了日は排他的終端とする。
 

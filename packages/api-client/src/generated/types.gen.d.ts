@@ -2877,7 +2877,7 @@ export type ListIntegrationsErrors = {
 export type ListIntegrationsError = ListIntegrationsErrors[keyof ListIntegrationsErrors];
 export type ListIntegrationsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 本人が現在参照できるCalendar連携metadata
      */
     200: IntegrationPage;
 };
@@ -2905,7 +2905,7 @@ export type StartGoogleCalendarAuthorizationErrors = {
 export type StartGoogleCalendarAuthorizationError = StartGoogleCalendarAuthorizationErrors[keyof StartGoogleCalendarAuthorizationErrors];
 export type StartGoogleCalendarAuthorizationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 登録済みproviderへの認可URLと有効期限
      */
     201: OAuthAuthorization;
 };
