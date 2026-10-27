@@ -11249,3 +11249,111 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - `parent-record-check`: `mise run check`、2026-10-27T20:57:36.829037+00:00→2026-10-27T20:57:58.893045+00:00、exit 0、22.06448827404529s、unittest/counts ['Success: no issues found in 404 source files']、Node []。metadata SHA-256 `347c2354cabb5cf1ba1c7ef26beb1ba5f5685e27f79632d1bb34981f34ceb4db`、raw SHA-256 `0ba07ff1a892cee09cc7162a5ed4e81bf91b7b7d9b6fa4297e143a4b82bf0c0f`。
 
 - done反映後の必須 `mise run check` はexit0（404 Python source files、全TypeScript member、format/lint/contracts/client drift/docs/workflow/tickets含む）。検証前後のproduct584mapはR2承認対象と同一。記録対象は台帳/logの2ファイルのみで、その他の今回変更は実装コミット済み。
+
+## ba-ui-01-20261027t210025z
+
+- チケット: BA-UI-01 共有React UIとスマホ・Piのentry / FR-004。
+- 状態: in_progress。開始: 2026-10-27T21:00:25.175631+00:00。main / base `1e33d83b169e922c5ae5ecc2355184830c1dc609`、開始時clean、既存無関係変更なし、適用AGENTS.mdなし。開始product584mapは `/tmp/ba-ui-01-start.json`。
+- ID指定なしplannerで選択。依存 BA-FND-01 `3e7f20493948ee27b725a849c1e898de2a181b50`、BA-FND-04 `bbd81e2954a0143bce0c7364c030237d23614ce0` はdone・現HEAD祖先。実装担当 `/root/ui01_implementation`、親は台帳/log/commitを担当し、同時writerは1名。
+- 範囲: React/TypeScript/Viteの共通状態・error・確認カードと、個別build可能なCapacitor/mobile・kiosk/display entry。既存API clientとClientPlatformAdapterを注入し、fakeのみで動かせる構成。
+- 受入と検証: 共通UIを複製しない個別build、共通部品の端末固有API隔離、空/loading/errorの区別と主要操作ラベル、keyboard/tap、スマホ幅/Pi幅での実browser確認。setup/check/通常全件、型検査・両build・意味あるUI検証を行う。
+- 外部前提なし。認証・会話の業務実装、録音、ストア署名/配布は後続。実cloud/provider/login、native device、実systemd/kiosk導入、Sites hostingや公開は行わない。cacheのChromiumとNode WebSocketは確認済みだが、browser実行・visual検証はまだ未実施。
+
+- 2026-10-27T21:05:22.876047+00:00 server restart後に再開。main/HEADと台帳を照合し、DEV08の両コミット・51/96doneを確認。UI01製品差分/検証結果/固定候補はまだなし。前実装担当 `/root/ui01_implementation` はlive listに存在せず、task固有の稼働processもなし（親回復監査 `/tmp/ba-ui-01-parent-recovery-01.json`）。作成済みrunner helperを保存し、fresh contextの `/root/ui01_implementation_recovery` へ実装だけを引継ぎ。レビュー回数は0のまま、選択/開始記録は繰り返さない。
+- `writer-recovery-lock-01`: `mise exec -- pnpm install --lockfile-only --offline`、2026-10-27T21:09:37.457646+00:00→2026-10-27T21:09:39.468734+00:00、exit 0、2.0110862100264058s、unittest/counts []、Node []。metadata SHA-256 `28c154623efee72679c381268053bf993df1e2850129862c316047761e0fadea`、raw SHA-256 `9248ab6841bd4f597ebf8aa838300fd4da43a70921c15e89b00c276f769c73ea`。
+- `writer-recovery-setup-01`: `mise run setup`、2026-10-27T21:06:33.582769+00:00→2026-10-27T21:06:43.683886+00:00、exit 1、10.102092130982783s、unittest/counts []、Node []。metadata SHA-256 `1905a7f8059f97fb9dafc06c774bae104c647606f044d71806a4ac50b86d0984`、raw SHA-256 `dca610e65302e44c1cede8a79524f5c478e9610b7f3124edcb6465146a9b1ee1`。
+- `writer-recovery-setup-02`: `mise run setup`、2026-10-27T21:06:49.996548+00:00→2026-10-27T21:06:50.756309+00:00、exit 0、0.7597562180017121s、unittest/counts []、Node []。metadata SHA-256 `97bd5dbb3b831584ebc1fa7e97a9f9ee4112115dbe2b5011477589eb3b49e9c4`、raw SHA-256 `99cc498ba2752b37766eb3106ea2f964002acac2806ebb92398fd631a2dfe5df`。
+- `writer-recovery-check-01`: `mise run check`、2026-10-27T21:11:43.381154+00:00→2026-10-27T21:12:15.700686+00:00、exit 1、32.321034719003364s、unittest/counts []、Node []。metadata SHA-256 `d0c51d2adc2ed28789a27ac2a252fb33244030ee26771ce4ed6b527e41b22db0`、raw SHA-256 `b3210d2988ef207ecf20c9850f0aa99b9cf3936a79d2ad7568bad45f68cd9e2b`。
+- `writer-recovery-focused-01`: `mise exec -- node --test tests/test_ui.mjs`、2026-10-27T21:11:43.111649+00:00→2026-10-27T21:11:43.296993+00:00、exit 0、0.1852280900347978s、unittest/counts []、Node ['ℹ tests 1']。metadata SHA-256 `21eb7b43ff9c832d67c437f541af1c6b9431eab3ca021012c00ba101ae4e4690`、raw SHA-256 `77e5f010476d332ab5f613ba364751d1985c63b781ecb3d873f62b290e5bf00a`。
+- `writer-recovery-focused-02`: `mise exec -- node --test --test-reporter=tap tests/test_ui.mjs`、2026-10-27T21:12:08.598663+00:00→2026-10-27T21:12:08.779042+00:00、exit 0、0.1803757359739393s、unittest/counts []、Node ['# tests 6']。metadata SHA-256 `711f291117c7d339187fe5ee186a0a3631c84c6ace3ff6e6b2151604452efba0`、raw SHA-256 `14ca3cbc20776657642ecb13acbc5ffc40ab89a91964b6b18c2ac394705ae67d`。
+- `writer-recovery-setup-03`: `mise run setup`、2026-10-27T21:11:04.746299+00:00→2026-10-27T21:11:05.426936+00:00、exit 1、0.6806331379921176s、unittest/counts []、Node []。metadata SHA-256 `da3c1b6abe387158f3418a4b2dea7b70ebafbad418f20cda327fe267f0e22bbd`、raw SHA-256 `e2fead969b586ea4b85eab599c3684c0d293b5ed480b4e938df64b0b63b56903`。
+- `writer-recovery-setup-04`: `env npm_config_store_dir=/tmp/ba-fnd-01-pnpm-store mise run setup`、2026-10-27T21:11:17.911968+00:00→2026-10-27T21:11:18.606479+00:00、exit 1、0.6945067659835331s、unittest/counts []、Node []。metadata SHA-256 `c40f712d9499a9c2e023883a9a93062d5538fe3be8fadbf66996654089b19705`、raw SHA-256 `515fbc32af779c056391953f510d7af71c1fc81f68bd14a6cfbbaa7e42bb7dc9`。
+- `writer-recovery-setup-05`: `env pnpm_config_store_dir=/tmp/ba-fnd-01-pnpm-store mise run setup`、2026-10-27T21:11:34.375459+00:00→2026-10-27T21:11:35.307108+00:00、exit 0、0.9316443279967643s、unittest/counts []、Node []。metadata SHA-256 `98d9db84871db1683ed87192de3c3a5f370ebe7c5b3ff0afe0d7bc7128e1a403`、raw SHA-256 `2603380bf52326e1a2a0281c8e550da1831c33778c47e46e1137d8dbb54f8a3a`。
+- `writer-recovery-check-02`: `mise run check`、2026-10-27T21:12:58.182823+00:00→2026-10-27T21:13:30.512174+00:00、exit 1、32.330813901964575s、unittest/counts []、Node []。metadata SHA-256 `a101e07f1a13a343b539544f9ee356e8f18db0e7bc8597206b8e2f4a3043d098`、raw SHA-256 `7f2ea2008152ae2b0c3a53df45cfa8e2e85adc7a3b6f56bd1f8ad48dfa0ce826`。
+- `writer-recovery-fake-display-01`: `mise exec -- pnpm --filter @brainoid-internal/display build:fake`、2026-10-27T21:13:00.331853+00:00→2026-10-27T21:13:01.185356+00:00、exit 0、0.8534971479675733s、unittest/counts []、Node []。metadata SHA-256 `0dbf8726cacfa2a2b9946b0f3689c4902d12a5e8de6b888db420b0a0369d2523`、raw SHA-256 `08f9f2a628640140d5343cd7ed69dcc5a3c97eed48cf238c032556afc71aa83d`。
+- `writer-recovery-fake-mobile-01`: `mise exec -- pnpm --filter @brainoid-internal/mobile build:fake`、2026-10-27T21:12:59.373182+00:00→2026-10-27T21:13:00.255057+00:00、exit 0、0.8818722270079888s、unittest/counts []、Node []。metadata SHA-256 `89fe64ef52b79f7973e06bb4b923b753900603425de0538fd9761b2a9d4dd847`、raw SHA-256 `8282e138f3642dfd414aae56e1a1ded57ffb3609399a45d92c794f039a66654e`。
+- `writer-recovery-assets-01`: `mise exec -- uv run --all-packages --locked --offline python -B -c 'from pathlib import Path; from brainoid_device.assets import load_assets; [print(surface, mode, len(load_assets(Path("apps") / surface / mode))) for surface in ("mobile", "display") for mode in ("dist", "dist-fake") ]'`、2026-10-27T21:14:39.991030+00:00→2026-10-27T21:14:40.073609+00:00、exit 1、0.08257493702694774s、unittest/counts []、Node []。metadata SHA-256 `32d38b2be0f6c2f3320b9c023da489ce42c93c8688099cdf3c206877943a00ef`、raw SHA-256 `f8b9c8825107c9cc1da166b6675a280a01aea9de5f4ba8d36aa8aa27a1dcf1ce`。
+- `writer-recovery-assets-02`: `mise exec -- uv run --all-packages --locked --offline python -B -c 'from pathlib import Path; from brainoid_device.assets import load_assets; [print(surface, mode, len(load_assets((Path("apps") / surface / mode).resolve()))) for surface in ("mobile", "display") for mode in ("dist", "dist-fake") ]'`、2026-10-27T21:14:52.235136+00:00→2026-10-27T21:14:52.314433+00:00、exit 1、0.07929225801490247s、unittest/counts []、Node []。metadata SHA-256 `d50552af36e0a83335e54ee60184ed0f4224f8d2677bc01a2737314cb9d28b69`、raw SHA-256 `6f53b023023aae6d4c136b75694b078007cf020df67ba8e08ed056f511425e55`。
+- `writer-recovery-assets-03`: `mise exec -- uv run --all-packages --locked --offline python -B -c 'from pathlib import Path; from brainoid_device.assets import load_assets; [print(surface, mode, len(load_assets((Path("apps") / surface / mode).resolve()))) for surface in ("mobile", "display") for mode in ("dist", "dist-fake") ]'`、2026-10-27T21:15:05.296163+00:00→2026-10-27T21:15:05.377956+00:00、exit 0、0.0817898929817602s、unittest/counts []、Node []。metadata SHA-256 `f0782e7f7105681ff0f51332b979b63b8ef0962f02032b9530e82e487124e71d`、raw SHA-256 `7a12286e4c131f01f15b31f0c6f4e1fc669d106601a1eb6f011ad3e18279e10c`。
+- `writer-recovery-browser-01`: `mise exec -- node /tmp/ba-ui-01-writer-browser-01.mjs /tmp/ba-ui-01-writer-browser-01`、2026-10-27T21:14:52.407804+00:00→2026-10-27T21:14:52.492304+00:00、exit 1、0.08449725102400407s、unittest/counts []、Node []。metadata SHA-256 `7ecb3388ed831db6a1f82b9198eb8758327df950786f0391f170b3b6f0758e7b`、raw SHA-256 `b43b3c7825f8dbe46c509790cf668018c6db7e9df92bc400d8c0c0654cab35c2`。
+- `writer-recovery-browser-02`: `mise exec -- node /tmp/ba-ui-01-writer-browser-01.mjs /tmp/ba-ui-01-writer-browser-02`、2026-10-27T21:15:01.939612+00:00→2026-10-27T21:15:06.070871+00:00、exit 1、4.132863141945563s、unittest/counts []、Node []。metadata SHA-256 `d2f7ba5fda1958ad231534bc88b3c59b7d44e3bdf5532a651fa17eeaccf9a0f3`、raw SHA-256 `ea27ad62fb9ab7239689ed05dd2ddc70b56bf6f67eb51032b6a6c9ae639b829d`。
+- `writer-recovery-browser-03`: `mise exec -- node /tmp/ba-ui-01-writer-browser-02.mjs /tmp/ba-ui-01-writer-browser-03`、2026-10-27T21:15:45.908916+00:00→2026-10-27T21:15:49.780889+00:00、exit 1、3.871970578969922s、unittest/counts []、Node []。metadata SHA-256 `d127f4f1fd0c31fe22846fd838ee911448a291a5790db1858a7f7c73ea7ec1f9`、raw SHA-256 `2be6f98f43caf76369b4f32ef1b3a76cc6933b66a9e49914b8ad06339e0c5476`。
+- `writer-recovery-check-03`: `mise run check`、2026-10-27T21:15:05.468166+00:00→2026-10-27T21:15:37.562226+00:00、exit 0、32.09547335305251s、unittest/counts []、Node []。metadata SHA-256 `3e96bd34b7e178cc98351e9fd0ffd02a09e5be38a55a097945fd26eb3ff72c96`、raw SHA-256 `693f43bd530e758d457ff4b9acfc25aafe0edb6baa947e47dd9262917d89685a`。
+
+- 初期UI検証: setup01はsandboxのmise shim書込制約、setup03/04は既存pnpm storeと非TTYの不整合で失敗。既存storeを `pnpm_config_store_dir=/tmp/ba-fnd-01-pnpm-store` で指定したsetup05は成功。外部package版の更新はなく、lock差分はUI memberから既存workspace API clientへの参照追加。
+- check01はUI source lint、check02は生成bundleがBiome対象に入ったため失敗。`apps/*/dist` / `dist-fake` だけを除外し、source lintの規則を維持したcheck03はexit0、404 Python sourcesと全TS型・両production buildを含む。
+- focused02のhost TAP出力は6件成功・失敗/skip/cancel0。focused01のsandbox出力はfile単位1件であり、これを6件の受入成功と見なさない。
+- built assets検査は相対path拒否、sandboxのprotected pathアクセス拒否を保存し、絶対pathのhost実行で4roots（mobile/display、production/fake）が既存device load_assetsを通過。browser01はsandbox localhost EPERM、browser02はCDP Enterに必要な入力文字欠落、browser03はDOM objectのreturnByValueシリアライズ失敗。各失敗のbrowser/server終了を確認、別helperへ修正し再実行する。ここまでの部分スクリーンショットを全状態の合格とは扱わない。
+- `writer-recovery-browser-04`: `mise exec -- node /tmp/ba-ui-01-writer-browser-03.mjs /tmp/ba-ui-01-writer-browser-04`、2026-10-27T21:16:05.629122+00:00→2026-10-27T21:16:32.708484+00:00、exit 0、27.079354592016898s、unittest/counts []、Node []。metadata SHA-256 `62a6ad1b50c9e106437eac3813904cc250da65222368c2efa615fa86b7b0fab3`、raw SHA-256 `d292aef259006412ee983d55e446dcb3fd5bbf53ed55856dbd1a9d17bda063d0`。
+- `writer-recovery-browser-05`: `mise exec -- node /tmp/ba-ui-01-writer-browser-04.mjs /tmp/ba-ui-01-writer-browser-05`、2026-10-27T21:17:36.278290+00:00→2026-10-27T21:18:03.334606+00:00、exit 0、27.056312586995773s、unittest/counts []、Node []。metadata SHA-256 `4c65ae3872d8eee8689166b47e374f68208ffbcfd5b0efb6f516d1fb5e027cb8`、raw SHA-256 `aa7b0816d1330e1c753c94f270dc59b02b77f20d00e7ea9b310a11433fa68932`。
+- `writer-recovery-focused-final`: `mise exec -- node --test --test-reporter=tap tests/test_ui.mjs`、2026-10-27T21:18:05.694276+00:00→2026-10-27T21:18:05.872589+00:00、exit 0、0.17830831004539505s、unittest/counts []、Node ['# tests 6']。metadata SHA-256 `4c724ca9706ac82fece0893e95db75464e93e96d5b965075b40daeac942250b4`、raw SHA-256 `1352dab738893b6507ce04947e8c939048e8b3fc1107dd831de101f571ef5f5a`。
+- `writer-recovery-setup-final`: `env pnpm_config_store_dir=/tmp/ba-fnd-01-pnpm-store mise run setup`、2026-10-27T21:17:39.432445+00:00→2026-10-27T21:17:40.025878+00:00、exit 0、0.5934296629857272s、unittest/counts []、Node []。metadata SHA-256 `0901d0ef3c67ae789ae61b761460c0ab2075eae0fa969e9f2118a36499788461`、raw SHA-256 `dbaccb4a08fe54d41ed6292e21dd92509fe90c8032696ba9c779e89f7fec85ac`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui01_review_r1`（新規独立context）。base commit: `1e33d83b169e922c5ae5ecc2355184830c1dc609`。
+- 未追跡を含む最新全31files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.gitignore` | `204bb97d1aff4d5b0ba56072c430c2240d11a022e85c92c928b0960bd4f8016d` |
+| `apps/display/index.html` | `1bb559338929845cc6ab7123ae80ed13138e731511343eba7df337ca17d42fc7` |
+| `apps/display/package.json` | `6c5ef54e6162bc541c51b7230ffd3c1df1c49bd9cb94911ba27099963f16a048` |
+| `apps/display/src/index.ts` | `DELETED` |
+| `apps/display/src/index.tsx` | `1e174d53ad15e3190a6c5601d124ef803d86de70da4d50cf19ac0b39b77f9fc8` |
+| `apps/display/src/main.tsx` | `b6893fb9bd21f799a873db141cbee8404f341d06eb0f0f8f07c694982020ba2a` |
+| `apps/display/tsconfig.json` | `c8d38835623ac1e96f406f8c7b2230fa48674d2748ed51c0726ed592070252f7` |
+| `apps/display/vite.config.ts` | `55919d9f80c32337ee77d4e3c4048da12ccc82090142f3b56835e70ed12426b9` |
+| `apps/mobile/capacitor.config.json` | `a34af1029691b33749cc1b35562eb1a3adbabd9ab37bb83e09feee0c29b4bfe3` |
+| `apps/mobile/index.html` | `1bb559338929845cc6ab7123ae80ed13138e731511343eba7df337ca17d42fc7` |
+| `apps/mobile/package.json` | `008581da9fa14ff17aba254733bf8533269b727694abc59f3b89682f73b3f9cc` |
+| `apps/mobile/src/index.ts` | `DELETED` |
+| `apps/mobile/src/index.tsx` | `7a6b91b7808a768b4291f09bef45a86096211b516e5692fca4e9b6fb8460d96c` |
+| `apps/mobile/src/main.tsx` | `c25a6b59c82bb892e2997dc32e85c9ce6f300b80e016f84a23a3f7e58d06b0ab` |
+| `apps/mobile/tsconfig.json` | `c8d38835623ac1e96f406f8c7b2230fa48674d2748ed51c0726ed592070252f7` |
+| `apps/mobile/vite.config.ts` | `55919d9f80c32337ee77d4e3c4048da12ccc82090142f3b56835e70ed12426b9` |
+| `biome.json` | `af4642f06782d9a98857283fad2560f7b6c0e43b997fb3c19a27548707ed1f34` |
+| `docs/05-development-and-testing.md` | `960ea279c9a83722d4a79640232374619273853d340962e1f4de75b928bcaa7d` |
+| `docs/ui-foundation.md` | `b4d87aab3dcae1ce5da7a95ed019c4111af379bd92509f760d8ae874e6128ea5` |
+| `mise.toml` | `16096075d96aad28298663135e6c845cba8eba6ecda4e15fea2530bfd4af2725` |
+| `packages/ui/package.json` | `972989d9b643d623263777cb1e8878ae9625871e3d02e3be3fc6997cf86666b9` |
+| `packages/ui/platform/index.ts` | `df99f9754244dd00818ecd25f76ada9b3be854c18b65179bda620f70b3d3b7ed` |
+| `packages/ui/src/components.tsx` | `18de7cbfdadf5c7c4ce1a514099423fc360e9b481816fb66c4536a07f130cf8c` |
+| `packages/ui/src/connection.ts` | `15de6b4dfb4a41dd8acb7245b566cd1e6f70e74148a3f398418613e573c04b2c` |
+| `packages/ui/src/fake.ts` | `e02d3bec11d3ff58530d735390026238c8b11b85658473a163eeface7ec0ff4b` |
+| `packages/ui/src/index.ts` | `da7229dba1340f03ea5e1e7ebab8d3c32d604f5bcf2141f4889475c4c142f70e` |
+| `packages/ui/src/preview.tsx` | `251f1bb9f2867ebd09df3d39779276862830d98d56394d342a42cb40e1c55c7f` |
+| `packages/ui/src/styles.css` | `b047cc7eb57d13178d08498a83787b99de6fd0c0f9feb6113bf6691257ecd268` |
+| `packages/ui/tsconfig.json` | `694f38eb572a2152dd6ee301a3bb055ecc5fc42506eee44d922527adcbbf8e78` |
+| `pnpm-lock.yaml` | `ee18c51078622710559709d693eeffd24d2879f47e110aa571e739580462c772` |
+| `tests/test_ui.mjs` | `3d85775b9981d497a17fa9d41cd8f84879450ca14b1eb2d318ea945330cfbf5d` |
+- `writer-recovery-resource-closure-01`: `/usr/bin/python3 /tmp/ba-ui-01-writer-resource-closure-01.py`、2026-10-27T21:19:11.350823+00:00→2026-10-27T21:19:11.398707+00:00、exit 0、0.04788001801352948s、unittest/counts []、Node []。metadata SHA-256 `b247e4bef22aada3f13a5d4ca4324a0f88b4d2ed14db39f4c0212f90449fadcf`、raw SHA-256 `d453def059a9e9a613e7f60a31b9b7d8541b29af707510657c3ab52d705fc5a9`。
+- `writer-recovery-resource-closure-02`: `/usr/bin/python3 /tmp/ba-ui-01-writer-resource-closure-02.py`、2026-10-27T21:21:48.334144+00:00→2026-10-27T21:21:48.390032+00:00、exit 0、0.0558827500208281s、unittest/counts []、Node []。metadata SHA-256 `4d3e107a3ec2a657cd617afc57db8548a1ae72ea757a2e13d3666becbad9043e`、raw SHA-256 `ab8a09be70d79191ceb00cd769fe98e42748d21ec1b3e11ed0bb1ac983ec0156`。
+- `writer-recovery-whitespace-final`: `git diff --check`、2026-10-27T21:18:30.066839+00:00→2026-10-27T21:18:30.093170+00:00、exit 0、0.026327269966714084s、unittest/counts []、Node []。metadata SHA-256 `05c9a245186b96182f48b30dfd211335fc6d0c11b339d6ee9d645b233aeb8d70`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `review-r1-browser-01`: `mise exec -- node /tmp/ba-ui-01-review-r1-browser.mjs /tmp/ba-ui-01-review-r1-browser-01`、2026-10-27T21:23:15.750390+00:00→2026-10-27T21:23:20.397863+00:00、exit 1、4.647398217988666s、unittest/counts []、Node []。metadata SHA-256 `2a7fdf7837b616df5f44cb8e9308d8c3522b5570ff54e75ab835080fdbecfb5b`、raw SHA-256 `441a484172d34ba401e4719732a9506f598bc990262da992398935d9f1e2e0af`。
+- `review-r1-browser-02`: `mise exec -- node /tmp/ba-ui-01-review-r1-browser-02.mjs /tmp/ba-ui-01-review-r1-browser-02`、2026-10-27T21:23:40.177808+00:00→2026-10-27T21:23:44.614364+00:00、exit 0、4.436546946992166s、unittest/counts []、Node []。metadata SHA-256 `401c43d54dbab8701e0b5e5d987f2f9126cad7a31a22c3dd1ec30d31fd08ba8c`、raw SHA-256 `90fa49708233f32276990188ef7a16fb5e5d00568b39a8425def0dd8b8ce4bc3`。
+- `review-r1-probe-build-02`: `mise exec -- node /tmp/ba-ui-01-review-r1-build-02.mjs`、2026-10-27T21:23:06.289582+00:00→2026-10-27T21:23:06.904895+00:00、exit 0、0.6152963669737801s、unittest/counts []、Node []。metadata SHA-256 `f16b8b74c490fe1fed0345ea8d01cf81d4fdc1da8a47c60a41c18a7297bf69cf`、raw SHA-256 `3b745fcfd480275b4117095627526ed2be4c361cc512644716caa67cd68d2793`。
+- `review-r1-probe-build`: `mise exec -- node /tmp/ba-ui-01-review-r1-build.mjs`、2026-10-27T21:22:30.725667+00:00→2026-10-27T21:22:31.228069+00:00、exit 0、0.5023863650276326s、unittest/counts []、Node []。metadata SHA-256 `95ca560b9c0321886b63abfee1856dad58815f6d63ce90e9b73536a0fb2b7f9a`、raw SHA-256 `6ccf12808854f8d3df031989c0127587e8edc2c0f70a0fec0218897ae2055117`。
+- `writer-recovery-fullnormal-01`: `mise run test`、2026-10-27T21:18:32.635768+00:00→2026-10-27T21:25:06.642488+00:00、exit 0、394.0285791340284s、unittest/counts ['Ran 1171 tests in 366.412s', 'Ran 18 tests in 0.060s']、Node ['ℹ tests 46']。metadata SHA-256 `e8efa340a1e7afcdad3d31d28ea5ec341cd5a2c767d4af2f00894bc6526dac5d`、raw SHA-256 `3b7483af2c7d0000d370286492acb0fd08ed8e3685d51e39cdb4c85aef10bfde`。
+- `writer-recovery-fullnormal-closure-01`: `/usr/bin/python3 /tmp/ba-ui-01-writer-fullnormal-closure-01.py`、2026-10-27T21:26:07.827009+00:00→2026-10-27T21:26:07.861508+00:00、exit 0、0.03449306701077148s、unittest/counts []、Node []。metadata SHA-256 `34e204694814d6c54d32c1c7de6c3e7b2aee74e2c88df5c9544e51bb66715730`、raw SHA-256 `9cee11c9af52367c85b6493ee323b3f0f3f737ccf4ff8e15a3b161167d2ae6d8`。
+
+- 親の最終照合: fullnormal01 と reviewer browser02 の全601項目（既存599・削除2）の前後SHA/実終了/rawを検証。fullnormal audit SHA-256 `972f6fa4ae28e9f2f98125b3c60f769d274210dfd6dc6f5a526f8ed7fe717aa1`。writer 209証拠を全件照合し、記録PID 63個の不在、12ポートのIPv4/IPv6非LISTEN、6一時profileの削除・該当processなしを確認（read-only、signalなし）。closure audit SHA-256 `efa1a1353d6a1526d73a0e0d7ba65a75137d081c02e8aa2693813dd5cd64e38d`。
+- 親補助処理の再試行: 初回の `python3` 呼出しはmise trust制約で実処理前に失敗し、`/usr/bin/python3` で実行。inventory初回読取はschemaのartifactsキーを指定せずFileNotFoundErrorとなり、正しい209項目を指定して照合完了。製品・検証結果への変更なし。
+
+### 独立レビュー ラウンド1 結果
+
+- `/root/ui01_review_r1`: approve / closed。最新全31パス、全601項目（削除2含む）を確認。必須・任意指摘0、未完了必須検証0。独立実行: 本物のmount/注入client/adapterの18browser項目、abort後の遅延応答、unmount、retry、確認pending/error/callback、証拠・依存範囲・終了監査。提供検証のsetup/check/通常全件1171+18+46、37browser項目・16画像との対応を確認。
+- reviewer report: `/tmp/ba-ui-01-review-r1-report.md`、SHA-256 `643a23506315e35fc88906de827041f8e3f3f582b7bd1ea6e5afd90f7ad0deb6`。
+- reviewer result: `/tmp/ba-ui-01-review-r1-result.json`、SHA-256 `221463483bfe1b568446c4dee8736931c34d42463d0417aff02bb3fcfd7347e6`。
+- reviewer end audit: `/tmp/ba-ui-01-review-r1-end-audit.json`、SHA-256 `a8c0585c69229d67c77fd0c28f92804bf7c1149def1124ad3cdb429b809dd3d4`。
+- reviewer 55 artifact inventory: `/tmp/ba-ui-01-review-r1-inventory.json`、SHA-256 `e71359b3ee9ce20e99cb8ecb34ca75a0d78b0de6f66a5463f8c2170b8cc7c423`。
+- 親はreviewer55証拠のSHAと終了時全source mapを再照合。fake build以降の差分はBiomeの生成物除外だけでbuild/runtime入力は同一、最終browserのasset hashも一致。native実機・録音・認証/業務会話・screen reader音声は本基盤では未検証。640pxは200%相当reflowで実機zoom試験ではない。Emulatorはbackend/schema/dependency/入力不変につき再実行対象外、過去結果を今回成功としない。
+
+### 完了結果
+
+- 共通React状態/error/確認カード、注入client/platform、個別mobile/display build、明示fake、Capacitor設定、responsive日本語UIを実装。通常起動は設定案内で、後続の認証・会話・音声を利用可能と誤表示しない。
+- 受入: 個別通常/fake build、同一共通部品、端末API隔離、empty/loading/error・操作ラベル、keyboard/tap・focus・timeout/abort/retry、スマホ/Pi幅の実browser表示、既存device assets/CSPとの互換を確認済み。setup/check/通常全件1171+18+46成功。writer browser37項目/16画像、reviewer18項目成功。変更31パスは承認済みSHAとcommit bytesが一致。
+- 実装コミット: `da9a99b591ca963c9e01be0f2484496d8c32e1f6` (`feat(ui): BA-UI-01 share React foundation across mobile and display`)。独立レビュー1回approve、未解決要修正0。状態done、終了 2026-10-27T21:32:38.897014+00:00。
+- 実機/native署名・実サービス・認証/業務会話/録音、host導入・公開は未実施。外部依存・backend/rules/schema/Emulator入力は不変につきEmulator再実行なし。後続チケットの機能・実機検証を今回の完了に含めない。
+- `parent-postdone-check-01`: `mise run check`、2026-10-27T21:32:42.833483+00:00→2026-10-27T21:32:46.737153+00:00、exit 0、3.9041551330010407s、unittest/counts ['Success: no issues found in 404 source files']、Node []。metadata SHA-256 `d3968ef95788f78ff68e11840bce1df08209310dfb2d38a785685bb5ac67b294`、raw SHA-256 `31e28fd1688b42716bba64553139ec66a39c8b6f6588c2093230af7bc9303eff`。
+- 台帳done更新後の必須 `mise run check` 成功、52/96 done・blocked0。コミット後599既存product mapも承認済みと一致、削除2は履歴にも反映。親postdone session88144はexit0で終了。記録コミット対象は台帳と本logの2ファイルのみ。
