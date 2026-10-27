@@ -13,6 +13,7 @@ from brainoid_contracts.guards import GuardedTransactions, protect
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Delivery, Job, Jobs, Lease, LeaseLost
 from brainoid_jobs.models import Reason
+from brainoid_memory.calendar_export import checked_stop
 from brainoid_memory.deletion_ledger import DeletionIntent, DeletionLedger
 from brainoid_memory.forget import operation_path
 from brainoid_memory.lifecycle import KIND as LIFECYCLE_KIND
@@ -85,6 +86,8 @@ class PurgeJobs(Jobs):
             ):
                 raise ValueError("Unaccepted lifecycle deletion")
             for scope in intent.scopes:
+                if scope.kind == "integration":
+                    checked_stop(tx, intent)
                 if intent.kind == "leave_tenant":
                     assert scope.tenant_id is not None
                     latest = self.ledger.latest(

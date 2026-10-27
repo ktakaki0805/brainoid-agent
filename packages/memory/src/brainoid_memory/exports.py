@@ -18,6 +18,8 @@ from brainoid_policy.models import Action, ResourceKind, ResourceRef, UserSubjec
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, ResourceGrant
 from brainoid_policy.transactions import resource_state
 
+from brainoid_memory.calendar_export import admitted_epoch
+from brainoid_memory.calendar_export import epoch as calendar_epoch
 from brainoid_memory.deletion_ledger import DeletionIntent
 from brainoid_memory.export_manifest import (
     KIND,
@@ -123,6 +125,7 @@ class Exports:
             now = self.now()
             expires = now + timedelta(hours=24)
             epoch = purge_epoch(tx, tenant)
+            calendar_admission = calendar_epoch(tx, tenant, subject_id(user))
             metadata = {
                 "id": identity,
                 "tenant_id": tenant,
@@ -174,6 +177,7 @@ class Exports:
                 "state": "pending",
                 "manifest": [],
                 "purge_epoch": epoch,
+                "calendar_epoch": calendar_admission,
                 "expires_at": expires.isoformat(),
                 "job": job.model_dump(mode="json"),
                 "export_scope": body.scope,
@@ -246,6 +250,10 @@ class Exports:
         # A forget invalidates every earlier snapshot in this tenant. This also
         # fences indirect assistant copies and generation/forget transaction races.
         if registry["purge_epoch"] != purge_epoch(tx, tenant):
+            raise PolicyDenied()
+        if admitted_epoch(registry) != calendar_epoch(
+            tx, tenant, ResourceId(registry["subject_id"])
+        ):
             raise PolicyDenied()
         entries = tuple(ManifestEntry.model_validate(v) for v in registry["manifest"])
         if len(entries) > MAX_ITEMS:
@@ -426,6 +434,13 @@ class Exports:
                 ) or any(
                     (scope.kind == "account" and registry["subject_id"] == scope.resource_id)
                     or (scope.kind == "tenant" and registry["tenant_id"] == scope.tenant_id)
+                    or (
+                        scope.kind == "integration"
+                        and registry["tenant_id"] == scope.tenant_id
+                        and registry["subject_id"] == scope.owner_subject_id
+                        and scope.export_epoch is not None
+                        and admitted_epoch(registry) < scope.export_epoch
+                    )
                     or (
                         scope.kind == "member"
                         and registry["tenant_id"] == scope.tenant_id

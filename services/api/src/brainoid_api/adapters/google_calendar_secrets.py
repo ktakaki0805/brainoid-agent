@@ -180,6 +180,13 @@ class GoogleCalendarSecrets:
         with self.registry.db() as db:
             args: tuple[str | int, ...]
             for scope in intent.scopes:
+                if scope.kind == "integration":
+                    for exact_slot in scope.secret_slots:
+                        db.execute(
+                            "INSERT OR IGNORE INTO fences VALUES(?)", ("slot:" + exact_slot,)
+                        )
+                        slots.add(exact_slot)
+                    continue
                 if scope.kind == "tenant":
                     fence, clause, args = (
                         "tenant:" + str(scope.tenant_id),

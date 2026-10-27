@@ -1307,9 +1307,23 @@ export const syncHomeAssistantEntities = (options) => (options.client ?? client)
 /**
  * 連携失効と資格情報削除
  *
- * 連携失効と資格情報削除
+ * 本人のCalendarを直ちに停止する。202は資格情報・派生データの消去受付。GETのcleanup_statusがcompleteになるまで消去完了ではない。Googleのuser/project全体失効は別連携への影響を防ぐため実行せずscopeと理由を返す。
  */
 export const revokeIntegration = (options) => (options.client ?? client).delete({
+    security: [{
+            key: 'userBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/tenants/{tenant_id}/integrations/{integration_id}',
+    ...options
+});
+/**
+ * 本人Calendarの停止理由と消去状態
+ *
+ * 秘密値を含まない現在状態。再接続は新しいOAuth開始から行い、新integrationを作る。owner/adminも他人の連携は取得できない。
+ */
+export const getIntegration = (options) => (options.client ?? client).get({
     security: [{
             key: 'userBearer',
             scheme: 'bearer',

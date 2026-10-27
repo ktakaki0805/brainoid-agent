@@ -1,6 +1,6 @@
 # Calendar OAuth（BA-CAL-01）
 
-FR-010の本人単位の認可開始、callback、資格情報保存を実装する。既存OpenAPIのPOST開始、匿名GET callback、連携metadata一覧を提供する。予定参照は[BA-CAL-02](calendar-events.md)、書込・連携解除はBA-CAL-03〜05の対象である。
+FR-010の本人単位の認可開始、callback、資格情報保存を実装する。既存OpenAPIのPOST開始、匿名GET callback、連携metadata一覧を提供する。予定参照は[BA-CAL-02](calendar-events.md)、書込は[BA-CAL-04](calendar-writes.md)、連携解除・再認可状態は[BA-CAL-05](calendar-disconnect.md)を参照する。
 
 ## HTTPと所有者
 

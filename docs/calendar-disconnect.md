@@ -1,0 +1,53 @@
+# Calendar解除・失効と再接続
+
+BA-CAL-05 / FR-010・FR-013。本人のGoogle Calendar連携停止、資格情報と派生データの消去、再認可が必要な状態を提供する。再認可UIと他providerは対象外。
+
+## APIと状態
+
+`DELETE /v1/tenants/{tenant_id}/integrations/{integration_id}`は本人user bearer、`Idempotency-Key`、引用符付き`If-Match`を必要とする。現在の本人membership・account・integration bindingを検査し、別tenantや別利用者の連携はowner/adminにも公開しない。
+
+初回は202と公開Integrationを返す。`status: revoked`はアプリ内で停止済みという意味で、`cleanup_status: pending`の間は秘密値の物理消去が未完了である。`GET`の同じパスで現在状態とETagを取得する。既存の一覧にも同じ状態を表示する。消去を検証した後は`cleanup_status: complete`となり、元のkey・If-MatchによるDELETE再送は204となる。受付202を消去完了として表示しない。
+
+公開情報は`stop_reason`（`user_disconnected`、`credentials_expired_or_revoked`、`permission_revoked`またはnull）、`reconnect_allowed`、`cleanup_status`、`provider_revocation`、`provider_revocation_scope`。OAuth token、slot、authorization ID、秘密参照、provider本文は返さない。再接続可能なら既存OAuth開始APIから新しいauthorization・integration・秘密slotを作り、本人がcalendarを再選択する。停止したintegrationを再有効化しない。
+
+## 停止と物理消去
+
+受付transactionはintegrationの版を進め、対象integration専用の停止fenceと`calendar_disconnect_requests`の内容なし予約を保存する。その後、独立DeletionLedgerへ`disconnect_calendar` intentを追記し、既存`lifecycle_purge` jobを作る。ledger障害では503となるが停止は維持し、同じ要求の再送または内部の`CalendarDisconnect.recover(tenant, operation)`で未完了の受付を回復する。回復は予約済みscopeだけを処理し、新しい削除権限を推定しない。schedulerはこの予約collectionを既存のbounded page adapterで走査してrecoverする。schedulerのcloud配備は後続の運用接続で行う。
+
+intentのscopeはtenant、integration ID、受付版、authorization ID、所有者のopaque subject ID、transient/tokenの2つのexact slot、owner/tenantごとのexport受付境界`export_epoch`。現在のintegration検査とsource stampにより、停止後の一覧取得・proposal作成/confirm・再送job・read-only reconciliationを拒否する。secret取得後とprovider呼出し直前にも再検査する。開始済み書込の実応答は成功/失敗という内容なしの事実として保持し、応答不明なら`outcome_unknown`を保つ。解除は実行済みGoogle予定の取消ではない。
+
+既存`PurgeResource`と`LifecycleHandlers`はbounded postorder traversalで対象authorization、proposal、Calendar出典を持つrunとその子・tool receipt・run proposal・assistant message・summaryを消去する。直接user入力と他の連携を保持する。消去済み親の選択証拠は内容なしmarkerに保存し、後続pageや再起動でも派生物との結び付きを失わない。export hookは独立artifact registryから、同tenant・本人が解除受付前に受け付けたarchiveを失効する。解除後の新規archiveや別tenant/利用者のarchiveは選ばない。解除後の新規exportは受付keyとregistryを保持し、本人の未完了解除がすべて完了してから生成する。exportには複数の自己データが入るため、該当する古いarchiveは全体を無効化し、必要なら再作成する。
+
+export受付と停止は同じ`tenants/{tenant}/calendar_export_barriers/{subject_id}`をtransaction内で読み、停止だけがepochを1増やす。停止は同じtransactionでselectionを空にし、revoked integrationはexport投影から除外する。export registryの`calendar_epoch`がintentの`export_epoch`未満なら失効対象となる。時計の前後・同時刻に依存せず、並行受付はtransaction retryで順序が確定する。単一tenant全体のpurge epochを進めないため、他利用者や他tenantのarchiveには影響しない。旧registryの省略値は0であり、最初の停止より前のartifactとして扱う。遅い旧writerのartifactも0となりreleaseを拒否するため、受付を有効にする前に全export writer/validatorを更新する。停止後の新archiveは新epochを持ち、古いintentの再実行では消さない。同じ本人の複数integrationを解除するとepochは順に増えるため、各停止より前の自己archive全体を失効する。barrierは本文を含まない独立制御データとしてlifecycle走査で保持し、canonical producer削除後もregistryとscopeだけで消去を継続する。
+
+停止transactionは同じowner/tenant barrierの`pending`へ`operation_id → export_epoch`を追加する。`completed + pending件数 == epoch`を検査し、epochだけが復元された状態を完了と推測しない。公開operationの作成前・独立ledger障害中にもこの記録は有効である。ExportDataは最初の投影より前にpendingを検査し、空になるまで`CalendarCleanupPending`で既存のauthorization延期経路へ進む。試行回数を返却し、key/registry/jobを保持するため、長いpurge待ちでもmax_attempts到達やarchiveの永久tombstoneを起こさない。待機中にはbytesを生成しない。scan開始後の新しい停止は既存のepoch比較でstaging・put前後・commitを拒否し、古い物理objectはexport hookの永続tombstoneで遅延putを拒否する。
+
+| export投影カテゴリ | 解除待機の適用 |
+| --- | --- |
+| notes・formal facts（Note source_refsを含む） | retained Calendar lineageの有無にかかわらず本人の全生成を投影前で延期する。完了後はpurge済み原本を再コピーできない。 |
+| conversations・messages | 同じ生成待機に加え、既存message Calendar source検査・直接user入力保持を維持する。 |
+| tasks・reminders・notifications・commands・entities | 同じ生成待機が個別DTO/投影より前に適用される。個別producerがCalendar出力を作るという前提は置かない。 |
+| integrations・calendar_proposals | 同じ生成待機に加え、revoked除外と既存check_originを維持する。 |
+| run/tool/summary/history/vector/cache | exportの直接投影対象ではない。既存purgeとcache hookで消去し、その検証完了まで新exportを延期する。 |
+
+PurgeResourceは独立intent・受付fenceと全hook receipt・空の再走査を検証した完了transactionでのみ、該当operationをpendingから除き`completed`を1増やし、予約へexact epochの`export_cleanup_complete`を記録する。Integrationのcleanup完了・public operation成功も同じtransactionで更新する。複数解除を逆順で完了しても、他のpendingを消さない。古いintent再実行はreceiptを検査し二重加算しない。公開operationやintegration/authorizationが欠落してもreservationとbarrierは残り、同じaccepted scopeだけを回復する。既存jobがある場合はimmutable bindingを照合し、そのwaiting/pending/running jobを保持して公開operationを再構成する。
+
+必須の`calendar` hookは2つの秘密slotを永続fenceして消去する。LocalCalendarSecretsとGoogleCalendarSecretsは既存のimmutable exact-version registryを使う。Secret Managerのdestroy失敗、応答不明、未解決addは完了証明にしない。canonical authorizationが消えた後もintentからslotを回復し、同じjobで再試行する。secret/cache/export receiptと空の再走査を検証してからcompleteへ進む。worker故障はpendingのまま、既存purgeのretry_reason/overdueで監視する。古いcleanupは新規OAuthのslotを対象にしない。
+
+## Google側の失効範囲
+
+Googleのrevokeは単一のアプリintegrationに限定されず、Google userとprojectのgrantに影響し、同projectの別clientのtokenも失効し得る。[Googleの失効仕様](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke)
+
+このAPIの本人は1つのtenant/integrationの解除を依頼している。Google account/project全体への失効権限は推定しない。そのためGoogle revoke HTTPは実行せず、`provider_revocation: not_attempted_scope_unsafe`、`provider_revocation_scope: google_user_project`を記録する。これはprovider失効成功を意味しない。Google側でのproject全体の認可取消は利用者がGoogle account設定で行う別操作であり、他の連携も再認可が必要になる可能性がある。ローカルの停止と秘密消去は、この広い操作を待たず完了できる。provider失効未実施とSecret Manager消去失敗は別々に扱う。
+
+## 自然失効・再認可
+
+providerの401は期限切れ/無効token、明示的な403 `insufficientPermissions`はscope不足として、該当する現在版だけを`reauth_required`へ変更する。API/workerのevents GET、target GET、write、reconciliationで共通化し、遅い旧版応答で新しいintegration状態を停止しない。自動refreshは行わず、再送も現在状態で拒否する。403のrate/quota/非organizer、404などを一律に再認可へ変換しない。[Google Calendarのエラー分類](https://developers.google.com/workspace/calendar/api/guides/errors)
+
+## 導入・復旧・検証
+
+APIに`AuthServices.calendar_disconnect = CalendarDisconnect(calendar, deletion_ledger)`を明示注入する。未構成は503。purge workerはAPIと同じstore・独立DeletionLedger・秘密registryを使い、`LifecycleHandlers`とcalendar/cache/export hookを構成する。Calendarの通常compositionと同様、本物のprovider/secret接続を暗黙に作らない。
+
+既存Integrationへの公開field追加は任意で、旧active recordはnull/not_requestedに投影する。未提供だったDELETEの契約を202受付・完了再送204へ拡張し、生成clientも更新する。旧status enumは維持する。内部DeletionIntentにはintegration scopeを追加するため、未完了intentが残る間はこのscopeを理解しない旧workerへ戻さない。rollbackは先にCalendar受付・provider実行を停止し、この版でpurgeを完了する。DB restore後は独立ledgerのintentとscope fenceを再適用し、各owner/tenantのbarrierを受理済みintentの最大`export_epoch`以上へ復元し、各accepted reservationと検証済みcompletion receiptからpending集合とcompleted件数も復元し、secret registryを維持してから実行を再開する。未完了を完了と推測して空集合を作らない。barrierが欠落・後退、pending/completedが欠損・矛盾した状態ではrecovery/PurgeJobsは実行を拒否する。restore中はexport受付とworkerも停止し、全制御データの復元後に再開する。新scopeのepochは必須で、欠けたintentに時計から境界を推測して足さない。
+
+fake/Emulatorで本人境界、解除/confirm競合、secret取得後の停止、旧job、遅いread/write、期限失効、複数連携、新規OAuth、slot消去失敗と再開、履歴・archiveの消去を検証する。Google revokeは安全なscopeを保証できないため未実施となる経路を確認し、失敗するremote secret transportはfakeで検証する。実Google API・Secret Manager・cloud設定・実端末UIはこのチケットの検証に含めない。新しい依存やprovider料金は追加しない。

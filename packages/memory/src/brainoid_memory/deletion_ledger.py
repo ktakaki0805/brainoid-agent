@@ -28,11 +28,17 @@ class DeletionTarget(MemoryValue):
 
 
 class LifecycleScope(MemoryValue):
-    kind: Literal["account", "member", "tenant"]
+    kind: Literal["account", "member", "tenant", "integration"]
     resource_id: ResourceId
     tenant_id: ResourceId | None = None
     version: Version
     deletion_epoch: Annotated[int, Field(strict=True, ge=1)] = 1
+    authorization_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
+    secret_slots: tuple[ResourceId, ...] = Field(default=(), exclude_if=lambda v: not v)
+    owner_subject_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
+    export_epoch: Annotated[int, Field(strict=True, ge=1)] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
 
     @model_validator(mode="after")
     def binding(self) -> Self:
@@ -40,13 +46,34 @@ class LifecycleScope(MemoryValue):
             raise ValueError("Invalid lifecycle scope")
         if self.kind == "tenant" and self.resource_id != self.tenant_id:
             raise ValueError("Invalid tenant scope")
+        if self.kind == "integration":
+            if (
+                self.authorization_id is None
+                or self.owner_subject_id is None
+                or self.export_epoch is None
+                or len(self.secret_slots) != 2
+                or len(set(self.secret_slots)) != 2
+            ):
+                raise ValueError("Exact Calendar authorization and two secret slots required")
+        elif (
+            self.authorization_id is not None
+            or self.owner_subject_id is not None
+            or self.secret_slots
+            or self.export_epoch is not None
+        ):
+            raise ValueError("Calendar bindings require an integration scope")
         return self
 
 
 class DeletionIntent(MemoryValue):
     schema_version: Literal[1] = 1
     kind: Literal[
-        "forget_memory", "leave_tenant", "delete_tenant", "delete_account", "delete_resource"
+        "forget_memory",
+        "leave_tenant",
+        "delete_tenant",
+        "delete_account",
+        "delete_resource",
+        "disconnect_calendar",
     ] = Field(default="forget_memory", exclude_if=lambda value: value == "forget_memory")
     include_derived_memories: bool = Field(default=True, exclude_if=lambda value: value is True)
     scopes: tuple[LifecycleScope, ...] = Field(default=(), exclude_if=lambda value: not value)
@@ -59,6 +86,19 @@ class DeletionIntent(MemoryValue):
 
     @model_validator(mode="after")
     def bindings(self) -> Self:
+        if self.kind == "disconnect_calendar":
+            if (
+                self.targets
+                or len(self.scopes) != 1
+                or self.scopes[0].kind != "integration"
+                or self.scopes[0].tenant_id != self.tenant_id
+                or self.source_policy != "delete_source"
+                or not self.include_derived_memories
+            ):
+                raise ValueError("Calendar disconnect requires one exact integration scope")
+            return self
+        if any(s.kind == "integration" for s in self.scopes):
+            raise ValueError("Integration scope requires Calendar disconnect")
         if self.kind == "delete_resource":
             if (
                 self.scopes

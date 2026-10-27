@@ -131,6 +131,7 @@ healthは `/v1` の外に置き、認証情報を要求しない。依存先の�
 | スマホ通知 | `/users/me/push-installations`、`/tenants/{t}/notifications`、`/tenants/{t}/notifications/{n}`、`/tenants/{t}/notifications/{n}:ack` | FCM token登録と本人通知。本文をpushに入れない |
 | 外部連携 | `/tenants/{t}/integrations`、`/google-calendar/authorizations`、`/home-assistant` | 本人OAuth/端末HAのmetadata。秘密を返さない |
 | Calendar | `/integrations/{i}/calendar-events`、`/calendar-proposals`、`/calendar-proposals/{p}:confirm`、`:reject` | 参照→内容提案→本人確認/否認→checkpoint再開 |
+| Calendar解除 | `GET/DELETE /integrations/{i}` | 本人の停止理由・再接続可否・消去状態。DELETEの202は受付、消去完了はcleanup_statusで確認。[解除契約](calendar-disconnect.md) |
 | 家電操作 | `POST /tenants/{t}/commands`、`GET /commands/{c}`、`POST /commands/{c}:cancel` | 保存・配送・実行観測を分離 |
 | 削除・export | `/tenants/{t}/operations`、`/operations/{o}`、`/operations/{o}/download` | 非同期の進捗/認可付き取得 |
 | アカウント削除 | `POST /operations`、`GET /operations/{o}` | 本人再認証。他tenant管理者から呼べない |

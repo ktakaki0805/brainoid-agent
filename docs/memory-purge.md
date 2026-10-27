@@ -1,6 +1,8 @@
 # 忘却の物理消去と再開
 
-BA-MEM-08 / FR-013 / T-011・T-022。受付契約は[忘却受付と削除台帳](memory-forgetting.md)、認可と保持は[データ設計](03-data-and-authorization.md#8-削除忘却保持)を参照する。忘却の入口は `forget_memory`。退出・アカウント・テナント削除は[BA-IAM-10の受付と専用scope handler](account-deletion.md)が同じwalkerを再利用する。会話削除の受付、Calendar credential、通知配送、export生成、端末cache同期、backup復元訓練は提供しない。
+Calendar単体の解除は[BA-CAL-05](calendar-disconnect.md)が同じwalkerと必須calendar hookを使う。integration scopeは本人のtenant/integration/authorization/exact secret slotsに限定し、停止と物理消去の完了を別々に記録する。
+
+BA-MEM-08 / FR-013 / T-011・T-022。受付契約は[忘却受付と削除台帳](memory-forgetting.md)、認可と保持は[データ設計](03-data-and-authorization.md#8-削除忘却保持)を参照する。忘却の入口は `forget_memory`。退出・アカウント・テナント削除は[BA-IAM-10の受付と専用scope handler](account-deletion.md)が同じwalkerを再利用する。会話削除の受付、Calendar credential、通知配送、export生成、端末cache同期、backup復元訓練は旧BA-MEM-08単体の提供範囲外であり、後続ticketのcompositionで接続する。
 
 ## 実行と権限
 

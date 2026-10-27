@@ -7,6 +7,7 @@ from brainoid_contracts.access import fingerprint
 from brainoid_contracts.transactions import Document
 from pydantic import SecretStr
 
+from brainoid_memory.calendar_credentials import ReauthReason
 from brainoid_memory.calendar_proposals import CHANGE, DeleteEvent, EventContent
 from brainoid_memory.calendar_reader import CalendarDate, CalendarDateTime, endpoint
 
@@ -17,6 +18,7 @@ KIND: Literal["calendar_write"] = "calendar_write"
 class ProviderReply:
     status: int
     body: Document | None = None
+    reauth_reason: ReauthReason | None = None
 
 
 class CalendarWriter(Protocol):

@@ -42,7 +42,10 @@ def current_integration(
         authorization_stamp=fingerprint([user.stamp, account_stamp(tx, principal.user_id)]),
     )
     record = tx.get(integration_path(tenant, integration))
-    if record is None:
+    if (
+        record is None
+        or tx.get(f"tenants/{tenant}/integration_deletion_fences/{integration}") is not None
+    ):
         raise PolicyDenied()
     record = fenced_document(tx, tenant, "integrations", integration, record)
     authorization = tx.get(

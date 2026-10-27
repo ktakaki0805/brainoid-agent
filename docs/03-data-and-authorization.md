@@ -232,6 +232,8 @@ BA-MEM-09の[本人エクスポート契約](data-export.md)は、明示local構
 
 ## 8. 削除・忘却・保持
 
+Calendar単体の[連携解除](calendar-disconnect.md)はintegration専用fenceとimmutable `disconnect_calendar` intentを保存する。scopeはtenant・integration・authorization・本人subject・2つのsecret slotに固定する。停止直後は`revoked/pending`、既存purgeの秘密・派生データ消去検証後は`revoked/complete`として公開する。Google user/project全体のgrant失効はこのscopeの外であり、自動実行しない。
+
 | 操作 | 主な扱い |
 | --- | --- |
 | 会話削除 | 会話・messages・run events・speech参照を削除。派生記憶も対象にするかUIで明示し、既定は同時に削除 |

@@ -19,6 +19,8 @@ KIND = "lifecycle_purge"
 
 
 def scope_fence(scope: LifecycleScope) -> str:
+    if scope.kind == "integration":
+        return f"tenants/{scope.tenant_id}/integration_deletion_fences/{scope.resource_id}"
     if scope.kind == "account":
         return f"account_deletion_fences/{scope.resource_id}"
     if scope.kind == "tenant":

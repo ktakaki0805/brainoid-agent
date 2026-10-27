@@ -7,9 +7,11 @@ import sys
 import zipfile
 
 from brainoid_contracts import ResourceId
+from brainoid_contracts.deletion import subject_id
 from brainoid_contracts.guards import protect
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job, LeaseLost, RetryableError
+from brainoid_memory.calendar_export import ensure_ready
 from brainoid_memory.export_manifest import MAX_BYTES, MAX_ITEMS, MAX_SCAN, Artifact, ManifestEntry
 from brainoid_memory.export_projection import project
 from brainoid_memory.exports import Exports, registry_path
@@ -57,6 +59,16 @@ class ExportData:
     def _run(self, execution: Execution) -> JsonValue:
         job = execution.check()
         tenant, identity = job.tenant_id, job.operation_id
+
+        def ready(tx: Transaction) -> None:
+            access = self.access(tx, execution)
+            self.exports.current(tx, identity, access, manifest=False)
+            assert access.principal.user_id is not None
+            ensure_ready(tx, tenant, subject_id(access.principal.user_id))
+
+        # Covers every projection category. Epoch checks below also fence a stop
+        # racing the scan, staging, or external object put.
+        self.exports.store.run(ready)
         entries: list[ManifestEntry] = []
         records: list[Document] = []
         scanned = 0

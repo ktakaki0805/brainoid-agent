@@ -22,6 +22,9 @@ CONTROL = frozenset(
         "memory_forget_effects",
         "purge_barriers",
         "lifecycle_selections",
+        "integration_deletion_fences",
+        "calendar_disconnect_requests",
+        "calendar_export_barriers",
     }
 )
 PRIVATE = frozenset(
@@ -58,6 +61,10 @@ class ProfileParentUnknown(LegacyProvenanceMissing):
 
 class LifecycleHandlers(ForgetHandlers):
     def root(self, name: str, intent: DeletionIntent | None = None) -> bool:
+        if intent is not None and intent.kind == "disconnect_calendar":
+            from brainoid_worker.calendar_erasure import ROOTS
+
+            return name in ROOTS or VECTOR.fullmatch(name) is not None
         return True
 
     @staticmethod
@@ -67,6 +74,10 @@ class LifecycleHandlers(ForgetHandlers):
     def selected(
         self, tx: Transaction, path: str, doc: Document | None, intent: DeletionIntent
     ) -> bool:
+        if intent.kind == "disconnect_calendar":
+            from brainoid_worker.calendar_erasure import selected
+
+            return selected(tx, path, doc, intent)
         parts = path.split("/")
         if parts[0] in DEVICE_GLOBALS:
             if len(parts) != 2 or intent.kind != "delete_tenant" or doc is None:
@@ -218,6 +229,10 @@ class LifecycleHandlers(ForgetHandlers):
         }
 
     def bound(self, tx: Transaction, path: str, intent: DeletionIntent, force: bool) -> bool:
+        if intent.kind == "disconnect_calendar":
+            from brainoid_worker.calendar_erasure import bound
+
+            return bound(tx, path, intent, force)
         parts = path.split("/")
         if parts[0] in DEVICE_GLOBALS:
             if intent.kind != "delete_tenant":
@@ -285,6 +300,10 @@ class LifecycleHandlers(ForgetHandlers):
         intent: DeletionIntent,
         cutoffs: Document,
     ) -> Decision:
+        if intent.kind == "disconnect_calendar":
+            from brainoid_worker.calendar_erasure import decide
+
+            return decide(tx, path, doc, intent)
         parts = path.split("/")
         if parts[0] in DEVICE_GLOBALS and len(parts) == 2 and doc is None:
             if not self.bound_selection(tx, path, intent):

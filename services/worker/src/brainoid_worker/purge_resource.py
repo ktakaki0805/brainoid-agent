@@ -9,6 +9,7 @@ from brainoid_contracts import ResourceId, normalize_utc
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job, LeaseLost, RetryableError
 from brainoid_jobs.models import job_id
+from brainoid_memory.calendar_export import completion as calendar_export_completion
 from brainoid_memory.deletion_ledger import DeletionIntent
 from brainoid_memory.forget import operation_path, target_path
 from brainoid_memory.lifecycle import KIND as LIFECYCLE_KIND
@@ -179,6 +180,8 @@ class PurgeResource:
             raise ValueError("Forget handler composition required")
         if intent.kind == "delete_account" and self.account_finalizer is None:
             raise ValueError("Account provider finalizer required")
+        if intent.kind == "disconnect_calendar" and "calendar" not in self.hooks:
+            raise ValueError("Calendar secret erasure hook required")
         if saved.get("purge", {}).get("schema_version", 1) != 1:
             raise ValueError("Unsupported purge progress schema")
         if "schema_version" not in saved.get("purge", {}):
@@ -620,6 +623,26 @@ class PurgeResource:
                     if k in {"id", "tenant_id", "status", "policy_version", "deletion_epoch"}
                 },
             )
+        if intent.kind == "disconnect_calendar":
+            export_writes = calendar_export_completion(tx, intent)
+            location = f"tenants/{intent.tenant_id}/integrations/{intent.scopes[0].resource_id}"
+            integration = tx.get(location)
+            if (
+                integration is not None
+                and integration.get("disconnect_operation_id") == intent.operation_id
+            ):
+                tx.set(
+                    location,
+                    {
+                        **integration,
+                        "status": "revoked",
+                        "cleanup_status": "complete",
+                        "version": integration["version"] + 1,
+                        "updated_at": self.jobs.now(),
+                    },
+                )
+            for path, document in export_writes:
+                tx.set(path, document)
         tx.set(operation_path(job.tenant_id, job.operation_id), saved)
 
     def monitor(
@@ -637,6 +660,7 @@ class PurgeResource:
                     "leave_tenant",
                     "delete_tenant",
                     "delete_account",
+                    "disconnect_calendar",
                 }:
                     return False
                 intent = DeletionIntent.model_validate(saved["intent"])

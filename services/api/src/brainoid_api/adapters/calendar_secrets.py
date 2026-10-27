@@ -130,6 +130,11 @@ class LocalCalendarSecrets:
         with self.db() as db:
             args: tuple[str | int, ...]
             for scope in intent.scopes:
+                if scope.kind == "integration":
+                    for slot in scope.secret_slots:
+                        db.execute("INSERT OR IGNORE INTO fences VALUES(?)", ("slot:" + slot,))
+                        db.execute("DELETE FROM versions WHERE slot=?", (slot,))
+                    continue
                 if scope.kind == "tenant":
                     fence, clause, args = (
                         "tenant:" + str(scope.tenant_id),

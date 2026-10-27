@@ -577,6 +577,11 @@ export type OAuthAuthorization = {
     expires_at: UtcTimestamp;
 };
 export type Integration = {
+    stop_reason?: 'user_disconnected' | 'credentials_expired_or_revoked' | 'permission_revoked' | null;
+    reconnect_allowed?: boolean;
+    cleanup_status?: 'not_requested' | 'pending' | 'complete';
+    provider_revocation?: 'not_requested' | 'not_attempted_scope_unsafe';
+    provider_revocation_scope?: 'google_user_project';
     id: ResourceId;
     tenant_id: ResourceId;
     version: Version;
@@ -3022,11 +3027,38 @@ export type RevokeIntegrationErrors = {
 export type RevokeIntegrationError = RevokeIntegrationErrors[keyof RevokeIntegrationErrors];
 export type RevokeIntegrationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 停止済み、秘密値と派生データの消去はpending
+     */
+    202: Integration;
+    /**
+     * 同じ解除要求の再送で物理消去完了を確認済み
      */
     204: void;
 };
 export type RevokeIntegrationResponse = RevokeIntegrationResponses[keyof RevokeIntegrationResponses];
+export type GetIntegrationData = {
+    body?: never;
+    path: {
+        tenant_id: ResourceId;
+        integration_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/integrations/{integration_id}';
+};
+export type GetIntegrationErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type GetIntegrationError = GetIntegrationErrors[keyof GetIntegrationErrors];
+export type GetIntegrationResponses = {
+    /**
+     * 本人の現在状態
+     */
+    200: Integration;
+};
+export type GetIntegrationResponse = GetIntegrationResponses[keyof GetIntegrationResponses];
 export type UpdateIntegrationData = {
     body: IntegrationPatch;
     headers: {

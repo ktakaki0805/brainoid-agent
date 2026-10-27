@@ -41,6 +41,7 @@ from brainoid_api.repositories.memberships import Memberships
 from brainoid_api.repositories.memories import Memories
 from brainoid_api.repositories.tenants import Tenants
 from brainoid_api.services.calendar_authorization import CalendarAuthorization
+from brainoid_api.services.calendar_disconnect import CalendarDisconnect
 from brainoid_api.services.calendar_events import CalendarEvents
 from brainoid_api.services.deletion_requests import DeletionRequests
 from brainoid_api.services.export_requests import ExportRequests
@@ -67,6 +68,7 @@ class AuthServices:
     calendar: CalendarAuthorization | None = None
     calendar_events: CalendarEvents | None = None
     calendar_write_enabled: bool = False
+    calendar_disconnect: CalendarDisconnect | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]

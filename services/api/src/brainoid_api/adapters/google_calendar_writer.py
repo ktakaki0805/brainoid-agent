@@ -3,6 +3,7 @@
 from urllib.parse import quote
 
 from brainoid_contracts.transactions import Document
+from brainoid_memory.calendar_credentials import credential_failure
 from brainoid_memory.calendar_writer import ProviderReply
 from pydantic import SecretStr
 from requests import Session
@@ -50,8 +51,19 @@ class GoogleCalendarWriter:
             )
             if response.status_code == 204:
                 return ProviderReply(204)
-            raw = response.json() if response.status_code == 200 else None
-            return ProviderReply(response.status_code, raw if isinstance(raw, dict) else None)
+            raw = None
+            if response.status_code == 200:
+                raw = response.json()
+            elif response.status_code == 403:
+                try:
+                    raw = response.json()
+                except ValueError:
+                    pass  # A malformed denial is still a known rejection, not a timeout.
+            return ProviderReply(
+                response.status_code,
+                raw if response.status_code == 200 and isinstance(raw, dict) else None,
+                credential_failure(response.status_code, raw),
+            )
         except Exception:
             # No token refresh or retry: the mutation may already have completed.
             return ProviderReply(0)

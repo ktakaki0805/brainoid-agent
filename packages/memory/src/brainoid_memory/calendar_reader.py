@@ -14,6 +14,7 @@ from brainoid_contracts.guards import GuardedTransactions
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from pydantic import Field, JsonValue, SecretStr, TypeAdapter, model_validator
 
+from brainoid_memory.calendar_credentials import CalendarCredentialsRejected, ReauthReason
 from brainoid_memory.calendar_oauth import READ, WRITE, SecretStore
 from brainoid_memory.models import MemoryValue
 
@@ -219,6 +220,32 @@ class CalendarReader:
             now,
         )
 
+    def reauthentication(self, record: Document, reason: ReauthReason) -> None:
+        """Late provider responses cannot stop a new authorization or changed selection."""
+
+        def stop(tx: Transaction) -> None:
+            location = integration_path(record["tenant_id"], record["id"])
+            current = tx.get(location)
+            if (
+                current is None
+                or current.get("status") != "active"
+                or integration_stamp(current) != integration_stamp(record)
+            ):
+                return
+            tx.set(
+                location,
+                {
+                    **current,
+                    "status": "reauth_required",
+                    "stop_reason": reason,
+                    "reconnect_allowed": True,
+                    "version": current["version"] + 1,
+                    "updated_at": self.now(),
+                },
+            )
+
+        self.store.run(stop)
+
     def token(self, record: Document) -> SecretStr:
         try:
             secret = json.loads(self.secrets.get(record["secret_ref"]))
@@ -243,6 +270,9 @@ class CalendarReader:
         before_send()
         try:
             return self.provider.event(token, calendar, event)
+        except CalendarCredentialsRejected as error:
+            self.reauthentication(record, error.reason)
+            raise
         except APIError:
             raise
         except Exception:
@@ -259,6 +289,9 @@ class CalendarReader:
         before_send()
         try:
             return self.provider.events(token, query, page_token)
+        except CalendarCredentialsRejected as error:
+            self.reauthentication(record, error.reason)
+            raise
         except APIError:
             raise
         except Exception:

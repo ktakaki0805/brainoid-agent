@@ -4,6 +4,7 @@ from urllib.parse import quote
 
 from brainoid_contracts.errors import APIError, ErrorCode
 from brainoid_contracts.transactions import Document
+from brainoid_memory.calendar_credentials import CalendarCredentialsRejected, credential_failure
 from brainoid_memory.calendar_reader import CalendarQuery
 from pydantic import SecretStr
 from requests import Session
@@ -40,8 +41,11 @@ class GoogleCalendar:
                 timeout=10,
                 allow_redirects=False,
             )
-            if response.status_code == 401:
-                raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+            reason = credential_failure(
+                response.status_code, response.json() if response.status_code == 403 else None
+            )
+            if reason is not None:
+                raise CalendarCredentialsRejected(reason)
             if response.status_code in (403, 404):
                 raise APIError(ErrorCode.OPERATION_FORBIDDEN)
             if response.status_code != 200:
@@ -67,8 +71,11 @@ class GoogleCalendar:
                 timeout=10,
                 allow_redirects=False,
             )
-            if response.status_code == 401:
-                raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+            reason = credential_failure(
+                response.status_code, response.json() if response.status_code == 403 else None
+            )
+            if reason is not None:
+                raise CalendarCredentialsRejected(reason)
             if response.status_code in (403, 404):
                 raise APIError(ErrorCode.OPERATION_FORBIDDEN)
             if response.status_code != 200:

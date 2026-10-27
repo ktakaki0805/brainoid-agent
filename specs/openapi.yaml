@@ -2609,6 +2609,39 @@ paths:
             schema:
               $ref: '#/components/schemas/HomeInventorySync'
   /tenants/{tenant_id}/integrations/{integration_id}:
+    get:
+      operationId: getIntegration
+      summary: 本人Calendarの停止理由と消去状態
+      description: 秘密値を含まない現在状態。再接続は新しいOAuth開始から行い、新integrationを作る。owner/adminも他人の連携は取得できない。
+      security:
+      - userBearer: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: 本人の現在状態
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       operationId: updateIntegration
       summary: Calendar allowlist更新
@@ -2653,12 +2686,23 @@ paths:
     delete:
       operationId: revokeIntegration
       summary: 連携失効と資格情報削除
-      description: 連携失効と資格情報削除
+      description: 本人のCalendarを直ちに停止する。202は資格情報・派生データの消去受付。GETのcleanup_statusがcompleteになるまで消去完了ではない。Googleのuser/project全体失効は別連携への影響を防ぐため実行せずscopeと理由を返す。
       security:
       - userBearer: []
       responses:
+        '202':
+          description: 停止済み、秘密値と派生データの消去はpending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
         '204':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 同じ解除要求の再送で物理消去完了を確認済み
         default:
           description: 共通エラー
           content:
@@ -4970,6 +5014,20 @@ components:
     Integration:
       type: object
       properties:
+        stop_reason:
+          type: [string, 'null']
+          enum: [user_disconnected, credentials_expired_or_revoked, permission_revoked, null]
+        reconnect_allowed:
+          type: boolean
+        cleanup_status:
+          type: string
+          enum: [not_requested, pending, complete]
+        provider_revocation:
+          type: string
+          enum: [not_requested, not_attempted_scope_unsafe]
+        provider_revocation_scope:
+          type: string
+          enum: [google_user_project]
         id: *id001
         tenant_id: *id001
         version: *id010

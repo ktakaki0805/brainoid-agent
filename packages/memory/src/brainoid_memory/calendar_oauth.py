@@ -43,6 +43,13 @@ class IntegrationView(MemoryValue):
     status: Literal["active", "reauth_required", "revoked"]
     owner_user_id: FirebaseUid
     allowed_calendar_ids: list[str] = []
+    stop_reason: (
+        Literal["user_disconnected", "credentials_expired_or_revoked", "permission_revoked"] | None
+    ) = None
+    reconnect_allowed: bool = True
+    cleanup_status: Literal["not_requested", "pending", "complete"] = "not_requested"
+    provider_revocation: Literal["not_requested", "not_attempted_scope_unsafe"] = "not_requested"
+    provider_revocation_scope: Literal["google_user_project"] = "google_user_project"
 
 
 class IntegrationPage(MemoryValue):

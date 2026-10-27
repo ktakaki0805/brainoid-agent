@@ -98,6 +98,7 @@ def project(
         )
         if (
             document.get("provider") != "google_calendar"
+            or document.get("status") == "revoked"
             or document.get("visibility") != "private"
             or document.get("owner_user_id") != access.principal.user_id
             or document.get("binding") != current.binding()

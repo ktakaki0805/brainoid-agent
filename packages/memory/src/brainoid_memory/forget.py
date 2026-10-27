@@ -66,6 +66,7 @@ class Operation(MemoryValue):
         "export",
         "delete_resource",
         "calendar_write",
+        "disconnect_calendar",
     ] = "forget_memory"
     status: Literal["pending", "running", "succeeded", "failed", "outcome_unknown"] = "pending"
     created_at: UtcTimestamp

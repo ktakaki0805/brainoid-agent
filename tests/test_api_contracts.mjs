@@ -37,11 +37,11 @@ function expectExit(result, code) {
   assert.equal(result.status, code, `${result.stdout}\n${result.stderr}`);
 }
 
-test("all 89 business operations and two health operations have generated methods", () => {
+test("all 90 business operations and two health operations have generated methods", () => {
   const operations = Object.values(spec.paths)
     .flatMap((path) => Object.values(path))
     .filter((operation) => operation.operationId);
-  assert.equal(operations.length, 91);
+  assert.equal(operations.length, 92);
   for (const operation of operations) {
     // biome-ignore lint/performance/noDynamicNamespaceImportAccess: contract-wide export coverage.
     assert.equal(typeof sdk[operation.operationId], "function", operation.operationId);

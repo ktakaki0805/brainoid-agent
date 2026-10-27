@@ -12,6 +12,7 @@ from brainoid_jobs import AuthorizationUnavailable, Job, Jobs, LeaseLost, Retrya
 from brainoid_jobs.models import TERMINAL, job_id
 from brainoid_jobs.repository import path as job_path
 from brainoid_memory.calendar_access import current_integration
+from brainoid_memory.calendar_credentials import credential_failure
 from brainoid_memory.calendar_proposal_access import check_origin
 from brainoid_memory.calendar_proposals import CalendarProposals, proposal_path
 from brainoid_memory.calendar_reader import CalendarQuery, CalendarReader
@@ -170,6 +171,7 @@ class CalendarWrite:
         if change["action"] != "create":
             self.fence(execution)
             target = self.provider.inspect(token, change["calendar_id"], event_id(record))
+            self.credentials(integration, target)
             self.fence(execution)
             if target.status != 200 or target.body is None:
                 self.record(job, "failed", "target_unavailable", require_started=False)
@@ -231,6 +233,7 @@ class CalendarWrite:
                 )
             except Exception:
                 reply = ProviderReply(0)
+            self.credentials(integration, reply)
             if (change["action"] == "delete" and reply.status == 204) or matches(record, reply):
                 self.record(job, "succeeded", None)
             elif reply.status in (409, 412):
@@ -244,6 +247,11 @@ class CalendarWrite:
             return {"operation_id": job.operation_id}
 
         return execution.effect("calendar.write", invoke)
+
+    def credentials(self, integration: Document, reply: ProviderReply) -> None:
+        reason = reply.reauth_reason or credential_failure(reply.status)
+        if reason is not None:
+            self.reader.reauthentication(integration, reason)
 
     def record(
         self, job: Job, status: str, error: str | None, *, require_started: bool = True
@@ -352,6 +360,7 @@ class CalendarWrite:
                 )
             except Exception:
                 reply = ProviderReply(0)
+            self.credentials(integration, reply)
             self.store.run(lambda tx: self.current(tx, job, writing=False))
             matched = matches(record, reply)
         except PolicyUnavailable:
