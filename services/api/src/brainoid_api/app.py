@@ -10,6 +10,7 @@ from brainoid_api.errors import RequestContextMiddleware, install_error_handlers
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
 from brainoid_api.routes.agents import router as agents_router
 from brainoid_api.routes.calendar_authorization import router as calendar_router
+from brainoid_api.routes.calendar_events import router as calendar_events_router
 from brainoid_api.routes.commands import router as commands_router
 from brainoid_api.routes.conversations import router as conversations_router
 from brainoid_api.routes.device_pairings import router as device_pairings_router
@@ -116,6 +117,7 @@ def create_app(
     app.include_router(agents_router, prefix="/v1")
     app.include_router(commands_router, prefix="/v1")
     app.include_router(calendar_router, prefix="/v1")
+    app.include_router(calendar_events_router, prefix="/v1")
     app.include_router(conversations_router, prefix="/v1")
     app.include_router(run_events_router, prefix="/v1")
     app.include_router(usage_router, prefix="/v1")

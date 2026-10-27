@@ -629,6 +629,7 @@ export type CalendarEvent = {
     start: CalendarTime;
     end: CalendarTime;
     etag: string;
+    fetched_at?: UtcTimestamp;
     description?: string;
 };
 export type CalendarEventPage = {
@@ -3052,7 +3053,7 @@ export type UpdateIntegrationErrors = {
 export type UpdateIntegrationError = UpdateIntegrationErrors[keyof UpdateIntegrationErrors];
 export type UpdateIntegrationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: Integration;
 };
@@ -3087,7 +3088,7 @@ export type ListCalendarEventsErrors = {
 export type ListCalendarEventsError = ListCalendarEventsErrors[keyof ListCalendarEventsErrors];
 export type ListCalendarEventsResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: CalendarEventPage;
 };

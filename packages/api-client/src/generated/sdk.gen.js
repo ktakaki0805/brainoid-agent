@@ -1321,7 +1321,7 @@ export const revokeIntegration = (options) => (options.client ?? client).delete(
 /**
  * Calendar allowlist更新
  *
- * Calendar allowlist更新
+ * 本人のCalendarを明示選択。実付与scopeとprovider閲覧権、If-Matchを検査。空配列は全calendarを拒否。
  */
 export const updateIntegration = (options) => (options.client ?? client).patch({
     security: [{
@@ -1339,7 +1339,7 @@ export const updateIntegration = (options) => (options.client ?? client).patch({
 /**
  * 本人calendarの予定一覧
  *
- * deviceはcalendar.readを許可した本人private_session必須。区間最大31日。
+ * deviceはcalendar.readを許可した本人private_session必須。区間最大31日、1頁100件以下、継続10頁以下。cursorは現在の認可と選択版・queryに束縛。未構成時503。
  */
 export const listCalendarEvents = (options) => (options.client ?? client).get({
     security: [{

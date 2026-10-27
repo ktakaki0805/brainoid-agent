@@ -2612,12 +2612,12 @@ paths:
     patch:
       operationId: updateIntegration
       summary: Calendar allowlist更新
-      description: Calendar allowlist更新
+      description: 本人のCalendarを明示選択。実付与scopeとprovider閲覧権、If-Matchを検査。空配列は全calendarを拒否。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -2680,13 +2680,13 @@ paths:
     get:
       operationId: listCalendarEvents
       summary: 本人calendarの予定一覧
-      description: deviceはcalendar.readを許可した本人private_session必須。区間最大31日。
+      description: deviceはcalendar.readを許可した本人private_session必須。区間最大31日、1頁100件以下、継続10頁以下。cursorは現在の認可と選択版・queryに束縛。未構成時503。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -5116,6 +5116,8 @@ components:
         etag:
           type: string
           maxLength: 256
+        fetched_at:
+          $ref: '#/components/schemas/UtcTimestamp'
         description:
           type: string
           maxLength: 4000

@@ -278,6 +278,9 @@ class CalendarAuthorization:
                 {
                     "access_token": grant.access_token.get_secret_value(),
                     "refresh_token": grant.refresh_token.get_secret_value(),
+                    "integration_id": saved["integration_id"],
+                    "binding": saved["binding"],
+                    "granted_scopes": scopes,
                 }
             ).encode()
             token_ref = self.secrets.put(
@@ -315,7 +318,7 @@ class CalendarAuthorization:
                         "binding": saved["binding"],
                     },
                 )
-                current.update(status="connected", secret_ref=token_ref)
+                current.update(status="connected", secret_ref=token_ref, granted_scopes=scopes)
                 tx.set(path(tenant, auth), current)
 
             self.store.run(commit)

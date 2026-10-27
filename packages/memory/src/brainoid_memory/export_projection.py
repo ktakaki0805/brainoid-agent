@@ -8,6 +8,7 @@ from brainoid_policy.models import ResourceKind, ResourceRef
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from pydantic import TypeAdapter
 
+from brainoid_memory.calendar_access import check_calendar_sources
 from brainoid_memory.dto import MemoryView
 from brainoid_memory.export_manifest import ManifestEntry
 from brainoid_memory.repository import FactTransaction
@@ -104,6 +105,13 @@ def project(
     created = document.get("created_by") == access.principal.user_id
     if kind == "notifications":
         created = document.get("user_id") == access.principal.user_id
+    if kind == "messages":
+        try:
+            check_calendar_sources(tx, policy, access.principal, document)
+        except PolicyUnavailable:
+            raise
+        except PolicyDenied:
+            return None
     if kind == "messages" and document.get("role") == "assistant":
         from brainoid_jobs.models import job_id
 
@@ -197,6 +205,7 @@ def project(
                 grant.resource.model_dump(mode="json"),
                 document.get("suppress_reuse"),
                 document.get("source_refs", []),
+                document.get("calendar_sources", []),
             ]
             + (
                 [

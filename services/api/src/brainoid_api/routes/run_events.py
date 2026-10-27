@@ -10,6 +10,7 @@ from brainoid_contracts.transactions import Transaction
 from brainoid_jobs import Job
 from brainoid_jobs.models import job_id
 from brainoid_jobs.repository import path as job_path
+from brainoid_memory.calendar_access import check_calendar_sources
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.models import ResourceKind, ResourceRef, UserSubject
@@ -67,7 +68,10 @@ def next_batch(
             except AccountUnavailable:
                 raise APIError(ErrorCode.RESOURCE_NOT_FOUND) from None
         # Current read authority, not the old generation's model-execution grant.
-        _, current = repo.access(tx, identity, tenant, doc["conversation_id"], session)
+        reader, current = repo.access(tx, identity, tenant, doc["conversation_id"], session)
+        policy_call(
+            lambda: check_calendar_sources(tx, repo.jobs._policy(tx), reader.principal, doc)
+        )
         destination = policy_call(
             lambda: repo.jobs._policy(tx).resource(
                 tenant,
@@ -77,6 +81,9 @@ def next_batch(
                 ),
                 output=output,
             )
+        )
+        policy_call(
+            lambda: check_calendar_sources(tx, repo.jobs._policy(tx), destination.principal, doc)
         )
         output_scope = repo.scope(
             destination.principal, None, destination.scope, destination.owner_user_id

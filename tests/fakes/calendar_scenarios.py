@@ -54,7 +54,7 @@ class OAuthTransport:
         }
 
 
-class CalendarScenarios(unittest.TestCase):
+class CalendarFixture(unittest.TestCase):
     store: Any
 
     def setup_calendar(self) -> None:
@@ -146,6 +146,8 @@ class CalendarScenarios(unittest.TestCase):
 
         self.store.run(change)
 
+
+class CalendarScenarios(CalendarFixture):
     def test_success_idempotent_start_actual_scope_pkce_and_no_plaintext_db(self) -> None:
         state, auth = self.start()
         self.assertEqual(self.start(), (state, auth))

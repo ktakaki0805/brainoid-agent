@@ -26,6 +26,8 @@ from brainoid_contracts import ResourceId
 from brainoid_contracts.guards import GuardedTransactions, ReleaseGuard, release_guard
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job, Jobs, LeaseLost
+from brainoid_memory.calendar_access import check_calendar_sources
+from brainoid_memory.calendar_reader import CalendarReader
 from brainoid_memory.deletion_ledger import DeletionLedger
 from brainoid_memory.forget import operation_path
 from brainoid_memory.vector_store import VectorSearch
@@ -36,6 +38,7 @@ from brainoid_runs import events
 from brainoid_runs.models import Message
 from brainoid_runs.state import RunState, conversation_path, run_path
 from brainoid_tools import Executor, Registry, ResultBinding
+from brainoid_tools.calendar import register_calendar
 from brainoid_tools.executor import Authorizer as ToolAuthorizer
 from brainoid_tools.home import register_home
 from brainoid_tools.memory import register_memory
@@ -220,6 +223,7 @@ class RunTurn:
         tool_authorizer: ToolAuthorizer | None = None,
         vector_search: VectorSearch | None = None,
         deletion_ledger: DeletionLedger | None = None,
+        calendar_reader: CalendarReader | None = None,
     ) -> None:
         # Every run/tool/stream/final transaction shares guards, including the outer
         # Jobs.complete callback and read responses delayed after the callback ends.
@@ -237,6 +241,7 @@ class RunTurn:
                 "max_output_characters": min(8000, (budget or RunBudget()).max_output_characters)
             }
         )
+        self.calendar_reader = calendar_reader
         self.memory = MemoryRuntime(
             self, vector_search=vector_search, deletion_ledger=deletion_ledger
         )
@@ -246,6 +251,7 @@ class RunTurn:
         register_tasks(self.tool_registry, self.memory.tasks)
         register_reminders(self.tool_registry, self.memory.reminders)
         register_home(self.tool_registry, self.memory.home)
+        register_calendar(self.tool_registry, self.memory.calendar)
         self.tool_authorizer = tool_authorizer or self.memory
         self.execution_authorizer = self.memory
         self.result_reuse = ResultReuse(self.tool_registry, self.execution_authorizer)
@@ -298,6 +304,11 @@ class RunTurn:
     def _check_results(
         self, tx: Transaction, job: Job, run: Document, history: list[Document]
     ) -> str:
+        policy = self.jobs._policy(tx)
+        principal = policy.principal(job.tenant_id, job.grant.principal.subject)
+        check_calendar_sources(tx, policy, principal, run)
+        if job.output is not None:
+            check_calendar_sources(tx, policy, policy.principal(job.tenant_id, job.output), run)
         if run.get("home_command") is not None:
             return self.memory.home.terminal_update(tx, job, run)
         if run.get("reminder_update") is not None:
@@ -856,6 +867,7 @@ class RunTurn:
                     "suppress_reuse": bool(run.get("forget_operation_id")),
                     "sequence": parent["next_sequence"],
                     "tool_bindings": run.get("tool_bindings", []),
+                    "calendar_sources": run.get("calendar_sources", []),
                     "memory_records": run.get("memory_records", []),
                     "model_message": None
                     if run.get("continuation") or outcome.response is None

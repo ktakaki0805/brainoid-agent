@@ -9,6 +9,7 @@ from brainoid_contracts import DisplayPolicy, FirebaseUid, ResourceId, Scope, Vi
 from brainoid_contracts.deletion import fenced_document, purge_epoch
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_jobs import Jobs
+from brainoid_memory.calendar_access import check_calendar_sources
 from brainoid_policy.models import (
     Action,
     DeviceSubject,
@@ -386,7 +387,7 @@ class Conversations:
         limit = page_limit(limit)
 
         def read(tx: Transaction) -> MessagePage:
-            _, current = self.access(tx, identity, tenant, conversation, session)
+            grant, current = self.access(tx, identity, tenant, conversation, session)
             parent = self.document(tx, tenant, conversation)
             # Display only public fields; internal model signatures never reach this view.
             docs = tx.collection(conversation_path(tenant, conversation) + "/messages")
@@ -405,6 +406,12 @@ class Conversations:
                     tx, tenant, "messages", item.id, doc, parent=conversation
                 )
                 if current_document["deleted"]:
+                    continue
+                try:
+                    check_calendar_sources(tx, self.jobs._policy(tx), grant.principal, doc)
+                except PolicyUnavailable:
+                    raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
+                except PolicyDenied:
                     continue
                 items.append(item)
             current = current.model_copy(
@@ -583,6 +590,13 @@ class Conversations:
                     "history_revision": parent.get("history_revision", 0),
                     "history_hash": history_digest,
                     "purge_epoch": admission_epoch,
+                    "calendar_sources": list(
+                        {
+                            fingerprint(source): source
+                            for message in prior_messages
+                            for source in message.get("calendar_sources", [])
+                        }.values()
+                    ),
                     "history_run_ids": sorted(
                         {d["run_id"] for d in prior_messages if d["role"] != "user"}
                     ),
@@ -674,7 +688,10 @@ class Conversations:
             doc = tx.get(run_path(tenant, run_id))
             if doc is None or doc.get("tenant_id") != tenant or doc.get("run_id") != run_id:
                 raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
-            _, current = self.access(tx, identity, tenant, doc["conversation_id"], session)
+            grant, current = self.access(tx, identity, tenant, doc["conversation_id"], session)
+            policy_call(
+                lambda: check_calendar_sources(tx, self.jobs._policy(tx), grant.principal, doc)
+            )
             updated = failed_projection(tx, doc)
             current.ensure_live(self.now())
             release = (

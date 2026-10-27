@@ -472,13 +472,13 @@ export declare const revokeIntegration: <ThrowOnError extends boolean = false>(o
 /**
  * Calendar allowlist更新
  *
- * Calendar allowlist更新
+ * 本人のCalendarを明示選択。実付与scopeとprovider閲覧権、If-Matchを検査。空配列は全calendarを拒否。
  */
 export declare const updateIntegration: <ThrowOnError extends boolean = false>(options: Options<UpdateIntegrationData, ThrowOnError>) => RequestResult<UpdateIntegrationResponses, UpdateIntegrationErrors, ThrowOnError>;
 /**
  * 本人calendarの予定一覧
  *
- * deviceはcalendar.readを許可した本人private_session必須。区間最大31日。
+ * deviceはcalendar.readを許可した本人private_session必須。区間最大31日、1頁100件以下、継続10頁以下。cursorは現在の認可と選択版・queryに束縛。未構成時503。
  */
 export declare const listCalendarEvents: <ThrowOnError extends boolean = false>(options: Options<ListCalendarEventsData, ThrowOnError>) => RequestResult<ListCalendarEventsResponses, ListCalendarEventsErrors, ThrowOnError>;
 /**

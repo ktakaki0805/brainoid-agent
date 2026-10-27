@@ -254,6 +254,8 @@ Cloud Tasksの重複実行は起こり得るため、worker・通知・provider�
 
 BA-CAL-01は[Calendar OAuth](calendar-oauth.md)の開始・匿名callback・本人metadata一覧を提供する。未構成runtimeは503で閉じる。OAuth開始は本人スマホから行い、scope_profileをread/read_writeで分ける。callbackのstateをuser/tenant/nonce/期限に束縛し、成功後は登録済みの復帰先へ戻す。URLのcode/token/stateはアクセスログでredactする。
 
+BA-CAL-02は[Calendar予定参照](calendar-events.md)の本人allowlist更新と予定一覧、および既定calendar.listを提供する。取得時刻、UTCとIANA timezone、終日の排他的終了日を保持する。
+
 `calendar-proposals` は作成/変更/削除の正規化内容、対象、本人、args_hash、初期5分の期限を保存する。実行confirmは本人スマホからのみ受け、同じproposalとhashに対して一度だけ進める。日時はtimezoneを含めて表示し、endがstartより後であることを検査する。終日予定はdateで表現し、終了日は排他的終端とする。
 
 作成時はoperation IDからprovider仕様に適合するevent IDを作り、結果不明ならそのIDで照合する。更新/削除はprovider ETagをIf-Matchに渡し、競合時は再確認する。Google Calendarは条件付き更新/削除でETagを利用できる。[版管理の公式資料](https://developers.google.com/workspace/calendar/api/guides/version-resources)、[event IDの公式資料](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert)
