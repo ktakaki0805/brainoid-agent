@@ -9027,3 +9027,330 @@ FR-011/AC-011、T-018/T-036。home.set_stateとHTTP create/get/cancelを共通se
 - stage済み全patchを保存し、cached diff/stat/checkを確認。patch SHA `58ec973f8b8e559f3e1dc6c29aa37f1b403962e84dc032e999f166b0d2c6454e`。
 - 台帳をdoneへ更新後、親の記録チェックを実施。結果は次項。
 - 親の `mise run check`: 2026-10-27T04:48:37.606340+00:00→2026-10-27T04:48:59.782771+00:00、exit 0、22.176936s。323 source型検査、format/lint/contracts/client/compatibility/docs/workflow/tickets全成功。台帳42/96 done・blocked 0。metadata SHA `5d51613799f5290d73f1687b7e7e7b03e4f73161e98b697731c28ee4795a2012`、raw SHA `d9d054ce56103d8a86601b792b1e393be0d829fa44250ae6778c98a3526bbfe4`。親session 58137はexit0で回収済み、全491product SHA不変。
+
+## ba-cal-02-20261027t044947z
+
+- チケット: BA-CAL-02 Calendar予定一覧・時刻正規化と参照tool（FR-010/AC-010/T-020）。
+- 状態: in_progress。開始: `2026-10-27T04:49:47.751119+00:00`。
+- ブランチ: main / base commit: `82e58b47fe4732771f4c30a236918aac6423f316`。開始時clean・index空。
+- 実装担当: `/root/cal02_implementation`（新規独立context予定）。独立レビュー未実施、実装コミット未作成。
+- 選定: planner check成功（42/96 done）、ID指定なしnextで選択。依存BA-CAL-01 `5ed62f03791cbd8404e1785197ddea27deb60e05`、BA-RUN-06 `2ad6016c796f1833948e71a95ae72202e1d7b338`はdoneかつHEAD祖先。
+- 適用AGENTS.mdなし、CONTRIBUTING・docs05 DoD・docs08 §1/CAL02・FR010/AC010/T020・台帳/log記録規約を確認。
+
+### 範囲と受入検証計画
+
+| 受入条件 | 予定する検証 | 状態 |
+| --- | --- | --- |
+| 終日排他的end・日付跨ぎ・timezoneを保持 | fixtureによる終日/DST両境界/offset/不正timezone/provider ID/ETag/取得時刻、ページ継続 | 未実施 |
+| 本人の選択calendarと実付与scopeだけ参照 | 現user/tenant/member/account/independent ledger/integration、他人連携拒否、選択producerとcursor束縛 | 未実施 |
+| 未確認Piとsession範囲外を拒否 | user HTTPとdevice private_session/calendar.read、T-020、現在device/family/epochの再検証 | 未実施 |
+| provider部分失敗・認証切れを空成功にしない | fake transportの4xx/5xx/timeout/不正response/empty-nextpage | 未実施 |
+| 会話calendar.listから同じ参照serviceへ委譲 | defaulttool/本人scope注入・正例会話/他owner拒否・session失効後stream/history/source消去 | 未実施 |
+| 回帰・契約整合 | setup/check/全通常suite/全Emulator suiteと新規独立レビュー | 未実施 |
+
+- 追加外部前提なし。docs08 §1のfake/emulator独立完了範囲。実Calendar/OAuth/Secret Manager/cloud/実機/配備は行わない。CAL03/04書込、別provider・複雑系列編集は対象外。
+- 事前準備 `/tmp/ba-cal-02-parent-prep.md` と実装依頼template `/tmp/ba-cal-02-implementation-template.md` は引継ぎ用。CAL01最終実装と契約を直接確認して設計する。
+
+### 実装中の設計引継ぎ
+
+- 2026-10-27T04:52:13.378593+00:00: `/root/cal02_implementation`より、既存本人PATCHをIf-Match/冪等性付きallowlist producerとして実装、provider閲覧probeで検証する方針を受領。HTTP/default calendar.listが同じreader serviceを利用し、31日・100件/頁・cursor束縛で制限する予定。
+- worker ResultAuthorizerと会話履歴/SSE/exportにCalendar由来sourceの現在認可を接続し、実付与scopeをcallback origin/secret bindingと照合する方針。まだ検証・承認済みではない。実provider通信は行わない。
+- `dev-types-1`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T04:55:45.679871+00:00→2026-10-27T04:55:47.419437+00:00、exit 1、1.7396658740472049s、unittest/counts []、Node []。metadata SHA-256 `1d72fc0a9b4b849d220116dc30f819fe29f04031f544560db8b2077c70cc3abc`、raw SHA-256 `ccddcba667e82d51e1ff7b3d2c724ecaab7b0a730ea2ec7e5cc1e02b2b7e6aa8`。
+- `target-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_calendar_events.py`、2026-10-27T04:56:48.839445+00:00→2026-10-27T04:58:04.286190+00:00、exit 143、75.45032885100227s、unittest/counts []、Node []。metadata SHA-256 `e15f899c717091dadc4d4e39c6034187dd3d5c87768720b5628222360203b10e`、raw SHA-256 `069cb74e0a3b44699c9943d42a7658ff6ca7cf5021d512fe18df6e5416d7f5dd`。
+- `target-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_calendar_events.py`、2026-10-27T04:57:55.645431+00:00→2026-10-27T04:57:56.903350+00:00、exit 1、1.2580117860343307s、unittest/counts ['22']、Node []。metadata SHA-256 `27d834ccbf6b450e2b250c66a4d1dc77db3aa1a8f45edbe539ab940b0633c585`、raw SHA-256 `95612303f219aa76918837fe85e087e2c210a803620ab564405ce8662d699c5e`。
+- `target-3`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T04:58:15.521631+00:00→2026-10-27T04:58:20.100149+00:00、exit 1、4.578619993990287s、unittest/counts ['52']、Node []。metadata SHA-256 `f9c9c139ecf584223f30e8a04cb22c7f45ccafab9bc4c85155cf3a1295eb1bf0`、raw SHA-256 `fdb77691f465e14728d940a21fe2adcac414e48b4d4c62631d98c16e9c3f603d`。
+- 2026-10-27T04:58:43.519264+00:00: 初期検証の原結果を保存。dev-types-1はCalendarRuntimeのsource dict/JsonValue型1件。target-1は75.45秒でexit143、開始終了SHAも異なるため最終受入に使わない。target-2は22件中3fail/11errorで、原rawには新fixtureに継承された既存OAuth scenarioの空初期状態との不一致を観測。target-3は52件中1fail（会話の最終messageに予定本文がない）。原因確定・修正と新phase再検証は実装担当から受領する。
+- `target-4`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T04:58:57.348421+00:00→2026-10-27T04:59:02.602867+00:00、exit 0、5.255645094963256s、unittest/counts ['53']、Node []。metadata SHA-256 `650dcc6929457bf4a18c8a94a44ea09cbc6941ebb039ca7879780b3725d275ac`、raw SHA-256 `a4c90d30253e5ab9328b346095dbd116c69210b7588249b031e2885ca728fe4f`。
+- 2026-10-27T04:59:14.218970+00:00: 実装担当の原因/終了報告: target-1はsandbox TestClient停止、自分python子PID1896286へSIGINT後TERM、runner exit143・session80750を回収し、後続対象testはhost実行。target-2は既にconnectedのCAL02 fixtureで継承元CAL01未接続前提testまで収集されたfixture不整合、必要helperだけ再利用する独立scenarioへ修正。target-3はMultiStageModelが設定final_textを読まず固定FIXTURE_stageを出すfixture不整合、予定本文を返す明示CalendarModelへ修正。SecretStore.get後/provider直前・各selection probe直前の現在認可再検査も実装済みとの報告。最終承認は後続freezeと独立reviewで確認する。
+- `dev-format-1`: `mise exec -- uv run --all-packages --locked --offline ruff format .`、2026-10-27T05:00:00.842552+00:00→2026-10-27T05:00:00.905558+00:00、exit 0、0.06310068699531257s、unittest/counts []、Node []。metadata SHA-256 `86898018017fbed448ceb15893de08b212b34f677dbec7c7f3780fe5a73ff241`、raw SHA-256 `b8cfa8107ad06f61601db0aa0aa0fe9dbd636479251d5128d8e1939a4862793a`。
+- `dev-lint-1`: `mise exec -- uv run --all-packages --locked --offline ruff check . --fix`、2026-10-27T05:00:00.939259+00:00→2026-10-27T05:00:01.001599+00:00、exit 0、0.06243298499612138s、unittest/counts []、Node []。metadata SHA-256 `25ed04f320b13949c1d06a67562bf9bd7dba7f401e44a9dcbe80310bf4f63e10`、raw SHA-256 `7b00b0827a2ebefce4829ff95c993f62478cc2162f5452f1adf62f1d0a55b553`。
+- `dev-types-2`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:00:12.426262+00:00→2026-10-27T05:00:13.431814+00:00、exit 1、1.0056500000064261s、unittest/counts []、Node []。metadata SHA-256 `1f46b106d99a3cce8f26b7cf89bec1185c9b2878c00905577b3865b1080ac897`、raw SHA-256 `1fb1977ca19e1fbc8967f502b56963f62fda724bd31fda57002e78658ee0d7ed`。
+- `dev-types-3`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:01:43.367198+00:00→2026-10-27T05:01:43.839857+00:00、exit 1、0.4727472509839572s、unittest/counts []、Node []。metadata SHA-256 `0198bcda9b9d5edeb89f018672f2136edb282e591372dd1d67da4a15b41fe10c`、raw SHA-256 `c832c7a0330ebb2666cad24a829da526c8328c8d1744afd11becd850575b5a01`。
+- `target-5`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:01:18.325938+00:00→2026-10-27T05:01:24.073133+00:00、exit 1、5.747215170005802s、unittest/counts ['56']、Node []。metadata SHA-256 `f641176f52d6c5f5407448b2146a5ca218ac5872f4ff118fec2d633c74fddf69`、raw SHA-256 `9d4fee2d5e0705115ddd316084fe5b54fcd899850a79418f7de8540d21517fb2`。
+- `target-6`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:02:00.711901+00:00→2026-10-27T05:02:07.917959+00:00、exit 0、7.206153958977666s、unittest/counts ['56']、Node []。metadata SHA-256 `71ab8689909f3c5840cc5d88fb623359420451ed8c3ff9d23534870493d9ea9b`、raw SHA-256 `69b02a6e201fbf86bf9407cd24025ea6f08e3ff32018b4a56c2f6ec21ca27567`。
+- `generate-client-1`: `mise run generate-client`、2026-10-27T05:03:28.233811+00:00→2026-10-27T05:03:39.077877+00:00、exit 0、10.845525660028215s、unittest/counts []、Node []。metadata SHA-256 `f576b01fb84476fff49ba1784565f67cd6a2610dc274e207a4725b25b4451023`、raw SHA-256 `23006789dfbcd8301178deba14fc8a503ee873fa8ad100d30e9462412a1d02d0`。
+- `dev-types-4`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:03:51.245238+00:00→2026-10-27T05:03:51.662279+00:00、exit 0、0.41713826899649575s、unittest/counts []、Node []。metadata SHA-256 `8a415c298f61b4e334c808d7f64fa40271f3d3b3fdb062294c439dfba53ab832`、raw SHA-256 `f54b94bdf0b2914927b3d1ef02f2bf1de8ebc56e456f0fcf7b7e7f4a06f811fd`。
+- 2026-10-27T05:04:23.520606+00:00: 実装担当よりtarget-5の失敗原因はpurge fixtureが既存lifecycle_purgeでなくmemory_purgeを指定したため配送未生成と報告。fixtureを既存kindへ修正しtarget-6で56件成功。dev-types-2は新fixtureの型注釈49件/3files、dev-types-3はEmulator AuthServices戻りのAny1件、後続dev-types-4で334files成功。新Emulatorには実Firestoreの共通7scenario＋実Firebase bearer HTTPを追加。旧CAL01連携の再認可移行・rollback・復旧・費用・実provider未検証をdocs/calendar-events.mdに記録、client再生成済み。最終freeze/setup/checkの確認待ち。
+- `dev-format-2`: `mise exec -- uv run --all-packages --locked --offline ruff format .`、2026-10-27T05:04:42.318000+00:00→2026-10-27T05:04:42.382022+00:00、exit 0、0.06411669298540801s、unittest/counts []、Node []。metadata SHA-256 `56e70c0aec5e268f6e69da238c8450d8a4b70b906e32af476bc9d60b88ad9ca1`、raw SHA-256 `45564504b032030bdf42c138ebbb30c045a7acd99ffa3f6c1797432f860169dd`。
+- `dev-lint-2`: `mise exec -- uv run --all-packages --locked --offline ruff check . --fix`、2026-10-27T05:04:42.417537+00:00→2026-10-27T05:04:42.479624+00:00、exit 0、0.062177799991331995s、unittest/counts []、Node []。metadata SHA-256 `dc5694e8ba170a8f5dd477614eefef39094d5a8dcd3e9c5c82ae25c2a0a542c6`、raw SHA-256 `18a1870e43654de125f6cf52d247a1e8da43d31a58999f7c8f4b52783084d1be`。
+- `target-7`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:04:45.052098+00:00→2026-10-27T05:04:52.137315+00:00、exit 0、7.085315386997536s、unittest/counts ['57']、Node []。metadata SHA-256 `b4e635f606e468f76a969333723b8f18ed24a2ee3d0bc3dc0e4d25f773612281`、raw SHA-256 `5b9b2b29cdebab28881ecb5bbea042e631a7880924ba65c42d8f22c8a4433e93`。
+- `final-check-1`: `mise run check`、2026-10-27T05:05:47.662338+00:00→2026-10-27T05:05:51.201518+00:00、exit 0、3.5392708440194838s、unittest/counts []、Node []。metadata SHA-256 `9c411f5a526ba2b8368bc7b4ed184b8b0955d46996eb5abadee482e50fd595f4`、raw SHA-256 `743b78756283c27e2347015396f90c49716fb0efb0a02f3962e3af3bb2cc49f4`。
+- `final-setup-1`: `mise run setup`、2026-10-27T05:05:38.235918+00:00→2026-10-27T05:05:38.824094+00:00、exit 0、0.5882711879676208s、unittest/counts []、Node []。metadata SHA-256 `e6f052c3d1e1fb176579e3f0552cab9c743597ae0597bd72edadb8d1f2678c64`、raw SHA-256 `6829486254fd4329b6458ec9974af76f681a084cf03d31bc9f60312fef243b52`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/cal02_review_r1`（新規独立context）。base commit: `82e58b47fe4732771f4c30a236918aac6423f316`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `35d2bd8d04936cc50cc8d8da3b027cfaf683403e1b60bd4cddde02326cf88ae8` |
+| `docs/04-interfaces.md` | `34b0d7015487f8b0b363995e54e51fc75e34739b8cf45a28c492597aed9cbbcd` |
+| `docs/calendar-events.md` | `9c9d527075985e4d88831f0d78439b9034e87169a203177eb41f8ea402f7b621` |
+| `docs/calendar-oauth.md` | `9f0942d143302d3159a11f11ff543fa2cfadf80a82a1de6a736b463996e4e62d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `a6b23c08cb06f887419276833952e857505257aaf6e3ba42ea71ab249fee4eb4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `52982c5af1e31a3627e31f946457900e3868ea72710136b521e3ab671f6ab6c5` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f99f383f41f8115d97a9beffbee700ce1e3557df2230280d61a5f0928c50a9b5` |
+| `packages/memory/src/brainoid_memory/calendar_access.py` | `9ed1aec9f5376c53dfdd29d4f19fc4666d7372ad741286b5a404c2622dcf71fd` |
+| `packages/memory/src/brainoid_memory/calendar_reader.py` | `10e595cd453181455b414f3b99796d055fe60651490ed6ddf08e35a1c3a3071b` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `871003475ad18f5c907298030e1f579fa1c992a18d45b75fcc2c304c84c02f1f` |
+| `packages/tools/src/brainoid_tools/calendar.py` | `f7750e8ce0cc64dca1fee860963d952d44d9f8f58d51061a679ad4eb588d3cb8` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `services/api/src/brainoid_api/adapters/google_calendar.py` | `36258cc2bfbe37c8a04ae5c3c46c3f32237dc61501c0ee18bdbf5757e6768955` |
+| `services/api/src/brainoid_api/app.py` | `f5c1422544365bdfa13a5bdfae8765410729f9e72eeb87941eed4bf2bfb5b11e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `ca6efbd8869db640098b3854db6e3a7f0fb0e469de712415a41534e4d54b976f` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `16053a661739faf474c9232e862bea297c2b44e44d40a52b5f32184fec6a745b` |
+| `services/api/src/brainoid_api/routes/calendar_events.py` | `d0f888c6a48b8a1682e4476f26db57b42c337f70dfa3e848c5d642ee85e56cb1` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `9b91ed09ee1f27e44ad55c23709f49118bb04b2a17418cd0ee80f0a9eefb9fb0` |
+| `services/api/src/brainoid_api/services/calendar_authorization.py` | `de86ac5429625b7007f5c5d4f2a0a5f5f124c1bb502a45cb2156e5f44727f718` |
+| `services/api/src/brainoid_api/services/calendar_events.py` | `3c143e9eac3864e3bd3c6f545c03ea42c25e0d18a592ce5aef8ea6bed8a1a888` |
+| `services/worker/src/brainoid_worker/calendar.py` | `91c8fd41a41d677bfb53d8e374d6237dae8d8da4238a2c2de32b861af9bed6da` |
+| `services/worker/src/brainoid_worker/memory.py` | `a24c7eec7ce359fbe223610deff49fb61c661c9ded652c7c6162ea79c01df71f` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `c19413eabc850c6ca98a7336ca3c733d3a1c948e78f869c3665ee002519d9b02` |
+| `specs/openapi.yaml` | `3d1071ad6f570b92671f584e4319d449205cabbf022b319d5425b1519936504e` |
+| `specs/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `tests/emulator/test_calendar_events_integration.py` | `bf5f3a8241e29084d578df699fa67a02b478052bc967f3b4f3fb587cf400b509` |
+| `tests/fakes/calendar_events.py` | `ee0f2ef1eda2e0d86db53347b256b5fe90f1d3cf47aea10d5da4e7456578f0ee` |
+| `tests/fakes/calendar_scenarios.py` | `b721b328d71b6b17cb46171a613b83c179a114fbb89109dd771fbbea87cb6f8e` |
+| `tests/test_calendar_events.py` | `195f2f8e117e6952b20dfaf03b48bf7616d917c4f52f4dfa94616d52da847eef` |
+| `tests/test_calendar_tool.py` | `1894c2051b047ad4f5be8071ac4b3fcdf02a75be8d81d8e500064f95ce620d39` |
+- R1開始監査: 親が全503SHA・30変更paths・main/base/index空/diffcheck、final-setup-1/check-1の同SHA成功を確認。product `58ea8b8bc49f0324acc7692a669240045757caba4469dfb7fbc6b8704a2e7b50`、freeze SHA `60882e56219406f8b88681271c067e12ebe171615a25b486f665ce6419c22855`、親監査 SHA `7c752dbc4a06e8054dec96b14139326da07b81be69faaa745c7e74867305fc80`。新規独立 `/root/cal02_review_r1` を起動。全通常/Emulatorと正式handoff完了前は承認を確定しない。
+- 2026-10-27T05:07:19.042326+00:00: final-test-1（writer session38051）/final-emulator-1（29106）は最終freeze同SHAで並行開始。EmulatorはAuth/Firestore1組正常起動後にapi_startup_failed/Eを1件観測、終了時trace/exit未確定。成功には扱わず、writerとreviewerへ共有し、正式reviewと全active process終了まで製品変更を停止する。
+- 2026-10-27T05:08:47.113871+00:00: writerのread-only切分けではEmulator途中Eは共通CalendarEventsScenariosのHTTPtestがCAL01 CalendarFixture.clientのlocal-fake起動設定を継承し、存在するEmulator hostsとの混在をstartup gateが拒否した可能性。Emulator subclass client helperを実Emulator設定へ修正し、fake identity共通scenarioと実Firebase bearer専用testを区別する予定。製品認可gateは変更しない。正式trace/review確認・全process終了前は編集停止を維持。R1開始時全503/30 SHAはreviewer独立照合でも一致。
+- `review-r1-probe`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-probe.py`、2026-10-27T05:10:15.703428+00:00→2026-10-27T05:10:16.928556+00:00、exit 1、1.218486187979579s、unittest/counts ['8']、Node []。metadata SHA-256 `0a6879bb8d722b96192ee7a1f177fa43fab7d725c18d03f2136af820dd42fe8a`、raw SHA-256 `5a2d3038af20289c010823523b9cbc4a9aae1ed001618cde5f800a9e672f1615`。
+- 2026-10-27T05:11:25.429334+00:00: R1独立probe8件は6成功/2error。reviewerが選択role writerWithoutPrivateAccess拒否、commit済同key/body/If-Match再送時に不要provider GETが503となり保存済receiptへ到達しない問題を再現し、P2必須指摘予定として通知。正式全差分判定は未確定。probe source SHA `478ee26ab653a33ca1f592f3e593eb1f9e3877d17039d0159167a97d0ec2b4fb`、実ネットワーク禁止、前後503SHA不変。初回review harnessはimport済TestCaseまでdiscoveryしsandbox TestClient停止、自身session90858をinterrupt/exit130回収、別phase保存。修正harness session82876終了。writerのfullsuiteはそのまま終了待ち。
+- `final-test-1`: `mise run test`、2026-10-27T05:06:24.454644+00:00→2026-10-27T05:11:16.478096+00:00、exit 0、292.041338933981s、unittest/counts ['886', '18']、Node [['tests', '40'], ['pass', '40'], ['fail', '0']]。metadata SHA-256 `f532e729642a32fc25cd1050cc310d8baac189bde42fc335ba0aa627a6b23f1b`、raw SHA-256 `39568a592944f4a320d38d8632dc7bb773d22986f236bab22d3f2d2baafdbd9f`。
+- `review-r1-malformed`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-malformed.py`、2026-10-27T05:11:45.772454+00:00→2026-10-27T05:11:46.876547+00:00、exit 0、1.104079504031688s、unittest/counts []、Node []。metadata SHA-256 `fa64d65d507aaae9a7570a80a0bac2873448f7d07a8772f2b78f6dc36a6f02d6`、raw SHA-256 `8336f9d15bdf27696292b0146af0751a09774a9bc58513f5e5e0c1a9889a59c1`。
+- 2026-10-27T05:12:58.219396+00:00: R1追加診断probeはstart=[]/文字列でAttributeError、int/NoneではAPIError temporarily_unavailableを観測。probeのexit0は診断script正常終了であり不正応答検証成功ではない（countなし）。provider malformed pageの共通503変換不整合として3件目P2候補、正式report待ち。原raw SHA `8336f9d15bdf27696292b0146af0751a09774a9bc58513f5e5e0c1a9889a59c1`。
+
+### 独立レビュー ラウンド1 正式結果
+
+- 担当 `/root/cal02_review_r1`、新規独立context、2026-10-27T05:14:55.492171+00:00、判定 **request_changes**。最新全30変更pathと周辺の認可/worker/summary/export/purgeを確認。任意指摘0。
+- R1-01/P2 `services/api/src/brainoid_api/services/calendar_events.py:120`: 正当なwriterWithoutPrivateAccess roleを拒否。公式events.listの読取可能roleに対応しredaction維持、none/freeBusyReader/unknown拒否を回帰する。
+- R1-02/P2 同:110/117/146: commit済selectionの同key/body/If-Match再送がreceipt照合前にprovider GETを呼び、503で保存済成功へ戻れない。現在本人認可＋保存済receipt/body競合の事前確認を外部I/O前へ置き、新規だけprobe、TX内I/Oなしとcommit前競合再検査を維持。401/503再送と変更body競合を検証する。
+- R1-03/P2 `packages/memory/src/brainoid_memory/calendar_reader.py:138`: provider start/endがlist/strのときAttributeErrorが共通503変換から漏れる。object型を検査しmalformed pageを全体失敗・本文非漏洩にする。選択のprovider不正応答とACL拒否も区別。
+- R1-V1（必須検証、製品指摘と別）: final-emulator-1は未完走でstartup Eを観測。reviewerも継承HTTP fixtureのlocal-fake設定とEmulator hosts不一致を静的確認。Emulator向けclient helperを修正し、実Firebase bearer専用testとの区別とstartup gateを維持する。最終trace/count/exitは完走後に保存する。
+- 独立probe8件は6成功/2指摘再現error。追加malformed診断4形状は2AttributeError/2APIErrorを観測（exit0を4件成功とは扱わない）。初回harnessのTestCase誤discoveryによる停止も原source/raw/不足する開始時刻を明記して保存。reviewer自身4sessionは全終了、製品変更なし。provided通常886＋18＋Node40/40passとsetup/checkをraw/SHA照合、Emulator/正式writer handoffは未完了と明記。
+- report SHA `eb28f7b9d64dee835293a2d43efd46bdda2557f2a8c7df78c6187905b416c258`、result SHA `7fd4dcf022e192a11e59bab6cc504cb83b053d109635e2fb42adab51079be381`、end-audit SHA `f5c666a78d8c3b62a5278928b6751123f4e209c15e2493efb71a1b5ca0be6e4c`、artifactinventory SHA `3ae39a09375e66fdf37e8f6d272a0f48c665325e3ef984978718689aa74c616d`。全503SHA/30paths/main/base/index空/diffcheck・旧確定証跡一致。親の初回inventory照合は値を文字列と誤解し書込前にassert停止、正しい{sha256,bytes}形式で全成果物を再照合して成功。
+- 台帳review_rounds=1/in_progress。writerの既に起動済みEmulatorが終了し全session/終了監査を確定するまで製品は編集停止。修正は元実装担当へ返し、修正後の全最新差分は別新規R2でレビューする。
+- `final-emulator-1`: `mise run test-emulator`、2026-10-27T05:06:23.433493+00:00→2026-10-27T05:17:58.796581+00:00、exit 1、695.3953083300148s、unittest/counts ['251']、Node []。metadata SHA-256 `6d20d930c69bf11764e36128c03cafc24417f0939b154aa3d6d167ed02b63417`、raw SHA-256 `3056e20937981ac6faa7f6cb16eda58e005bb875400460ede87857b1e9d79828`。
+
+### R1検証終了・修正開始の前提確認
+
+- final-emulator-1は251件中error1、exit1、695.395308秒、最終固定SHA不変。traceはtest_selected_calendar_real_producer_and_http_contractのlocal-fake/Emulator startup設定不一致、Auth/Firestore/hub/logging正常停止を原rawに保存。metadata SHA `6d20d930c69bf11764e36128c03cafc24417f0939b154aa3d6d167ed02b63417`、raw SHA `3056e20937981ac6faa7f6cb16eda58e005bb875400460ede87857b1e9d79828`。
+- writer正式handoff `/tmp/ba-cal-02-r1-handoff.json` SHA `29c3eaa45bff2605e48de70518391c600c653df4a4101919dc1db4e7f454b399`、退出監査 SHA `3227d1af368a71b45093af9d38462d934b9accf70e126f9e4c6411eb02da75f0`。20phaseのmetadata/raw SHAを親も照合、全12writer session終了、全503/30不変。
+- 親host監査 `/tmp/ba-cal-02-parent-r1-final-audit.json` SHA `87dade0880d360725a3745cb79b4b87a02e878fc69d24f2af2a3eb1c13b3133b`。全503SHA/30paths/main/base/index空、setup/check/通常suiteの同SHA成功、5ports閉鎖（全111）を確認。Emulator失敗は別途原rawを照合し成功扱いにしない。
+- 旧証跡97ファイルを `/tmp/ba-cal-02-parent-r1-evidence-sha.json`（SHA `67ad1ed955690062278d383e78c21300b02f80c770efcb969fc09b88ecb2d9f3`）へ固定。元実装担当へR1-01/02/03/V1と `/tmp/ba-cal-02-r1fix-task.md` を返し、別prefixで修正・再検証後に新規R2全差分reviewを行う。
+- 2026-10-27T05:23:38.663567+00:00: R1修正担当より旧97証跡SHA一致、修正方針を受領。R1-02は共通Idempotencyを用いた現在認可/保存receiptの事前照合、未commitの場合だけ専用例外で読取TXを中断し外部probe、最後にexecute再実行。captured stamp/If-Match比較はmutation専用へ移して同key並行commitのreceipt収束を保つ。R1-01 role追加、R1-03 endpoint object検証/selection malformed503、V1 Emulator専用clientの修正と回帰追加中。まだ新freeze/承認ではない。
+- `r1fix-original-malformed-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-malformed.py`、2026-10-27T05:24:31.923120+00:00→2026-10-27T05:24:32.849142+00:00、exit 0、0.9261199079919606s、unittest/counts []、Node []。metadata SHA-256 `b37e46dc925cb4a03c23e4745615dd4f16d1358725c998e7d650300f13efc120`、raw SHA-256 `742079c19f1f20308a309235b51de9df831b719b96c96b63ab2057ccb4abe4b2`。
+- `r1fix-original-probe-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-probe.py`、2026-10-27T05:24:31.923907+00:00→2026-10-27T05:24:32.999544+00:00、exit 0、1.0757405190379359s、unittest/counts ['8']、Node []。metadata SHA-256 `67355d8c410cfec6c1eefc5afc86fcec3fc96e9ce870f97e3a0700246b359bc8`、raw SHA-256 `67ba0f5a820d51f3f44a01343ecc56a0a9d15efc9a93cd754efc47a7c7820558`。
+- `r1fix-target-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:23:59.312969+00:00→2026-10-27T05:24:06.769926+00:00、exit 1、7.457816147943959s、unittest/counts ['64']、Node []。metadata SHA-256 `e933120787b0fee61a45754128e932e3b17880001d609c24aabe8c5298d7ad08`、raw SHA-256 `0374028af37299aacc60009a19d992bfa746e0ccfff1fe97b770eb6b325dae40`。
+- `r1fix-target-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:24:17.443516+00:00→2026-10-27T05:24:24.936305+00:00、exit 0、7.492933742003515s、unittest/counts ['64']、Node []。metadata SHA-256 `5b147305873e6a63956293af24be45eee506f4b91c3b1d6a0c65f694c6e4f2e9`、raw SHA-256 `ddb0342fa87a2751d4e0782729fd5d8c5c297c32b213a906fea4fda19c13b6ef`。
+- 2026-10-27T05:25:17.335348+00:00: R1修正検証: 元source無変更probe8件が全成功、保存済selection replayの追加provider calls=0/version2維持を原raw確認。元malformed診断4形状は全APIError temporarily_unavailableへ変化（診断exit0だけの成功判定ではない）。r1fix-target-2は64件成功。途中target-1はerror envelope参照違い10errorとdescription Noneの公開4failを保存。writer報告ではenvelopeはfixture補正、任意description stringにnullを出すexclude_if配置不備は製品field定義で補正しHTTP欠落を確認する。最終freeze検証はこれから。旧97証跡SHAは親も全一致を確認。
+- `r1fix-dev-format-1`: `mise exec -- uv run --all-packages --locked --offline ruff format packages/memory/src/brainoid_memory/calendar_reader.py services/api/src/brainoid_api/services/calendar_events.py tests/fakes/calendar_events.py tests/emulator/test_calendar_events_integration.py`、2026-10-27T05:25:03.594290+00:00→2026-10-27T05:25:03.651712+00:00、exit 0、0.05744987598154694s、unittest/counts []、Node []。metadata SHA-256 `aa30d9b17e4d1611d530c6d36c4a5511f8e34f628198e6ff37eb609634d4bf23`、raw SHA-256 `ecadcab6ba8db65f26e491b8a5abf181e94e6e96cf96718dc2e4c83e7c8ab2c5`。
+- `r1fix-dev-lint-1`: `mise exec -- uv run --all-packages --locked --offline ruff check --fix packages/memory/src/brainoid_memory/calendar_reader.py services/api/src/brainoid_api/services/calendar_events.py tests/fakes/calendar_events.py tests/emulator/test_calendar_events_integration.py`、2026-10-27T05:25:03.743971+00:00→2026-10-27T05:25:03.802764+00:00、exit 1、0.05888440803391859s、unittest/counts []、Node []。metadata SHA-256 `5bda495ee8d9c67219de1892eea319a047fc16a30fe517297ecc0b4cfa78f3e9`、raw SHA-256 `ed19a408860b3f6092437bf4613bb83a12f83db3bbd1faa54f3ee05b0e99c032`。
+- `r1fix-dev-lint-2`: `mise exec -- uv run --all-packages --locked --offline ruff check packages/memory/src/brainoid_memory/calendar_reader.py services/api/src/brainoid_api/services/calendar_events.py tests/fakes/calendar_events.py tests/emulator/test_calendar_events_integration.py`、2026-10-27T05:25:30.631698+00:00→2026-10-27T05:25:30.690699+00:00、exit 0、0.05909073300426826s、unittest/counts []、Node []。metadata SHA-256 `19ff7945b11d8ccd4f86e82f4993a585d82c54657f0bc50933fbf95dd9168e43`、raw SHA-256 `82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18`。
+- `r1fix-dev-types-1`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:25:16.229504+00:00→2026-10-27T05:25:17.568617+00:00、exit 1、1.3392127539846115s、unittest/counts []、Node []。metadata SHA-256 `925c814d1f6181bff7219c598fe1ba83c0ed0679d40431d7323149ae0dce32cb`、raw SHA-256 `eed5860b6d75a5f92f33ae8f1b0b64ca751906c3c9c24aa8a4201811494deb56`。
+- `r1fix-dev-types-2`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:25:42.037718+00:00→2026-10-27T05:25:42.536598+00:00、exit 0、0.4989685700275004s、unittest/counts []、Node []。metadata SHA-256 `9f7f5711ff84d676e6ea4c00b46ce953dd18a42ef2f0d0005c47efe40f8c36df`、raw SHA-256 `f54b94bdf0b2914927b3d1ef02f2bf1de8ebc56e456f0fcf7b7e7f4a06f811fd`。
+- `r1fix-final-check-1`: `mise run check`、2026-10-27T05:26:13.413441+00:00→2026-10-27T05:26:17.117911+00:00、exit 0、3.704573958995752s、unittest/counts []、Node []。metadata SHA-256 `6a9e1ff29ab61bbf48a485f87383ba156a8b6f23cef5bb3cd8368f7c4897cc11`、raw SHA-256 `7e3a9ce1d9663c96fcf1ca888229412b6698d0b717c71e40ffdd1d1f4eb0f208`。
+- `r1fix-final-setup-1`: `mise run setup`、2026-10-27T05:26:06.886478+00:00→2026-10-27T05:26:07.489844+00:00、exit 0、0.6034569879993796s、unittest/counts []、Node []。metadata SHA-256 `2b9d7bc31a48fa7bbfe9c417419b487c0ab4f4bc0dcb9853d7fac7e2b5bff315`、raw SHA-256 `a29e3f05692c88c9d5a89f869202772cf16b4e20a334315a810dfcef4ac39185`。
+- `r1fix-original-malformed-2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-malformed.py`、2026-10-27T05:25:42.044050+00:00→2026-10-27T05:25:43.018973+00:00、exit 0、0.9750210509519093s、unittest/counts []、Node []。metadata SHA-256 `7a261578d0169fefa124d2bbb70437493ee1b47745a4b584c7f0a77e616ca549`、raw SHA-256 `742079c19f1f20308a309235b51de9df831b719b96c96b63ab2057ccb4abe4b2`。
+- `r1fix-original-probe-2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-probe.py`、2026-10-27T05:25:42.042572+00:00→2026-10-27T05:25:43.162727+00:00、exit 0、1.1204081819741987s、unittest/counts ['8']、Node []。metadata SHA-256 `0bfc84cec21809766abb3ce9ea102cf9360339820e378a5b8b7723a11f7346c4`、raw SHA-256 `4a2e2c2c9a58d4ccfe98e6db343cfb3eac1278a72bf0fe2e922a52aa66001365`。
+- `r1fix-target-3`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:25:18.600843+00:00→2026-10-27T05:25:26.061945+00:00、exit 0、7.4612053880118765s、unittest/counts ['64']、Node []。metadata SHA-256 `9c9f3ae6648b2b911fddf7bdab9cffd5f04fd74c3e74c38b36be428010e44b43`、raw SHA-256 `ddb0342fa87a2751d4e0782729fd5d8c5c297c32b213a906fea4fda19c13b6ef`。
+- `r1fix-target-4`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:25:53.276094+00:00→2026-10-27T05:26:00.827360+00:00、exit 0、7.552507620013785s、unittest/counts ['64']、Node []。metadata SHA-256 `01ffc41cf8e05f9fcaac1504cdff5f83f2b04954ca70d89228d6d6ab5dffe591`、raw SHA-256 `9928a835318bfe76b4728f282f2ec00062c24999df5fa9149fa10e68d9bbf06b`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/cal02_review_r2`（新規独立context）。base commit: `82e58b47fe4732771f4c30a236918aac6423f316`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `35d2bd8d04936cc50cc8d8da3b027cfaf683403e1b60bd4cddde02326cf88ae8` |
+| `docs/04-interfaces.md` | `34b0d7015487f8b0b363995e54e51fc75e34739b8cf45a28c492597aed9cbbcd` |
+| `docs/calendar-events.md` | `329c5ebbb7e2d619f0ed3f0834eab86209450672a4d063148aeb2c4367146e0b` |
+| `docs/calendar-oauth.md` | `9f0942d143302d3159a11f11ff543fa2cfadf80a82a1de6a736b463996e4e62d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `a6b23c08cb06f887419276833952e857505257aaf6e3ba42ea71ab249fee4eb4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `52982c5af1e31a3627e31f946457900e3868ea72710136b521e3ab671f6ab6c5` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f99f383f41f8115d97a9beffbee700ce1e3557df2230280d61a5f0928c50a9b5` |
+| `packages/memory/src/brainoid_memory/calendar_access.py` | `9ed1aec9f5376c53dfdd29d4f19fc4666d7372ad741286b5a404c2622dcf71fd` |
+| `packages/memory/src/brainoid_memory/calendar_reader.py` | `eead62cd0fcc005bb0152417fa1e77c2532ab5c12234795944d530006b328b07` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `871003475ad18f5c907298030e1f579fa1c992a18d45b75fcc2c304c84c02f1f` |
+| `packages/tools/src/brainoid_tools/calendar.py` | `f7750e8ce0cc64dca1fee860963d952d44d9f8f58d51061a679ad4eb588d3cb8` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `services/api/src/brainoid_api/adapters/google_calendar.py` | `36258cc2bfbe37c8a04ae5c3c46c3f32237dc61501c0ee18bdbf5757e6768955` |
+| `services/api/src/brainoid_api/app.py` | `f5c1422544365bdfa13a5bdfae8765410729f9e72eeb87941eed4bf2bfb5b11e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `ca6efbd8869db640098b3854db6e3a7f0fb0e469de712415a41534e4d54b976f` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `16053a661739faf474c9232e862bea297c2b44e44d40a52b5f32184fec6a745b` |
+| `services/api/src/brainoid_api/routes/calendar_events.py` | `d0f888c6a48b8a1682e4476f26db57b42c337f70dfa3e848c5d642ee85e56cb1` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `9b91ed09ee1f27e44ad55c23709f49118bb04b2a17418cd0ee80f0a9eefb9fb0` |
+| `services/api/src/brainoid_api/services/calendar_authorization.py` | `de86ac5429625b7007f5c5d4f2a0a5f5f124c1bb502a45cb2156e5f44727f718` |
+| `services/api/src/brainoid_api/services/calendar_events.py` | `08f00116f27cf95c7164acfc8cf5e7d417a00384c5e19da7bec6d3dc24656035` |
+| `services/worker/src/brainoid_worker/calendar.py` | `91c8fd41a41d677bfb53d8e374d6237dae8d8da4238a2c2de32b861af9bed6da` |
+| `services/worker/src/brainoid_worker/memory.py` | `a24c7eec7ce359fbe223610deff49fb61c661c9ded652c7c6162ea79c01df71f` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `c19413eabc850c6ca98a7336ca3c733d3a1c948e78f869c3665ee002519d9b02` |
+| `specs/openapi.yaml` | `3d1071ad6f570b92671f584e4319d449205cabbf022b319d5425b1519936504e` |
+| `specs/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `tests/emulator/test_calendar_events_integration.py` | `807fdaf0f61edb18b4247cb437b1cbb56a69dcec23916dad3b071a442b65e140` |
+| `tests/fakes/calendar_events.py` | `fed129f81ee6b1c2fcbc2fec5eefc4e00d814997de37bc34251b912fa66ef966` |
+| `tests/fakes/calendar_scenarios.py` | `b721b328d71b6b17cb46171a613b83c179a114fbb89109dd771fbbea87cb6f8e` |
+| `tests/test_calendar_events.py` | `195f2f8e117e6952b20dfaf03b48bf7616d917c4f52f4dfa94616d52da847eef` |
+| `tests/test_calendar_tool.py` | `1894c2051b047ad4f5be8071ac4b3fcdf02a75be8d81d8e500064f95ce620d39` |
+- R2開始: 新規独立 `/root/cal02_review_r2`、全30最新変更pathsを確認する。親は全503SHA/main/base/index空/diffcheckと新setup/check/対象64/元probe8/元malformed4の同最終SHA成功を照合。product `a5dbec190da83f65a2c9b8205e9fc33d3b97a76215d6479a2fdcd101d8dd6fe0`、freeze SHA `243d5f62857fc73d76dba5867793f7d15460f3ce969b11b2808c17fe742c1030`、親監査 SHA `9ed9f4e8d7e86fd64b2eb2a5c904156d76c2f61493afc2b865a6f808b0879a52`。旧97証跡SHA全一致。新全通常/Emulator/正式handoff終了前はapproveしない。
+- r1fix途中dev-lint-1はB904例外抑制1件、dev-types-1は新test shape型1件。修正後lint-2/types-2/最終checkは成功し、旧失敗も保持。
+- `r1fix-concurrent-probe-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-r1fix-multi-calendar-race-probe.py`、2026-10-27T05:30:16.102021+00:00→2026-10-27T05:30:17.414468+00:00、exit 1、1.3125352499773726s、unittest/counts ['1']、Node []。metadata SHA-256 `29415ccef149c0f533347aec9726b2903dbfca8e68e97a2b940617de4f3d1835`、raw SHA-256 `128c902d723235aa7216659253047290408b03a5c30a8ddd4514ed7132993f6e`。
+- `review-r2-probe`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r2-probe.py`、2026-10-27T05:29:24.158289+00:00→2026-10-27T05:29:25.736539+00:00、exit 1、1.5782434059656225s、unittest/counts []、Node []。metadata SHA-256 `e9798de09fc59f348ff532294db633fdc5c7a049de4c5231457b44f28ece9ace`、raw SHA-256 `4e3a09ce23a8afddc1e51f523e0a84887244a7aec01bc6b8e83c9bbf9f6f75f1`。
+- 2026-10-27T05:30:49.675610+00:00: R2独立probeで新race2件を再現。8件中6成功/2error、全503SHA不変。select before_sendのstamp比較（calendar_events.py:151）が、secret.get中または複数calendarの1件目応答後に同key/body/If-Match別要求がcommit済みの場合もreceipt再照合より先に412を返す。永続version3を観測。決定的nested fake callbacksで再現し実thread競合ではない。R1-02の開始時保存receipt再送は解消済み、今回のI/O途中commitは別境界としてR2-01候補。writerも複数calendarの同候補を見つけており原probeを共有。正式全差分判定と全suite終了前は編集停止。
+- `r1fix-final-test-1`: `mise run test`、2026-10-27T05:26:41.933173+00:00→2026-10-27T05:31:39.476812+00:00、exit 0、297.5571247509797s、unittest/counts ['893', '18']、Node [['tests', '40'], ['pass', '40'], ['fail', '0']]。metadata SHA-256 `f4c580bbe21810e0454cfa48c49d215cb00ec0e7c35b3b841cdbbba787215f0e`、raw SHA-256 `7f98d8e6b9334edfebb6348413ce3a18a24885d75eeb3bc05afc008dd211b2a1`。
+- 2026-10-27T05:32:15.276263+00:00: R2独立probeの件数fieldはtest_countsで、共通phase loggerのcounts欄には出ないため補足: 原metadata test_counts=[8]、rawは6pass/2error、exit1。source SHA `f0cb4d00664d7b77fce4960f9f020a40d603739af22387a48c11c18e7e831c53`。writer独自の同境界probe1件もexit1で再現しsession8127終了、以後追加診断停止。新全通常suiteは893＋18＋Node40成功、writer session15498終了、前後最終SHA一致。Emulatorは継続中、正式R2確定/全session終了まで編集停止。
+- 2026-10-27T05:33:46.028715+00:00: writerが未編集の次round案を共有。probe中のAPIError後に未検証stampのまま共通executeで現在認可/receiptを再照合し、保存済同一要求なら収束、未commitなら専用例外でTX中断して元provider/版エラーを保持する。失効/body競合は現在認可の拒否を優先する方針。secret読取中・複数probe間・provider失敗と同時commitの3境界を回帰予定。専用例外は固定メッセージとしDB documentを例外文面へ出さないよう整理予定。正式R2/全suite終了前はまだ編集しない。
+
+- 2026-10-27T05:38:54.337138+00:00: R2正式終了、独立 `/root/cal02_review_r2`、`request_changes`、必須1/P2 R2-01、任意0、review_rounds=2。calendar_events.py:151 のsecret取得中/複数calendar probe間に同key/body/If-Match要求が成功すると保存receiptより先に412を返す。8件中6成功/2再現error。元R1-01/02/03解消、Emulator fixture修正は全suite継続中。現在認可下のreceipt再照合と2境界回帰が必要。全503SHA/30paths/main/base/index空/diffcheck/旧97証跡不変、reviewer session31650終了、inventory11件を親がSHA照合。`ba-cal-02-review-r2-report.md` SHA `4ca278f20f82996ae3ca5bbd72642dbf941231f343d7864218635211e72b20b5`、`ba-cal-02-review-r2-result.json` SHA `56b663ecad752323a02c19578faec6907df9d876c520e782f2e795193f1d41cb`、`ba-cal-02-review-r2-end-audit.json` SHA `e86d4f9db3b19b651a75d113a0d2439bd48d0b420e1979948b5084836e7e0bf7`、`ba-cal-02-review-r2-artifactinventory.json` SHA `79c9f48047e5bfe62d56797873944d0ffb63a30f5aaaa4bcb4c3e5ad90cd746d`。
+- 親のinventory読取補助がR1形式artifacts/dict値を仮定してKeyError/TypeErrorになったため、R2のfiles/string値へ合わせ再検証し全11件一致。いずれも確認前に停止し製品変更なし。新全通常893＋18＋Node40成功、全Emulator/正式writer handoffが未完了のため編集凍結を継続。全終了・終了監査・旧証跡固定後だけ元writerへR2修正を返す。
+- `r1fix-final-emulator-1`: `mise run test-emulator`、2026-10-27T05:26:43.587109+00:00→2026-10-27T05:38:20.552257+00:00、exit 0、696.9959680499742s、unittest/counts ['258']、Node []。metadata SHA-256 `87e7a45e5d48b41562b30c5e66d59c2a58b31f160add41903ea123df36ad0a90`、raw SHA-256 `3352e876903985f3c4d3df13c9b32db2724a641e628999d9784bcb9907020b47`。
+- 2026-10-27T05:39:41.881950+00:00: R2後の全検証終了を親照合。setup/check/通常893＋18＋Node40/Emulator258成功、同503/30/product `a5dbec190da83f65a2c9b8205e9fc33d3b97a76215d6479a2fdcd101d8dd6fe0`。Emulator696.995968s、正常shutdown、全10 writer sessions/記録16PID終了、5ports閉鎖。formal r1fix-handoff SHA `c56ad0dffe35c50e612917b7e1f8f9dcd06d119d9f19eaa5948e645259f295bd`、exit-audit SHA `b8488b2af83e4771e784607f8c88f3ca695475548cf4cf92dba365f89d065489`、parent-r2-final-audit SHA `dfdd86f273d367cf0f16d32969b2df7c347a598f7fc1f233925b15af3ac85599`。全18 phase metadata/rawと旧97証跡を検証。
+- 次修正前の旧証跡を `/tmp/ba-cal-02-parent-r2-evidence-sha.json` に178件固定、SHA `e1f7ad08dfe9927c47d821d77c0b04ed1b4a8c1e76ddfde016496f693de69731`。正式R2指摘R2-01を元writerへ返し、新r2fix成果物と製品修正を開始する。前回全検証成功は旧SHAの結果として保持し、新SHAの必須検証と新R3全差分承認を必須とする。
+- `r2fix-dev-format-1`: `mise exec -- uv run --all-packages --locked --offline ruff format services/api/src/brainoid_api/services/calendar_events.py tests/fakes/calendar_events.py`、2026-10-27T05:41:52.521199+00:00→2026-10-27T05:41:52.579110+00:00、exit 0、0.05800557602196932s、unittest/counts []、Node []。metadata SHA-256 `2d9834db7b190f0aad6b212b49e9c7df4616279412dfeb236fe50a584c902415`、raw SHA-256 `10869b88a75066aa23546ef1f95fcd4678c3fb92a56ed46ef91688052b67976a`。
+- `r2fix-dev-lint-1`: `mise exec -- uv run --all-packages --locked --offline ruff check services/api/src/brainoid_api/services/calendar_events.py tests/fakes/calendar_events.py`、2026-10-27T05:41:52.668205+00:00→2026-10-27T05:41:52.723860+00:00、exit 1、0.055750644009094685s、unittest/counts []、Node []。metadata SHA-256 `fa3d77cf9561640fc776c33571c1dccabae2d50f8fad63ec68602dd752bf98be`、raw SHA-256 `0fd063f9575803757da08921b74b5d60d2b6e2657abf5a34813bfb1a9932c2e3`。
+- `r2fix-dev-lint-2`: `mise exec -- uv run --all-packages --locked --offline ruff check services/api/src/brainoid_api/services/calendar_events.py tests/fakes/calendar_events.py`、2026-10-27T05:42:19.144812+00:00→2026-10-27T05:42:19.204061+00:00、exit 0、0.05934239400085062s、unittest/counts []、Node []。metadata SHA-256 `9302b096c2cf0b7343e7c87f3c6153259872b28140d19ef3718de0f3c0bc7689`、raw SHA-256 `82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18`。
+- `r2fix-dev-types-1`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:42:19.144722+00:00→2026-10-27T05:42:19.657278+00:00、exit 0、0.5126499370089732s、unittest/counts []、Node []。metadata SHA-256 `27ad21cae1f45d377844ec2aedbfe8d18e44e990206c36d5d1b47e7a64f8ac0e`、raw SHA-256 `f54b94bdf0b2914927b3d1ef02f2bf1de8ebc56e456f0fcf7b7e7f4a06f811fd`。
+- `r2fix-review-r1-malformed-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-malformed.py`、2026-10-27T05:42:33.971522+00:00→2026-10-27T05:42:35.133052+00:00、exit 0、1.1616090879542753s、unittest/counts []、Node []。metadata SHA-256 `7fe8a378538eadc64304705085132dd801c5e83e103dccb1075f0e0f9fd39399`、raw SHA-256 `742079c19f1f20308a309235b51de9df831b719b96c96b63ab2057ccb4abe4b2`。
+- `r2fix-review-r1-probe-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-probe.py`、2026-10-27T05:42:33.966616+00:00→2026-10-27T05:42:35.283459+00:00、exit 0、1.3169358799932525s、unittest/counts ['8']、Node []。metadata SHA-256 `b3c4a870030368afbc60ac9fab84e10e841abbd38bca0ccc40ba18747ee9966c`、raw SHA-256 `a11805858a36c2c9fc8a0f966ccc3d7eb0b96ce5fdb9839575f85cec7c6be59d`。
+- `r2fix-review-r2-probe-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r2-probe.py`、2026-10-27T05:42:33.964075+00:00→2026-10-27T05:42:35.339018+00:00、exit 0、1.3750084459898062s、unittest/counts ['8']、Node []。metadata SHA-256 `4828273d1e956bff8d9f9ed4b35c0c02d74d9aad2ff85206804ca79efca02619`、raw SHA-256 `040e2a182812f2aaa60cad6200c624050cee717bf91ac3149387524e08d87d09`。
+- `r2fix-target-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:42:21.269394+00:00→2026-10-27T05:42:29.053628+00:00、exit 1、7.784331880975515s、unittest/counts ['74']、Node []。metadata SHA-256 `3e6c719a28df97796065f0065be55e59dfe81decb698d926e31574738832947c`、raw SHA-256 `ee37d208fd9a6fe18aa4c66f74048ab9e019c4aa9a9a5f5adb79f92d34c066d4`。
+- `r2fix-target-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:42:49.731881+00:00→2026-10-27T05:42:57.536921+00:00、exit 0、7.805137487011962s、unittest/counts ['74']、Node []。metadata SHA-256 `724e5ef6c0d261c7126a62eeb5677676bc3126fa7db78ca0738c53cd15cf49e1`、raw SHA-256 `7966de5d639e6c04b32105c20aec65255a77ab47b7d2a55d1f39f5b13b0eff8d`。
+- `r2fix-writer-race-probe-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-r1fix-multi-calendar-race-probe.py`、2026-10-27T05:42:33.965438+00:00→2026-10-27T05:42:35.131788+00:00、exit 0、1.1664650969905779s、unittest/counts ['1']、Node []。metadata SHA-256 `5aef83de413c5ef34e8d81d2fd51a4657b8784544ac9dbc8feac3760983ebe38`、raw SHA-256 `3a446073c186c977dcf8a576b23c76631b98b1fe96beff3e8b05c7cd8b976a9b`。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/cal02_review_r3`（新規独立context）。base commit: `82e58b47fe4732771f4c30a236918aac6423f316`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `35d2bd8d04936cc50cc8d8da3b027cfaf683403e1b60bd4cddde02326cf88ae8` |
+| `docs/04-interfaces.md` | `34b0d7015487f8b0b363995e54e51fc75e34739b8cf45a28c492597aed9cbbcd` |
+| `docs/calendar-events.md` | `23916b9dcc341b1ff18926b7d8d554372fa6c2d39bf801ece72d1659314d7d15` |
+| `docs/calendar-oauth.md` | `9f0942d143302d3159a11f11ff543fa2cfadf80a82a1de6a736b463996e4e62d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `a6b23c08cb06f887419276833952e857505257aaf6e3ba42ea71ab249fee4eb4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `52982c5af1e31a3627e31f946457900e3868ea72710136b521e3ab671f6ab6c5` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f99f383f41f8115d97a9beffbee700ce1e3557df2230280d61a5f0928c50a9b5` |
+| `packages/memory/src/brainoid_memory/calendar_access.py` | `9ed1aec9f5376c53dfdd29d4f19fc4666d7372ad741286b5a404c2622dcf71fd` |
+| `packages/memory/src/brainoid_memory/calendar_reader.py` | `eead62cd0fcc005bb0152417fa1e77c2532ab5c12234795944d530006b328b07` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `871003475ad18f5c907298030e1f579fa1c992a18d45b75fcc2c304c84c02f1f` |
+| `packages/tools/src/brainoid_tools/calendar.py` | `f7750e8ce0cc64dca1fee860963d952d44d9f8f58d51061a679ad4eb588d3cb8` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `services/api/src/brainoid_api/adapters/google_calendar.py` | `36258cc2bfbe37c8a04ae5c3c46c3f32237dc61501c0ee18bdbf5757e6768955` |
+| `services/api/src/brainoid_api/app.py` | `f5c1422544365bdfa13a5bdfae8765410729f9e72eeb87941eed4bf2bfb5b11e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `ca6efbd8869db640098b3854db6e3a7f0fb0e469de712415a41534e4d54b976f` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `16053a661739faf474c9232e862bea297c2b44e44d40a52b5f32184fec6a745b` |
+| `services/api/src/brainoid_api/routes/calendar_events.py` | `d0f888c6a48b8a1682e4476f26db57b42c337f70dfa3e848c5d642ee85e56cb1` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `9b91ed09ee1f27e44ad55c23709f49118bb04b2a17418cd0ee80f0a9eefb9fb0` |
+| `services/api/src/brainoid_api/services/calendar_authorization.py` | `de86ac5429625b7007f5c5d4f2a0a5f5f124c1bb502a45cb2156e5f44727f718` |
+| `services/api/src/brainoid_api/services/calendar_events.py` | `c3828008f982844f4c6c6bb24075c81e66aee2295542e9b65995be76ecd01146` |
+| `services/worker/src/brainoid_worker/calendar.py` | `91c8fd41a41d677bfb53d8e374d6237dae8d8da4238a2c2de32b861af9bed6da` |
+| `services/worker/src/brainoid_worker/memory.py` | `a24c7eec7ce359fbe223610deff49fb61c661c9ded652c7c6162ea79c01df71f` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `c19413eabc850c6ca98a7336ca3c733d3a1c948e78f869c3665ee002519d9b02` |
+| `specs/openapi.yaml` | `3d1071ad6f570b92671f584e4319d449205cabbf022b319d5425b1519936504e` |
+| `specs/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `tests/emulator/test_calendar_events_integration.py` | `807fdaf0f61edb18b4247cb437b1cbb56a69dcec23916dad3b071a442b65e140` |
+| `tests/fakes/calendar_events.py` | `48dab320a490cf1e434ad10abb68fbe17a778f10117cf5554777f81878c6455f` |
+| `tests/fakes/calendar_scenarios.py` | `b721b328d71b6b17cb46171a613b83c179a114fbb89109dd771fbbea87cb6f8e` |
+| `tests/test_calendar_events.py` | `195f2f8e117e6952b20dfaf03b48bf7616d917c4f52f4dfa94616d52da847eef` |
+| `tests/test_calendar_tool.py` | `1894c2051b047ad4f5be8071ac4b3fcdf02a75be8d81d8e500064f95ce620d39` |
+- `r2fix-final-check-1`: `mise run check`、2026-10-27T05:43:52.178853+00:00→2026-10-27T05:43:55.586844+00:00、exit 0、3.4080932959914207s、unittest/counts []、Node []。metadata SHA-256 `0784d71668b86f2e191671f47a75abe710cdb8a66d041c0b0293e3c6c83b730d`、raw SHA-256 `b619335d973ad1e0ee733af376a7a4ec9217426cbdc65615fa58814b15dc7885`。
+- `r2fix-final-setup-1`: `mise run setup`、2026-10-27T05:43:49.440469+00:00→2026-10-27T05:43:50.051315+00:00、exit 0、0.6109452370437793s、unittest/counts []、Node []。metadata SHA-256 `e7d6732700cafc32fccb0b86f6a95b37abda7e172618a06aba4aa99e89620a9c`、raw SHA-256 `313a2193508ee58e13c9d3d5d5eb11c55f33448806269db5a7d2ab99dba83768`。
+- `r2fix-review-r1-malformed-2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-malformed.py`、2026-10-27T05:43:31.842214+00:00→2026-10-27T05:43:32.951137+00:00、exit 0、1.1091021060128696s、unittest/counts []、Node []。metadata SHA-256 `e601303dc49e4deb0d561a43360af2866713501bb4d5e5d836f4186123e9cb28`、raw SHA-256 `742079c19f1f20308a309235b51de9df831b719b96c96b63ab2057ccb4abe4b2`。
+- `r2fix-review-r1-probe-2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r1-probe.py`、2026-10-27T05:43:31.843944+00:00→2026-10-27T05:43:33.174912+00:00、exit 0、1.331070811022073s、unittest/counts ['8']、Node []。metadata SHA-256 `fc676612c88748aca07a51127397881264353f2c7d5eeb22a60cf33c2a7a217b`、raw SHA-256 `6372f51b30996a506b421e1abb0a1abf88ab0f4f579181655d62b37a1237425a`。
+- `r2fix-review-r2-probe-2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r2-probe.py`、2026-10-27T05:43:31.847494+00:00→2026-10-27T05:43:33.244710+00:00、exit 0、1.3972998170065694s、unittest/counts ['8']、Node []。metadata SHA-256 `7ca2feed78189308d4599d5084fb66726bc0d00d6f072c322cb180c8e4bebadf`、raw SHA-256 `ba57295744b956c26ea48ae6508f0c5adc1ad96858689a9a3f6d915c43c6e70e`。
+- `r2fix-writer-race-probe-2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-r1fix-multi-calendar-race-probe.py`、2026-10-27T05:43:31.845240+00:00→2026-10-27T05:43:33.027877+00:00、exit 0、1.1829513609991409s、unittest/counts ['1']、Node []。metadata SHA-256 `b488b954d4b1bf774b1fa76d5bef9678ac93ce99d261f725ba24aac4db0e83ba`、raw SHA-256 `acd14e197de7500861cec4b5acd2cade74806ce075d2ba4c31eb8fb0346cf0a2`。
+- 2026-10-27T05:44:51.165188+00:00: R3開始、新規独立 `/root/cal02_review_r3` が最新全30変更pathsを確認。製品503files aggregate `e09aed4a915808235c843a4a79db19a20173324acbc069e52bc02d0dd5307331`、freeze SHA `96de30f255561ca66bd4878cf83729a8da57c23edfff7571182211b41400be32`、親開始監査 SHA `a0191c47533989ff9df213682db9085d5102f9d175a211bc4fd5b3f5aa74dcf4`。旧178証跡不変、新setup/check/target74/元R1probe8/R2probe8/writerprobe1/malformed診断4形状を同最終SHA照合。新全通常session58253/全Emulator85877継続中、承認前に全必須suiteと正式handoff/exit-auditを要する。
+- R2修正はprobe中APIErrorの後に未検証stampで現在認可と共通receiptを照合する。保存済なら復帰、未commitならTXを専用固定例外で中断して元エラーを維持する。shared回帰10件追加。dev-lint-1のloop callback捕捉4件を修正しlint-2/type成功。target-1の2件はowner/失効時の非開示404に対して403を期待したfixture誤りで、既存契約に合わせtarget-2全74件成功。失敗rawも保持。
+- `review-r3-probe`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r3-probe.py`、2026-10-27T05:47:14.806882+00:00→2026-10-27T05:47:16.297547+00:00、exit 0、1.4906633039936423s、unittest/counts ['8']、Node []。metadata SHA-256 `f89fc1d0492892fc85cd5f4342c7f7ae1565f19b6f77d521b5351fe9c98d8db5`、raw SHA-256 `7fdcd362ef8cb8ca4f40159878a1a0a1b73df19775069c0e828e6749f3216455`。
+- 2026-10-27T05:48:45.657207+00:00: R3独自fake probe8件全成功。secret失敗後同key復帰、別body409/失効拒否、24h期限、第二calendar malformed時無書込、正規化途中版変更、複数probe競合と別If-Match409、secret中失効で送信阻止を確認。source SHA `4e46111e93eeaeb1e69aaf51593ff5cd3d03e78e34a65bfb1ea591cf05b38be0`。requests/socketを遮断し実provider/Emulatorなし。reviewerは全503SHA・旧178証跡不変を確認、現時点必須指摘なし。正式判定は新全suite/終了handoff後。
+- `r2fix-final-test-1`: `mise run test`、2026-10-27T05:44:15.836188+00:00→2026-10-27T05:49:15.623872+00:00、exit 0、299.8014945950126s、unittest/counts ['903', '18']、Node [['tests', '40'], ['pass', '40'], ['fail', '0']]。metadata SHA-256 `45654c6f6db0da8528163528e9fa20e1d5f78794ee974e2532a38cf0afac77e9`、raw SHA-256 `7713e0af9879681cacd952f15f939bfdd56c04d287e426744becf91f7bca5a8e`。
+- `review-r3-cursor-probe`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r3-cursor-probe.py`、2026-10-27T05:50:36.897706+00:00→2026-10-27T05:50:38.058193+00:00、exit 1、1.1604806059622206s、unittest/counts ['3']、Node []。metadata SHA-256 `6a34cc10f63fa66d0921b5d34299685dcf886000534ed380625c73a2c99a1c28`、raw SHA-256 `4f2f146ea7876934e7c649f99cc296d2b236d052d0a80d0ddf7d150406242ee5`。
+- `review-r3-cursor-http-host`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r3-cursor-http-host.py`、2026-10-27T05:52:37.465444+00:00→2026-10-27T05:52:38.726994+00:00、exit 1、1.261545669985935s、unittest/counts ['1']、Node []。metadata SHA-256 `519de2e595b95afb693bc25c26a350eac1172735978b4de03d375e263b14f029`、raw SHA-256 `e966d2c2ccdd23af7ee6cd98c4c9f51abd2080ad12394c81d71505c66d40e0d7`。
+- 2026-10-27T05:56:34.381303+00:00: R3正式終了、新規独立 `/root/cal02_review_r3`、request_changes、必須1/P2 R3-01、任意0、review_rounds=3。calendar_reader.py:300のcursor発行でJSONエスケープ後position/wire上限を超えたValueErrorが503へ変換されず500となる。service3件中ASCII384正例1成功、backslash300/Unicode100の2error、HTTP1test/3subcases中2失敗（200/500/500）で再現。部分成功・情報漏えいは観測せず。受理opaque tokenの往復を維持し、表現不能なprovider continuationを公開前にsanitized503へ分類する必要。R1/R2指摘は全解消、独自境界8件成功。
+- R3成果物: `review-r3-report.md` SHA `d7ab9a69a3dd1d5834deaa6141f538112b4f2faf910ebe76a7a88be911fd23ca`、`review-r3-result.json` SHA `e8a18c4fd3c5ae2af5b9fd865c7c14f30c0d7fad1cdf8d86a1be8ac76311e0d6`、`review-r3-end-audit.json` SHA `ea3e27ad70fc54295a735b0ad35754a57a243ec5738768afca8cd17b15efe18c`、`review-r3-artifactinventory.json` SHA `1468d16b4e8d8b46bda9ed9e56e3dea127f3d3a42486d4f2070461fedc364c12`。親はinventory24件と503files/30paths/製品SHA不変を照合。旧178証跡不変・全reviewer process終了。初回sandbox HTTPは自己session70896を中断exit130、start/runtime未保存の不完全phaseとして保持し成功扱いしない。hostで実route/middleware/threadpoolと外部送信遮断を使って再現し自己processなし。
+- R3監査時点のEmulatorは未完了、通常903＋18＋Node40成功。正式writer handoffと全suite終了監査・親旧証跡map固定の後だけ元writerが次r3fixを開始する。
+- `r2fix-final-emulator-1`: `mise run test-emulator`、2026-10-27T05:44:19.257932+00:00→2026-10-27T05:56:16.165120+00:00、exit 0、716.9386628699722s、unittest/counts ['268']、Node []。metadata SHA-256 `375fc5dcdc1914ecbc966b06c023fe9d728d6857c3e8c7d81ee427913946126a`、raw SHA-256 `da8198b8ea8b6d0cfb201faa7302183e8e72086a0897f874ba50e947036df61c`。
+- 2026-10-27T05:57:29.571188+00:00: R3対象の全検証終了とformal handoffを親照合。setup/check/通常903＋18＋Node40/Emulator268成功、同503/30/product `e09aed4a915808235c843a4a79db19a20173324acbc069e52bc02d0dd5307331`。全13 writer sessions/既知16PID終了、正常shutdown、5ports閉鎖。r2fix-handoff SHA `3e5faeb7864c842f8580f1ead51256da2fd76521eb0fe5b6b0fcf2c299cf1076`、exit-audit SHA `9e994d3825cd01f7cc225bdedcb7bd37c9d519cd0131dc89a1ea6ce1787f85f2`、parent-r3-final-audit SHA `d906f8f2eb0c6c524c82f9caa778d339cafe9a59e2cb0849743e59302f16f641`。全18phase metadata/rawと旧178証跡一致。
+- 次修正前の旧証跡を `/tmp/ba-cal-02-parent-r3-evidence-sha.json` に270件固定、SHA `d38f38d6432928a85df68fa047b0bd7de3d183ae17ee8047c297abbd25d21c23`。元writerへR3-01修正を返し、新r3fix成果物・新最終SHAの必須検証・新R4全差分レビューで確認する。
+
+### 独立レビュー ラウンド4 対象固定
+
+- 担当 `/root/cal02_review_r4`（新規独立context）。base commit: `82e58b47fe4732771f4c30a236918aac6423f316`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `35d2bd8d04936cc50cc8d8da3b027cfaf683403e1b60bd4cddde02326cf88ae8` |
+| `docs/04-interfaces.md` | `34b0d7015487f8b0b363995e54e51fc75e34739b8cf45a28c492597aed9cbbcd` |
+| `docs/calendar-events.md` | `43fd8f4ad5a6da1c60a7a5e487ad56ff002cc115cbef845fac5811a9703c5f30` |
+| `docs/calendar-oauth.md` | `9f0942d143302d3159a11f11ff543fa2cfadf80a82a1de6a736b463996e4e62d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `a6b23c08cb06f887419276833952e857505257aaf6e3ba42ea71ab249fee4eb4` |
+| `packages/api-client/src/generated/sdk.gen.js` | `52982c5af1e31a3627e31f946457900e3868ea72710136b521e3ab671f6ab6c5` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f99f383f41f8115d97a9beffbee700ce1e3557df2230280d61a5f0928c50a9b5` |
+| `packages/memory/src/brainoid_memory/calendar_access.py` | `9ed1aec9f5376c53dfdd29d4f19fc4666d7372ad741286b5a404c2622dcf71fd` |
+| `packages/memory/src/brainoid_memory/calendar_reader.py` | `e8080568b97edaebae4e4c59cae388cc43a15428e983374c0bf8dc2879b12adb` |
+| `packages/memory/src/brainoid_memory/export_projection.py` | `871003475ad18f5c907298030e1f579fa1c992a18d45b75fcc2c304c84c02f1f` |
+| `packages/tools/src/brainoid_tools/calendar.py` | `f7750e8ce0cc64dca1fee860963d952d44d9f8f58d51061a679ad4eb588d3cb8` |
+| `packages/tools/src/brainoid_tools/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `services/api/src/brainoid_api/adapters/google_calendar.py` | `36258cc2bfbe37c8a04ae5c3c46c3f32237dc61501c0ee18bdbf5757e6768955` |
+| `services/api/src/brainoid_api/app.py` | `f5c1422544365bdfa13a5bdfae8765410729f9e72eeb87941eed4bf2bfb5b11e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `ca6efbd8869db640098b3854db6e3a7f0fb0e469de712415a41534e4d54b976f` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `16053a661739faf474c9232e862bea297c2b44e44d40a52b5f32184fec6a745b` |
+| `services/api/src/brainoid_api/routes/calendar_events.py` | `d0f888c6a48b8a1682e4476f26db57b42c337f70dfa3e848c5d642ee85e56cb1` |
+| `services/api/src/brainoid_api/routes/run_events.py` | `9b91ed09ee1f27e44ad55c23709f49118bb04b2a17418cd0ee80f0a9eefb9fb0` |
+| `services/api/src/brainoid_api/services/calendar_authorization.py` | `de86ac5429625b7007f5c5d4f2a0a5f5f124c1bb502a45cb2156e5f44727f718` |
+| `services/api/src/brainoid_api/services/calendar_events.py` | `c3828008f982844f4c6c6bb24075c81e66aee2295542e9b65995be76ecd01146` |
+| `services/worker/src/brainoid_worker/calendar.py` | `91c8fd41a41d677bfb53d8e374d6237dae8d8da4238a2c2de32b861af9bed6da` |
+| `services/worker/src/brainoid_worker/memory.py` | `a24c7eec7ce359fbe223610deff49fb61c661c9ded652c7c6162ea79c01df71f` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `c19413eabc850c6ca98a7336ca3c733d3a1c948e78f869c3665ee002519d9b02` |
+| `specs/openapi.yaml` | `3d1071ad6f570b92671f584e4319d449205cabbf022b319d5425b1519936504e` |
+| `specs/tool-contracts.schema.json` | `250213f89c8ad24845c340727ae64e7024ae89d13a59c777d7c8a31804631c47` |
+| `tests/emulator/test_calendar_events_integration.py` | `807fdaf0f61edb18b4247cb437b1cbb56a69dcec23916dad3b071a442b65e140` |
+| `tests/fakes/calendar_events.py` | `8b4aba63ab749e538ab4b7e86c8c3fd4cb8028add89330c9cb7b2be35910cf7b` |
+| `tests/fakes/calendar_scenarios.py` | `b721b328d71b6b17cb46171a613b83c179a114fbb89109dd771fbbea87cb6f8e` |
+| `tests/test_calendar_events.py` | `195f2f8e117e6952b20dfaf03b48bf7616d917c4f52f4dfa94616d52da847eef` |
+| `tests/test_calendar_tool.py` | `121748befd0476fb7ff35f3c362c1a6ed86e875f9633410b275c0bc9e1ee0f7f` |
+- `r3fix-dev-format-1`: `mise exec -- uv run --all-packages --locked --offline ruff format packages/memory/src/brainoid_memory/calendar_reader.py tests/fakes/calendar_events.py tests/test_calendar_tool.py`、2026-10-27T05:59:27.620769+00:00→2026-10-27T05:59:27.677776+00:00、exit 0、0.05710410000756383s、unittest/counts []、Node []。metadata SHA-256 `141540cf742b8880681dcabfb650b8919879be734c017d46bf6f35221c934ce8`、raw SHA-256 `257e2056c07d2caeafd1fe2ade777c2fe7d25f1092cd23bdcf4cf6c416daac14`。
+- `r3fix-dev-lint-1`: `mise exec -- uv run --all-packages --locked --offline ruff check packages/memory/src/brainoid_memory/calendar_reader.py tests/fakes/calendar_events.py tests/test_calendar_tool.py`、2026-10-27T05:59:47.944924+00:00→2026-10-27T05:59:48.000444+00:00、exit 0、0.05561420100275427s、unittest/counts []、Node []。metadata SHA-256 `a4043573b5fa8768e6d382523fee1fd23b481acb4093b41b7a820246741fff0e`、raw SHA-256 `82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18`。
+- `r3fix-dev-types-1`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T05:59:27.770338+00:00→2026-10-27T05:59:28.301445+00:00、exit 0、0.5312072439701296s、unittest/counts []、Node []。metadata SHA-256 `c707c6db634f516e8a40cfc17c5d8a6c3e92a1105984a789b923fc0ba02215dc`、raw SHA-256 `f54b94bdf0b2914927b3d1ef02f2bf1de8ebc56e456f0fcf7b7e7f4a06f811fd`。
+- `r3fix-final-check-1`: `mise run check`、2026-10-27T06:00:16.910711+00:00→2026-10-27T06:00:20.454849+00:00、exit 0、3.5442376059945673s、unittest/counts []、Node []。metadata SHA-256 `c2f216382070cbeb1ff13247a01bbefd6a51677e7636b2edc2e44dc54e0373f9`、raw SHA-256 `05ff0eb0835e47e82479e7059a1b744afcb2c1e606ef7863d400a817a6eb9c98`。
+- `r3fix-final-setup-1`: `mise run setup`、2026-10-27T06:00:14.240021+00:00→2026-10-27T06:00:14.829133+00:00、exit 0、0.5892184459953569s、unittest/counts []、Node []。metadata SHA-256 `c1b519bcd8294e18e0b24f4dcbaab31d264a72f27e97627383a2505237fa07f8`、raw SHA-256 `ffb21c571fdec6903721094f0cd358a0083c24333934737cf4d2a37baf39fc7e`。
+- `r3fix-original-cursor-http-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r3-cursor-http-host.py`、2026-10-27T05:59:50.093777+00:00→2026-10-27T05:59:50.983529+00:00、exit 0、0.8898534820182249s、unittest/counts ['1']、Node []。metadata SHA-256 `290b22526480af368bdda37f61720e4785de68fbec48b18810500859c91e4f39`、raw SHA-256 `40991aa657d6d223c39add6b794d6d1223055e82f8306886deb127e31177103e`。
+- `r3fix-original-cursor-service-1`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r3-cursor-probe.py`、2026-10-27T05:59:47.942843+00:00→2026-10-27T05:59:48.839091+00:00、exit 0、0.8963517129886895s、unittest/counts ['3']、Node []。metadata SHA-256 `4c88aac9bb771fe38511cc47c78d0f417d03017152b5e19058052978a96a28f3`、raw SHA-256 `8562732b57ab2f995289b68fdc608125391cceb8816c728f558bd595ca4e17ef`。
+- `r3fix-target-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_calendar_*.py'`、2026-10-27T05:59:30.495766+00:00→2026-10-27T05:59:39.078249+00:00、exit 0、8.582578806963284s、unittest/counts ['78']、Node []。metadata SHA-256 `6d8f4a7a84f1aa73fd23a7ff1b94a444a7e05aca1f22197ad84e5f2bf5b3947a`、raw SHA-256 `782ec4e36f31316648cf61da33c9cb2b38f370a03b6bc35b615ab6c91a98f971`。
+- 2026-10-27T06:01:25.390449+00:00: R4開始、新規独立 `/root/cal02_review_r4` が最新全30変更pathsを確認。製品全503files aggregate `39d3ee78dfce0b400610e3b21a01b4f90ef438258fe00e72e3c9a9c52d1fb813`、freeze SHA `fe99535b78947489de6192a0c4cb64f810eeab43554de373556e02e211ead426`、親開始監査 SHA `1a3e86dfe60a3f482e08d4193db8d69a3e7f71ea0d063f73d068e0e180f18f01`。旧270証跡不変、新setup/check/対象78/原cursor service3・HTTP1test3subcasesを同最終SHA成功確認。修正はcursor発行ValueErrorのみ503へ変換、共通制限と現在認可APIErrorを維持。shared回帰3/defaulttool回帰1で正常opaque往復と部分page非露出を検証。全通常session31485/全Emulator68004継続中、全suite/handoff前はapprove不可。
+- `review-r4-focused`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-cal-02-review-r4-focused.py`、2026-10-27T06:04:59.074035+00:00→2026-10-27T06:05:00.498210+00:00、exit 0、1.4192147310241126s、unittest/counts ['3']、Node []。metadata SHA-256 `ceb7b14b8f2567aae96fd1cc0b42bad1a8a923aa84e44a0aeb3db8e515c16998`、raw SHA-256 `303a9362c8a0885f2d95dedd6207d0b90a15de7585c6c5949f77b742bc0dc83f`。
+- 2026-10-27T06:06:34.285241+00:00: R4独自focused3件成功、opaque8条件・cursor wire ValueErrorの503とAPIError保持・正規化後世代変更時のcursor発行拒否を確認。source SHA `25d2c244960bd135ec35a29d0ae51c378c3379ee713d800e87fcf9e333f204f1`。初回はimport済fixture TestCaseをunittestが余分に収集してsandbox HTTPで60秒timeout、自己session29032終了exit1をincomplete証跡として保存。明示testcase選択の再実行のみ合格根拠とする。製品前後SHA不変、全外部送信遮断/Emulatorなし、全差分・周辺消去/再利用の確認で現時点必須指摘なし、正式判定は全suite/handoff後。
+- `r3fix-final-test-1`: `mise run test`、2026-10-27T06:00:44.069980+00:00→2026-10-27T06:05:43.444127+00:00、exit 0、299.3879104779917s、unittest/counts ['907', '18']、Node [['tests', '40'], ['pass', '40'], ['fail', '0']]。metadata SHA-256 `7dd2c04ad043ddf4c0cd72fb6a0b6e726d1f076912875116f7081997dc37e0b4`、raw SHA-256 `34d8e4ab848f7bad59981bd94da3923508bec484f373dd368fbc3b954c7803a3`。
+- `r3fix-final-emulator-1`: `mise run test-emulator`、2026-10-27T06:00:46.063650+00:00→2026-10-27T06:12:44.286133+00:00、exit 0、718.255619464966s、unittest/counts ['271']、Node []。metadata SHA-256 `363d4edf3cf4f16c13385e5e6409bdc80ff6847ffd4852ec74b822940c95f691`、raw SHA-256 `8c5ee473235bc308974c1b6b570565c2eb3b0a7429b9e763f6e4d6fbd839ccf7`。
+- 2026-10-27T06:14:01.476709+00:00: 最終writer handoffの全10phase exit0/metadata・raw・前後productSHAと旧270証跡不変を親照合。通常907＋18＋Node40、Emulator271（718.255619s）、正常shutdown、全4 writer sessions/既知16PID終了・5ports閉鎖。全503files/30paths/最終aggregate39d3ee…不変。r3fix-handoff SHA `2655101852903b606e1e315df881ab3128c65635359ba0e321bc349474db2205`、exit-audit SHA `026ba78c612fd052bbf9a2d3e980af2dbca653c926c21a9ff7cc11433adcaba4`、親hostfinal audit SHA `f9ad7d877fb729e7d1fb0e3b63daadc5cd06710d3ffaf61efe7b6974ea4a8340`。正式R4判定を待つ。
+
+### 受入条件と最終検証の対応
+
+| 受入条件 | 実装・検証根拠 | 結果 |
+| --- | --- | --- |
+| 終日end排他・日付跨ぎ・DST・版/取得時刻 | CalendarReader、CalendarDate/CalendarDateTime、固定fixture、Calendar対象78件 | 成功 |
+| 本人選択・実scope・共有Pi/他owner/session範囲拒否 | 本人PATCH・OAuth producer binding・current_integration・private_session/device family/epoch、fakeとEmulatorの同scenario/実Firebase bearer | 成功 |
+| 部分失敗/認証切れを空成功にしない | 401/403/timeout/malformed/ページ予算/符号化cursor上限、HTTP共通503とdefaulttool unavailable、原cursor再現probe | 成功 |
+| 会話calendar.listから同参照service・権限拡張禁止 | 既定登録・型付き引数・private会話、現在出典をモデル入力/checkpoint/history/SSE/次turn/exportで検査 | 成功 |
+| 応答喪失/並行再送と消去・再利用 | 保存receiptの現在認可照合、secret/probe間同key競合、別body/失効/24h期限、実生成物export失効とlifecycle purge | 成功 |
+| 必須全体検証 | 同最終SHAのsetup/check、通常907＋スキル18＋Node40、Emulator271。追加独立R4 focused3件 | 成功、正式R4判定待ち |
+
+- 依存追加なし。HTTP/workerへ明示compositionが必要で、既定は未構成として閉じる。旧CAL01のscope/binding証拠がない連携は再認可・本人calendar再選択を要する。任意fetched_at/limit/cursorの契約と生成clientを整合。
+- 復旧・切戻し: provider失敗を空成功/盲目再送にせず、同選択更新の応答喪失は同key/body/If-Matchへ収束。出典検査のない旧版へ戻す前にCalendar由来会話/run/tool/checkpoint/SSE/exportを既存lifecycle手順で消去・失効する。秘密/連携をDB snapshotだけで復活させない。
+- 未実施: 実Google/OAuth/Secret Manager/cloud/実端末、実索引/性能/費用検証。fake/Emulatorで独立完了するdocs08§1の範囲。provider後続変更のpush同期、自動token refresh、Calendar書込は今回実装しない。料金はlocal fake/Emulatorでprovider課金なし、実構成はpageごとのsecret/GET・認可DB/ledger・会話/exportの保存費用が別途生じる。詳細はdocs/calendar-events.md。
+- 2026-10-27T06:15:51.746191+00:00: R4正式approve、独立 `/root/cal02_review_r4`、必須0・任意0・全前回指摘解消、review_rounds=4。新最終SHAの全必要suite/handoff/exit監査と全503files/30paths/旧270証跡不変・自己process終了を確認。親もinventory21件・原報告・終了mapを照合。
+- 最終承認成果物: `review-r4-report.md` SHA `24285c8b4f0fd61ae2f4690d7849d09741e02dd38e8834b1e7b53f58a38eee6d`、`review-r4-result.json` SHA `24e8f1b201d1a16b6a8b5ad699f138ca17f887832f223f56681a1aa5af07e822`、`review-r4-end-audit.json` SHA `7180b082cefcbad20a9de0e53af54adde6de8e7c3dc02940d725cfa7653c929d`、`review-r4-artifactinventory.json` SHA `da6f6938e343c6334d990d94091c2b750efa9ab535ebcc77b45ca8c0918c7b74`。未解決要修正0、すべての受入条件と必須検証が揃ったため承認済み30pathsを実装commitする。
+
+### 完了結果
+
+- 2026-10-27T06:16:40.044711+00:00: BA-CAL-02実装完了、実装commit `eb9eb72bc209686bf9bf00a1777989f6a83965b1`。本人が選択したCalendar予定をHTTPと既定calendar.listから同一serviceで取得し、終日/時刻/版/取得時刻を正規化、private sessionと保存出典の現在認可、ページ失敗、export/消去を検査する。
+- 独立レビュー4回、最終approve・必須/任意未解決0。最終setup/check/通常907＋スキル18＋Node40/Emulator271成功。全30stage/commit pathsとblob SHAが承認manifestに一致し、全503製品SHA不変。cached patch SHA `06200c6a6862b62961b4eed0c7cb993a787456de8f0e1c650382f0ee4b171adb`。
+- 台帳をdoneへ更新し、実装commit後は親metadata2filesだけが未コミット。これからdone更新後のmise run checkを実行し、成功後に完了記録を別commitする。実環境変更・push/PRは行っていない。
+- `parent-record-check`: `mise run check`、2026-10-27T06:16:42.174085+00:00→2026-10-27T06:17:04.284498+00:00、exit 0、22.111676530039404s、unittest/counts ['Success: no issues found in 334 source files']、Node []。metadata SHA-256 `c332844a5f7cb4c9ed28cf4d586abcca9e4fb3c6193c9128fb116d37ebee40eb`、raw SHA-256 `b32c06f298990851e961b908b01e67c141cb079d043c770372dd611ab4e6633c`。
+- done更新後の親 `mise run check` はexit0、22.111677s、334 source filesと全check成功、台帳43/96 done。親session85096終了。raw SHA `b32c06f298990851e961b908b01e67c141cb079d043c770372dd611ab4e6633c`、metadata SHA `c332844a5f7cb4c9ed28cf4d586abcca9e4fb3c6193c9128fb116d37ebee40eb`。実装・全検証・R4承認・完了記録が揃い、台帳/log2filesのみ別commitする。
