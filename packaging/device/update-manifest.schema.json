@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brainoid.invalid/device/update-manifest.v1.schema.json",
+  "title": "Brainoid application release manifest v1",
+  "description": "release.json inside a TUF target USTAR archive. Schema 2 only; no migration in this updater ABI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "os", "architecture", "protocol", "sqlite_schema", "runtime_abi"],
+  "properties": {
+    "format": { "const": 1 },
+    "version": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "os": { "const": "linux" },
+    "architecture": { "enum": ["aarch64", "x86_64"] },
+    "protocol": { "const": 1 },
+    "sqlite_schema": { "const": 2 },
+    "runtime_abi": { "const": "brainoid-device-python313-v1" }
+  }
+}

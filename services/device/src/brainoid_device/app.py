@@ -1,6 +1,8 @@
 """Local service and durable storage; no cloud/audio/device-control adapters yet."""
 
 import asyncio
+import os
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
@@ -26,6 +28,9 @@ class DeviceApplication:
         self, settings: Settings, *, startup: Callable[[Runtime], Awaitable[None]] | None = None
     ) -> None:
         assets = load_assets(settings.static_dir)
+        activation = os.environ.get("DEVICE_ACTIVATION_NONCE", "")
+        if activation and re.fullmatch("[0-9a-f]{64}", activation) is None:
+            raise ValueError("invalid activation identity")
         self.credentials = CredentialStore(settings.credentials_dir)
         self.runtime = Runtime()
         self.shutdown_failed = False
@@ -63,7 +68,9 @@ class DeviceApplication:
                 and storage.status in {"ready", "unregistered"}
             )
             return JSONResponse(
-                {"status": "ok" if healthy else "unavailable"}, status_code=200 if healthy else 503
+                {"status": "ok" if healthy else "unavailable"},
+                status_code=200 if healthy else 503,
+                headers={"X-Brainoid-Activation": activation} if activation else None,
             )
 
         async def state(request: Request) -> Response:

@@ -1,6 +1,6 @@
 # Pi 常駐サービスとローカル UI 境界
 
-BA-DEV-01/02、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、家電操作、更新はまだ接続していない。
+BA-DEV-01/02、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、家電操作はまだ接続していない。更新は[専用supervisor](device-updates.md)が所有する明示的なローカル経路として提供する。
 
 ## 起動・設定検査・停止
 
@@ -44,6 +44,8 @@ root 実行は拒否する。設定不足・不正な値・読めないstatic/cr
 | `POST /local/session` | 正確な Origin と `X-Brainoid-Local: 1` が必須。200 で `csrf_token` と残秒 `expires_in`、HttpOnly Cookie を返す |
 | `GET/HEAD /local/state` | 現在の Cookie が必須。`status`（running/stopping）、`instance_id`（プロセス生成ごとの UUID）、`started_at`（UTC）、`software_version`、`storage_status`（unregistered/ready/reset_pending/recovery_required）を返す。tenant・cursor・資格情報参照は返さない |
 | `DELETE /local/session` | Origin、現在の Cookie と、その session に結び付く `X-CSRF-Token` が必須。204 で session を消去し Cookie を期限切れにする |
+
+updater所有の起動では `/healthz` にその子を識別する `X-Brainoid-Activation` headerを付ける。これは認可tokenではなく、別listenerの200応答を更新成功と誤認しないための識別子である。通常の単独起動では付けない。
 
 全要求は body なし。Content-Length は省略または 0 に限り、transfer encoding は拒否する。WebSocket と CORS は提供しない。アプリケーションのエラー本文は固定 `{"error":"code"}`。未対応 method は 405 `{"error":"method_not_allowed"}` と `application/json` を返し、`Allow` は対象 path の対応 method を保持する。状態変更の Origin 不足/不一致と CSRF 不備は 403、session 不備は 401、session 上限は 429、重複 security header は 400。HTTP 構文の不正や runtime の過負荷拒否は h11/Uvicorn がアプリケーションより先に応答する場合があり、その応答は JSON 契約の対象外とする。
 

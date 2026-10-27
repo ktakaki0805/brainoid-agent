@@ -117,6 +117,8 @@ Home Assistantは利用者のLAN上のinstanceを最初の連携先とする。�
 
 ### 5.2 アプリ更新
 
+BA-DEV-08のローカル実装、manifest、起動方法、schema 2固定の切戻し制約と電源断手順は[Piアプリの署名更新と復旧](device-updates.md)を参照する。production root・署名公開pipeline・実機導入は別途必要である。
+
 更新はAgentのtool実行とは独立したupdaterで行う。配布物はversion、hash、対応OS/architecture、要求protocol、metadata有効期限、署名を持たせ、出荷時に信頼したrootから検証する。署名鍵のrotation、古いmetadataの再送、期限切れ、破損fileを扱える既存の検証方式を採用する。TUFのmetadataと署名・hash・version・expiryの仕組みを初期方式の基準とする。[TUF概要](https://theupdateframework.io/docs/overview/)
 
 配備先はversionごとに分け、検証と展開が成功してから起動先をatomicに切り替える。SQLite migrationは互換性を確認し、rollbackに必要な状態を保つ。再起動前に個人セッションを終了し、進行中の家電操作を結果不明のまま再実行しない。

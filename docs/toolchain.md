@@ -194,3 +194,10 @@ device の配布にはこれらと既存 lock の anyio/h11/click、contracts �
 BA-DEV-02はPython標準の `sqlite3` / `fcntl` を使用し、新しいpackageやlock更新はない。SQLiteのtransaction・migration・command台帳と、Linux directory flockによる保存領域の単独所有を担う。実行権限はサービスUIDが所有する別の0700 state directoryと既存credential directoryの読書き・fsync/unlinkに限定する。Python同梱SQLiteの配布条件を既存Python runtimeのnoticeと併せて保持する。[保存層契約](device-storage.md)にSQLite設定、reset、復旧と実機未検証の条件を記録する。
 
 BA-DEV-03のAPI実行依存は既存固定版 `anyio==4.15.1`（MIT、request cancel scopeに対するcleanupの保護）、`jsonschema==4.26.0`（MIT）と `websockets==17.3`（BSD-3-Clause）を直接宣言する。前者は同梱WSS schema検証、後者はUvicornの専用transportに使う。推移依存版の変更や外部権限の追加はない。[接続・ログ契約](device-gateway.md)を参照する。
+
+
+## Pi更新の検証依存
+
+BA-DEV-08 は device member に `uv add --package brainoid-device tuf==7.0.1 'securesystemslib[crypto]==1.3.1'` で直接依存を固定した。TUFは署名付きmetadataの完全なclient workflow、securesystemslibのcrypto extraはEd25519等の署名検証を提供する。2026-10-28に公式[TUF固定版metadata](https://github.com/theupdateframework/python-tuf/blob/v7.0.1/pyproject.toml)、[securesystemslib固定版](https://github.com/secure-systems-lab/securesystemslib/tree/v1.3.1)、導入済みsource/METADATAを照合した。TUF 7.0.1はPython >=3.10、Apache-2.0 OR MIT、securesystemslib 1.3.1はPython ~=3.8、MITで、固定Python 3.13に適合する。TUF 7系の保守済み修正版を選択し、securesystemslibはその宣言範囲内の安定版に固定した。
+
+新規packageはこの2件だけで、既存lockの版は変更しない。device配布の依存閉包に既存 `cryptography`（Apache-2.0 OR BSD-3-Clause）、`urllib3`（MIT）、関連するCFFI/pycparserのnoticeを含める。cloud KMS/HSM extraは導入しない。必要な権限は配布URLへのHTTPS読取、専用update directoryと既存stateの読書き、所有daemon/子孫の起動停止とloopback healthのみ。署名秘密鍵、IAM追加、host service管理権限は不要。[更新契約](device-updates.md)にtest rootとproductionの分離、実行ABI、復旧と未実施の実機検証を記録する。
