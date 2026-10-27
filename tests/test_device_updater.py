@@ -610,6 +610,9 @@ def main():
     return 1
 """
         else:
+            # The command leader owns a dedicated session. Put the regrouping
+            # process beneath it so setpgrp exercises a distinct descendant group.
+            command_source = f"import subprocess,sys; subprocess.Popen([sys.executable, '-c', {child_source!r}]).wait()"
             source = f"""
 import asyncio, sys
 from pathlib import Path
@@ -617,7 +620,7 @@ from brainoid_device.app import DeviceApplication
 from brainoid_device.config import load_settings
 from brainoid_device.server import serve
 async def startup(runtime):
-    await runtime.start_child([sys.executable, '-c', {child_source!r}])
+    await runtime.start_child([sys.executable, '-c', {command_source!r}])
     while not Path({str(marker)!r}).exists():
         await asyncio.sleep(0.01)
 def main():
@@ -667,7 +670,10 @@ def main():
         old = daemon.process
         assert old is not None
         owned = json.loads(marker.read_bytes())
-        self.assertEqual(owned["session"], old.pid)
+        # Runtime commands have a dedicated session, while their trusted guardian
+        # remains in the updater-owned daemon session and must drain before switch.
+        self.assertNotEqual(owned["session"], old.pid)
+        self.assertTrue(OwnedDaemon.session_members(old.pid))
 
         def checkpoint(phase: str) -> None:
             if phase == "pointer_staged":

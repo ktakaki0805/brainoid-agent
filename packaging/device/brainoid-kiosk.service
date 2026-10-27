@@ -1,0 +1,34 @@
+[Unit]
+Description=Brainoid local recovery display
+Wants=brainoid-agent.service dbus.socket systemd-logind.service
+After=brainoid-agent.service systemd-user-sessions.service dbus.socket systemd-logind.service getty@tty7.service
+Conflicts=getty@tty7.service
+ConditionPathExists=/dev/tty0
+
+[Service]
+Type=simple
+User=brainoid-kiosk
+Group=brainoid-kiosk
+PAMName=brainoid-kiosk
+Environment=HOME=/run/brainoid-kiosk
+Environment=XDG_SESSION_TYPE=wayland
+RuntimeDirectory=brainoid-kiosk
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/cage -- /usr/local/libexec/brainoid-kiosk-browser
+ExecStartPost=+/usr/bin/chvt 7
+Restart=always
+RestartSec=5
+UMask=0077
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+UtmpIdentifier=tty7
+UtmpMode=user
+KillMode=control-group
+TimeoutStopSec=15
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

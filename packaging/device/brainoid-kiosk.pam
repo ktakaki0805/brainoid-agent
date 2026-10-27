@@ -1,0 +1,4 @@
+# Only systemd uses this session stack for the locked kiosk account.
+account required pam_unix.so
+session required pam_unix.so
+session required pam_systemd.so

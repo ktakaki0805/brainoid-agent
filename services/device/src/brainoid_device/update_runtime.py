@@ -18,6 +18,16 @@ from brainoid_device.migrations import APPLICATION_ID, SCHEMA_VERSION
 from brainoid_device.storage import CredentialStore
 from brainoid_device.update_files import UpdateError, private_directory, read_file
 
+GUARDIAN_NAME = "brainoid-guard"
+
+
+def is_guardian(pid: int) -> bool:
+    try:
+        return Path(f"/proc/{pid}/comm").read_text().strip() == GUARDIAN_NAME
+    except (FileNotFoundError, ProcessLookupError):
+        return False
+
+
 # Fixed trusted launcher; the only inserted source directory is a verified release.
 # Linux parent-death signal closes sessions/resources even if supervisor is killed.
 LAUNCH = """
@@ -227,6 +237,7 @@ class OwnedDaemon:
 
     @classmethod
     def signal_member(cls, pid: int, birth: str, session: int, sig: signal.Signals) -> None:
+        """Advance one nonblocking signal step; force callers rescan to their deadline."""
         try:
             fd = os.pidfd_open(pid)
         except ProcessLookupError:
@@ -236,8 +247,27 @@ class OwnedDaemon:
             # and pidfd_open must never turn a stale PID into an unrelated signal.
             if cls.identity(pid) == (session, birth):
                 try:
+                    if sig == signal.SIGKILL:
+                        if is_guardian(pid):
+                            # This trusted role never changes back. It is safe to
+                            # request cleanup, including after our earlier STOP.
+                            signal.pidfd_send_signal(fd, signal.SIGUSR1)
+                            signal.pidfd_send_signal(fd, signal.SIGCONT)
+                            return
+                        # A negative role read is unstable: Python may enter the
+                        # guardian and create a separate command session next.
+                        # Stop it first; only a later observed stopped state can
+                        # make the negative classification safe for SIGKILL.
+                        fields = Path(f"/proc/{pid}/stat").read_text().rsplit(") ", 1)[1].split()
+                        if fields[0] not in {"T", "t", "Z", "X"}:
+                            signal.pidfd_send_signal(fd, signal.SIGSTOP)
+                            return
+                        if is_guardian(pid):
+                            signal.pidfd_send_signal(fd, signal.SIGUSR1)
+                            signal.pidfd_send_signal(fd, signal.SIGCONT)
+                            return
                     signal.pidfd_send_signal(fd, sig)
-                except ProcessLookupError:
+                except (FileNotFoundError, ProcessLookupError):
                     pass
         finally:
             os.close(fd)
@@ -262,6 +292,12 @@ class OwnedDaemon:
             try:
                 if cls.identity(pid) == (leader, birth):
                     try:
+                        if is_guardian(pid):
+                            status = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                            if status is not None and (
+                                status.si_code != os.CLD_EXITED or status.si_status != 0
+                            ):
+                                raise UpdateError()  # unknown command-tree state: retain ownership
                         os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG)
                     except (ChildProcessError, ProcessLookupError):
                         pass  # Not yet reparented from the dying owned daemon.
@@ -288,7 +324,10 @@ class OwnedDaemon:
         while time.monotonic() < deadline:
             self.reap_members(child.pid)
             code = self.exited()
-            if code is not None and (code != 0 or not self.session_members(child.pid)):
+            members = self.session_members(child.pid)
+            if code is not None and (
+                not members or (code != 0 and not any(is_guardian(pid) for pid in members))
+            ):
                 break
             time.sleep(0.02)
         if self.exited() is None or self.session_members(child.pid):
@@ -299,7 +338,7 @@ class OwnedDaemon:
         deadline = time.monotonic() + self.kill_seconds
         while time.monotonic() < deadline:
             # Rescan: a member can fork between enumeration and its termination.
-            if self.session_members(child.pid):
+            if self.exited() is None or self.session_members(child.pid):
                 self.signal_session(child.pid, signal.SIGKILL)
             self.reap_members(child.pid)
             if self.exited() is not None and not self.session_members(child.pid):

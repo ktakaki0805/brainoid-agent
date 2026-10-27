@@ -74,7 +74,7 @@ class Sessions:
         response.set_cookie(COOKIE, token, max_age=remaining, httponly=True, samesite="strict")
         return response
 
-    async def logout(self, request: Request) -> Response:
+    def authorize_mutation(self, request: Request) -> tuple[str, Session] | Response:
         current = self.find(request)
         if current is None:
             return error("session_required", 401)
@@ -83,6 +83,12 @@ class Sessions:
             supplied, current[1].csrf
         ):
             return error("csrf_required", 403)
+        return current
+
+    async def logout(self, request: Request) -> Response:
+        current = self.authorize_mutation(request)
+        if isinstance(current, Response):
+            return current
         del self._sessions[current[0]]
         response = Response(status_code=204)
         response.delete_cookie(COOKIE, httponly=True, samesite="strict")
@@ -138,6 +144,8 @@ class LocalBoundary:
             b"cookie",
             b"x-csrf-token",
             b"x-brainoid-local",
+            b"x-brainoid-reset-token",
+            b"x-brainoid-confirm",
             b"sec-fetch-site",
             b"content-length",
             b"transfer-encoding",

@@ -1,6 +1,6 @@
 # Pi 常駐サービスとローカル UI 境界
 
-BA-DEV-01/02、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、家電操作はまだ接続していない。更新は[専用supervisor](device-updates.md)が所有する明示的なローカル経路として提供する。
+BA-DEV-01/02/09、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、家電操作はまだ接続していない。更新は[専用supervisor](device-updates.md)が所有する明示的なローカル経路として提供する。
 
 ## 起動・設定検査・停止
 
@@ -47,6 +47,8 @@ root 実行は拒否する。設定不足・不正な値・読めないstatic/cr
 
 updater所有の起動では `/healthz` にその子を識別する `X-Brainoid-Activation` headerを付ける。これは認可tokenではなく、別listenerの200応答を更新成功と誤認しないための識別子である。通常の単独起動では付けない。
 
+BA-DEV-09は `GET /local/diagnostics`（session必須）、`POST /local/reset/prepare` と `POST /local/reset`（session/CSRF必須）を追加する。prepareは60秒のsession束縛tokenを発行する。実行は `X-Brainoid-Reset-Token` と `X-Brainoid-Confirm: local-administrator` を必要とする。完了200は `local_reset: complete`、未完了503は `local_reset: incomplete` とし、両方で `remote_revocation: unconfirmed` を返す。確認不足/期限切れは403。成功後はlocal sessionを破棄する。診断はservice/storage/reset、OS link・時刻同期・空き容量、保存音量/マイク設定だけを返す。cloud/audioはunavailable。導入と運用は[Pi導入手順](device-setup.md)に従う。
+
 全要求は body なし。Content-Length は省略または 0 に限り、transfer encoding は拒否する。WebSocket と CORS は提供しない。アプリケーションのエラー本文は固定 `{"error":"code"}`。未対応 method は 405 `{"error":"method_not_allowed"}` と `application/json` を返し、`Allow` は対象 path の対応 method を保持する。状態変更の Origin 不足/不一致と CSRF 不備は 403、session 不備は 401、session 上限は 429、重複 security header は 400。HTTP 構文の不正や runtime の過負荷拒否は h11/Uvicorn がアプリケーションより先に応答する場合があり、その応答は JSON 契約の対象外とする。
 
 セッション Cookie `brainoid_local` は Domain 指定なし、Path=/、HttpOnly、SameSite=Strict、最大30分。HTTP loopback のため Secure 属性は使用しない。256-bit random token と独立した CSRF token をメモリだけに持ち、最大32 session、期限延長なし。期限内の同じ Cookie に対する bootstrap は同じ CSRF token と残期限を返す。daemon 再起動時にはすべて失効し、UI は再 bootstrap する。cloud refresh token や HA token を含まない。
@@ -80,9 +82,9 @@ static は root/サービス UID 所有、group/other 書込不可、通常 file
 
 ## ライフサイクルと unit
 
-所有タスクと子プロセスは `Runtime.start_task` / `start_child` に登録する。完了 task は保持集合から除き、例外内容をログに出さず回収する。起動 hook 自体も所有 task とし、最大5秒の完了期限を設ける。SIGINT/SIGTERM は Linux event loop の signal handler に登録し、selector を起こして起動待機へ停止 event を通知する。周期 worker がなく Event だけを待つ場合も、起動期限を待たず cleanup に進める。終了時には元の signal handler を復元する。停止要求を受けた協調的な起動中止と、起動例外・期限超過・取消拒否による異常終了を区別する。起動途中の失敗も同じ cleanup を通る。child 生成呼出元の取消が発生しても、内部生成 task を shield して所有登録を完了してから cleanup する。
+所有タスクと子プロセスは `Runtime.start_task` / `start_child` に登録する。完了 task は保持集合から除き、例外内容をログに出さず回収する。起動 hook 自体も所有 task とし、最大5秒の完了期限を設ける。SIGINT/SIGTERM は Linux event loop の signal handler に登録し、selector を起こして起動待機へ停止 event を通知する。周期 worker がなく Event だけを待つ場合も、起動期限を待たず cleanup に進める。終了時には元の signal handler を復元する。停止要求を受けた協調的な起動中止と、起動例外・期限超過・取消拒否による異常終了を区別する。起動途中の失敗も同じ cleanup を通る。child 生成呼出元の取消が発生しても、内部生成 task を shield して所有登録を完了してから cleanup する。BA-DEV-09では小さな信頼済みguardianがcommandを専用Linux sessionに置き、async-facing handleで終了を観察する。handleの `pid` はdaemonと同じsessionに残るguardianを指す。`wait()` / `returncode` は直接の子の終了結果を返すが、子孫が残る間は `waitid(WNOWAIT)` によりleaderをreapせずPID/sessionの同一性を保持する。呼出元が `waitpid` / `Popen.poll` でleaderを回収したり、子孫を別sessionへdaemonizeすることは禁止する。通常終了でsession全体が空になれば監視taskがleaderを回収し、所有集合から除くため、短命childのzombieを溜めない。 commandのexit codeとguardianの成否は専用pipeで区別し、guardianの異常終了をcommand成功にしない。guardianは実行中daemonと同じ検証済みpackage treeを明示してisolated Pythonで起動し、PYTHONPATHに依存しない。親の終了でもPDEATHSIGでcommand sessionの消去を継続する。
 
-終了時は listener を閉じ、HTTP 処理を最大3秒待ち、所有 task を cancel、直接の子に SIGTERM を送る。子を最大3秒待ち、残る子を SIGKILL してさらに最大3秒で reap する。task（起動 hook を含む）の取消完了は最大3秒、event loop の最終 drain は1秒。停止要求からの待機上限は HTTP 3秒 + 子の TERM/KILL/reap 6秒 + task 3秒 + 最終 drain 1秒で計13秒。起動中は HTTP 待機を必要とせず、起動期限5秒を停止要求後に追加しない。繰返しの停止信号でも lifespan cleanup を省略しない。取消を無視する task が残れば正常終了を主張せず exit 1 とする。拡張は cancel に協力し、未登録・daemonize した子を作らない。CPU を同期的に占有する拡張や OS 側で停止不能なプロセスの最終上限は unit の `TimeoutStopSec=15` と `KillMode=control-group` が担い、孫プロセスも cgroup 全体で回収する。
+終了時は listener を閉じ、HTTP 処理を最大3秒待ち、所有 task を cancel、guardianへSIGTERMを送り、guardianが専用command session全体を停止する。pidfdを取得後にPID/birth/sessionを照合してsignalを送り、process groupを変えた子孫も扱う。processをsubreaperにするが、回収対象は所有session内だけに限る。全child共通の期限で最大3秒待ち、残るguardianへSIGUSR1で強制停止を要求し、guardianがcommand sessionへSIGKILLを送り、遅れてforkされた子孫も再走査して最大3秒で回収する。子孫の消滅を確認してからcommand leaderをreapし、guardianがclosedを返して終了する。その後Runtimeがguardianもreapする。期限内に消滅を確認できない場合はguardianを殺さずleader/handleを保持して安全な再試行を可能にし、resetのdurable fenceも外さない。task（起動 hook を含む）の取消完了は最大3秒、event loop の最終 drain は1秒。停止要求からの待機上限は HTTP 3秒 + 子の TERM/KILL/reap 6秒 + task 3秒 + 最終 drain 1秒で計13秒。起動中は HTTP 待機を必要とせず、起動期限5秒を停止要求後に追加しない。繰返しの停止信号でも lifespan cleanup を省略しない。取消を無視する task が残れば正常終了を主張せず exit 1 とする。拡張は cancel に協力し、未登録・daemonize した子を作らない。CPU を同期的に占有する拡張や OS 側で停止不能なプロセスの最終上限は unit の `TimeoutStopSec=15` と `KillMode=control-group` が担い、契約に反して別sessionへ離脱した子孫も最終的にcgroup全体で回収する。ローカルresetはdaemonを生かすため、この最終unit停止に依存せず、サポートする所有session全体の停止確認を消去完了の条件とする。
 
 unit は `brainoid-agent` 専用 User/Group、UMask=0077、資格情報用 `brainoid-agent` とSQLite用 `brainoid-agent-state` の2つの StateDirectory（mode 0700）、読取専用 system/home 保護、権限昇格禁止、空 capability set、core dump 禁止を定義する。`serve` 自体が設定検査するため、復旧用local APIを妨げる `ExecStartPre check` は置かない。[環境設定例](../packaging/systemd/device.env.example)は秘密値を含まない。`/opt/brainoid/.venv/bin/python`、built display directory、`/etc/brainoid/device.env` と専用ユーザーの準備が導入前提。実機導入・kiosk・audio 権限調整は BA-DEV-09/BA-VOICE-04 の範囲とする。このチケットは host のユーザー作成、unit install/start を実行しない。
 
@@ -98,7 +100,7 @@ mise exec -- uv run --all-packages --locked --offline python -B -m unittest disc
 
 Linux 実プロセス試験は IPv4/IPv6 listener、実 interface の非 loopback 接続拒否、Origin/HTTP parser、UI の繰返し HTTP GET と同一 instance、SIGINT/SIGTERM、取消無視 child の強制回収、task finally、部分起動失敗、起動待機中の SIGINT/SIGTERM と TERM 無視 child、協調/取消無視の起動 hook、無信号での起動期限超過、周期処理なしの起動待機に対する両 signal の応答と handler 復元、取消無視 task の有限終了を確認する。fixture と異なる OS の実プロセス試験は skip として明示される。ASGI 正負例だけを LAN 非到達やプロセス寿命の根拠にしない。
 
-Linux x86_64 での HTTP 再読込み検証を、実 GUI browser、Raspberry Pi、systemd によるインストール/起動の検証として扱わない。本環境には GUI browser がなく、その描画確認と実機の性能・権限・OS 統合は未実施。unit は `systemd-analyze verify` で静的確認する。未設置の `/opt/brainoid/.venv/bin/python` は元 unit の検査で失敗するため、開発環境では executable path だけを存在する Python に置き換えた一時 copy の検査と区別して記録する。
+Linux x86_64 での HTTP 再読込み検証を、実 GUI browser、Raspberry Pi、systemd によるインストール/起動の検証として扱わない。DEV-01時点の描画確認は未実施だった。BA-DEV-09ではbuilt UIをlocal headless browserで検証する。実機の性能・権限・OS統合は引き続き未実施。unit は `systemd-analyze verify` で静的確認する。未設置の `/opt/brainoid/.venv/bin/python` は元 unit の検査で失敗するため、開発環境では executable path だけを存在する Python に置き換えた一時 copy の検査と区別して記録する。
 
 この変更は cloud API/永続層・Firestore transaction・認可 repository を変更しない。従って device の受入に Emulator は不要で、ローカル OS process/socket と fixture で独立検証する。将来の device/cloud bridge 結合検証は BA-DEV-10 が担当する。
 

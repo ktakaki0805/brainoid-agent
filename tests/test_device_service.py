@@ -19,6 +19,7 @@ from brainoid_device.app import DeviceApplication
 from brainoid_device.assets import MAX_FILE, load_assets
 from brainoid_device.config import ConfigurationError, Settings, load_settings
 from brainoid_device.local_api import COOKIE, MAX_SESSIONS, SESSION_SECONDS
+from brainoid_device.owned_child import OwnedChild, create_owned_child
 from brainoid_device.runtime import Runtime
 from brainoid_device.storage import CredentialStore
 from starlette.testclient import TestClient
@@ -536,22 +537,17 @@ class DeviceRuntimeTests(unittest.IsolatedAsyncioTestCase):
         runtime.running = True
         created = asyncio.Event()
         release = asyncio.Event()
-        original_spawn = asyncio.create_subprocess_exec
-        children: list[asyncio.subprocess.Process] = []
+        original_spawn = create_owned_child
+        children: list[OwnedChild] = []
 
-        async def delayed_spawn(*args: str, **kwargs: object) -> asyncio.subprocess.Process:
-            child = await original_spawn(
-                *args,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
+        async def delayed_spawn(argv: list[str]) -> OwnedChild:
+            child = await original_spawn(argv)
             children.append(child)
             created.set()
             await release.wait()
             return child
 
-        with patch("brainoid_device.runtime.asyncio.create_subprocess_exec", delayed_spawn):
+        with patch("brainoid_device.runtime.create_owned_child", delayed_spawn):
             caller = asyncio.create_task(
                 runtime.start_child([sys.executable, "-c", "import time; time.sleep(300)"])
             )
@@ -570,6 +566,7 @@ class DeviceRuntimeTests(unittest.IsolatedAsyncioTestCase):
                     if child.returncode is None:
                         child.kill()
                         await child.wait()
+                    child.finish()
 
     async def test_completed_tasks_are_released_and_failures_consumed(self) -> None:
         runtime = Runtime()

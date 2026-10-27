@@ -33,7 +33,7 @@ state directoryはサービスUID所有0700、DB/journal/管理markerは0600の�
 
 ## local reset
 
-内部API `DeviceStorage.local_reset() -> bool` を提供し、HTTP routeや人の確認UIはまだ提供しない。呼出元は通信・音声・操作を停止し、取得済みtokenなどのメモリも捨ててから呼ぶ。既存のローカルUI sessionはcleanup callbackで破棄する。新しいprivate cacheを追加するadapterは、保存領域の削除とメモリ消去を冪等なcallbackへ必ず組み込む。現在のdaemonにprivate本文/音声のdisk一時cacheはない。
+内部API `DeviceStorage.local_reset() -> bool` を提供し、DEV-09の[本人確認付き導線](device-setup.md#本人確認と初期化)がHTTP routeと確認UIを提供する。呼出元は通信・音声・操作を停止し、取得済みtokenなどのメモリも捨ててから呼ぶ。既存のローカルUI sessionはcleanup callbackで破棄する。新しいprivate cacheを追加するadapterは、保存領域の削除とメモリ消去を冪等なcallbackへ必ず組み込む。現在のdaemonにprivate本文/音声のdisk一時cacheはない。
 
 1. 資格情報directoryの予約file `.reset-pending` とdirectoryをfsyncし、durable intentを確定する。すべてのCredentialStoreのread/writeがmarkerを確認する。既存handle、新規handle、別processも旧tokenを取得できない。
 2. markerを除く全資格情報fileをunlinkしdirectoryをfsyncする。参照から漏れた旧cloud/HA fileやwrite途中fileも含める。symlinkは辿らずentryだけ消す。

@@ -80,3 +80,10 @@ mise exec -- uv run --all-packages --locked --offline python -B -m unittest disc
 例外注入とprocess終了の合格は、物理電源断・ストレージcontrollerのflush保証ではない。耐久性はOS/filesystem/媒体がfsync、rename、SQLiteの前提を守ることに依存する。
 
 一次資料（2026-10-28確認）: [TUF 7.0.1 metadata・license](https://github.com/theupdateframework/python-tuf/blob/v7.0.1/pyproject.toml)、[完全なclient workflow](https://theupdateframework.readthedocs.io/en/latest/api/tuf.ngclient.updater.html)、[固定版Updater source](https://github.com/theupdateframework/python-tuf/blob/v7.0.1/tuf/ngclient/updater.py)。TUFは配布検証を担当し、展開・起動・rollbackは本実装の責任である。process handleと期限の契約は[Python os pidfd](https://docs.python.org/3.13/library/os.html#os.pidfd_open)、[signalとtimer](https://docs.python.org/3.13/library/signal.html)も参照する。
+
+
+## Runtimeのcommand guardianとの境界
+
+BA-DEV-09の[所有処理](device-service.md#ライフサイクルと-unit)は、daemonと同じsessionの信頼済みguardianからcommand専用sessionを作る。guardianは同じ検証済みreleaseのpackage treeをisolated Pythonで読み、親の終了時もcommand子孫を停止してから終了する。updaterはguardianをSIGKILLして先に消さず、SIGUSR1で強制drainを要求する。guardianの異常終了、期限内に空にならないsessionではunreaped leaderと所有状態を保持し、rollback/new launchへ進まない。guardianの成功終了0は子孫消滅の確認後だけで、command自体のexit codeとは別。`brainoid-guard` のprocess roleは同一owned session内の保守的な停止扱いにだけ使い、借用PIDや別sessionを操作する認可に使わない。
+
+guardian初期化中のrole判定とSIGKILLの競合を避けるため、未分類processへ直ちにSIGKILLを送らない。pidfdでSIGSTOPを送り、後続の走査で停止状態を観察してからroleを再判定する。guardianならSIGUSR1とSIGCONTでdrainを進め、停止した通常processだけをSIGKILLする。guardian roleはcommand生成より前に設定し、通常roleへ戻さない。各走査は待機せず、単独leaderや遅れて生成された子も既存の全体期限内で繰り返す。停止状態を確認できなければ所有状態を保持して失敗し、子の数に比例した個別待機期限を追加しない。

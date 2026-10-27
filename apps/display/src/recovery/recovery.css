@@ -1,0 +1,47 @@
+.recovery-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  gap: 1.5rem;
+}
+.recovery-status {
+  padding: 2rem;
+}
+.diagnostics {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 1rem;
+  margin-block: 2rem;
+}
+.diagnostics dt {
+  font-weight: 700;
+}
+.diagnostics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.reset-ack {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 3rem;
+}
+.reset-ack input {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+}
+.recovery-grid > .confirmation-card {
+  grid-column: 1 / -1;
+}
+@media (max-width: 800px) {
+  .recovery-grid {
+    grid-template-columns: 1fr;
+  }
+  .diagnostics {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .diagnostics dd {
+    margin-bottom: 0.75rem;
+  }
+}

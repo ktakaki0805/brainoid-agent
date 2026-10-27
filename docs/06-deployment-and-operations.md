@@ -106,6 +106,8 @@ model/prompt変更もreleaseと同じ単位で扱い、固定評価セットと�
 
 ### 5.1 導入時の手順
 
+BA-DEV-09の再実行可能な導入処理、未検証のPi OS候補、ローカル復旧画面、本人確認付きreset、アンインストールと実機gateは[Pi導入手順](device-setup.md)を参照する。
+
 1. 公開された対応OSとdigestを確認して書込み、時刻同期・network・音声入出力を確認する。
 2. 制限された専用userとsystemd serviceを用意する。device serviceのlocal APIはloopbackにbindし、Host/Origin/sessionを検証する。
 3. Chromium kioskをdevice serviceが配信するUIへ向ける。クラウドdevice credentialをブラウザから読める保存先へ置かない。
@@ -135,7 +137,7 @@ OS更新はアプリ更新と別releaseとする。初期の回復手段は検�
 
 移譲時はクラウドの登録解除、端末のlocal reset、Home Assistant側のcredential失効、再起動後の未登録状態を確認する。新tenantへtokenや記憶cacheを引き継がない。
 
-BA-DEV-02の[内部local reset](device-storage.md#local-reset)は、durable markerで資格情報取得を遮断してからcloud/HA file・私的一時データ・SQLite登録/cursor/台帳を消去する。途中失敗・再起動では全消去完了までmarkerを保持し、通信/操作を再開しない。確認UIと実機での移譲操作はBA-DEV-09で接続する。
+BA-DEV-02の[内部local reset](device-storage.md#local-reset)は、durable markerで資格情報取得を遮断してからcloud/HA file・私的一時データ・SQLite登録/cursor/台帳を消去する。途中失敗・再起動では全消去完了までmarkerを保持し、通信/操作を再開しない。確認UIはBA-DEV-09の[ローカル初期化](device-setup.md#本人確認と初期化)で接続する。実機での移譲検証は外部条件として未実施。
 
 ## 6. 監視と日常点検
 

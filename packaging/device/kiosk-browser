@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+# Wait for a local HTTP response, including recovery-required 503. No cloud probe.
+until /usr/bin/curl --silent --output /dev/null --max-time 2 --noproxy '*' http://127.0.0.1:8765/healthz; do
+    sleep 1
+done
+exec /usr/bin/chromium --ozone-platform=wayland --kiosk --incognito \
+    --no-first-run --disable-session-crashed-bubble --disable-background-networking \
+    --disable-component-update --disable-sync --no-default-browser-check \
+    --user-data-dir=/run/brainoid-kiosk/browser http://127.0.0.1:8765/
