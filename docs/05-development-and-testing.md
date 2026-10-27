@@ -359,3 +359,5 @@ PRには「解く問題」「利用者に見える変化」「影響するFR/API
 - [Firestore Security Rulesとサーバークライアント](https://firebase.google.com/docs/firestore/security/rules-conditions)
 - [GitHub ActionsからGCPへのOIDC認証](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-google-cloud-platform)
 - [Cloud Tasksの重複実行などの制限](https://docs.cloud.google.com/tasks/docs/common-pitfalls)
+
+BA-CAL-04の[Calendar実行契約](calendar-writes.md)は、本人confirm、同時受付、固定ID/If-Match、応答喪失照合、取消・失効とrun再開をsynthetic providerとFirestore Emulatorで検証する。実Google書込・cloud・実機UIは未実施であり専用calendarと委任を必要とする。

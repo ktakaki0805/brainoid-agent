@@ -669,6 +669,8 @@ export type CalendarProposal = {
     run_id?: ResourceId;
     tool_call_id?: ResourceId;
     checkpoint_id?: ResourceId;
+    operation_id?: ResourceId;
+    error_code?: string;
 };
 export type CalendarConfirm = {
     args_hash: string;
@@ -3173,7 +3175,7 @@ export type ConfirmCalendarProposalErrors = {
 export type ConfirmCalendarProposalError = ConfirmCalendarProposalErrors[keyof ConfirmCalendarProposalErrors];
 export type ConfirmCalendarProposalResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 非同期operationを受付（現在認可された本人のみ取得可能）
      */
     202: Operation;
 };

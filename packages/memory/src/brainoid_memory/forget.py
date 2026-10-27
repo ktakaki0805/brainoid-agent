@@ -65,6 +65,7 @@ class Operation(MemoryValue):
         "delete_account",
         "export",
         "delete_resource",
+        "calendar_write",
     ] = "forget_memory"
     status: Literal["pending", "running", "succeeded", "failed", "outcome_unknown"] = "pending"
     created_at: UtcTimestamp
@@ -99,7 +100,10 @@ class ForgetMemories:
 
     @staticmethod
     def operation(access: FactTransaction, document: Document | None) -> Operation:
-        if document is None:
+        if document is None or document.get("operation", {}).get("kind") not in (
+            "forget_memory",
+            "delete_resource",
+        ):
             raise PolicyDenied()
         principal = access.principal
         service: type[Tasks] | type[Notes] = Notes

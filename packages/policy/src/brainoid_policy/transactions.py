@@ -155,6 +155,9 @@ def resource_state(ref: ResourceRef, document: Document | None) -> ResourceState
     if document.get("tenant_id") != ref.tenant_id or document.get("id") != ref.id:
         raise PolicyDenied()
     metadata: dict[str, Any] = {**document, "ref": ref}
+    if ref.kind == "calendar_proposals":
+        # CAL03 intents already bind their canonical owner; no actor is inferred.
+        metadata["created_by"] = document.get("owner_user_id")
     try:
         metadata["scope"] = Scope.model_validate(
             {

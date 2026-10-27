@@ -66,6 +66,7 @@ class AuthServices:
     exports: ExportRequests | None = None
     calendar: CalendarAuthorization | None = None
     calendar_events: CalendarEvents | None = None
+    calendar_write_enabled: bool = False
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]

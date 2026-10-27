@@ -1,6 +1,6 @@
 # Calendar操作の固定proposal
 
-BA-CAL-03 / FR-010 / AC-010 / T-015・T-037。確認日時2026-10-27。本人の選択calendarに対するcreate/update/deleteの提案、取得、否認、期限回収、会話checkpointを実装する。本人confirmとprovider書込・照合はBA-CAL-04、確認画面はBA-UI-08で接続する。
+BA-CAL-03 / FR-010 / AC-010 / T-015・T-037。確認日時2026-10-27。本人の選択calendarに対するcreate/update/deleteの提案、取得、否認、期限回収、会話checkpointを実装する。本人confirmとprovider書込・照合は[BA-CAL-04](calendar-writes.md)、確認画面はBA-UI-08で接続する。
 
 ## HTTPとmodel tool
 
@@ -11,7 +11,7 @@ BA-CAL-03 / FR-010 / AC-010 / T-015・T-037。確認日時2026-10-27。本人の
 | `POST /v1/tenants/{t}/calendar-proposals/{p}:reject` | 本人user bearer、Idempotency-Key。bodyなし | declined、期限到達ならexpired。同じ決定は再送可能 |
 | `calendar.propose` | integration_idと厳格なchangeのみ。private会話と現在の保存先を検査 | waiting_confirmation、server由来proposal_id |
 
-公開応答はno-store。token、secret_ref、本人識別子、原端末credential、内部権限・出典bindingを返さない。GET/rejectはPi bearerを受け付けない。Piのproposal生成にcalendar.readは要求しない。calendar.proposeの内部target probeをcalendar.listの委任として使わない。未構成runtimeは503で閉じる。calendar.confirmはモデルtoolにもHTTPにも公開しない。
+公開応答はno-store。token、secret_ref、本人識別子、原端末credential、内部権限・出典bindingを返さない。GET/rejectはPi bearerを受け付けない。Piのproposal生成にcalendar.readは要求しない。calendar.proposeの内部target probeをcalendar.listの委任として使わない。未構成runtimeは503で閉じる。calendar.confirmはモデルtoolに公開しない。本人HTTP confirmは[実行契約](calendar-writes.md)に従う。
 
 同一integration、actor、keyと正規化bodyの再送は共通24時間receiptから同じproposalを取得する。内容変更には別key・別proposalが必要。別integrationは別namespace。再送でも現在の本人、integration、grant、削除状態を検査し、providerを再読取しない。receiptに予定本文を複製しない。
 
@@ -105,6 +105,6 @@ commit を rollback したと主張せず、再送も原出典の現在検査で
 
 既存CAL02のsourceにoperationがない場合はcalendar.readとして扱う。新しいproposal producerのため既存データ移行は不要。旧/不完全なproposalの権限・出典を推測して補わず拒否する。依存追加はない。独立削除・認可台帳を先に再適用してから復旧する。切戻し前にcalendar.proposeをagent allowlistから外し、未確定proposalを拒否/取消/期限回収する。新collectionのexport/purge handlerは残存データの消去が終わるまで維持する。古いworkerへ戻して未認識のproposal本文を残したまま消去完了扱いにしない。
 
-実Google OAuth/provider、cloud、staging索引・競合・費用、実Pi/mobile UI、本人confirm/外部書込/結果不明照合はこのチケットで実行しない。検証はsynthetic資格情報とlocal fake/Emulatorを使う。
+実Google OAuth/provider、cloud、staging索引・競合・費用、実Pi/mobile UIはこのチケットで実行しない。本人confirm/外部書込/結果不明照合のfake/Emulator検証は[実行契約](calendar-writes.md)を参照する。検証はsynthetic資格情報とlocal fake/Emulatorを使う。
 
 一次資料（2026-10-27確認）: [events.get](https://developers.google.com/workspace/calendar/api/v3/reference/events/get)、[Event resource](https://developers.google.com/workspace/calendar/api/v3/reference/events)、[ACL role](https://developers.google.com/workspace/calendar/api/v3/reference/acl)。

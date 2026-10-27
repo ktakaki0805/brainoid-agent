@@ -36,7 +36,7 @@ def cancellation(tx: Transaction, jobs: Jobs, run: Document) -> Document:
             if (
                 canonical is not None
                 and canonical.get("run_id") == identity
-                and canonical.get("status") == "pending"
+                and canonical.get("status") in ("pending", "confirmed")
             ):
                 calendars.append((path, canonical))
     may_have_completed = any(

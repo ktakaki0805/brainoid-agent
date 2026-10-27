@@ -1,5 +1,7 @@
 """Owner proposal preview/rejection; no confirmation or provider write endpoint."""
 
+from typing import Annotated, Literal
+
 from brainoid_contracts import ResourceId
 from brainoid_contracts.deletion import purge_epoch
 from brainoid_contracts.errors import APIError, ErrorCode
@@ -14,11 +16,14 @@ from brainoid_memory.calendar_proposals import (
     proposal_path,
     view,
 )
+from brainoid_memory.forget import Operation
+from brainoid_memory.models import MemoryValue
 from brainoid_memory.sources import CanonicalSources
 from brainoid_policy.models import DeviceSubject, Subject, UserSubject
 from brainoid_runs.confirmation_decision import prepare_decision
 from brainoid_runs.memory_sources import SavedMessages
 from brainoid_runs.state import RunState
+from pydantic import Field, field_validator
 
 from brainoid_api.auth.authorization import transaction_policy
 from brainoid_api.auth.context import AuthenticatedIdentity
@@ -27,8 +32,27 @@ from brainoid_api.repositories.conversations import Conversations, ReadResult, p
 from brainoid_api.services.calendar_events import CalendarEvents
 
 
+class CalendarConfirm(MemoryValue):
+    args_hash: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def explicit_true(cls, value: object) -> object:
+        if value is not True:
+            raise ValueError("Explicit confirmation required")
+        return value
+
+
 class Proposals:
-    def __init__(self, events: CalendarEvents, conversations: Conversations | None = None) -> None:
+    def __init__(
+        self,
+        events: CalendarEvents,
+        conversations: Conversations | None = None,
+        *,
+        write_enabled: bool = False,
+    ) -> None:
+        self.write_enabled = write_enabled
         self.events, self.conversations = events, conversations
         self.service = CalendarProposals(events.reader)
 
@@ -246,3 +270,136 @@ class Proposals:
             )
         )
         return self.get_for_release(identity, tenant, proposal)
+
+    def confirm_for_release(
+        self,
+        identity: AuthenticatedIdentity,
+        tenant: ResourceId,
+        proposal: ResourceId,
+        body: "CalendarConfirm",
+        key: str | None,
+    ) -> "ReadResult[Operation]":
+        from brainoid_contracts import normalize_utc
+        from brainoid_jobs import Jobs
+        from brainoid_memory.calendar_writer import KIND
+        from brainoid_memory.forget import operation_path
+        from brainoid_policy.models import Action, ResourceKind, ResourceRef
+        from brainoid_runs.calendar_confirmation import prepare_admission
+
+        if not isinstance(identity, AuthenticatedIdentity):
+            raise APIError(ErrorCode.OPERATION_FORBIDDEN)
+        if not self.write_enabled:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+        tenants = self.events.authorization.tenants
+        if tenants._ledger is None:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+        jobs = Jobs(
+            self.service.store,
+            tenants._ledger,
+            now=self.events.reader.now,
+            allow_untracked_bootstrap=True,
+        )
+
+        def authorize(tx: Transaction, replay: MutationResult | None):  # type: ignore[no-untyped-def]
+            record = self.current(tx, identity, tenant, proposal)
+            if record["args_hash"] != body.args_hash or body.confirmed is not True:
+                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
+            return self.events.authorization.authority(tx, identity, tenant)
+
+        def mutate(tx: Transaction, scope):  # type: ignore[no-untyped-def]
+            record = self.current(tx, identity, tenant, proposal)
+            if record.get("operation_id") is not None:
+                existing_operation = tx.get(operation_path(tenant, proposal))
+                if (
+                    existing_operation is None
+                    or existing_operation.get("args_hash") != body.args_hash
+                ):
+                    raise APIError(ErrorCode.OPERATION_FORBIDDEN)
+                return MutationResult(status_code=202, resource_id=proposal)
+            if record["status"] != "pending" or normalize_utc(record["expires_at"]) <= jobs.now():
+                raise APIError(ErrorCode.CONFLICT)
+            state = RunState(
+                jobs.ledger,
+                now=jobs.now,
+                credential_epoch=self.epoch(),
+                allow_untracked_bootstrap=True,
+            )
+            claim, join = prepare_admission(tx, jobs, state, record)
+            if tx.get(operation_path(tenant, proposal)) is not None:
+                raise APIError(ErrorCode.CONFLICT)
+            grant = self.policy(tx).resource(
+                tenant,
+                UserSubject(user_id=identity.user_id),
+                ResourceRef(tenant_id=tenant, kind=ResourceKind.CALENDAR_PROPOSAL, id=proposal),
+                action=Action.WRITE,
+            )
+            updated = {
+                **record,
+                "status": "confirmed",
+                "operation_id": proposal,
+                "version": record["version"] + 1,
+                "external_claim": claim,
+            }
+            now = jobs.now()
+            operation = Operation(operation_id=proposal, kind=KIND, created_at=now, updated_at=now)
+            jobs.add_pending(
+                tx, operation_id=proposal, kind=KIND, grant=grant, source_replacement=updated
+            )
+            join()
+            tx.create(
+                operation_path(tenant, proposal),
+                {
+                    "tenant_id": tenant,
+                    "requested_by": identity.user_id,
+                    "proposal_id": proposal,
+                    "args_hash": body.args_hash,
+                    "operation": operation.model_dump(mode="json"),
+                },
+            )
+            return MutationResult(status_code=202, resource_id=proposal)
+
+        policy_call(
+            lambda: Idempotency(self.service.store, now=self.events.reader.now).execute(
+                operation="calendar.confirm:" + proposal,
+                key=key,
+                body=body.model_dump(mode="json"),
+                authorize=authorize,
+                mutate=mutate,
+            )
+        )
+        return self.operation_for_release(identity, tenant, proposal)
+
+    def operation_for_release(
+        self,
+        identity: AuthenticatedIdentity,
+        tenant: ResourceId,
+        operation: ResourceId,
+    ) -> "ReadResult[Operation]":
+        result = self.find_operation_for_release(identity, tenant, operation)
+        if result is None:
+            raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
+        return result
+
+    def find_operation_for_release(
+        self,
+        identity: AuthenticatedIdentity,
+        tenant: ResourceId,
+        operation: ResourceId,
+    ) -> "ReadResult[Operation] | None":
+        """None means a different operation kind; source denials remain errors."""
+        from brainoid_memory.forget import operation_path
+
+        def read(tx: Transaction) -> "ReadResult[Operation] | None":
+            saved = tx.get(operation_path(tenant, operation))
+            if saved is None or saved.get("operation", {}).get("kind") != "calendar_write":
+                return None
+            record = self.current(tx, identity, tenant, ResourceId(saved["proposal_id"]))
+            if (
+                record.get("operation_id") != operation
+                or saved["args_hash"] != record["args_hash"]
+                or saved.get("requested_by") != identity.user_id
+            ):
+                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
+            return ReadResult(Operation.model_validate(saved["operation"]), release_guard(tx))
+
+        return policy_call(lambda: self.service.store.run(read))

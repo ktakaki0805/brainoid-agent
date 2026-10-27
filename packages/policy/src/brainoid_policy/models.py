@@ -82,6 +82,7 @@ class SessionState(Record):
 
 
 class ResourceKind(StrEnum):
+    CALENDAR_PROPOSAL = "calendar_proposals"
     EXPORT = "exports"
     CONVERSATION = "conversations"
     ENTITY = "entities"

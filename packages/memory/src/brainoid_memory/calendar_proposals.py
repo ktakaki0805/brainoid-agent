@@ -89,6 +89,8 @@ class ProposalView(MemoryValue):
         "declined",
         "cancelled",
     ]
+    operation_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
+    error_code: str | None = Field(default=None, exclude_if=lambda v: v is None)
     run_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
     tool_call_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
     checkpoint_id: ResourceId | None = Field(default=None, exclude_if=lambda v: v is None)
@@ -149,6 +151,8 @@ def view(record: Document) -> ProposalView:
                     "run_id",
                     "tool_call_id",
                     "checkpoint_id",
+                    "operation_id",
+                    "error_code",
                 )
                 if record.get(key) is not None
             },

@@ -239,7 +239,7 @@ class ProposalScenarios(CalendarFixture):
         with self.assertRaises(APIError):
             self.propose(update, "calendar-target-revoked")
 
-    def test_http_public_projection_reject_and_no_confirm(self) -> None:
+    def test_http_public_projection_reject_and_unconfigured_confirm(self) -> None:
         with self.events_client() as client:
             root = f"/v1/tenants/{self.tenant}"
             response = client.post(
@@ -257,7 +257,7 @@ class ProposalScenarios(CalendarFixture):
                     path + ":confirm",
                     json={"confirmed": True, "args_hash": response.json()["args_hash"]},
                 ).status_code,
-                405,
+                503,
             )
             self.assertEqual(client.post(path + ":reject", json={"result": {}}).status_code, 400)
             for _ in range(2):

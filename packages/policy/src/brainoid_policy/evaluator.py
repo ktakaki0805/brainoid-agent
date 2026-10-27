@@ -90,6 +90,7 @@ def _permission(kind: ResourceKind, action: Action) -> str:
         ResourceKind.NOTIFICATION: "reminders",
         ResourceKind.COMMAND: "home.control",
         ResourceKind.EXPORT: "export",
+        ResourceKind.CALENDAR_PROPOSAL: "calendar.propose",
     }[kind]
 
 

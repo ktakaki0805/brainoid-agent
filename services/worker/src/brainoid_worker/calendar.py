@@ -38,9 +38,14 @@ class CalendarRuntime:
         self.handler = memory.handler
 
     def current(
-        self, tx: Transaction, job: Job, args: ListCalendarArguments | ProposeCalendarArguments
+        self,
+        tx: Transaction,
+        job: Job,
+        args: ListCalendarArguments | ProposeCalendarArguments,
+        *,
+        waiting: bool = False,
     ) -> tuple[Document, AuthorizedScope]:
-        self.handler.state.check(tx, job, check_results=False)
+        self.handler.state.check(tx, job, check_results=False, waiting=waiting)
         policy = self.handler.jobs._policy(tx)
         principal = policy.principal(job.tenant_id, job.grant.principal.subject)
         record, scope = current_integration(

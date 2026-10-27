@@ -2794,12 +2794,12 @@ paths:
     post:
       operationId: confirmCalendarProposal
       summary: 本人が正規化内容を確認して実行を依頼
-      description: 同user、args_hash、5分期限、provider ETagを検査。proposalは一回使用。
+      description: 本人user、固定args_hash、初回5分期限、現在のgrant・原出典を検査し、canonical operationとjobを同一transactionで保存する。同一proposalの再送は同じoperationへ収束する。provider実行はworkerが現在権限を再確認し、安定event IDまたはIf-Matchで一回開始する。
       security:
       - userBearer: []
       responses:
         '202':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 非同期operationを受付（現在認可された本人のみ取得可能）
           content:
             application/json:
               schema:
@@ -5243,6 +5243,9 @@ components:
         run_id: *id001
         tool_call_id: *id001
         checkpoint_id: *id001
+        operation_id: *id001
+        error_code:
+          type: string
       required:
       - proposal_id
       - integration_id

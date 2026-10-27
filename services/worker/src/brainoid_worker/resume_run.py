@@ -176,7 +176,7 @@ class Confirmations:
                     calendar.get("run_id") != job.operation_id
                     or calendar.get("tool_call_id") != request.tool_call_id
                     or calendar.get("checkpoint_version") != version
-                    or calendar["status"] not in ("pending", "declined", "expired")
+                    or calendar["status"] not in ("pending", "confirmed", "declined", "expired")
                 ):
                     raise PolicyDenied()
 
@@ -201,13 +201,17 @@ class Confirmations:
                 proposal["checkpoint_id"] = calendar["checkpoint_id"]
                 decision = (
                     calendar["status"]
-                    if calendar["status"] != "pending"
+                    if calendar["status"] not in ("pending", "confirmed")
                     else (
                         "expired"
                         if normalize_utc(calendar["expires_at"]) <= self.jobs.now()
                         else None
                     )
                 )
+                if calendar["status"] == "confirmed":
+                    # The five-minute deadline governs admission, not an accepted
+                    # operation's later suspension/recovery or provider execution.
+                    decision = None
                 if decision is not None:
                     proposal.update(status=decision, decision=decision)
             model_key = "model" if run.get("model_step", 0) == 0 else f"model.{run['model_step']}"
@@ -219,7 +223,7 @@ class Confirmations:
             if not text.startswith(prefix):
                 raise PolicyDenied()
             events.append_text(tx, run, text[len(prefix) :], self.jobs.now())
-            if calendar is not None and decision is None:
+            if calendar is not None and decision is None and calendar["status"] == "pending":
                 events.append(
                     tx,
                     run,
@@ -232,6 +236,33 @@ class Confirmations:
                             expires_at=normalize_utc(calendar["expires_at"]),
                         ),
                     ),
+                )
+            if calendar is not None and calendar["status"] == "confirmed":
+                claim = ExternalClaim.model_validate(calendar.get("external_claim"))
+                if (
+                    claim.tenant_id != job.tenant_id
+                    or claim.run_id != job.operation_id
+                    or claim.proposal_id != result.proposal_id
+                    or claim.tool_call_id != request.tool_call_id
+                    or claim.effect_id != tool["effect_id"]
+                    or claim.fingerprint != tool["fingerprint"]
+                ):
+                    raise PolicyDenied()
+                proposal.update(
+                    status="external_started",
+                    decision="confirmed",
+                    external_claim=claim.model_dump(mode="json"),
+                    external_started_at=self.jobs.now().isoformat(),
+                )
+                tx.set(
+                    f"tenants/{job.tenant_id}/tool_executions/{request.tool_call_id}",
+                    {
+                        **tool,
+                        "state": "started",
+                        "result": None,
+                        "confirmation_result": tool["result"],
+                        "external_claim": claim.model_dump(mode="json"),
+                    },
                 )
             tx.create(path, proposal)
             if calendar is not None and decision is not None:

@@ -496,7 +496,7 @@ export declare const getCalendarProposal: <ThrowOnError extends boolean = false>
 /**
  * 本人が正規化内容を確認して実行を依頼
  *
- * 同user、args_hash、5分期限、provider ETagを検査。proposalは一回使用。
+ * 本人user、固定args_hash、初回5分期限、現在のgrant・原出典を検査し、canonical operationとjobを同一transactionで保存する。同一proposalの再送は同じoperationへ収束する。provider実行はworkerが現在権限を再確認し、安定event IDまたはIf-Matchで一回開始する。
  */
 export declare const confirmCalendarProposal: <ThrowOnError extends boolean = false>(options: Options<ConfirmCalendarProposalData, ThrowOnError>) => RequestResult<ConfirmCalendarProposalResponses, ConfirmCalendarProposalErrors, ThrowOnError>;
 /**

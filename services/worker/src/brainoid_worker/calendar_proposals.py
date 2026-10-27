@@ -209,7 +209,7 @@ class ProposalRuntime:
             job = self.memory.job(tx, consumer.context.tenant_id, consumer.run_id)
             if consumer != self.memory.consumer(job) or result.result:
                 raise PolicyDenied()
-            _, scope = self.current(tx, job, args)
+            _, scope = self.current(tx, job, args, waiting=job.status == "waiting")
             if result.status == "waiting_confirmation":
                 assert result.proposal_id is not None
                 record = tx.get(proposal_path(job.tenant_id, result.proposal_id))
@@ -218,6 +218,38 @@ class ProposalRuntime:
                     or record.get("tool_call_id") != request.tool_call_id
                     or record.get("run_id") != job.operation_id
                     or record["normalized_request"] != args.change.model_dump(mode="json")
+                ):
+                    raise PolicyDenied()
+                check_origin(
+                    tx,
+                    self.handler.jobs._policy(tx),
+                    record,
+                    now=self.handler.jobs.now,
+                    credential_epoch=self.handler.state.credential_epoch,
+                    sources=CanonicalSources(SavedMessages()),
+                    for_model=True,
+                )
+            elif result.status in ("succeeded", "outcome_unknown"):
+                from brainoid_memory.forget import operation_path
+
+                if result.operation_id is None:
+                    raise PolicyDenied()
+                record = tx.get(proposal_path(job.tenant_id, result.operation_id))
+                operation = tx.get(operation_path(job.tenant_id, result.operation_id))
+                if (
+                    record is None
+                    or operation is None
+                    or record.get("tool_call_id") != request.tool_call_id
+                    or record.get("run_id") != job.operation_id
+                    or record.get("operation_id") != result.operation_id
+                    or record["normalized_request"] != args.change.model_dump(mode="json")
+                    or operation.get("args_hash") != record["args_hash"]
+                    or operation.get("operation", {}).get("status")
+                    not in (
+                        ("outcome_unknown", "succeeded")
+                        if result.status == "outcome_unknown"
+                        else ("succeeded",)
+                    )
                 ):
                     raise PolicyDenied()
                 check_origin(

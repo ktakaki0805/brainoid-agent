@@ -76,6 +76,17 @@ async def get_operation(
     identity: Identity,
     services: Annotated[AuthServices, Depends(get_auth_services)],
 ) -> Operation:
+    if services.calendar_events is not None:
+        from brainoid_api.services.calendar_proposals import Proposals
+
+        result = await run_in_threadpool(
+            Proposals(services.calendar_events, services.conversations).find_operation_for_release,
+            identity,
+            tenant_id,
+            operation_id,
+        )
+        if result is not None:
+            return result.release()
     if services.deletion_requests is not None:
         try:
             return await run_in_threadpool(
