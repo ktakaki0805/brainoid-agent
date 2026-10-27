@@ -11,6 +11,7 @@ from brainoid_policy.scopes import PolicyDenied, Principal
 
 from brainoid_memory.calendar_oauth import READ, WRITE
 from brainoid_memory.calendar_reader import integration_path, integration_stamp
+from brainoid_memory.sources import SourceResolver
 
 CALENDAR_SCOPE = Scope(
     visibility=Visibility.PRIVATE, display_policy=DisplayPolicy.AUTHENTICATED_SESSION
@@ -24,12 +25,13 @@ def current_integration(
     integration: ResourceId,
     *,
     calendar: str | None = None,
+    operation: str = "calendar.read",
 ) -> tuple[Document, AuthorizedScope]:
     tenant = principal.context.tenant_id
     actor = principal.context.actor
     if principal.user_id is None or (
         isinstance(actor, DeviceActorContext)
-        and (actor.private_session is None or "calendar.read" not in actor.allowed_scopes)
+        and (actor.private_session is None or operation not in actor.allowed_scopes)
     ):
         raise PolicyDenied()
     user = policy.principal(tenant, UserSubject(user_id=principal.user_id))
@@ -84,19 +86,19 @@ def check_calendar_sources(
     policy: Evaluator,
     principal: Principal,
     document: Document,
+    *,
+    credential_epoch: ResourceId | None = None,
+    sources: SourceResolver | None = None,
+    for_model: bool = False,
 ) -> None:
-    """Check content-free, transitive source inventory before any saved text leaves DB."""
-    for source in document.get("calendar_sources", []):
-        record, _ = current_integration(
-            tx,
-            policy,
-            principal,
-            ResourceId(source["integration_id"]),
-            calendar=source["calendar_id"],
-        )
-        if source != {
-            "integration_id": record["id"],
-            "calendar_id": source["calendar_id"],
-            "stamp": integration_stamp(record),
-        }:
-            raise PolicyDenied()
+    """Fresh bounded current-source pass; no authorization cache survives this call."""
+    from brainoid_memory.calendar_proposal_access import _SourceChecks
+
+    _SourceChecks(
+        tx,
+        policy,
+        now=policy._now,
+        credential_epoch=credential_epoch,
+        sources=sources,
+        for_model=for_model,
+    ).check_sources(principal, document)

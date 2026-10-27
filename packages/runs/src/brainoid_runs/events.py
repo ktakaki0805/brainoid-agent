@@ -64,8 +64,19 @@ class Cancelled(Event):
     payload: CancelledPayload
 
 
+class ConfirmationPayload(Record):
+    proposal_id: ResourceId
+    kind: Literal["calendar_write"] = "calendar_write"
+    expires_at: UtcTimestamp
+
+
+class Confirmation(Event):
+    type: Literal["confirmation.required"] = "confirmation.required"
+    payload: ConfirmationPayload
+
+
 type RunEvent = Annotated[
-    Started | Text | Completed | Failed | Cancelled, Field(discriminator="type")
+    Started | Text | Completed | Failed | Cancelled | Confirmation, Field(discriminator="type")
 ]
 EVENT = TypeAdapter(RunEvent)
 

@@ -82,6 +82,8 @@ class CalendarPage(MemoryValue):
 
 
 class CalendarProvider(Protocol):
+    def event(self, token: SecretStr, calendar: str, event: str) -> Document: ...
+
     def events(
         self, token: SecretStr, query: CalendarQuery, page_token: str | None
     ) -> Document: ...
@@ -217,13 +219,7 @@ class CalendarReader:
             now,
         )
 
-    def fetch(
-        self,
-        record: Document,
-        query: CalendarQuery,
-        page_token: str | None,
-        before_send: Callable[[], None],
-    ) -> Document:
+    def token(self, record: Document) -> SecretStr:
         try:
             secret = json.loads(self.secrets.get(record["secret_ref"]))
             if (
@@ -238,6 +234,28 @@ class CalendarReader:
             raise
         except Exception:
             raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
+        return token
+
+    def target(
+        self, record: Document, calendar: str, event: str, before_send: Callable[[], None]
+    ) -> Document:
+        token = self.token(record)
+        before_send()
+        try:
+            return self.provider.event(token, calendar, event)
+        except APIError:
+            raise
+        except Exception:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
+
+    def fetch(
+        self,
+        record: Document,
+        query: CalendarQuery,
+        page_token: str | None,
+        before_send: Callable[[], None],
+    ) -> Document:
+        token = self.token(record)
         before_send()
         try:
             return self.provider.events(token, query, page_token)

@@ -6,15 +6,18 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
 from brainoid_contracts import ResourceId
+from brainoid_contracts.guards import ReleaseGuard, protect
 from brainoid_contracts.transactions import Transaction
 from brainoid_jobs import Job
 from brainoid_jobs.models import job_id
 from brainoid_jobs.repository import path as job_path
 from brainoid_memory.calendar_access import check_calendar_sources
+from brainoid_memory.sources import CanonicalSources
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.models import ResourceKind, ResourceRef, UserSubject
 from brainoid_runs.events import EVENT, RunEvent, event_path, expires_at
+from brainoid_runs.memory_sources import SavedMessages
 from brainoid_runs.state import KIND, run_path
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
@@ -37,6 +40,7 @@ HEARTBEAT_SECONDS = 15.0
 class Batch:
     event: RunEvent | None
     terminal: bool
+    guard: ReleaseGuard = ReleaseGuard(())
 
 
 def next_batch(
@@ -70,7 +74,14 @@ def next_batch(
         # Current read authority, not the old generation's model-execution grant.
         reader, current = repo.access(tx, identity, tenant, doc["conversation_id"], session)
         policy_call(
-            lambda: check_calendar_sources(tx, repo.jobs._policy(tx), reader.principal, doc)
+            lambda: check_calendar_sources(
+                tx,
+                repo.jobs._policy(tx),
+                reader.principal,
+                doc,
+                credential_epoch=repo.credentials.credential_epoch if repo.credentials else None,
+                sources=CanonicalSources(SavedMessages()),
+            )
         )
         destination = policy_call(
             lambda: repo.jobs._policy(tx).resource(
@@ -83,7 +94,14 @@ def next_batch(
             )
         )
         policy_call(
-            lambda: check_calendar_sources(tx, repo.jobs._policy(tx), destination.principal, doc)
+            lambda: check_calendar_sources(
+                tx,
+                repo.jobs._policy(tx),
+                destination.principal,
+                doc,
+                credential_epoch=repo.credentials.credential_epoch if repo.credentials else None,
+                sources=CanonicalSources(SavedMessages()),
+            )
         )
         output_scope = repo.scope(
             destination.principal, None, destination.scope, destination.owner_user_id
@@ -101,17 +119,21 @@ def next_batch(
             event = EVENT.validate_python({k: v for k, v in stored.items() if k != "expires_at"})
             if event.seq != after + 1 or event.run_id != run:
                 raise APIError(ErrorCode.RESOURCE_EXPIRED)
-        now = repo.now()
-        current.ensure_live(now)
-        output_scope.ensure_live(now)
-        if now >= expires_at(doc):
-            raise APIError(ErrorCode.RESOURCE_EXPIRED)
-        if isinstance(identity, AuthenticatedIdentity):
-            expired = now >= identity.expires_at or now < identity.issued_at
-        else:
-            expired = now.timestamp() >= identity.exp or now.timestamp() < identity.iat
-        if expired:
-            raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+
+        def finish() -> None:
+            now = repo.now()
+            current.ensure_live(now)
+            output_scope.ensure_live(now)
+            if now >= expires_at(doc):
+                raise APIError(ErrorCode.RESOURCE_EXPIRED)
+            if isinstance(identity, AuthenticatedIdentity):
+                expired = now >= identity.expires_at or now < identity.issued_at
+            else:
+                expired = now.timestamp() >= identity.exp or now.timestamp() < identity.iat
+            if expired:
+                raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+
+        protect(tx, finish)
         if doc["status"] == "cancelled":
             # No cursor jump and no buffered text after cancellation. Use run GET.
             return Batch(None, True)
@@ -119,11 +141,14 @@ def next_batch(
             event, doc["status"] in ("completed", "failed", "cancelled") and after >= latest
         )
 
-    batch = repo.store.run(read)
+    batch = repo.current_read(read)
     # Event retrieval may block. A fresh authority transaction after that I/O is
     # the delivery boundary; never yield a previously authorized buffer wholesale.
-    current = repo.store.run(lambda tx: read(tx, delivery=True))
-    return current if current.terminal else batch
+    current = repo.current_read(lambda tx: read(tx, delivery=True))
+    selected = current.value if current.value.terminal else batch.value
+    guard = ReleaseGuard((batch.guard.finish, current.guard.finish))
+    policy_call(guard.finish)
+    return Batch(selected.event, selected.terminal, guard)
 
 
 async def stream(
@@ -138,6 +163,9 @@ async def stream(
     while True:
         try:
             batch = await run_in_threadpool(next_batch, repo, identity, tenant, run, session, after)
+            # Scheduling the threadpool result may itself cross a source deadline.
+            # This is no-I/O evidence from this batch, never a reusable grant.
+            policy_call(batch.guard.finish)
         except (APIError, PersistenceUnavailable):
             # Headers have already been sent: end without private error payloads.
             # The client reconnects explicitly; preflight then returns 4xx/503.

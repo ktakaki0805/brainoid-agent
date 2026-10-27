@@ -484,13 +484,13 @@ export declare const listCalendarEvents: <ThrowOnError extends boolean = false>(
 /**
  * 予定書込みの確認内容を確定
  *
- * deviceは本人private_sessionとcalendar.propose scope必須。実行確認はスマホのみ。
+ * 本人privateの固定proposalを201で保存する。deviceは本人private_sessionとcalendar.propose scope必須。実付与WRITE scopeと現在calendar ACL、update/deleteのtarget GET・ETagを検査する。同key/bodyは同一proposal。本人confirm/provider書込は後続。
  */
 export declare const createCalendarProposal: <ThrowOnError extends boolean = false>(options: Options<CreateCalendarProposalData, ThrowOnError>) => RequestResult<CreateCalendarProposalResponses, CreateCalendarProposalErrors, ThrowOnError>;
 /**
  * 予定書込み確認内容
  *
- * 予定書込み確認内容
+ * 現在の本人・原producer/session/credential・出典を検査して固定内容と状態を取得する。期限到達pendingはexpiredへ収束する。
  */
 export declare const getCalendarProposal: <ThrowOnError extends boolean = false>(options: Options<GetCalendarProposalData, ThrowOnError>) => RequestResult<GetCalendarProposalResponses, GetCalendarProposalErrors, ThrowOnError>;
 /**
@@ -502,7 +502,7 @@ export declare const confirmCalendarProposal: <ThrowOnError extends boolean = fa
 /**
  * 本人が提案を拒否
  *
- * pendingのみdeclinedへ。対応runのcheckpointに否認結果を保存しresume jobを作成。既にexecutingなら409。
+ * 本人がbodyなしで否認する。pendingはdeclined、期限到達ならexpired。同一決定の再送は同じ結果。対応runのcheckpointと否認結果・resume jobを同一transactionで保存する。取消済みやexecutingは409。
  */
 export declare const rejectCalendarProposal: <ThrowOnError extends boolean = false>(options: Options<RejectCalendarProposalData, ThrowOnError>) => RequestResult<RejectCalendarProposalResponses, RejectCalendarProposalErrors, ThrowOnError>;
 /**

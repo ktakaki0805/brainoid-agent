@@ -34,6 +34,7 @@ class ManifestEntry(MemoryValue):
         "notifications",
         "commands",
         "integrations",
+        "calendar_proposals",
     ]
     resource_id: ResourceId
     parent_id: ResourceId | None = None

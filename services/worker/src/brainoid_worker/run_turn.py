@@ -30,15 +30,17 @@ from brainoid_memory.calendar_access import check_calendar_sources
 from brainoid_memory.calendar_reader import CalendarReader
 from brainoid_memory.deletion_ledger import DeletionLedger
 from brainoid_memory.forget import operation_path
+from brainoid_memory.sources import CanonicalSources
 from brainoid_memory.vector_store import VectorSearch
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.models import Record
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from brainoid_runs import events
+from brainoid_runs.memory_sources import SavedMessages
 from brainoid_runs.models import Message
 from brainoid_runs.state import RunState, conversation_path, run_path
 from brainoid_tools import Executor, Registry, ResultBinding
-from brainoid_tools.calendar import register_calendar
+from brainoid_tools.calendar import register_calendar, register_calendar_proposals
 from brainoid_tools.executor import Authorizer as ToolAuthorizer
 from brainoid_tools.home import register_home
 from brainoid_tools.memory import register_memory
@@ -252,6 +254,7 @@ class RunTurn:
         register_reminders(self.tool_registry, self.memory.reminders)
         register_home(self.tool_registry, self.memory.home)
         register_calendar(self.tool_registry, self.memory.calendar)
+        register_calendar_proposals(self.tool_registry, self.memory.calendar_proposals)
         self.tool_authorizer = tool_authorizer or self.memory
         self.execution_authorizer = self.memory
         self.result_reuse = ResultReuse(self.tool_registry, self.execution_authorizer)
@@ -306,9 +309,25 @@ class RunTurn:
     ) -> str:
         policy = self.jobs._policy(tx)
         principal = policy.principal(job.tenant_id, job.grant.principal.subject)
-        check_calendar_sources(tx, policy, principal, run)
+        check_calendar_sources(
+            tx,
+            policy,
+            principal,
+            run,
+            credential_epoch=self.state.credential_epoch,
+            sources=CanonicalSources(SavedMessages()),
+            for_model=True,
+        )
         if job.output is not None:
-            check_calendar_sources(tx, policy, policy.principal(job.tenant_id, job.output), run)
+            check_calendar_sources(
+                tx,
+                policy,
+                policy.principal(job.tenant_id, job.output),
+                run,
+                credential_epoch=self.state.credential_epoch,
+                sources=CanonicalSources(SavedMessages()),
+                for_model=True,
+            )
         if run.get("home_command") is not None:
             return self.memory.home.terminal_update(tx, job, run)
         if run.get("reminder_update") is not None:

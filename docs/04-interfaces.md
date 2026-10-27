@@ -140,7 +140,7 @@ BA-IAM-04 で `POST /tenants/{tenant_id}/invitations` と `POST /invitations:acc
 
 ## 4. 会話と音声の流れ
 
-BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は会話CRUD、message一覧、text turnの202受付とrun GETを実装する。同一会話の進行中turnは409で直列化し、独立workerが最終結果を保存する。BA-RUN-05はSSE差分・履歴再開を実装する。BA-RUN-07はrun取消と確認checkpoint・内部結果受取・再開を実装する。Calendar固有のconfirm/reject HTTPと外部書込、音声停止は後続実装。
+BA-RUN-04の[会話・永続文字run](conversations-and-runs.md)は会話CRUD、message一覧、text turnの202受付とrun GETを実装する。同一会話の進行中turnは409で直列化し、独立workerが最終結果を保存する。BA-RUN-05はSSE差分・履歴再開を実装する。BA-RUN-07はrun取消と確認checkpoint・内部結果受取・再開を実装する。BA-CAL-03はCalendar proposal生成/取得/rejectを接続する。本人confirm HTTPと外部書込、音声停止は後続実装。
 
 ### 4.1 永続実行とSSE
 
@@ -255,6 +255,8 @@ Cloud Tasksの重複実行は起こり得るため、worker・通知・provider�
 BA-CAL-01は[Calendar OAuth](calendar-oauth.md)の開始・匿名callback・本人metadata一覧を提供する。未構成runtimeは503で閉じる。OAuth開始は本人スマホから行い、scope_profileをread/read_writeで分ける。callbackのstateをuser/tenant/nonce/期限に束縛し、成功後は登録済みの復帰先へ戻す。URLのcode/token/stateはアクセスログでredactする。
 
 BA-CAL-02は[Calendar予定参照](calendar-events.md)の本人allowlist更新と予定一覧、および既定calendar.listを提供する。取得時刻、UTCとIANA timezone、終日の排他的終了日を保持する。
+
+BA-CAL-03は[Calendar操作proposal](calendar-proposals.md)の生成・取得・否認・期限回収と既定calendar.proposeを提供する。会話では同期限のcheckpointとconfirmation.requiredを保存し、worker leaseを解放する。
 
 `calendar-proposals` は作成/変更/削除の正規化内容、対象、本人、args_hash、初期5分の期限を保存する。実行confirmは本人スマホからのみ受け、同じproposalとhashに対して一度だけ進める。日時はtimezoneを含めて表示し、endがstartより後であることを検査する。終日予定はdateで表現し、終了日は排他的終端とする。
 

@@ -626,25 +626,32 @@ class CheckpointTests(TurnRunFixture):
     def test_sse_cancellation_after_read_discards_batch_without_cursor_jump(self) -> None:
         from collections.abc import Callable
 
+        from brainoid_api.repositories.conversations import ReadResult
         from brainoid_api.routes.run_events import Batch
         from brainoid_contracts.transactions import Transaction
 
         _, run = self.setup_run()
         self.execute(run)
-        original = self.store.run
+        original = self.conversations.current_read
+        cancellations = 0
 
-        def racing(work: Callable[[Transaction], Any]) -> Any:
-            batch = original(work)
+        def racing(work: Callable[[Transaction], Any]) -> ReadResult[Any]:
+            nonlocal cancellations
+            result = original(work)
+            batch = result.value
             if isinstance(batch, Batch) and batch.event is not None:
+                cancellations += 1
                 self.conversations.cancel_run(
                     self.identity(), self.tenant, run, "checkpoint-sse-cancel"
                 )
-            return batch
+            return result
 
-        with patch.object(self.store, "run", side_effect=racing):
+        with patch.object(self.conversations, "current_read", side_effect=racing):
             batch = next_batch(self.conversations, self.identity(), self.tenant, run, None, 0)
+        self.assertEqual(cancellations, 1)
         self.assertIsNone(batch.event)
         self.assertTrue(batch.terminal)
+        self.assertEqual(self.get_run(run).json()["status"], "cancelled")
 
     def test_handler_created_proposal_waits_then_consumes_external_result_once(self) -> None:
         from fakes.run_confirmation import ProposalCreatingEffect

@@ -54,6 +54,7 @@ class CalendarEvents:
         session: ResourceId | None = None,
         *,
         calendar: str | None = None,
+        operation: str = "calendar.read",
     ) -> tuple[Document, AuthorizedScope]:
         tenants = self.authorization.tenants
         if isinstance(identity, AuthenticatedIdentity):
@@ -65,12 +66,14 @@ class CalendarEvents:
         else:
             if self.sessions is None or session is None or identity.tenant_id != tenant:
                 raise APIError(ErrorCode.OPERATION_FORBIDDEN)
-            principal = self.sessions.current(tx, identity, session, scope="calendar.read")
+            principal = self.sessions.current(tx, identity, session, scope=operation)
         policy = transaction_policy(
             tx, now=tenants._now, ledger=tenants._ledger, allow_untracked_bootstrap=True
         )
         record, scope = policy_call(
-            lambda: current_integration(tx, policy, principal, integration, calendar=calendar)
+            lambda: current_integration(
+                tx, policy, principal, integration, calendar=calendar, operation=operation
+            )
         )
         protect(tx, lambda: scope.ensure_live(tenants._now()))
         return record, scope

@@ -212,7 +212,7 @@ BA-IAM-09の[個人セッション契約](private-sessions.md)は本人の開始
 
 ## 6. 外部連携と副作用
 
-BA-CAL-02の本人選択・参照・会話出典の失効境界は[Calendar予定参照](calendar-events.md)を参照。
+BA-CAL-02の本人選択・参照・会話出典の失効境界は[Calendar予定参照](calendar-events.md)、BA-CAL-03の固定proposalと原出典・export/消去境界は[Calendar操作proposal](calendar-proposals.md)を参照。
 
 BA-CAL-01の実装・秘密境界・復旧は[Calendar OAuth](calendar-oauth.md)を参照。Google CalendarのOAuth連携はuser単位で所有する。開始状態にはuser/tenant/nonce/redirect target/要求scope/期限を結び付け、callbackで `state` の一回利用と有効期限を確認する。redirect先はサーバーのallowlistから選び、任意URLを入力で受け取らない。Googleの認可コードフローと付与済みscopeを検証し、refresh tokenはSecret Managerへ保存する。[公式資料](https://developers.google.com/identity/protocols/oauth2/web-server)
 

@@ -73,6 +73,7 @@ class ExportData:
                 "notifications",
                 "commands",
                 "integrations",
+                "calendar_proposals",
             )
         ]
         while collections:

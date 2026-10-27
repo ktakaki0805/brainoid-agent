@@ -20,7 +20,7 @@ from brainoid_policy.accounts import fingerprint
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from brainoid_runs.state import run_path
 from brainoid_tools import Authority, ResultConsumer, ResultSource, ResultUse, ToolRejected
-from brainoid_tools.calendar import ListCalendarArguments
+from brainoid_tools.calendar import ListCalendarArguments, ProposeCalendarArguments
 from brainoid_tools.registry import Invocation
 from brainoid_tools.results import HandlerResult
 from brainoid_tools.reuse import receipt
@@ -38,13 +38,20 @@ class CalendarRuntime:
         self.handler = memory.handler
 
     def current(
-        self, tx: Transaction, job: Job, args: ListCalendarArguments
+        self, tx: Transaction, job: Job, args: ListCalendarArguments | ProposeCalendarArguments
     ) -> tuple[Document, AuthorizedScope]:
         self.handler.state.check(tx, job, check_results=False)
         policy = self.handler.jobs._policy(tx)
         principal = policy.principal(job.tenant_id, job.grant.principal.subject)
         record, scope = current_integration(
-            tx, policy, principal, args.integration_id, calendar=args.calendar_id
+            tx,
+            policy,
+            principal,
+            args.integration_id,
+            calendar=args.calendar_id,
+            operation="calendar.propose"
+            if isinstance(args, ProposeCalendarArguments)
+            else "calendar.read",
         )
         use = ResultUse(
             receipt=integration_stamp(record),
@@ -53,11 +60,23 @@ class CalendarRuntime:
         receipt(use, self.memory.consumer(job))
         if job.output is not None:
             output = policy.principal(job.tenant_id, job.output)
-            current_integration(tx, policy, output, args.integration_id, calendar=args.calendar_id)
+            current_integration(
+                tx,
+                policy,
+                output,
+                args.integration_id,
+                calendar=args.calendar_id,
+                operation="calendar.propose"
+                if isinstance(args, ProposeCalendarArguments)
+                else "calendar.read",
+            )
         return record, scope
 
     def check(
-        self, tx: Transaction, request: ToolExecution, args: ListCalendarArguments
+        self,
+        tx: Transaction,
+        request: ToolExecution,
+        args: ListCalendarArguments | ProposeCalendarArguments,
     ) -> Authority:
         try:
             job, run, _ = self.memory._target(tx, request)
@@ -174,7 +193,7 @@ class CalendarRuntime:
         self,
         tx: Transaction,
         request: ToolExecution,
-        args: ListCalendarArguments,
+        args: ListCalendarArguments | ProposeCalendarArguments,
         result: ToolResult,
         *,
         consumer: ResultConsumer,

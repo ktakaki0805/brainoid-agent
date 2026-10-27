@@ -177,6 +177,112 @@ def _inherited_scope(fact: Fact, dependency: Scope) -> None:
         raise PolicyDenied()
 
 
+def check_model_fact(fact: Fact, now: datetime) -> None:
+    """Current model reuse interval, separate from historical UI read access."""
+    if (
+        fact.deletion_epoch != 0
+        or fact.status != "confirmed"
+        or fact.valid_from > now
+        or (fact.valid_to is not None and fact.valid_to <= now)
+    ):
+        raise PolicyDenied()
+
+
+def check_fact_dependencies(
+    tx: Transaction,
+    context: TenantContext,
+    policy: Evaluator,
+    subject: Subject,
+    fact: Fact,
+    *,
+    sources: SourceResolver,
+    output: Subject | None,
+    reuse: bool,
+) -> None:
+    """Finite canonical entity, correction and source-ref checks for derived content."""
+
+    def read_dependency[T: Entity | Fact](
+        tx: Transaction,
+        policy: Evaluator,
+        subject: Subject,
+        ref: ResourceRef,
+        model: type[T],
+        *,
+        action: Action = Action.READ,
+    ) -> T:
+        grant = policy.resource(ref.tenant_id, subject, ref, action=action, output=output)
+        document = tx.get(_path(ref))
+        try:
+            result = model.model_validate(document)
+        except ValidationError:
+            raise PolicyDenied() from None
+        if result.id != ref.id or result.tenant_id != ref.tenant_id:
+            raise PolicyDenied()
+        if isinstance(result, Entity):
+            # Callers may use a general policy state rather than _GraphPolicyState.
+            # Preserve the canonical room/appliance audience restrictions in both.
+            target = _entity_target(grant.resource, result.kind)
+            policy._readable(grant.principal, target)
+            if output is not None:
+                policy._readable(policy.principal(ref.tenant_id, output), target)
+        return cast(T, result)
+
+    action = Action.MODEL_READ if reuse else Action.READ
+    for identity in (fact.subject_entity_id, fact.object_entity_id):
+        if identity is None:
+            continue
+        entity = read_dependency(
+            tx,
+            policy,
+            subject,
+            ResourceRef(tenant_id=context.tenant_id, kind=ResourceKind.ENTITY, id=identity),
+            Entity,
+            action=action,
+        )
+        _inherited_scope(fact, entity)
+        if reuse and entity.deletion_epoch != 0:
+            raise PolicyDenied()
+    if fact.supersedes_fact_id is not None:
+        predecessor = read_dependency(
+            tx,
+            policy,
+            subject,
+            ResourceRef(
+                tenant_id=context.tenant_id, kind=ResourceKind.MEMORY, id=fact.supersedes_fact_id
+            ),
+            Fact,
+        )
+        _inherited_scope(fact, predecessor)
+        if predecessor.deletion_epoch != 0 or (
+            predecessor.visibility == Visibility.PRIVATE
+            and predecessor.owner_user_id != fact.owner_user_id
+        ):
+            raise PolicyDenied()
+    for source in fact.source_refs:
+        resolved = _validated(ResolvedSource, sources.resolve(tx, context, source))
+        if (
+            resolved.source != source
+            or resolved.authority.tenant_id != context.tenant_id
+            or resolved.deleted
+            or (reuse and (resolved.suppress_reuse or resolved.deletion_epoch != 0))
+        ):
+            raise PolicyDenied()
+        grant = policy.resource(
+            context.tenant_id, subject, resolved.authority, action=action, output=output
+        )
+        authority = tx.get(_path(resolved.authority))
+        if (
+            authority is None
+            or authority.get("deleted") is not False
+            or type(authority.get("suppress_reuse")) is not bool
+            or (reuse and authority["suppress_reuse"])
+        ):
+            raise PolicyDenied()
+        _inherited_scope(fact, grant.scope)
+        if reuse and grant.resource.deletion_epoch != 0:
+            raise PolicyDenied()
+
+
 class MemoryRepository:
     """No tenant paths or caller grants accepted; every method requires TenantContext.
 
@@ -281,13 +387,8 @@ class MemoryRepository:
             session = actor.private_session
             if now >= min(session.expires_at, session.idle_expires_at):
                 raise PolicyDenied()
-        if model_fact is not None and (
-            model_fact.deletion_epoch != 0
-            or model_fact.status != "confirmed"
-            or model_fact.valid_from > now
-            or (model_fact.valid_to is not None and model_fact.valid_to <= now)
-        ):
-            raise PolicyDenied()
+        if model_fact is not None:
+            check_model_fact(model_fact, now)
 
     def _run[T: Entity | Fact](
         self, work: Callable[[Transaction], tuple[T, _Authority]], *, for_model: bool = False
@@ -356,58 +457,16 @@ class MemoryRepository:
         *,
         reuse: bool,
     ) -> None:
-        action = Action.MODEL_READ if reuse else Action.READ
-        for identity in (fact.subject_entity_id, fact.object_entity_id):
-            if identity is None:
-                continue
-            entity = self._read(
-                tx,
-                policy,
-                subject,
-                self._ref(context, identity, ResourceKind.ENTITY),
-                Entity,
-                action=action,
-            )
-            _inherited_scope(fact, entity)
-            if reuse and entity.deletion_epoch != 0:
-                raise PolicyDenied()
-        if fact.supersedes_fact_id is not None:
-            predecessor = self._read(
-                tx,
-                policy,
-                subject,
-                self._ref(context, fact.supersedes_fact_id, ResourceKind.MEMORY),
-                Fact,
-            )
-            _inherited_scope(fact, predecessor)
-            if predecessor.deletion_epoch != 0 or (
-                predecessor.visibility == Visibility.PRIVATE
-                and predecessor.owner_user_id != fact.owner_user_id
-            ):
-                raise PolicyDenied()
-        for source in fact.source_refs:
-            resolved = _validated(ResolvedSource, self._sources.resolve(tx, context, source))
-            if (
-                resolved.source != source
-                or resolved.authority.tenant_id != context.tenant_id
-                or resolved.deleted
-                or (reuse and (resolved.suppress_reuse or resolved.deletion_epoch != 0))
-            ):
-                raise PolicyDenied()
-            grant = policy.resource(
-                context.tenant_id, subject, resolved.authority, action=action, output=self._output
-            )
-            authority = tx.get(_path(resolved.authority))
-            if (
-                authority is None
-                or authority.get("deleted") is not False
-                or type(authority.get("suppress_reuse")) is not bool
-                or (reuse and authority["suppress_reuse"])
-            ):
-                raise PolicyDenied()
-            _inherited_scope(fact, grant.scope)
-            if reuse and grant.resource.deletion_epoch != 0:
-                raise PolicyDenied()
+        check_fact_dependencies(
+            tx,
+            context,
+            policy,
+            subject,
+            fact,
+            sources=self._sources,
+            output=self._output,
+            reuse=reuse,
+        )
 
     def create_entity(
         self, context: TenantContext, identity: ResourceId, values: EntityInput

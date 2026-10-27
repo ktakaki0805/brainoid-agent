@@ -33,6 +33,7 @@ PERSONAL = frozenset(
         "private_sessions",
         "integrations",
         "calendar_authorizations",
+        "calendar_proposals",
         "notifications",
         "reminder_schedules",
         "exports",

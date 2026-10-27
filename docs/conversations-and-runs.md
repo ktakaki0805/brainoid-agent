@@ -87,7 +87,7 @@ BA-RUN-07の`POST /v1/tenants/{tenant_id}/runs/{run_id}:cancel`はIdempotency-Ke
 
 [Confirmations](../services/worker/src/brainoid_worker/resume_run.py)は内部serviceであり、HTTPから任意の結果を渡す入口ではない。RunTurnにはRegistryと業務対象用Authorizerを両方明示注入する。run wrapperがlease、account、session、削除、agent allowlist、固定tool IDを検査し、業務hookが現在対象・意図・確認を検査する。明示登録のない構成は従来どおりtool候補をfailedにする。Calendar confirmをモデルtoolへ登録しない。
 
-runに固定model段階、サーバー採番tool ID列、内部continuation、checkpoint_versionを保存する。`run_proposals/{id}`はrun/tool_call/checkpoint版/正規化引数hash/5分期限を結び付ける。確認待ち結果とproposal/run/jobを同じtransactionで保存し、jobを`waiting`へ移してleaseを解放する。worker要求はそこで終了する。Dispatcherはwaitingを再配送しない。汎用確認のクライアントはrun GETをpollし、status=waiting_confirmationとwaiting_proposal_id/checkpoint_versionから待機を検知する。既存confirmation.requiredはkind=calendar_write限定なので、この汎用経路では発行しない。Calendar固有eventと確認UIはCAL-03/UI-08で接続する。
+runに固定model段階、サーバー採番tool ID列、内部continuation、checkpoint_versionを保存する。`run_proposals/{id}`はrun/tool_call/checkpoint版/正規化引数hash/5分期限を結び付ける。確認待ち結果とproposal/run/jobを同じtransactionで保存し、jobを`waiting`へ移してleaseを解放する。worker要求はそこで終了する。Dispatcherはwaitingを再配送しない。汎用確認のクライアントはrun GETをpollし、status=waiting_confirmationとwaiting_proposal_id/checkpoint_versionから待機を検知する。既存confirmation.requiredはkind=calendar_write限定なので、この汎用経路では発行しない。BA-CAL-03の[Calendar操作proposal](calendar-proposals.md)は固有eventと固定期限・早期否認の収束を接続する。確認UIはUI-08で接続する。
 
 `decide(tenant, run, proposal, decision, subject=...)`は現在認可、本人、proposal/hash/checkpointとtool結果を検査する。確認・拒否・期限切れの一回遷移とcanonical `run_turn` jobのpending化を同じtransactionで保存する。job IDを変えず、dispatch/lease世代を進めて旧deliveryを排除する。正常な確認待ちは失敗試行数を消費しない。モデル結果は固定stepから再利用する。
 

@@ -40,7 +40,15 @@ from brainoid_worker.note_erasure import (
 )
 
 ROOTS = frozenset(
-    {"conversations", "runs", "jobs", "tool_executions", "memory_effects", "run_proposals"}
+    {
+        "conversations",
+        "runs",
+        "jobs",
+        "tool_executions",
+        "memory_effects",
+        "run_proposals",
+        "calendar_proposals",
+    }
 )
 VECTOR = re.compile(r"memory_vectors_[0-9a-f]{32}\Z")
 
@@ -509,7 +517,7 @@ class ForgetHandlers:
                 for record in (doc.get("record"), doc.get("previous"))
             )
             return Decision(erase=selected, children=selected)
-        if root == "run_proposals" and len(parts) == 4:
+        if root in {"run_proposals", "calendar_proposals"} and len(parts) == 4:
             run = tx.get(f"tenants/{intent.tenant_id}/runs/{doc.get('run_id')}")
             selected = run is not None and self._run(tx, run, intent, cutoffs)
             return Decision(erase=selected, children=selected)

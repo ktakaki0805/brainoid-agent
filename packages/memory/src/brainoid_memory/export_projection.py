@@ -51,6 +51,34 @@ def project(
         raise PolicyDenied()
     if not exportable(tx, tenant, kind, item_id, document, parent=parent_id):
         return None
+    if kind == "calendar_proposals":
+        from brainoid_memory.calendar_proposal_access import check_origin
+        from brainoid_memory.calendar_proposals import view as proposal_view
+
+        if document.get("owner_user_id") != access.principal.user_id:
+            return None
+        try:
+            check_origin(
+                tx,
+                access._authority.policy,
+                document,
+                now=access._repo._now,
+                credential_epoch=access._repo._credential_epoch,
+                sources=access._repo._sources,
+            )
+        except PolicyUnavailable:
+            raise
+        except PolicyDenied:
+            return None
+        public = proposal_view(document).model_dump(mode="json")
+        access.finish()
+        return ManifestEntry(
+            kind="calendar_proposals",
+            resource_id=item_id,
+            version=document["version"],
+            deletion_epoch=document["deletion_epoch"],
+            fingerprint=fingerprint([public, document["args_hash"]]),
+        ), public
     if kind == "integrations":
         from brainoid_contracts import DisplayPolicy, Scope
         from brainoid_contracts.access import AuthorizedScope
@@ -107,7 +135,14 @@ def project(
         created = document.get("user_id") == access.principal.user_id
     if kind == "messages":
         try:
-            check_calendar_sources(tx, policy, access.principal, document)
+            check_calendar_sources(
+                tx,
+                policy,
+                access.principal,
+                document,
+                credential_epoch=access._repo._credential_epoch,
+                sources=access._repo._sources,
+            )
         except PolicyUnavailable:
             raise
         except PolicyDenied:

@@ -1,15 +1,18 @@
 """Authorized conversation reads and atomic user-message/run/outbox admission."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
 from uuid import uuid4
 
 from brainoid_contracts import DisplayPolicy, FirebaseUid, ResourceId, Scope, Visibility
 from brainoid_contracts.deletion import fenced_document, purge_epoch
+from brainoid_contracts.guards import GuardedTransactions, ReleaseGuard, protect, release_guard
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_jobs import Jobs
 from brainoid_memory.calendar_access import check_calendar_sources
+from brainoid_memory.sources import CanonicalSources
 from brainoid_policy.models import (
     Action,
     DeviceSubject,
@@ -21,6 +24,7 @@ from brainoid_policy.models import (
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable, Principal, ResourceGrant
 from brainoid_policy.transactions import resource_state
 from brainoid_runs.events import save_projection
+from brainoid_runs.memory_sources import SavedMessages
 from brainoid_runs.models import (
     Conversation,
     ConversationCreate,
@@ -69,6 +73,16 @@ def policy_call[T](work: Callable[[], T]) -> T:
         raise APIError(ErrorCode(error.code)) from None
 
 
+@dataclass(frozen=True)
+class ReadResult[T]:
+    value: T
+    guard: ReleaseGuard
+
+    def release(self) -> T:
+        policy_call(self.guard.finish)
+        return self.value
+
+
 class Conversations:
     def __init__(
         self,
@@ -85,6 +99,15 @@ class Conversations:
         self.credentials, self.sessions, self.now = credentials, sessions, now
         self.idempotency = Idempotency(store, now=now)
         self.usage = UsageLedger(store, now=now)
+
+    def current_read[T](self, work: Callable[[Transaction], T]) -> ReadResult[T]:
+        """Read evidence is local to the successful attempt, including response delay."""
+
+        def read(tx: Transaction) -> ReadResult[T]:
+            result = work(tx)
+            return ReadResult(result, release_guard(tx))
+
+        return policy_call(lambda: GuardedTransactions(self.store).run(read))
 
     def principal(
         self,
@@ -384,6 +407,20 @@ class Conversations:
         limit: int = 20,
         cursor: str | None = None,
     ) -> MessagePage:
+        return self.messages_for_release(
+            identity, tenant, conversation, session, limit=limit, cursor=cursor
+        ).release()
+
+    def messages_for_release(
+        self,
+        identity: AgentIdentity,
+        tenant: ResourceId,
+        conversation: ResourceId,
+        session: ResourceId | None = None,
+        *,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> ReadResult[MessagePage]:
         limit = page_limit(limit)
 
         def read(tx: Transaction) -> MessagePage:
@@ -408,7 +445,16 @@ class Conversations:
                 if current_document["deleted"]:
                     continue
                 try:
-                    check_calendar_sources(tx, self.jobs._policy(tx), grant.principal, doc)
+                    check_calendar_sources(
+                        tx,
+                        self.jobs._policy(tx),
+                        grant.principal,
+                        doc,
+                        credential_epoch=self.credentials.credential_epoch
+                        if self.credentials
+                        else None,
+                        sources=CanonicalSources(SavedMessages()),
+                    )
                 except PolicyUnavailable:
                     raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
                 except PolicyDenied:
@@ -449,10 +495,10 @@ class Conversations:
                 if len(remaining) > limit
                 else None
             )
-            current.ensure_live(self.now())
+            protect(tx, lambda: current.ensure_live(self.now()))
             return MessagePage(items=remaining[:limit], next_cursor=next_cursor)
 
-        return self.store.run(read)
+        return self.current_read(read)
 
     def output(self, tx: Transaction, principal: Principal, body: TurnCreate) -> Subject:
         if body.output_device_id is None:
@@ -684,16 +730,34 @@ class Conversations:
         run_id: ResourceId,
         session: ResourceId | None = None,
     ) -> Run:
+        return self.run_for_release(identity, tenant, run_id, session).release()
+
+    def run_for_release(
+        self,
+        identity: AgentIdentity,
+        tenant: ResourceId,
+        run_id: ResourceId,
+        session: ResourceId | None = None,
+    ) -> ReadResult[Run]:
         def read(tx: Transaction) -> Run:
             doc = tx.get(run_path(tenant, run_id))
             if doc is None or doc.get("tenant_id") != tenant or doc.get("run_id") != run_id:
                 raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
             grant, current = self.access(tx, identity, tenant, doc["conversation_id"], session)
             policy_call(
-                lambda: check_calendar_sources(tx, self.jobs._policy(tx), grant.principal, doc)
+                lambda: check_calendar_sources(
+                    tx,
+                    self.jobs._policy(tx),
+                    grant.principal,
+                    doc,
+                    credential_epoch=self.credentials.credential_epoch
+                    if self.credentials
+                    else None,
+                    sources=CanonicalSources(SavedMessages()),
+                )
             )
             updated = failed_projection(tx, doc)
-            current.ensure_live(self.now())
+            protect(tx, lambda: current.ensure_live(self.now()))
             release = (
                 self.usage.prepare_release(tx, tenant, run_id)
                 if updated["status"] in ("completed", "failed", "cancelled")
@@ -703,7 +767,7 @@ class Conversations:
             save_projection(tx, doc, updated, self.now())
             return view(Run, updated)
 
-        return self.store.run(read)
+        return self.current_read(read)
 
     def cancel_run(
         self,
@@ -713,6 +777,16 @@ class Conversations:
         key: str | None,
         session: ResourceId | None = None,
     ) -> Run:
+        return self.cancel_for_release(identity, tenant, run_id, key, session).release()
+
+    def cancel_for_release(
+        self,
+        identity: AgentIdentity,
+        tenant: ResourceId,
+        run_id: ResourceId,
+        key: str | None,
+        session: ResourceId | None = None,
+    ) -> ReadResult[Run]:
         from brainoid_jobs import Job
         from brainoid_jobs.models import job_id
         from brainoid_jobs.repository import path as job_path
@@ -748,4 +822,4 @@ class Conversations:
         self.idempotency.execute(
             operation=f"runs.cancel:{run_id}", key=key, body={}, authorize=authorize, mutate=mutate
         )
-        return self.get_run(identity, tenant, run_id, session)
+        return self.run_for_release(identity, tenant, run_id, session)

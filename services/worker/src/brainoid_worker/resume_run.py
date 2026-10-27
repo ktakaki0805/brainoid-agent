@@ -16,11 +16,17 @@ from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import AuthorizationUnavailable, Job, Jobs, LeaseLost
 from brainoid_jobs.models import job_id
 from brainoid_jobs.repository import path as job_path
+from brainoid_memory.calendar_proposal_access import check_origin
+from brainoid_memory.calendar_proposals import proposal_path as calendar_path
+from brainoid_memory.calendar_proposals import validate_proposal
+from brainoid_memory.sources import CanonicalSources
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.accounts import AccountUnavailable
 from brainoid_policy.models import Action, Subject, UserSubject
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from brainoid_runs import events
+from brainoid_runs.confirmation_decision import denied, prepare_decision, resume
+from brainoid_runs.memory_sources import SavedMessages
 from brainoid_runs.state import KIND, RunState, run_path
 from brainoid_tools import (
     Arguments,
@@ -147,7 +153,33 @@ class Confirmations:
                 or tool["result"] != result.model_dump(mode="json")
             ):
                 raise PolicyDenied()
+            calendar = (
+                tx.get(calendar_path(job.tenant_id, result.proposal_id))
+                if request.call.name == "calendar.propose"
+                else None
+            )
             version = run.get("checkpoint_version", 0) + 1
+            if request.call.name == "calendar.propose":
+                if calendar is None:
+                    raise PolicyDenied()
+                validate_proposal(calendar)
+                check_origin(
+                    tx,
+                    self.jobs._policy(tx),
+                    calendar,
+                    now=self.jobs.now,
+                    credential_epoch=self.state.credential_epoch,
+                    sources=CanonicalSources(SavedMessages()),
+                    for_model=True,
+                )
+                if (
+                    calendar.get("run_id") != job.operation_id
+                    or calendar.get("tool_call_id") != request.tool_call_id
+                    or calendar.get("checkpoint_version") != version
+                    or calendar["status"] not in ("pending", "declined", "expired")
+                ):
+                    raise PolicyDenied()
+
             proposal = {
                 "id": result.proposal_id,
                 "run_id": job.operation_id,
@@ -163,6 +195,21 @@ class Confirmations:
                 "status": "pending",
                 "expires_at": (self.jobs.now() + timedelta(minutes=5)).isoformat(),
             }
+            decision = None
+            if calendar is not None:
+                proposal["expires_at"] = calendar["expires_at"]
+                proposal["checkpoint_id"] = calendar["checkpoint_id"]
+                decision = (
+                    calendar["status"]
+                    if calendar["status"] != "pending"
+                    else (
+                        "expired"
+                        if normalize_utc(calendar["expires_at"]) <= self.jobs.now()
+                        else None
+                    )
+                )
+                if decision is not None:
+                    proposal.update(status=decision, decision=decision)
             model_key = "model" if run.get("model_step", 0) == 0 else f"model.{run['model_step']}"
             checkpoint = next(c for c in job.checkpoints if c.key == model_key)
             if checkpoint.state != "completed" or not isinstance(checkpoint.result, dict):
@@ -172,7 +219,47 @@ class Confirmations:
             if not text.startswith(prefix):
                 raise PolicyDenied()
             events.append_text(tx, run, text[len(prefix) :], self.jobs.now())
+            if calendar is not None and decision is None:
+                events.append(
+                    tx,
+                    run,
+                    events.Confirmation(
+                        run_id=job.operation_id,
+                        seq=run.get("last_event_seq", 0) + 1,
+                        occurred_at=self.jobs.now(),
+                        payload=events.ConfirmationPayload(
+                            proposal_id=result.proposal_id,
+                            expires_at=normalize_utc(calendar["expires_at"]),
+                        ),
+                    ),
+                )
             tx.create(path, proposal)
+            if calendar is not None and decision is not None:
+                tx.set(
+                    calendar_path(job.tenant_id, result.proposal_id),
+                    {**calendar, "status": decision, "version": calendar["version"] + 1},
+                )
+                tx.set(
+                    f"tenants/{job.tenant_id}/tool_executions/{request.tool_call_id}",
+                    {
+                        **tool,
+                        "state": "finished",
+                        "result": denied(tool),
+                        "confirmation_result": tool["result"],
+                    },
+                )
+                resume(
+                    tx,
+                    self.jobs,
+                    job,
+                    {
+                        **run,
+                        "waiting_proposal_id": result.proposal_id,
+                        "checkpoint_version": version,
+                    },
+                    decision,
+                )
+                return
             tx.set(
                 run_path(job.tenant_id, job.operation_id),
                 {
@@ -290,6 +377,40 @@ class Confirmations:
         def work(tx: Transaction) -> str:
             job, proposal, tool = self._read(tx, tenant, run_id, proposal_id)
             self._access(tx, job, subject)
+            calendar = (
+                tx.get(calendar_path(tenant, proposal_id))
+                if tool.get("name") == "calendar.propose"
+                else None
+            )
+            if tool.get("name") == "calendar.propose":
+                if calendar is None or decision == "confirmed":
+                    raise PolicyDenied()
+                check_origin(
+                    tx,
+                    self.jobs._policy(tx),
+                    calendar,
+                    now=self.jobs.now,
+                    credential_epoch=self.state.credential_epoch,
+                    sources=CanonicalSources(SavedMessages()),
+                    for_model=True,
+                )
+                calendar_chosen = (
+                    "expired"
+                    if normalize_utc(calendar["expires_at"]) <= self.jobs.now()
+                    else decision
+                )
+                if decision == "expired" and calendar_chosen != "expired":
+                    raise PolicyDenied()
+                if calendar["status"] not in ("pending", calendar_chosen):
+                    raise PolicyDenied()
+                write = prepare_decision(tx, self.jobs, self.state, calendar, calendar_chosen)
+                write()
+                if calendar["status"] != calendar_chosen:
+                    tx.set(
+                        calendar_path(tenant, proposal_id),
+                        {**calendar, "status": calendar_chosen, "version": calendar["version"] + 1},
+                    )
+                return calendar_chosen
             if proposal["status"] != "pending":
                 if (
                     proposal.get("decision") != decision
@@ -549,11 +670,17 @@ class Confirmations:
         def work(tx: Transaction) -> None:
             doc = tx.get(job_path(tenant, job_id(tenant, KIND, run_id)))
             proposal = tx.get(proposal_path(tenant, proposal_id))
+            calendar = tx.get(calendar_path(tenant, proposal_id))
             if doc is None or proposal is None or proposal["status"] != "pending":
                 return
             job = Job.model_validate(doc)
             if job.status != "waiting":
                 return
+            if calendar is not None and calendar["status"] == "pending":
+                tx.set(
+                    calendar_path(tenant, proposal_id),
+                    {**calendar, "status": "expired", "version": calendar["version"] + 1},
+                )
             tx.set(proposal_path(tenant, proposal_id), {**proposal, "status": "expired"})
             self.jobs._stop(tx, job, "obsolete", "authorization_changed")
 

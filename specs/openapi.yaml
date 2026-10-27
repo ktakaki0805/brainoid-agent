@@ -2727,13 +2727,13 @@ paths:
     post:
       operationId: createCalendarProposal
       summary: 予定書込みの確認内容を確定
-      description: deviceは本人private_sessionとcalendar.propose scope必須。実行確認はスマホのみ。
+      description: 本人privateの固定proposalを201で保存する。deviceは本人private_sessionとcalendar.propose scope必須。実付与WRITE scopeと現在calendar ACL、update/deleteのtarget GET・ETagを検査する。同key/bodyは同一proposal。本人confirm/provider書込は後続。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 固定proposalを保存した
           content:
             application/json:
               schema:
@@ -2765,12 +2765,12 @@ paths:
     get:
       operationId: getCalendarProposal
       summary: 予定書込み確認内容
-      description: 予定書込み確認内容
+      description: 現在の本人・原producer/session/credential・出典を検査して固定内容と状態を取得する。期限到達pendingはexpiredへ収束する。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在認可された本人の固定proposal
           content:
             application/json:
               schema:
@@ -2830,12 +2830,12 @@ paths:
     post:
       operationId: rejectCalendarProposal
       summary: 本人が提案を拒否
-      description: pendingのみdeclinedへ。対応runのcheckpointに否認結果を保存しresume jobを作成。既にexecutingなら409。
+      description: 本人がbodyなしで否認する。pendingはdeclined、期限到達ならexpired。同一決定の再送は同じ結果。対応runのcheckpointと否認結果・resume jobを同一transactionで保存する。取消済みやexecutingは409。
       security:
       - userBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在認可された本人の固定proposal
           content:
             application/json:
               schema:

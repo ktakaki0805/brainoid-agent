@@ -54,3 +54,30 @@ class GoogleCalendar:
             raise
         except Exception:
             raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None
+
+    def event(self, token: SecretStr, calendar: str, event: str) -> Document:
+        try:
+            response = self.session.get(
+                "https://www.googleapis.com/calendar/v3/calendars/"
+                + quote(calendar, safe="")
+                + "/events/"
+                + quote(event, safe=""),
+                params={"timeZone": "UTC"},
+                headers={"Authorization": "Bearer " + token.get_secret_value()},
+                timeout=10,
+                allow_redirects=False,
+            )
+            if response.status_code == 401:
+                raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+            if response.status_code in (403, 404):
+                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
+            if response.status_code != 200:
+                raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+            result = response.json()
+            if not isinstance(result, dict):
+                raise ValueError
+            return result
+        except APIError:
+            raise
+        except Exception:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE) from None

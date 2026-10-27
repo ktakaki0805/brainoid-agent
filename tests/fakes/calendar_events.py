@@ -37,6 +37,11 @@ class EventsProvider:
         self.calls: list[tuple[CalendarQuery, str | None]] = []
         self.after: Callable[[], None] = lambda: None
 
+    def event(self, token: SecretStr, calendar: str, identity: str) -> dict[str, Any]:
+        value = copy.deepcopy(self.pages[None]["items"][0])
+        self.after()
+        return cast(dict[str, Any], value)
+
     def events(
         self, token: SecretStr, query: CalendarQuery, page_token: str | None
     ) -> dict[str, Any]:

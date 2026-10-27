@@ -54,7 +54,7 @@ from brainoid_tools import (
     ResultUse,
     ToolRejected,
 )
-from brainoid_tools.calendar import ListCalendarArguments
+from brainoid_tools.calendar import ListCalendarArguments, ProposeCalendarArguments
 from brainoid_tools.home import SetStateArguments
 from brainoid_tools.memory import (
     ForgetArguments,
@@ -251,6 +251,7 @@ class MemoryRuntime:
         self.handler = handler
         self.delegate = handler.tool_authorizer
         from brainoid_worker.calendar import CalendarRuntime
+        from brainoid_worker.calendar_proposals import ProposalRuntime
         from brainoid_worker.home import HomeRuntime
         from brainoid_worker.notes import NotesRuntime
         from brainoid_worker.reminders import RemindersRuntime
@@ -261,6 +262,7 @@ class MemoryRuntime:
         self.reminders = RemindersRuntime(self)
         self.home = HomeRuntime(self)
         self.calendar = CalendarRuntime(self, handler.calendar_reader)
+        self.calendar_proposals = ProposalRuntime(self, handler.calendar_reader)
 
     def stopped(self, control: CallControl) -> bool:
         return control.cancellation.cancelled or (
@@ -464,6 +466,10 @@ class MemoryRuntime:
         )
 
     def check(self, tx: Transaction, request: ToolExecution, arguments: Arguments) -> Authority:
+        if request.call.name == "calendar.propose" and isinstance(
+            arguments, ProposeCalendarArguments
+        ):
+            return self.calendar_proposals.check(tx, request, arguments)
         if request.call.name == "calendar.list" and isinstance(arguments, ListCalendarArguments):
             return self.calendar.check(tx, request, arguments)
         if request.call.name == "home.set_state" and isinstance(arguments, SetStateArguments):
@@ -808,6 +814,12 @@ class MemoryRuntime:
         *,
         consumer: ResultConsumer,
     ) -> ResultUse:
+        if request.call.name == "calendar.propose" and isinstance(
+            arguments, ProposeCalendarArguments
+        ):
+            return self.calendar_proposals.check_result(
+                tx, request, arguments, result, consumer=consumer
+            )
         if request.call.name == "calendar.list" and isinstance(arguments, ListCalendarArguments):
             return self.calendar.check_result(tx, request, arguments, result, consumer=consumer)
         if request.call.name == "home.set_state" and isinstance(arguments, SetStateArguments):

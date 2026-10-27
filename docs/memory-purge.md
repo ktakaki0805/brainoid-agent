@@ -33,7 +33,7 @@ forget受付は `purge_barriers/history` のepochを増加し、turn受付は同
 | 会話のassistant/tool messages | `memory_records`・tool resultの正規参照または対象sourceを消費し得た受付前runから選択。本文、model_messages、署名、依存snapshotをdocumentごと消去 |
 | `runs/{id}/events` とrun内payload | 対象runの子階層を先に消去し、runを本文なしの `failed/source_deleted` と `purged_by` に縮退。continuation、memory_records、tool_bindings、streamed/completed textを残さない |
 | `jobs/{id}` | `grant.resource.ref`、summary manifest、対象runで選択。obsolete化しleaseを閉じ、checkpoint/resultを消去。purge job自身と別operationのpurge jobは保持 |
-| `tool_executions/{id}`、`run_proposals/{id}` | 正規resultのmemory参照・canonical runから選択し、結果・tool requestと子階層を消去 |
+| `tool_executions/{id}`、`run_proposals/{id}`、run由来`calendar_proposals/{id}` | 正規resultのmemory参照・canonical runから選択し、結果・tool requestと子階層を消去 |
 | `memory_effects/{id}` | `record` または `previous` の対象Fact snapshotを持つeffect proof全体を消去。別の後継Fact原本を連鎖削除しない |
 | 削除tombstone、削除台帳、forget reservation、operation | 永続fence・再開情報として保持。物理原本消去後も同じIDの再作成を拒否 |
 | `idempotency_records`、`memory_forget_effects`、監査 | 本文を持たない識別子・hash・固定結果を保持。本文を持つmemory effectとは区別 |

@@ -28,10 +28,24 @@ def cancellation(tx: Transaction, jobs: Jobs, run: Document) -> Document:
     executions = [
         tx.get(f"tenants/{tenant}/tool_executions/{call}") for call in run.get("tool_call_ids", [])
     ]
+    calendars = []
+    for execution in executions:
+        if execution is not None and execution.get("name") == "calendar.propose":
+            path = f"tenants/{tenant}/calendar_proposals/{execution['effect_id']}"
+            canonical = tx.get(path)
+            if (
+                canonical is not None
+                and canonical.get("run_id") == identity
+                and canonical.get("status") == "pending"
+            ):
+                calendars.append((path, canonical))
     may_have_completed = any(
         e.get("authority", {}).get("run_id") == identity
         and (
-            e.get("state") == "started"
+            (
+                e.get("state") == "started"
+                and (e.get("name") != "calendar.propose" or e.get("external_claim") is not None)
+            )
             or (
                 e.get("result") is not None
                 and e["result"].get("status") not in ("waiting_confirmation", "failed")
@@ -44,6 +58,8 @@ def cancellation(tx: Transaction, jobs: Jobs, run: Document) -> Document:
         return run
     release = UsageLedger(jobs.store, now=jobs.now).prepare_release(tx, tenant, identity)
     release()
+    for path, canonical in calendars:
+        tx.set(path, {**canonical, "status": "cancelled", "version": canonical["version"] + 1})
     updated = {**run, "status": "cancelled", "version": run["version"] + 1}
     updated.pop("waiting_proposal_id", None)
     events.append(

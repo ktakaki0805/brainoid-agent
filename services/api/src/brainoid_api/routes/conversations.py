@@ -147,9 +147,16 @@ async def list_messages(
     limit: Limit = 20,
     cursor: Cursor = None,
 ) -> MessagePage:
-    return await run_in_threadpool(
-        repo.messages, identity, tenant_id, conversation_id, session, limit=limit, cursor=cursor
+    result = await run_in_threadpool(
+        repo.messages_for_release,
+        identity,
+        tenant_id,
+        conversation_id,
+        session,
+        limit=limit,
+        cursor=cursor,
     )
+    return result.release()
 
 
 @router.post(
@@ -194,7 +201,8 @@ async def get_run(
     session: Session,
     response: Response,
 ) -> Run:
-    result = await run_in_threadpool(repo.get_run, identity, tenant_id, run_id, session)
+    guarded = await run_in_threadpool(repo.run_for_release, identity, tenant_id, run_id, session)
+    result = guarded.release()
     response.headers["ETag"] = etag(result.version)
     return result
 
@@ -215,8 +223,14 @@ async def cancel_run(
     request: Request,
     response: Response,
 ) -> Run:
-    result = await run_in_threadpool(
-        repo.cancel_run, identity, tenant_id, run_id, _header(request, "Idempotency-Key"), session
+    guarded = await run_in_threadpool(
+        repo.cancel_for_release,
+        identity,
+        tenant_id,
+        run_id,
+        _header(request, "Idempotency-Key"),
+        session,
     )
+    result = guarded.release()
     response.headers["ETag"] = etag(result.version)
     return result

@@ -3121,7 +3121,7 @@ export type CreateCalendarProposalErrors = {
 export type CreateCalendarProposalError = CreateCalendarProposalErrors[keyof CreateCalendarProposalErrors];
 export type CreateCalendarProposalResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 固定proposalを保存した
      */
     201: CalendarProposal;
 };
@@ -3144,7 +3144,7 @@ export type GetCalendarProposalErrors = {
 export type GetCalendarProposalError = GetCalendarProposalErrors[keyof GetCalendarProposalErrors];
 export type GetCalendarProposalResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在認可された本人の固定proposal
      */
     200: CalendarProposal;
 };
@@ -3202,7 +3202,7 @@ export type RejectCalendarProposalErrors = {
 export type RejectCalendarProposalError = RejectCalendarProposalErrors[keyof RejectCalendarProposalErrors];
 export type RejectCalendarProposalResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在認可された本人の固定proposal
      */
     200: CalendarProposal;
 };

@@ -1,6 +1,7 @@
 """Calendar reference arguments cannot carry identity, scopes or credential references."""
 
 from brainoid_contracts import ResourceId
+from brainoid_memory.calendar_proposals import Change
 from brainoid_memory.calendar_reader import CalendarQuery
 
 from brainoid_tools.registry import Arguments, Handler, Registration, Registry
@@ -20,3 +21,21 @@ class ListCalendarArguments(CalendarQuery, Arguments):
 def register_calendar(registry: Registry, handler: Handler[ListCalendarArguments]) -> None:
     if not registry.definitions(("calendar.list",)):
         registry.register(Registration("calendar.list", ListCalendarArguments, handler))
+
+
+class ProposeCalendarArguments(Arguments):
+    """Prepare one private, immutable intent. Only its owner can confirm in the app."""
+
+    integration_id: ResourceId
+    change: Change
+
+    @property
+    def calendar_id(self) -> str:
+        return self.change.calendar_id
+
+
+def register_calendar_proposals(
+    registry: Registry, handler: Handler[ProposeCalendarArguments]
+) -> None:
+    if not registry.definitions(("calendar.propose",)):
+        registry.register(Registration("calendar.propose", ProposeCalendarArguments, handler))

@@ -11,6 +11,7 @@ from starlette.types import Receive, Scope, Send
 from brainoid_api.auth.context import AuthenticatedIdentity
 from brainoid_api.auth.runtime import AuthServices, get_auth_services
 from brainoid_api.errors import APIError, ErrorCode, ErrorResponse
+from brainoid_api.repositories.memories import policy_call
 from brainoid_api.routes.tenants import Identity
 from brainoid_api.services.export_requests import ExportRequests
 
@@ -48,7 +49,7 @@ class ExportResponse(Response):
                 self.repository.release, self.identity, self.tenant, self.operation
             )
             # There is no await between the token/deadline check and the ASGI send.
-            guard.finish()
+            policy_call(guard.finish)
 
         await release()
         await send({"type": "http.response.start", "status": 200, "headers": self.raw_headers})
