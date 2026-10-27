@@ -11357,3 +11357,246 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 実機/native署名・実サービス・認証/業務会話/録音、host導入・公開は未実施。外部依存・backend/rules/schema/Emulator入力は不変につきEmulator再実行なし。後続チケットの機能・実機検証を今回の完了に含めない。
 - `parent-postdone-check-01`: `mise run check`、2026-10-27T21:32:42.833483+00:00→2026-10-27T21:32:46.737153+00:00、exit 0、3.9041551330010407s、unittest/counts ['Success: no issues found in 404 source files']、Node []。metadata SHA-256 `d3968ef95788f78ff68e11840bce1df08209310dfb2d38a785685bb5ac67b294`、raw SHA-256 `31e28fd1688b42716bba64553139ec66a39c8b6f6588c2093230af7bc9303eff`。
 - 台帳done更新後の必須 `mise run check` 成功、52/96 done・blocked0。コミット後599既存product mapも承認済みと一致、削除2は履歴にも反映。親postdone session88144はexit0で終了。記録コミット対象は台帳と本logの2ファイルのみ。
+
+## ba-dev-09-20261027t213359z
+
+- チケット: BA-DEV-09 Pi導入手順・kiosk起動・offline回復画面 / FR-003・FR-014。
+- 状態in_progress、開始 2026-10-27T21:33:59.502432+00:00。main / base `d1dff94186e991bcbfe34145ba9648d6a1997e7b`、開始時clean、既存無関係変更なし。実装担当 `/root/dev09_implementation`、親は台帳・log・commitを担当。ID指定なしplannerで選択。
+- 依存done/祖先確認: BA-DEV-01 `6e66340889f700524b88aaf19f5ddb39e43c5ee2`, BA-DEV-02 `d6f9561ccf3a99849aad45df57840dd1d8945023`, BA-UI-01 `da9a99b591ca963c9e01be0f2484496d8c32e1f6`。全599product開始map `/tmp/ba-dev-09-start.json`。
+- 範囲・受入: 専用user/systemd/kioskの冪等導入、loopback表示、ネット断での状態・設定/復旧案内、本人local確認による停止/消去/未登録化、remote失効との明確な区別、OS/機材前提と復旧/アンインストール手順。isolated install rootとcommand runner、仮private/audio/旧command、reset中断/reopen/遅延callback、既存Origin/session/CSRF境界、実ローカルserviceとbuilt UI/browserを検証する。setup/check/通常回帰、変更範囲に応じた追加検証と独立全差分レビューを行う。
+- 外部前提: Pi5 8GB・候補OS・画面・電源・冷却は未提供、実機導入2回/再起動/ネット断は未実施。docs08§1に従いfakeで独立検証可能な実装を進め、§3に従い実機結果と混同しない。実host user/systemd/導入/reset、実credential/cloud/provider/device操作、公開は行わない。必要なlocal実装・隔離検証を完了後に独立レビューで完了範囲を評価する。
+- `writer-focused-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_recovery.py -v`、2026-10-27T21:40:29.443836+00:00→2026-10-27T21:40:29.690342+00:00、exit 1、0.246506s、unittest/counts ['Ran 6 tests in 0.008s']、Node []。metadata SHA-256 `3e75e037f03ff37a2f425ad231c0f2e5b54ab2a3c3b1d682fc89d866f0d3709b`、raw SHA-256 `b7f34409f2d77b20a14e779626ad9e92f38e66fbc4ac9e5ef3fd9ba9ead61318`。
+- `writer-focused-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_recovery.py -v`、2026-10-27T21:40:37.697182+00:00→2026-10-27T21:40:38.059922+00:00、exit 0、0.36274s、unittest/counts ['Ran 6 tests in 0.127s']、Node []。metadata SHA-256 `17463d532ee2735503a6051ed1132f46795d4385965b06b9e21d5251f663d728`、raw SHA-256 `c3258c14551d3c2fd57c2c64e542ec41bc33a46897466771594d60c8358821ce`。
+- `writer-setup-2`: `mise run setup`、2026-10-27T21:40:45.115198+00:00→2026-10-27T21:40:45.729192+00:00、exit 0、0.613994s、unittest/counts []、Node []。metadata SHA-256 `dab4f92949f7d832bffe28e00e102163ed7d404a608dbedd5e6f1f35a77f021e`、raw SHA-256 `0294e285833bba94899f0ae04150ae0ccec41466fdf7da5efabb66f27b49e560`。
+- `writer-setup`: `mise run setup`、2026-10-27T21:39:30.981435+00:00→2026-10-27T21:39:41.059876+00:00、exit 1、10.078441s、unittest/counts []、Node []。metadata SHA-256 `ce7c0a363f4efb6081c8ee90abbd36009cab10048a5d401801731ee86f71d859`、raw SHA-256 `44b0757b57cf9a07bbb11e49e156b5bfd06ff42dbeecd21d52ef6d2494b51ba9`。
+- `writer-provision-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_provision.py -v`、2026-10-27T21:41:53.847245+00:00→2026-10-27T21:41:53.961878+00:00、exit 1、0.114633s、unittest/counts ['Ran 4 tests in 0.002s']、Node []。metadata SHA-256 `1e472e8f10026edc9a3e3720ba40d43e5a15024898f617e0fcaefb58b3a09e51`、raw SHA-256 `6b0d67221165cb4d2d6c1a6a3bc0eabbcac7395055b2a301228f518446affe6e`。
+- `writer-provision-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_provision.py -v`、2026-10-27T21:42:20.490712+00:00→2026-10-27T21:42:20.658218+00:00、exit 0、0.167506s、unittest/counts ['Ran 4 tests in 0.034s']、Node []。metadata SHA-256 `f463eedb355656b9032d0a79cb00881c93a6839c407076979487bab04cadec34`、raw SHA-256 `559db3c2d5c3885e4255a609407e321678b21d386694fcaa07fe17e3a661272c`。
+- 初期検証の失敗理由: setup初回はsandbox内でmise shim書込不可、focused1は保護static directory検査がsandbox内で拒否、provision1はsandboxのowner検査で拒否。制約を緩めず、isolated fixtureだけを通常ローカル実行したsetup2/focused2/provision2が成功。provision2は一時rootの実sysusersとsystemctl --rootで2回導入・disable/re-enableを検証し、最小fixtureのmulti-user.target未配置warningは実OS boot成功としない。
+- `writer-check-1`: `mise run check`、2026-10-27T21:45:03.804366+00:00→2026-10-27T21:45:26.967272+00:00、exit 1、23.162906s、unittest/counts []、Node []。metadata SHA-256 `68ea0d66a422bd6f44c81f6d9f4ffbf3376882eb12ad90017b705d6cc38248aa`、raw SHA-256 `6870fbd3e3e77b6090ee4ef1bb69e1b918ad2d6efb48dd342877193b65973683`。
+- `writer-check-2`: `mise run check`、2026-10-27T21:45:58.947129+00:00→2026-10-27T21:46:31.045846+00:00、exit 0、32.098717s、unittest/counts []、Node []。metadata SHA-256 `24329aa75817c27b93b4ce527107340f7aade64453b7ce7830996a1db4fbfd95`、raw SHA-256 `2434a45f29e57354f79f11bb49c68bc1aba6acf99843726dd1c8d566b60a18bc`。
+- `writer-browser-1`: `mise exec -- node /tmp/ba-dev-09-writer-browser.mjs`、2026-10-27T21:47:22.563073+00:00→2026-10-27T21:47:23.361246+00:00、exit 1、0.798173s、unittest/counts []、Node []。metadata SHA-256 `163a79acdbd9e749996fa6941f1e5059b459812c00cf2a200091e327e8aec022`、raw SHA-256 `b0e5d07ebc1e89ecbcb5d693f0ce90c2c29c760373d14e900d0784096b2a1d69`。
+- `writer-browser-2`: `mise exec -- node /tmp/ba-dev-09-writer-browser2.mjs`、2026-10-27T21:47:38.064012+00:00→2026-10-27T21:47:51.711938+00:00、exit 1、13.647926s、unittest/counts []、Node []。metadata SHA-256 `77070de360c007c59535903144a52ca8f3c0859e59c29b15561f300a533712ae`、raw SHA-256 `4543d8a46c06701b21cb60d07c393cede546d840ab43713c200a738bd231f26e`。
+- `writer-browser-3`: `mise exec -- node /tmp/ba-dev-09-writer-browser3.mjs`、2026-10-27T21:48:58.225348+00:00→2026-10-27T21:49:08.768260+00:00、exit 0、10.542912s、unittest/counts []、Node []。metadata SHA-256 `da00c17755c08456b0a307ff35e48fa0a50576f91bd6dac4a99b5a0853fe7c58`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `writer-static-2`: `mise exec -- python /tmp/ba-dev-09-writer-static.py`、2026-10-27T21:48:46.098108+00:00→2026-10-27T21:48:46.381117+00:00、exit 1、0.283009s、unittest/counts []、Node []。metadata SHA-256 `1a32ff632b55193674a365b1cbb9aa7f8656bb743bbfa886786c08c3a325af0b`、raw SHA-256 `cf3946ed22f8305ebaca141c3e230209962404cdd1b56596160c9ffff35773aa`。
+- `writer-static-3`: `mise exec -- python /tmp/ba-dev-09-writer-static3.py`、2026-10-27T21:49:30.953624+00:00→2026-10-27T21:49:31.174313+00:00、exit 0、0.220689s、unittest/counts []、Node []。metadata SHA-256 `dfe69d61272cde96aa7e211f868752bde3c397785a6d80d138f7dc7bb08457ab`、raw SHA-256 `f70b977b375ec66170c298d643b98d2353c79973690efab9bc0847bc4c453399`。
+- `writer-static`: `mise exec -- python /tmp/ba-dev-09-writer-static.py`、2026-10-27T21:48:03.434466+00:00→2026-10-27T21:48:03.550660+00:00、exit 1、0.116194s、unittest/counts []、Node []。metadata SHA-256 `1fc2df6a09b8c01e1c19160f5dcbb095a43a0b2f22c9bf73b578d7b5e904f9fe`、raw SHA-256 `e589e8cfaaf01faac73c8e07d1863b1660f94d985552a3f8d14395219adefb0a`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/dev09_review_r1`（新規独立context）。base commit: `d1dff94186e991bcbfe34145ba9648d6a1997e7b`。
+- 未追跡を含む最新全24files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/index.html` | `a70a11dbc0ea4a8fb0fb2c15a98c72f89bc1b150079cf9186d8cc7f4d98aa3e9` |
+| `apps/display/public/favicon.svg` | `11618c90dc54f431053ecf61d6a55b1a030028276e23b36241ac395aceedef19` |
+| `apps/display/src/main.tsx` | `756fcc9ab6e8603fba909e5d5453b4fff49c0f4381f46933aa1b1079a75c87c5` |
+| `apps/display/src/recovery/client.ts` | `415abf11e52b11143daf8aca770aa853219ffd7547e626bf302b9c21ee91c2cc` |
+| `apps/display/src/recovery/index.tsx` | `8c0942aa534a0d5e792d01374b38c6c28a2800f8257536ed7fb8c4b4971a1a83` |
+| `apps/display/src/recovery/recovery.css` | `25b6c6c88e677ef4de70132f130b35933e4ea583331a63bc676b96b7f4098d7d` |
+| `docs/06-deployment-and-operations.md` | `4f2309c4c0015b46925bdfe3f0433b0994bf9278c21ed8d6845d2f28ed945ba8` |
+| `docs/device-service.md` | `39cf4303d9b05017748f2d8bfc1bf54256e683cc280f6c25c6693a6068b79af0` |
+| `docs/device-setup.md` | `3f95cab632b730da64fffecf696dbf43a7355e0184386751dba824f8eb663d62` |
+| `docs/device-storage.md` | `e7115cdf4ccc6c240fbc0b3e393d9dad1ea720ce010f92f3ae45bd0f348514d0` |
+| `packaging/device/brainoid-kiosk.pam` | `1325c8b4fcedd58b7851518e0a198084a73f0d84c19dbb7e047f54431bd74e5f` |
+| `packaging/device/brainoid-kiosk.service` | `95e96f5d985c6b27a5ef4083421f3b90c03b47b8a144b878422c4e8e0665c9f1` |
+| `packaging/device/brainoid.conf` | `42862519139ddeb143c103f9c3f28048f002ebf85f63eab7aa2a33f5f0ca6ff4` |
+| `packaging/device/install.sh` | `24e6646784611edbab0b1547f9868ee37ba44a772963ff2ac79f606486952667` |
+| `packaging/device/kiosk-browser` | `9c70f74bd18bc9ff89cbf105696397eea6cd624741fb0220cbfaa38a7598000c` |
+| `packaging/device/provision.py` | `616c4986b3686d0b266ac9ff76de440d9b105d245882fc371dd4c698d7a6d08c` |
+| `pyproject.toml` | `0e7630ab678ef3aad8134ec83045baffd3f8b6421f43c6f9465c06d877d9c94a` |
+| `services/device/src/brainoid_device/app.py` | `8444ce067fbb2d88c54a37d0beb01b7f61432d36878aa8b134bbbcf6a48525a7` |
+| `services/device/src/brainoid_device/diagnostics.py` | `7fcdc1b251b2ab82fb4c85eb7ec9cf01beafcfb141ac70c17c0d189f777ed828` |
+| `services/device/src/brainoid_device/local_api.py` | `93648ea8ebfe2d46890e0f7432052951f0375d56be3bd785ea8768ac94205c76` |
+| `services/device/src/brainoid_device/reset_command.py` | `1acac8ef6ed162faff873d30035106a82dc6ada4e61a14d60401762b5aec2de5` |
+| `services/device/src/brainoid_device/runtime.py` | `33d0ee49ba922d07c44377d41be6acdea7ad7752585cf84eee65356857d84fba` |
+| `tests/test_device_provision.py` | `ae71e69d778bd4a6b3063b3fd953ce491793980274780d26f23745f341d085b7` |
+| `tests/test_device_recovery.py` | `9e144af680ad036d73542e24a9e18e0ea4a0f843c94dab11f8d13b7d0cbd350e` |
+- 全差分24パスを固定して独立レビューへ。writer freeze `/tmp/ba-dev-09-writer-frozen.json` SHA-256 `d8f9aeee3bc57df5fb26f22fd94f43ae7c69ddfbb8447b8e1f3d69becb2ad0aa`、親normalized full map SHA-256 `ad41c092c19d6c8d10f7a198cec38bd4321d6f24320e184e59d2e8c2c1858960`、compact product `d772fe8b9c567cc1d8ad6bacb2f72fb57bd81fee9c22fbf03d86d6708a4550e1`。fullnormal1は実行開始後にfavicon/index2ファイルの変更があったため最終候補の成功根拠に採用せず、終了/中断を保持して全source固定のfullnormal2を要求。check3・browser3・静的unit3の最終mapを照合する。
+- `writer-check-3`: `mise run check`、2026-10-27T21:49:50.648215+00:00→2026-10-27T21:50:23.033852+00:00、exit 1、32.385637s、unittest/counts []、Node []。metadata SHA-256 `bc09ee1c11005aac25876b4e174e585c92bf1f2a68dbfa38ad26ba3fa0623a08`、raw SHA-256 `bb532589db99295d89b020aab26ffef0af40c5efeac2161f475bf33747539b1d`。
+- `writer-fullnormal-1`: `mise run test`、2026-10-27T21:47:25.144007+00:00→2026-10-27T21:51:24.454759+00:00、exit 130、239.310752s、unittest/counts []、Node []。metadata SHA-256 `f6cbac00bcb6553eb7bc0182c2e5cf58d607d81c8cac171f0b4c0f2802972e59`、raw SHA-256 `70b6f128c950a2183e47d750445e2ad64c305d245d4123c2af079a6af3d780a5`。
+- R1開始直後、最終check3は追加favicon.svgのaccessible title不足でexit1と判明。writerはsource固定を維持し、親はR1 reviewerへ通知して全差分レビューとrequest_changesの正式終了を待つ。fullnormal1は所有mise PID/birth照合後SIGINT、exit130・remaining_live=[]を保持、全件成功としない。修正はR1全指摘確定後にまとめ、固定済み候補で新規check/fullnormalと別context R2を実施する。
+- R1レビュー中の追加確定指摘（正式判定前）: provision.pyの作成処理が実行者umaskを引き継ぎ、077ではkiosk wrapper/ancestorが0700になって再導入もcollision、002/000では中間directoryが書込可能で部分導入に留まる。独立isolated root probe `/tmp/ba-dev-09-review-r1-probe2.json`。正常022との比較で再現。reviewer独立の最終source reset suiteは7件成功。全差分レビュー終了までsource固定を維持し、指摘を一括してwriterへ返す。
+- R1中の追加確定P1: reset成功・unregistered・credential空の後も、登録済みchildが通常Popen/waitした非daemon化grandchildのheartbeatが0→4へ進むことを独立再現。`/tmp/ba-dev-09-review-r1-descendants.py` と同JSON。runtime direct-child終了だけではHTTP daemonを残すreset時にunitのcgroup終了保証が働かない。reviewerは記録PID/birthの自分の子だけを停止/reapし一時rootを削除。正式指摘確定後、所有process treeの終了確認をreset成功前に行う修正と回帰検証を返す。
+
+### 独立レビュー ラウンド1 結果と修正引継ぎ
+
+- `/root/dev09_review_r1`: request_changes / closed、全24パス・614map/index一致。要修正4件、任意0。親はclosure内全artifact SHA・source・index・リソース終了を照合。
+
+| ID | 重要度 | 指摘と必要な対応 |
+| --- | --- | --- |
+| R1-01 | P1 | reset成功後に通常grandchildが動作継続。所有process tree全体の有限停止/reap確認を消去前に行い、失敗時fence保持。通常/TERM拒否/失敗再試行の実process回帰。 |
+| R1-02 | P1 | umask077で読取/実行不可・再導入失敗、002/000で危険な中間directory。新規管理file/dirのmodeを明示し、既存pathを緩めず複数umaskで反復検証。 |
+| R1-03 | P2 | 選択root自体が/tmpのような共有sticky writableでも許可。選択rootのgroup/other書込を変更前に拒否、private一時rootは許可する負例。 |
+| R1-04 | P2 | favicon accessible title不足で必須check失敗。titleを追加し固定最終sourceで検証。 |
+
+- R1 evidence `/tmp/ba-dev-09-review-r1-report.md` SHA-256 `89dee4f6260e7a33143543cbde28c595cdbc73c95cebce2af79cd1b81c43a5e1`。
+- R1 evidence `/tmp/ba-dev-09-review-r1-closure.json` SHA-256 `f72dece30ec96916c074f3dc236ecabeef4ee73303aab657940d220343deb4bb`。
+- R1 evidence `/tmp/ba-dev-09-review-r1-inventory.json` SHA-256 `b0e80b20584f93b0169dd281cc373432bb7380773c6c52738f243c647033f83c`。
+- R1 evidence `/tmp/ba-dev-09-review-r1-probe2.json` SHA-256 `adbd8a1c6c8cc5ffa0dc7db37194d392b97ef9ee91f3769eea0700f601d5d04c`。
+- R1 evidence `/tmp/ba-dev-09-review-r1-descendants.json` SHA-256 `0330f110a3db4895182aa73833f94d6d1db07e9e23f3924e799636675d93d1f7`。
+- reviewer実行: final-source reset7件成功、umask比較、通常grandchild heartbeat継続、selected /tmp root読取のみ。初回sandbox probeのowner制約とclosure helperの集合演算優先順位失敗を保持、修正後closureでmetadata2を正しく除外。必須check/fullnormalは修正後に完了が必要。docs08§1/3のlocal実装と外部Pi実機条件の区別はreviewerも確認。
+- 状態in_progressへ戻し、元writer `/root/dev09_implementation` に全4件を一括返却。修正/最終source固定/検証の後、別の新規contextで全差分R2を行う。
+- `writer-r2-focused-process-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_reset_processes.py -v`、2026-10-27T22:03:43.991978+00:00→2026-10-27T22:03:45.607863+00:00、exit 0、1.615885s、unittest/counts ['Ran 3 tests in 1.370s']、Node []。metadata SHA-256 `53e963ce5e5373f8d4887017b8cc440aaea369c9f506019f91b3f590c7a14bd6`、raw SHA-256 `4eada9afff0f50b67970dda474ae27326492f830c24137d447be31d4228ce68a`。
+- `writer-r2-check-1`: `mise run check`、2026-10-27T22:04:25.573743+00:00→2026-10-27T22:04:46.443754+00:00、exit 1、20.870011s、unittest/counts []、Node []。metadata SHA-256 `dc3fa5405bf86b398fd64fe2458b3e542cb31091bbeac2a58cfc3e15b4352fad`、raw SHA-256 `1d81f726b99f7343e3d961df3339a1a39268196f5f76fc816e07a0850e553e9b`。
+- `writer-r2-provision`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_provision.py -v`、2026-10-27T22:04:29.209549+00:00→2026-10-27T22:04:29.378732+00:00、exit 0、0.169183s、unittest/counts ['Ran 6 tests in 0.046s']、Node []。metadata SHA-256 `d904ac3647d954ef82bebef474ba20d46b8f461b3ac46fbc3c652ec1be22c4c6`、raw SHA-256 `2e34ea132325ee24a4b97cc79bb8678d7232e28d06429ca31373486d7ba88204`。
+- `writer-r2-service`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_service.py -v`、2026-10-27T22:04:29.647560+00:00→2026-10-27T22:05:15.777838+00:00、exit 0、46.130278s、unittest/counts ['Ran 30 tests in 45.850s']、Node []。metadata SHA-256 `b59a06aba135bf9e496494caae8b250546153b2b9908a954448f6b5e9d9051a4`、raw SHA-256 `4f6aa8a33c549df43ac75de475203afe9ed6e5992682f740204ef3d98e029a63`。
+- R1-01修正中の追加統合確認: Runtime childを独立sessionで所有する設計により、DEV08 updaterの旧daemon-sessionだけを対象にした強制停止では新規child sessionが対象外になる可能性をwriterが発見。最終固定前にこの所有境界を閉じ、実updater+Runtime child/grandchild・応答しないdaemonの強制停止回帰を追加する。必要な修正範囲として扱い、updaterを変更する場合も新規R2で全差分を確認する。まだ最終check/fullnormalは開始しない。
+- `writer-r2-check-2`: `mise run check`、2026-10-27T22:05:36.025709+00:00→2026-10-27T22:06:08.206411+00:00、exit 0、32.180702s、unittest/counts []、Node []。metadata SHA-256 `f01fb1cf57d94ceb1796a40c53b1f65ebd01dc156a89064eaa322a70bae02e7b`、raw SHA-256 `875546ac09cd3890a51b64cff64ca449b80cea76cfefe03ebd8d617812dd1859`。
+- `writer-r2-reset-final`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_device_re*.py' -v`、2026-10-27T22:05:56.439545+00:00→2026-10-27T22:05:58.470168+00:00、exit 0、2.030623s、unittest/counts ['Ran 10 tests in 1.751s']、Node []。metadata SHA-256 `765e846834720a64db0a2e0f035645b307004a12c18c4a80e514aee1191aa78c`、raw SHA-256 `e7a54c2acfcb20bbb3acf5e00ef8c3a6d5427d94ac867c5d199c77810274067b`。
+- `writer-r2-setup`: `mise run setup`、2026-10-27T22:05:38.829288+00:00→2026-10-27T22:05:39.467523+00:00、exit 0、0.638235s、unittest/counts []、Node []。metadata SHA-256 `0aaf36a15c42314cccbedb388644c514f52d66e02aab1e4caef29bbc14364efa`、raw SHA-256 `88cac27e315d1b5a6200f0ab6d8793d7f0022055c9408a142a0677a8ca8816ba`。
+- `writer-r2-guardian-reset-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_device_re*.py' -v`、2026-10-27T22:15:37.578212+00:00→2026-10-27T22:15:39.315873+00:00、exit 1、1.737661s、unittest/counts ['Ran 10 tests in 1.478s']、Node []。metadata SHA-256 `98631fa09eef062a2a9ed84d641d6da24493e87be3d7d85e7edfabe3b63518a9`、raw SHA-256 `8e1f897f1c25efc0b4d07ec856176ae01bbc12b14c64107b5f3b81adb1b4a46d`。
+- guardian統合の途中検証 `r2-guardian-reset-1` は10件中6errorでexit1。失敗後resource記録はPID568607/birth41566516の残存を示したため、親は所有writerへ識別確認付きcleanupを依頼した（親はsignalなし）。成功根拠に採用しない。修正後の再検証・終了証拠待ち。
+- `writer-r2-guardian-updater-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_guardian.py -v`、2026-10-27T22:17:15.741224+00:00→2026-10-27T22:17:18.436828+00:00、exit 1、2.695604s、unittest/counts ['Ran 2 tests in 2.435s']、Node []。metadata SHA-256 `6f5550f511768e279b95202651a7aaabc2b86fc69088b66490537ae30192d339`、raw SHA-256 `daf8c9db8213451610b3e6f1a369e804789c93e7ab78f7d0e0091da7540b9a13`。
+- 上記guardian-reset1の残存PID568607はwriterの識別確認時22:17:45UTCに既に不在、signalなし・afterも不在（`r2-failed-guardian-cleanup.json`）。親も22:18:23UTCのread-only確認で不在を確認。途中失敗は保持し、後続成功と混同しない。
+- `writer-r2-guardian-debug`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-09-writer-guardian-debug.py`、2026-10-27T22:19:20.797073+00:00→2026-10-27T22:19:22.775192+00:00、exit 0、1.978119s、unittest/counts []、Node []。metadata SHA-256 `c30e1b48221fef560b8086961bd38b7a8efbadc09897e98a6f2e876a2d060083`、raw SHA-256 `fed72f182d6a0c7c1eb7e226cdc367f3511126eb63b57d4d43ef5a6c74e0821d`。
+- `writer-r2-guardian-reset-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_device_re*.py' -v`、2026-10-27T22:18:56.023331+00:00→2026-10-27T22:18:58.590724+00:00、exit 1、2.567393s、unittest/counts ['Ran 10 tests in 2.287s']、Node []。metadata SHA-256 `a85dcbc9682176c6cd6d1ab952f23c16ca42ebf74d01960803fd6c7a2ab322a1`、raw SHA-256 `3fe29b6b726954be45a213ac4ec86a3060ae777f9ad82fe66bd056c875abac9c`。
+- `writer-r2-guardian-reset-3`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_device_re*.py' -v`、2026-10-27T22:20:08.371216+00:00→2026-10-27T22:20:10.936092+00:00、exit 0、2.564876s、unittest/counts ['Ran 10 tests in 2.291s']、Node []。metadata SHA-256 `72a8700e10e31b58a36fedb6bb24ac9377c023f96ff5fa7541992f4b2bf28da5`、raw SHA-256 `6fa88ae6f2cec8958b262c2e82abb1d1bc6e10a615b304761ae9a02e9b91378b`。
+- `writer-r2-guardian-updater-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_guardian.py -v`、2026-10-27T22:20:11.070295+00:00→2026-10-27T22:20:13.770441+00:00、exit 0、2.700146s、unittest/counts ['Ran 2 tests in 2.415s']、Node []。metadata SHA-256 `8352aead209711c3c627090e7ae286359d24cd56720bd807181393bd0d5a36e1`、raw SHA-256 `4cfc94e39934d01fc3add1e7f47c7add38b9ab20ca50d6cee231b64d36654a61`。
+- `writer-r2-check-3`: `mise run check`、2026-10-27T22:21:41.164277+00:00→2026-10-27T22:22:02.091036+00:00、exit 1、20.926759s、unittest/counts []、Node []。metadata SHA-256 `e318a09768babbfaacaebe24edb8339adbc6d8a3eeff9189e84d710b556bb8d7`、raw SHA-256 `d81ce45686f14abca161b6b8070072b0b6b6ff945ccade159aaa1b18cec64ba8`。
+- `writer-r2-service-guardian`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_service.py -v`、2026-10-27T22:21:47.843570+00:00→2026-10-27T22:22:34.702826+00:00、exit 0、46.859256s、unittest/counts ['Ran 30 tests in 46.610s']、Node []。metadata SHA-256 `afc6ba5fcabd1b60a2d3bbf7feff641ccb80c7a60ea1e0d8a2ed18d61e71bab7`、raw SHA-256 `55a43ed08b5a3d59f75f080dfa74b8eedece5aff2723e497644b827e390922a3`。
+- `writer-r2-updater-regression`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_updater.py -v`、2026-10-27T22:21:44.253197+00:00→2026-10-27T22:22:05.254539+00:00、exit 1、21.001342s、unittest/counts ['Ran 24 tests in 20.725s']、Node []。metadata SHA-256 `17119a846fd9542e1fc3c4a6434b2df92965df214256a564bb2a2526d50dfff7`、raw SHA-256 `2c7def65b8f85085b8f9312e5b3358affd3280eb8d76324da720f60f1e542eb8`。
+- `writer-r2-browser-final`: `mise exec -- node /tmp/ba-dev-09-writer-browser4.mjs`、2026-10-27T22:24:16.107530+00:00→2026-10-27T22:24:26.648058+00:00、exit 0、10.540528s、unittest/counts []、Node []。metadata SHA-256 `e12ce4c264750a3f6ff723b8d9680b76cf71dc9b12a46cf679eeacd7284e0100`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `writer-r2-check-4`: `mise run check`、2026-10-27T22:23:26.102602+00:00→2026-10-27T22:23:58.295203+00:00、exit 0、32.192601s、unittest/counts []、Node []。metadata SHA-256 `1fc6e191901fcadf9e07853c11ae6d6412b27a182baee4a8b039e6465470dc2d`、raw SHA-256 `73242760490ffa488077e39c987d4b080ce0fdd62bf98530e2d0fbb2f1c9797d`。
+- `writer-r2-setup-final`: `mise run setup`、2026-10-27T22:24:16.970835+00:00→2026-10-27T22:24:17.664894+00:00、exit 0、0.694059s、unittest/counts []、Node []。metadata SHA-256 `902f2704f30b1d2461d2ce4b1bbf2e3b1cbc30d4a018d984e78a67427583736f`、raw SHA-256 `425b6263a59035ee4c3539061df550426e00aea7d1ee0dc54c50faedfc432313`。
+- `writer-r2-static-final`: `mise exec -- python /tmp/ba-dev-09-writer-static4.py`、2026-10-27T22:24:16.745653+00:00→2026-10-27T22:24:17.033260+00:00、exit 0、0.287607s、unittest/counts []、Node []。metadata SHA-256 `eb8f61c2a7cf5b8bf1a6ff6226f5d708e5230ffa5ef94eb2e7a6d4d2407d95db`、raw SHA-256 `f70b977b375ec66170c298d643b98d2353c79973690efab9bc0847bc4c453399`。
+- `writer-r2-updater-regression-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_updater.py -v`、2026-10-27T22:23:29.535379+00:00→2026-10-27T22:23:46.722948+00:00、exit 0、17.187569s、unittest/counts ['Ran 24 tests in 16.906s']、Node []。metadata SHA-256 `38f0098c8862c2f8cf01b1d5573ed8bb23c5c8123dafaaa62d500c12ad66841b`、raw SHA-256 `ab08d8ad4234a8bd535ceaa58cbaeaaf9e27ad5159efe252162d7fd6894e0d57`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/dev09_review_r2`（新規独立context）。base commit: `d1dff94186e991bcbfe34145ba9648d6a1997e7b`。
+- 未追跡を含む最新全34files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/index.html` | `a70a11dbc0ea4a8fb0fb2c15a98c72f89bc1b150079cf9186d8cc7f4d98aa3e9` |
+| `apps/display/public/favicon.svg` | `7b25cc8ba26ea7cbfda6bfc905d20405c5d0a669ed3bded9b7a1d0b41ca05e92` |
+| `apps/display/src/main.tsx` | `756fcc9ab6e8603fba909e5d5453b4fff49c0f4381f46933aa1b1079a75c87c5` |
+| `apps/display/src/recovery/client.ts` | `415abf11e52b11143daf8aca770aa853219ffd7547e626bf302b9c21ee91c2cc` |
+| `apps/display/src/recovery/index.tsx` | `8c0942aa534a0d5e792d01374b38c6c28a2800f8257536ed7fb8c4b4971a1a83` |
+| `apps/display/src/recovery/recovery.css` | `25b6c6c88e677ef4de70132f130b35933e4ea583331a63bc676b96b7f4098d7d` |
+| `docs/06-deployment-and-operations.md` | `4f2309c4c0015b46925bdfe3f0433b0994bf9278c21ed8d6845d2f28ed945ba8` |
+| `docs/device-service.md` | `44c7f36f6f8e89b387c7781b6a77019fd03d7710eb211a6fd0f6bc82d6a5c434` |
+| `docs/device-setup.md` | `40df9baca137ce0fc99e522fe4def8966f9cda442c8f60869cf01d13d1c9a155` |
+| `docs/device-storage.md` | `e7115cdf4ccc6c240fbc0b3e393d9dad1ea720ce010f92f3ae45bd0f348514d0` |
+| `docs/device-updates.md` | `a473551a194aebfbbe8e545175fde26b050e83d56674201538d130f70c6137da` |
+| `packaging/device/brainoid-kiosk.pam` | `1325c8b4fcedd58b7851518e0a198084a73f0d84c19dbb7e047f54431bd74e5f` |
+| `packaging/device/brainoid-kiosk.service` | `95e96f5d985c6b27a5ef4083421f3b90c03b47b8a144b878422c4e8e0665c9f1` |
+| `packaging/device/brainoid.conf` | `42862519139ddeb143c103f9c3f28048f002ebf85f63eab7aa2a33f5f0ca6ff4` |
+| `packaging/device/install.sh` | `24e6646784611edbab0b1547f9868ee37ba44a772963ff2ac79f606486952667` |
+| `packaging/device/kiosk-browser` | `9c70f74bd18bc9ff89cbf105696397eea6cd624741fb0220cbfaa38a7598000c` |
+| `packaging/device/provision.py` | `fd24b1ad00520c7641a18cda676d42808546b213c7025aa6edfd134b2a62c4c2` |
+| `pyproject.toml` | `0e7630ab678ef3aad8134ec83045baffd3f8b6421f43c6f9465c06d877d9c94a` |
+| `services/device/src/brainoid_device/app.py` | `8444ce067fbb2d88c54a37d0beb01b7f61432d36878aa8b134bbbcf6a48525a7` |
+| `services/device/src/brainoid_device/child_guardian.py` | `506b9084ef277f213f0f751cdae69252f38ea3b4bc5bdcae2e5b888899ac8f48` |
+| `services/device/src/brainoid_device/diagnostics.py` | `7fcdc1b251b2ab82fb4c85eb7ec9cf01beafcfb141ac70c17c0d189f777ed828` |
+| `services/device/src/brainoid_device/local_api.py` | `93648ea8ebfe2d46890e0f7432052951f0375d56be3bd785ea8768ac94205c76` |
+| `services/device/src/brainoid_device/owned_child.py` | `036b15c754791f7e27b51e33140b24a5e6fdd09aa37f19f3e9b3751f7e42ad5c` |
+| `services/device/src/brainoid_device/owned_session.py` | `7ec36080959822668e1cc7d661c62ce196e7e2a4fd1c09524fed8f0d93696957` |
+| `services/device/src/brainoid_device/reset_command.py` | `1acac8ef6ed162faff873d30035106a82dc6ada4e61a14d60401762b5aec2de5` |
+| `services/device/src/brainoid_device/runtime.py` | `e4f0d20f18c794408605eea75f51421ab07fa4609da85f37c1ab31dc46dcf57a` |
+| `services/device/src/brainoid_device/update_runtime.py` | `24a2d6d4e9981d7018021b927f10ad04defd363f99ece22a674bf92bfac5c306` |
+| `tests/fixtures/device_reset/tree.py` | `ededce2ccc706af3e740f408ac4f89c2fc6bb1c221517dc051670e5d1b86a83c` |
+| `tests/test_device_guardian.py` | `6b9e3402a31697c65ce209f35f31ba9243d1c75bd7f683359b206d3b80a035c9` |
+| `tests/test_device_provision.py` | `5da72416338723aa8f7b2be49aeaabe888d047f94732e95bd7d7b1d248c3ebec` |
+| `tests/test_device_recovery.py` | `9e144af680ad036d73542e24a9e18e0ea4a0f843c94dab11f8d13b7d0cbd350e` |
+| `tests/test_device_reset_processes.py` | `e4cb9dd6967223781eaa5df52d9602cf9b3a549060027faae99a3a82f84a6805` |
+| `tests/test_device_service.py` | `8e9d77443a165ce82f4b4fbae324b10c0a3ba5c4b08aacb1f1a6d65d251144c3` |
+| `tests/test_device_updater.py` | `c0b246f7a72cfd7eb1ef4bd0c0fad7305277349a926f16be2a6b947a60fdced4` |
+- R2対象固定: 全34パス・620product map、削除なし。writer frozen-r2 SHA-256 `b01c386070f435a47bf0fd29ac9c6315ec69edb0bd1312f7b795c007a33b7fb0`、親normalized SHA-256 `a76618e618e130f36a2f29770b5f3f90dfa2ffc4ab2dd90ac68840073ff57aa2`、compact product `a7f8197492412b48fc509488d84412fd5370166f48b861e26bf8bfaefa43bd79`。元R1の4指摘に加え、Runtime child guardianとDEV08強制停止の所有境界を統合修正。check4・updater24・最終setup/static/browserは全map一致、finalsource fullnormal2をwriterが実行しながら新規独立全差分R2へ進む。
+- R2レビュー中: 独立host probeは86記録PID/birthの終了を確認し、即時spawn/close16回・umask4種類・root負例は成功。reset/guardian12件のうち1件、test_device_reset_processes.pyのshutdown_seconds=0.04でretry成功assertが失敗し、時間設定か実装かをreviewerが切分け中。さらにwriterのread-only自己監査でguardian分類とsignal送信の間に役割変更する候補raceが挙がり、独立reviewerへ検証を依頼。いずれも正式R2判定前、source固定継続。
+- `review-r2-probe-host`: `.venv/bin/python -B /tmp/ba-dev-09-review-r2-probe.py`、2026-10-27T22:31:58.895174+00:00→2026-10-27T22:32:06.630826+00:00、exit 1、7.735652s、unittest/counts ['Ran 12 tests in 5.795s']、Node []。metadata SHA-256 `7e4a9fb73e3091f7af4d25318848da8e16199af7b50727634188c003b06b4bb3`、raw SHA-256 `6129fdf8b310c0380d789b7e4b92ae118873f5c8d59ab9fff27055feff19bb3d`。
+- `review-r2-probe-sandbox`: `.venv/bin/python -B /tmp/ba-dev-09-review-r2-probe.py`、2026-10-27T22:31:26.609053+00:00→2026-10-27T22:31:26.890467+00:00、exit 1、0.281414s、unittest/counts []、Node []。metadata SHA-256 `d8c2ed82f61e3cf3fe7a59f99da7b560df0262df8fcda823e3507257df217f83`、raw SHA-256 `31e8e5c4c60a335b448dd70f4e101dbf79786c142f84b3239a67c8c273ea2792`。
+- `review-r2-probe-sandbox2`: `.venv/bin/python -B /tmp/ba-dev-09-review-r2-probe.py`、2026-10-27T22:31:42.041757+00:00→2026-10-27T22:31:43.699949+00:00、exit 1、1.658192s、unittest/counts []、Node []。metadata SHA-256 `2a7220ac37fdb5dbe2a84c4fd17f673da993ebd9950062aa171ca7b616c2f36b`、raw SHA-256 `45267344edc3b8d57fd9ae3f6d7046c5ca2d7e17275197daf866e878d293a451`。
+- `writer-fullnormal-2`: `mise run test`、2026-10-27T22:27:24.215574+00:00→2026-10-27T22:33:47.062481+00:00、exit 0、382.846907s、unittest/counts ['Ran 1189 tests in 355.808s', 'Ran 18 tests in 0.063s']、Node ['ℹ tests 46']。metadata SHA-256 `68e323338238c2e251152ec4dbe8bec3e5e60ed71126850bbbbe7d76d83db31b`、raw SHA-256 `5a9ad73451bf6d84a4d2b66db627f8a8cb020a0158fb7db3f88e8d87ff132949`。
+- 固定R2候補のfullnormal2はexit0、Python1189/355.808s・planner18/0.063s・Node46成功。親も全620前後map・raw SHAを照合。並行した独立レビューで新たな確定不具合: guardian役割のfalse分類直後にguardianがcommandを起動すると、古い分類によるSIGKILLでguardianだけが消え、command/leaf heartbeat0→5が継続。Runtimeは成功を拒否するが所有者を失い安全なretryができない。`/tmp/ba-dev-09-review-r2-race.py` および結果JSONで再現、reviewerは全所有PIDを識別して回収済み。全回帰成功でこの指摘を相殺せず、正式R2 request_changes後に修正する。
+
+### 独立レビュー R2 完了と修正引継ぎ
+
+- `/root/dev09_review_r2` が最新34パス全差分を確認し `request_changes`。report `/tmp/ba-dev-09-review-r2-report.md` SHA-256 `f213d51f659a1743a784eb8c811a4f124c30961979c8cb6029adb6ad33179147`、closure SHA-256 `afe24accc9392497ca911210810c3a5b76452085d446372a6e0436eeafeb8e92`。親が25 artifact hashes、620パスと34変更、index一致を再確認。R1の元の4指摘は解消。任意指摘なし。
+- R2-01 P1: updaterのguardian判別からpidfd SIGKILLまでに役割が変わり、別sessionのcommand/leafが生存する競合を独立再現。Runtimeは完了を拒否するがguardianを失い通常再試行で回収できない。安定した起動・停止プロトコルと決定的な競合回帰試験が必要。race raw SHA-256 `cc84720686776fba24c699dbe6778215d670e0164cb86d4d432a08cb7e948211`。
+- R2-02 P2: 意図的失敗用40ms deadlineを正常再試行にも残すテストが12回中7回失敗。各失敗でfence保持、production3秒budgetで全件安全に回収済み。失敗budgetは維持し、正常再試行のdeadlineを修正して所有権・全子孫消失のassertionを維持する。retry raw SHA-256 `fd3a11840c1a48e149d7e5322557c8c5c6af162bbde423d964b3e5e12e8ad878`。
+- frozen R2の `mise run test` は実完了exit0、Python1189、planner18、Node46 pass/0fail/0skip。親の最終source監査 `/tmp/ba-dev-09-parent-r2-close-source-audit.json` SHA-256 `21af0b83ca96af3f69c0dfa6f6d875a63f115804474e7542336c56bf11f3f128`。成功は上記競合の承認を意味しない。修正後finalsourceでcheck/testを再実行する。
+- reviewer own全resource終了。writer閉鎖監査は1295 PID/birth、親の記録resource glob再確認は1294 PID/birth・4profile・4debug port終了（収集範囲差を同数と主張しない）。親resource監査 SHA-256 `9e3199461a2fe93b67056a75183901842c9fff6dd8a4b00a8eda9499fa00d7f3`。親はsignal未実行。
+- R2を閉じ、台帳をin_progress/review_rounds2へ戻す。元の実装担当に両必須指摘を返し、修正・最終検証後に新規独立R3を依頼する。未実施のPi5実機・OS起動・周辺機器検証は外部gateとして継続記録。
+- `review-r2-race`: `.venv/bin/python -B /tmp/ba-dev-09-review-r2-race.py`、2026-10-27T22:33:59.419957+00:00→2026-10-27T22:33:59.822338+00:00、exit 0（反例再現・診断の完了であり製品の成功ではない）。metadata SHA-256 `448b3c08557767cb901508eaa8e58464f768d8dec694b64f1852c3c79bde17c6`、raw SHA-256 `cc84720686776fba24c699dbe6778215d670e0164cb86d4d432a08cb7e948211`。
+- `review-r2-retry`: `.venv/bin/python -B /tmp/ba-dev-09-review-r2-retry.py`、2026-10-27T22:34:46.795779+00:00→2026-10-27T22:34:50.390031+00:00、exit 0（反例再現・診断の完了であり製品の成功ではない）。metadata SHA-256 `76d8d950706183b4f6034b1bd976a6faacf68b0bb09cb08e00dbd72e10180a90`、raw SHA-256 `fd3a11840c1a48e149d7e5322557c8c5c6af162bbde423d964b3e5e12e8ad878`。
+- `writer-r3-focused-1`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_guardian.py -v`、2026-10-27T22:45:10.822076+00:00→2026-10-27T22:45:16.999644+00:00、exit 1、6.177568s、unittest/counts ['Ran 3 tests in 5.892s']、Node []。metadata SHA-256 `c30e58510f994b94ad4b064aa633bd73cff3033876f26e339f758c7a88635504`、raw SHA-256 `77275045f860e0adabaffce6ae76fbdc57f6acc2708037a00cccc6aab6b2bfa2`。
+- `writer-r3-focused-2`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_guardian.py -v`、2026-10-27T22:45:32.819550+00:00→2026-10-27T22:45:36.031249+00:00、exit 0、3.211699s、unittest/counts ['Ran 3 tests in 2.949s']、Node []。metadata SHA-256 `8c49434858c5301563c3592a18d2980f6fe7b7086aa6edf532219e509fc2be73`、raw SHA-256 `89e5745e9f25525543bcd2ed07be0999de4510c20582bf73ae4aecf76ad4f54d`。
+- `writer-r3-check-1`: `mise run check`、2026-10-27T22:46:24.780814+00:00→2026-10-27T22:46:24.953075+00:00、exit 1、0.172261s、unittest/counts []、Node []。metadata SHA-256 `23c1f3e747930e8609772721043ff297283865a4dd9bb3e717268c99d1149f97`、raw SHA-256 `0fbd7e90cbbfe627458716bde55e64d252955e630844b98d506909b1a1d2c597`。
+- `writer-r3-check-2`: `mise run check`、2026-10-27T22:46:50.623636+00:00→2026-10-27T22:46:50.802281+00:00、exit 1、0.178645s、unittest/counts []、Node []。metadata SHA-256 `195c5e498866f89c96e23e1d39dcc989b80ee60d2fd3d4663819df63065cd29f`、raw SHA-256 `e3e0be04ac0d086e4cfa561f4042fc8bea67c95635a6c073987b962155253014`。
+- `writer-r3-focused-final`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_guardian.py -v`、2026-10-27T22:46:50.126941+00:00→2026-10-27T22:46:53.400699+00:00、exit 0、3.273758s、unittest/counts ['Ran 3 tests in 3.016s']、Node []。metadata SHA-256 `effea88d05205ee57356f1ba7568fe816bf139d41d4de9ed0c4cfe0563c8604d`、raw SHA-256 `e78c97ffebb03b4fbed864b4a07438070739ba8e4cfce8cc0d7d32ea1ddfba63`。
+- `writer-r3-reset`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_device_re*.py' -v`、2026-10-27T22:46:25.288423+00:00→2026-10-27T22:46:31.127468+00:00、exit 0、5.839045s、unittest/counts ['Ran 10 tests in 5.492s']、Node []。metadata SHA-256 `6ca203f176e85868658f3d9c3a4a6c95221c579fed90e1d4ec5b808e08515ae8`、raw SHA-256 `4cbb9f1c245d3974dcc9eba28cee9c919e267d8c9ee407b85dfece72f3dbe457`。
+- `writer-r3-updater`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_device_updater.py -v`、2026-10-27T22:46:25.101630+00:00→2026-10-27T22:46:41.587873+00:00、exit 0、16.486243s、unittest/counts ['Ran 24 tests in 16.211s']、Node []。metadata SHA-256 `60f988d4b69d2ffcf418861d1baad00059edd747b89bb9be7bc652ffb7552c9c`、raw SHA-256 `1559d481dfd4c3a5038a648ac7c9ba9d2a895503f1df0c94cff8e793a68c05ca`。
+- `writer-r3-check-3`: `mise run check`、2026-10-27T22:47:09.794037+00:00→2026-10-27T22:47:14.038379+00:00、exit 0、4.244342s、unittest/counts []、Node []。metadata SHA-256 `d6f63e815c24dd26a0adf14eb329b6dc51277e417b5fde313ea34e6487c3c7a3`、raw SHA-256 `d26044cacce33019b89cdac81124f94a9214c667b87fc721e78efb171c51bcf7`。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/dev09_review_r3`（新規独立context）。base commit: `d1dff94186e991bcbfe34145ba9648d6a1997e7b`。
+- 未追跡を含む最新全34files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/index.html` | `a70a11dbc0ea4a8fb0fb2c15a98c72f89bc1b150079cf9186d8cc7f4d98aa3e9` |
+| `apps/display/public/favicon.svg` | `7b25cc8ba26ea7cbfda6bfc905d20405c5d0a669ed3bded9b7a1d0b41ca05e92` |
+| `apps/display/src/main.tsx` | `756fcc9ab6e8603fba909e5d5453b4fff49c0f4381f46933aa1b1079a75c87c5` |
+| `apps/display/src/recovery/client.ts` | `415abf11e52b11143daf8aca770aa853219ffd7547e626bf302b9c21ee91c2cc` |
+| `apps/display/src/recovery/index.tsx` | `8c0942aa534a0d5e792d01374b38c6c28a2800f8257536ed7fb8c4b4971a1a83` |
+| `apps/display/src/recovery/recovery.css` | `25b6c6c88e677ef4de70132f130b35933e4ea583331a63bc676b96b7f4098d7d` |
+| `docs/06-deployment-and-operations.md` | `4f2309c4c0015b46925bdfe3f0433b0994bf9278c21ed8d6845d2f28ed945ba8` |
+| `docs/device-service.md` | `44c7f36f6f8e89b387c7781b6a77019fd03d7710eb211a6fd0f6bc82d6a5c434` |
+| `docs/device-setup.md` | `40df9baca137ce0fc99e522fe4def8966f9cda442c8f60869cf01d13d1c9a155` |
+| `docs/device-storage.md` | `e7115cdf4ccc6c240fbc0b3e393d9dad1ea720ce010f92f3ae45bd0f348514d0` |
+| `docs/device-updates.md` | `875c222a11385e3f91e4c161678a0b11a9bbbe193f4b23782bc10c84cf76a8ca` |
+| `packaging/device/brainoid-kiosk.pam` | `1325c8b4fcedd58b7851518e0a198084a73f0d84c19dbb7e047f54431bd74e5f` |
+| `packaging/device/brainoid-kiosk.service` | `95e96f5d985c6b27a5ef4083421f3b90c03b47b8a144b878422c4e8e0665c9f1` |
+| `packaging/device/brainoid.conf` | `42862519139ddeb143c103f9c3f28048f002ebf85f63eab7aa2a33f5f0ca6ff4` |
+| `packaging/device/install.sh` | `24e6646784611edbab0b1547f9868ee37ba44a772963ff2ac79f606486952667` |
+| `packaging/device/kiosk-browser` | `9c70f74bd18bc9ff89cbf105696397eea6cd624741fb0220cbfaa38a7598000c` |
+| `packaging/device/provision.py` | `fd24b1ad00520c7641a18cda676d42808546b213c7025aa6edfd134b2a62c4c2` |
+| `pyproject.toml` | `0e7630ab678ef3aad8134ec83045baffd3f8b6421f43c6f9465c06d877d9c94a` |
+| `services/device/src/brainoid_device/app.py` | `8444ce067fbb2d88c54a37d0beb01b7f61432d36878aa8b134bbbcf6a48525a7` |
+| `services/device/src/brainoid_device/child_guardian.py` | `506b9084ef277f213f0f751cdae69252f38ea3b4bc5bdcae2e5b888899ac8f48` |
+| `services/device/src/brainoid_device/diagnostics.py` | `7fcdc1b251b2ab82fb4c85eb7ec9cf01beafcfb141ac70c17c0d189f777ed828` |
+| `services/device/src/brainoid_device/local_api.py` | `93648ea8ebfe2d46890e0f7432052951f0375d56be3bd785ea8768ac94205c76` |
+| `services/device/src/brainoid_device/owned_child.py` | `036b15c754791f7e27b51e33140b24a5e6fdd09aa37f19f3e9b3751f7e42ad5c` |
+| `services/device/src/brainoid_device/owned_session.py` | `7893e4c2c9e0bc2a44385cc63eab1b1f79addf3a4c5b5c2eb440eeab135ca31d` |
+| `services/device/src/brainoid_device/reset_command.py` | `1acac8ef6ed162faff873d30035106a82dc6ada4e61a14d60401762b5aec2de5` |
+| `services/device/src/brainoid_device/runtime.py` | `e4f0d20f18c794408605eea75f51421ab07fa4609da85f37c1ab31dc46dcf57a` |
+| `services/device/src/brainoid_device/update_runtime.py` | `fabcf94ba2c41d020fdad79215f4354077b7dd680f3a7c414b4957bbef845d42` |
+| `tests/fixtures/device_reset/tree.py` | `ededce2ccc706af3e740f408ac4f89c2fc6bb1c221517dc051670e5d1b86a83c` |
+| `tests/test_device_guardian.py` | `3e2b6f0ef23d19637623bce04001882fdfb13704d4887b9a6a35c98aec080846` |
+| `tests/test_device_provision.py` | `5da72416338723aa8f7b2be49aeaabe888d047f94732e95bd7d7b1d248c3ebec` |
+| `tests/test_device_recovery.py` | `9e144af680ad036d73542e24a9e18e0ea4a0f843c94dab11f8d13b7d0cbd350e` |
+| `tests/test_device_reset_processes.py` | `81c7020464aba60dfe5c6dc9d209f52e93dde96b3e29efb00fb35bab5c15fdda` |
+| `tests/test_device_service.py` | `8e9d77443a165ce82f4b4fbae324b10c0a3ba5c4b08aacb1f1a6d65d251144c3` |
+| `tests/test_device_updater.py` | `c0b246f7a72cfd7eb1ef4bd0c0fad7305277349a926f16be2a6b947a60fdced4` |
+
+- R3修正: R2-01はpidfdで停止要求後に停止状態を観測し、安定した役割で強制終了/guardian drainを選ぶ。単独leaderもdeadline内で再試行。初回TERM後に起動したguardianの実際のfalse→true判別を挟むOwnedDaemon.stop全体の回帰を追加。R2-02は故障注入40msを維持し、正常再試行をproduction3秒へ戻す。全子孫消失・fence・無関係siblingのassertionを維持。
+- 最終R3 sourceは620パス/34変更、全内容SHA `8607363017390c28e491a7d29fd979fb46b26a3caa3adf690a17bd371c3099d5`。親freeze SHA `471076a3d680448c4131cdd49362fa290f2604f897241292c1d2cd954bc73870`、check3前後一致の親監査SHA `5a98c5d68d3e452b16bfcbccf1377f1bf17145208584fa7db5d19b1fd265e03a`。
+- R2以後の変更は5パス。setup/static/provision/browserは変更していない関連入力24/9/76パスとbuilt assetsを `/tmp/ba-dev-09-writer-r3-reused-evidence.json` で照合し、前回sourceで実施した証跡を再利用する（新fullmapで再実行したとは主張しない）。停止処理の変更はfocused回帰と最終全normal testで検証。R3新規独立レビューへ最新全差分を引き継ぎ、fullnormal3実完了を承認条件とする。
+- `review-r3-focused`: `/home/takaki/workspace/brainoid/agent/.venv/bin/python -B -m unittest discover -s tests -p test_device_guardian.py -v`、2026-10-27T22:51:11.007610+00:00→2026-10-27T22:51:14.405268+00:00、exit 0、3.397658s、unittest/counts ['Ran 3 tests in 3.163s']、Node []。metadata SHA-256 `2607b768bf2174542b798a62173cd1a71d039b3bb790445377ad165d166ffa50`、raw SHA-256 `9aafa8d6c0ee8745c7599d4dd134676255ae5b5a3fc618f00c19d3fb20c284b4`。
+- 親のR3 focused証跡監査初回はbare file mapを期待したhelperとreviewerのnested files map形式の不一致でassertion失敗。versioned audit-v2でnested mapとindex等の前後一致を検証し成功（製品コード変更なし）。失敗を製品試験成功として扱わない。
+- `review-r3-reset`: `/home/takaki/workspace/brainoid/agent/.venv/bin/python -B -c 'import sys, unittest; sys.path.insert(0, "tests"); suite=unittest.defaultTestLoader.loadTestsFromNames(["test_device_recovery", "test_device_reset_processes"]); result=unittest.TextTestRunner(verbosity=2).run(suite); raise SystemExit(not result.wasSuccessful())'`、2026-10-27T22:52:03.653587+00:00→2026-10-27T22:52:09.827003+00:00、exit 0、['Ran 10 tests in 5.874s']。metadata SHA-256 `f3697aa17320fc7cd8e598bbefeec02aaed1a10c96a3d21678a115648654620d`、raw SHA-256 `59528bc1b8da97d867d0cd5a88319a754c40fd490998f7bf316e2f208e78e473`。
+- `writer-fullnormal-3`: `mise run test`、2026-10-27T22:48:18.798823+00:00→2026-10-27T22:54:48.874025+00:00、exit 0、390.075202s、unittest/counts ['Ran 1190 tests in 362.954s', 'Ran 18 tests in 0.061s']、Node ['ℹ tests 46']。metadata SHA-256 `d78f4f74c805b9a9bfef3c55f7c2abce4a68748bc49d2732bba22a9dd4dfb082`、raw SHA-256 `9f2bda33e5b71a8fd36200d9bd3dce8eb9916fbd871bd7c7803d18f9b19b8791`。
+
+- 最終全回帰 `writer-fullnormal-3` がexit0で実完了。Python1190件/362.954s、planner18件/0.061s、Node46 pass/0fail/0skip。check3・fullnormal3・reviewer独立guardian3/reset10の前後620file mapsとraw hashを親が照合。監査 `/tmp/ba-dev-09-parent-r3-final-validation-audit.json` SHA-256 `4574e5ec6bc06fc6a0a8962a7b8a6e3a48b97086c1685bb4f08a693bb0e8a41e`。
+- `writer-r2-provision` の単独成功はprovision.pyの後続修正前なので、それだけを最終導入検証としない。変更なしの導入実装を実行したfullnormal2、および最終sourceのfullnormal3に含まれる6 provisioning testsを最終根拠とする。実機起動は未実施のまま。
+- writer最終監査: 記録した1866 PID/birthすべて不在または再利用、live/zombie 0。closure SHA-256 `55a7a6fa26cbb06f8e21ac4ec00ce6e50171a64ecc334e6dea52744701f022ef`。親の独立記録glob監査: 1864 PID/birth・4 profile・4 debug portを確認しすべて終了、SHA-256 `5d8bdce339c0cb061015fcfe70b49e6e7a33e1d228fd948a936c68e9e4820c9c`（収集範囲の差を明示）。親はsignal未実行。writer session7104を含む全validation session終了。
+- 再利用証跡の親照合: setup24/static9/browser関連76パスおよびbuilt/helpers6のhash一致、audit SHA-256 `c4d77ac396b729127ca7c3ce6241b7f9bb15e77e8212b63dadcb7c2ccb0a41de`。過去phaseの実行日時と限界を維持。
+
+### 独立レビュー R3 完了・approve
+
+- `/root/dev09_review_r3` が最新全34変更パス、未追跡・関連文書・依存境界を独立確認し、2026-10-27T22:58:11.532177+00:00に `approve`。必須・任意指摘0、R1-01〜04/R2-01〜02の全6指摘解消。review_rounds=3。
+- 正式report SHA-256 `70f8b58ba484fbc101b6771a356b0ba1840c447fd3e032a33e7e5ece108eb1be`、closure SHA-256 `3313f51ee5aaa4960ad35899e5699e87de91b52edc02bf8389ba5b699d0ecae8`。親はschema名差（artifacts_sha256/index_sha256）を読んで再確認し、15証跡hash、index、reviewer所有76 PID/birthの終了・2一時領域削除を照合。製品変更なし。
+- reviewer独立実行は最終sourceのguardian3/reset10成功。提供check3、fullnormal3の実完了1190+18+46とexact620map、変更なしcomponentの以前の証跡・限界を照合。5画面を本人が目視。未実施Pi実機/OS起動/周辺機器を外部gateとして維持し、docs08§1のローカル実装として承認。クラウド/API/schema/lockfile変更なしのためEmulator追加実行不要。実装commit準備へ進む。
+
+### BA-DEV-09 完了結果
+
+- 実装コミット: `75a124dadb876697bc4aaf9fea1dd328423a3022`（`feat(device): BA-DEV-09 add kiosk provisioning and local recovery`）。main、レビュー済み全34パス、2397追加/63削除。stage/commit内容のSHAとパスをR3固定対象と照合し一致、親metadataを混入していない。
+- 専用UID、systemd/Cage/Chromium kiosk、再実行・uninstall/reinstallで設定/資格情報/SQLiteを保持する導入処理、ローカル診断・offline復旧画面を追加。local session/CSRFと明示確認でdurable resetを実行し、private表示/音声・task・全owned子孫を停止してDEV02消去後に未登録へ戻す。remote cloud/HA失効は常に別の未確認事項として表示。
+- 3巡の独立レビューで全6必須指摘を解消しR3 approve、任意未対応0。最終check成功、全normal1190+18+46成功、reviewer独立guardian3/reset10成功。導入6試験・updater24・既存service・UI回帰を最終suiteに含む。成功browser10シナリオ/5画像は変更なしcomponentとのbindingを確認したR2証跡。途中の失敗・中断は保存したまま。
+- docs08§1で認められるfake/ローカル実装範囲のdone。Raspberry Pi5 8GB実機、候補OS初期状態からのboot/reboot、seat/VT/PAM/DRM、画面/音声/電源/冷却/電断は未実施の外部gateとしてdocs/device-setup.mdへ手順と記録条件を残す。配備、hostアカウント変更、provider/cloud/HA操作、push/PRは行っていない。
+- 台帳をdone/review_rounds3へ更新し、記録コミット前の必須 `mise run check` を実行する。
+- `parent-postdone-check`: `mise run check`、2026-10-27T22:59:47.887731+00:00→2026-10-27T22:59:51.813865+00:00、exit 0、3.9268102449714206s、unittest/counts ['Success: no issues found in 415 source files']、Node []。metadata SHA-256 `3fe9a94b37c304258627b73d3013918bae7d7c418f29af588a5f6bdc7fc739dc`、raw SHA-256 `e5568f706e51fef67c0f97fdf76f73fedbf95dd6fff3a926db3e7c7d1dd297e9`。
+- done更新後の必須check実完了exit0（親session37681終了）。全620製品file hashは承認時と一致、未追跡なし、差分は台帳/logの2ファイルのみ。記録コミットへ進む。

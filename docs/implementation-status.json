@@ -470,7 +470,13 @@
       "implementation_commit": "1b16164ed3c257c67b7ae7250447bd9a77682093"
     },
     "BA-DEV-09": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "d1dff94186e991bcbfe34145ba9648d6a1997e7b",
+      "log_anchor": "ba-dev-09-20261027t213359z",
+      "updated_at": "2026-10-27T22:59:41.367936+00:00",
+      "review_rounds": 3,
+      "implementation_commit": "75a124dadb876697bc4aaf9fea1dd328423a3022"
     },
     "BA-DEV-10": {
       "status": "todo"
