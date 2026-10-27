@@ -8113,3 +8113,251 @@ FR008/AC008、T012。API/tool共通serviceでタスク作成・一覧・取得�
 
 - 台帳done後の親 `mise run check` はwhole22.103400190秒/exit0、288Python/全TS/contracts/client/compatibility/format/lint/workflow/docs/tickets成功、39done/96。raw/result /tmp/ba-app-04-parent-record-check.{log,json}。
 - 終了: 2026-10-26T23:54:27.090791+00:00。台帳/logの2filesだけ記録commitする。
+
+## ba-app-05-20261026t235509z
+
+- チケット: BA-APP-05 通知API・FCM登録・汎用push配送（FR009/AC009/T030/T038）。
+- 開始: 2026-10-26T23:55:09.234237+00:00、in_progress、main/base `8873370cbd0e3a45b3e5159203ba680a5bc2a525`、開始clean/index空。適用AGENTSなし、CONTRIBUTING/docs05の完了条件確認。
+- APP04両commit/clean/全454SHA確認後、planner check成功39done/96、ID指定なしnextがAPP05を選択。依存APP04/IAM02 doneと各実装commit祖先確認。
+- 実装担当 /root/app05_implementation（新規別context予定）、各reviewは新規独立context。親はmetadata/commit、製品writer1名。
+- 範囲: 本人push installation登録/更新/解除、通知一覧/取得/ack、本文を含めないFCM汎用payload、登録世代・現在所属・予定世代・表示先による古い配送/ackの拒否、無効token停止、受付/表示/本人ackの分離。
+- 検証計画: actual API/worker共通経路のT030/T038、私有/共有/他人/tenant/device、再登録・無効token遅延応答・取消/再予定/遅いack、idempotency/unknown/部分成功、member/account/tenant purgeとexport・現在台帳回帰、setup/check/全通常/全emulator。
+- 外部OPEN006は実FCM/APNs配信・許可済み実機に必要。docs08§1のfake/emulator実装完了範囲を適用し、実provider/実機/cloud/IAM/secret/deployは未実施。UI07とOS配布/APNs実設定OPS09/10は対象外。
+- 既存APP04固定source/可変receipt/正当ScheduleIntent/現在認可・started/unknown非再送を維持。公開schema/生成client/docsとlifecycle/export必要統合を確認する。
+
+### 初期設計と追加確認
+
+- Writer方針: 既存Notification固定source/receipt維持、通知単体GETはadditive契約追加。installationはopaque UID非pathのglobal root、token ownership claimを別保存し秘密tokenはinstallationだけに置く。account purgeへ両rootを明示統合、member/tenant purgeでは他tenant利用のため登録を保持。
+- FCM fanoutは最大20 installationの登録世代snapshot、各送信前の現在認可とstart/resultを通知配下へ保存。provider lookupを捏造せずDBに保存した確定結果だけ照合、応答喪失unknownは再送しない方針。same-token別user takeover、refreshと遅いinvalid応答を検証予定。
+- 親追加確認: 20上限と登録/列挙仕様を整合し対象を黙って切り捨てない、部分成功/unknownを確定未送信扱いにしない、pinned SDK内部retryも検査する。現段階は設計であり検証/独立承認は未実施。
+
+### FCM transportの再送制約
+
+- Writerがpinned firebase-admin7.7.0 messaging.send内部DEFAULT_RETRY_CONFIGにPOST/read/500/503自動retryを確認。started/unknown非再送と合わせるため、明示credential/projectのAuthorizedSession（max_refresh_attempts=0）とHTTPAdapter retry=0、redirect無効、固定timeoutでHTTPv1の1回送信境界を作る方針。新依存なし、ADC/実networkなし。
+- 親はpinnedsourceの根拠と1POST実transportテスト、公式endpoint/scope/構造化無効token error分類（一般INVALID_ARGUMENTを即失効扱いにしない）、private SDK encoderの局所化/contract検証または許可fieldの明示JSON構築を確認依頼。まだ実装/検証成功の主張ではない。
+
+- 親もpinned local SDK sourceをread-only確認: firebase_admin/_http_client.py:35–44はallowed_methods=None、connect=1/read=1/status=4/500,503、messaging.py:529–530でFCM adapterへ設定、:542–550でPOST。google.auth.transport.requests.py:505のmax_refresh_attemptsと:745の401再送分岐も確認。資格refresh用別sessionのretryとFCM POST再送の保証を区別する。
+
+### 初期差分の移行・失効境界確認（finding未確定）
+
+- 親read-onlyで新recipient_stamp/account_stampをscan時に記録する初期コードを確認。旧APP04 user通知は値Noneで取得/ack/配送拒否となるため、移行（明示再予定等）と互換範囲を文書・実テストに残すよう確認依頼。
+- shared予定のtargetのみ退出→再参加後の初回scanで新stampを採る場合について、受理時/scan時/installation登録時の保証境界と「所属失効後の古い配送先」要件の整合をwriterへ確認依頼。製品findingは未確定、review回数には数えない。
+
+- 親は[FCM HTTPv1公式API](https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages/send)、[公式エラー分類](https://firebase.google.com/docs/cloud-messaging/error-codes)、[登録管理](https://firebase.google.com/docs/cloud-messaging/manage-tokens)を2026-10-27 JSTに確認。HTTP/scopeとUNREGISTERED判定、INVALID_ARGUMENTのpayload不備との区別、FIDとlegacy token併用サポートをwriterへ共有。補助メモ /tmp/ba-app-05-provider-primary-sources.md。実配信はしていない。
+
+### 初回重点検証7件成功・型修正中
+
+- targeted-01はtest fixtureの余分な閉括弧でimport失敗、1loader error/.000秒、whole.073849秒/exit1。targeted-02は7件.490秒中1failure（cursor失効の共通400を403と期待したfixture）、whole1.229323秒/exit1。元raw/resultを保全して訂正。
+- targeted-03はactual通知/push共通7件.495秒OK、whole1.230092秒/exit0、00:04:01.725088Z〜00:04:02.955189Z。/tmp/ba-app-05-targeted-03.{json,log}を親確認。最終全suiteではない。
+- types-01は295sources中9errors/4files、SDK非型付きcall・JSON型・optional絞り込み・Scope enum・receipt literal等、whole1.145606秒/exit1。types-02は298sources中82errors/fixture1file、共通scenario methodを別classへaliasした型不整合、whole.365489秒/exit1。修正中、check成功未主張。
+- format-01 ruff check --fixは9指摘中5自動訂正・loop closure4未解消でexit1。format-02 ruff formatはexit0。開発途中のraw/JSONを各phaseで保持する。
+
+- Writer追加報告: ScheduleIntentの予定受理時にもrecipient stampsを保存し、target退出→rejoin→初回scanによる旧予定復活を拒否、明示再予定で新権限導入する正例を追加。通知生成時だけのstampに依存する初期案を強化した。実transport/lifecycle/export/unknowncommit/独立ledger追加検証・契約/docs・重点emulatorはこれから、blockなし/freeze前。
+
+- targeted-04は追加11件.772秒中1failure、whole1.531934秒/exit1、00:06:07.429720Z〜00:06:08.961662Z。test_registration_and_ack_unknown_commit_replayでHTTP応答500となった故障注入に対しPersistenceUnavailable例外の直接送出を期待してassert失敗。raw/result保全、修正後再検証は未確認。
+
+### 親read-onlyのlease交代境界確認（finding未確定）
+
+- 初期PushNotifications._jobがeffect keyで現在running jobを再読しprepareがそのlease_generationをbatchへ記録する点から、DispatchNotification最終preflight後/prepare前に旧lease失効→新worker acquireした場合、遅い旧callが新leaseを採用しないかwriterへ確認依頼。parent実行probeは未実施で、正式findingではない。
+- 初回prepare前・途中fanoutの2箇所に交代を注入し、元呼出のexact leaseへの束縛、旧callの外部send/新lease更新0を検証するよう依頼。製品修正・判断はwriter担当、独立reviewはfreeze後に別担当で行う。
+
+- targeted-05は21件4.388秒中1failure、whole5.260474秒/exit1、current device sessionを使う取得の期待200に対し404。raw保全、原因修正・再検証待ち。targeted-06はpush11件.776秒/whole1.553479秒/exit0でunknowncommit fixture訂正後成功。types-03はfixture3errors（非型付きAnonymousCredentials/adapter型/lost list注釈）でexit1、whole.444676秒。
+- lease確認へのwriter回答: 通常Jobsはstarted checkpoint付き失効をfailed/outcome_unknownにして自然な新lease取得を拒否する。初期provider prepare自身には元generation照合がないため内部envelopeのjob_lease_generation照合を追加予定。親の仮説を自然再現済みの不具合と扱わず、既存防御と追加境界検証を区別する。Lease型の正本はtenant/job/generation（別owner tokenなし）。
+
+### 契約生成・追加境界検証中
+
+- generate-01 `mise run generate-client` はwhole10.884410秒/exit0で新契約からclient生成。format-03は5lint指摘自動訂正/残0、format-04は9files整形/290unchanged、各exit0。最終checkとは区別する。
+- types-04は299sources中2errors（test_notification_devicesの非公開再export import、transport BaseAdapterのmax_retries型）、whole.519899秒/exit1。元raw保全。
+- targeted-emulator-01は11件全startup errors/1.386秒、whole9.141533秒/exit1、00:07:45.898490Z〜00:07:55.040030Z。fixtureのAPI起動時RuntimeError、原因と修正をwriter確認中。Emulatorは失敗後も正常shutdown。/tmp/ba-app-05-targeted-emulator-01.{json,log}保全、成功扱いしない。
+
+- targeted-emulator-02は12件17.491秒OK、whole24.833513秒/exit0、00:09:38.480059Z〜00:10:03.312469Z、正常shutdown。親が実raw/result確認。初回startup失敗の具体原因とdevice404原因はwriterの説明待ち、成功と失敗を別phaseで保全。最終full emulatorの代用ではない。
+
+### 起動・端末fixture訂正と重点21件成功
+
+- WriterがEmulator-01の原因を説明: 共通HTTP fixtureのlocal-fake設定でlifespanを起動し、processのemulator envとの矛盾を既存startup gateが正しく拒否した。明示AuthServices注入のroute結合をlifespanなしTestClientで実行するfixtureへ訂正し、Emulator-02の12件が成功。API起動gateを製品側で弱めていない。route/realFirestore結合と実際のstartup検証を区別する。
+- targeted-05のdevice404はpairing直後fixtureのcapabilitiesが空だったため現在表示先の検査が拒否。display能力を明示してからprivate sessionを作る正例へ訂正。
+- targeted-07は21件4.391秒OK、whole5.253635秒/exit0、00:11:50.849110Z〜00:11:56.102757Z、raw/result親確認。新schema/client/docs整合とprecheckを進行中、freeze未到達。
+
+### precheck成功（freeze前）
+
+- precheck-01は追加fixtureの未整形でwhole.078128秒/exit1。format-05は5指摘中1自動修正・closure3/未使用1が残りexit1、format-06/07はexit0で整形済み。
+- precheck-02 `mise run check` は00:14:09.420048Z〜00:14:13.423600Z、whole4.003544秒/exit0。全Python型・TS・format/lint・contracts/client/compatibility/docs/tickets等のraw確認。最終freeze後の正式checkは別途実行する。
+
+### 追加account purgeのEmulator検証
+
+- format-08は1fixture整形/exit0。precheck-03は新削除integration fixtureでOptional dictの絞り込み不足1error、whole1.009783秒/exit1、raw保全。
+- targeted-emulator-03は14件24.470秒中1failure、whole34.384916秒/exit1、00:15:40.105343Z〜00:16:14.489584Z。test_push_global_account_erasure_uses_bounded_pages_and_keeps_new_token_ownerで期待succeededに対しrunning/retry_reason handler_error。正常shutdown、元raw/JSON保持。
+- 親read-onlyは新fixtureのPurgeResource構築でaccount_finalizer未指定と、delete_account最終段の必須finalizer assertを確認しwriterへ切分け依頼。親probe未実施で原因未確定、製品不具合と断定しない。
+
+- Writer切分け: 新Emulator testがdelete_accountに必須のFakeFinalizerを注入し忘れ、PurgeResource._read冒頭guardでpurge開始前handler_errorとなっていた。global root製品処理へ入っていないfixture不備。既存と同じFakeFinalizerを明示注入し再実行する。Emulator-03の共通push13caseは各成功だが、全14suiteはexit1のまま保全。
+
+### 実account purge成功・事前全通常の契約数更新
+
+- precheck-04はwhole4.199549秒/exit0、00:16:43.904613Z〜00:16:48.104169Z。前回Optional型エラーを解消。
+- targeted-emulator-04は14件27.488秒/whole35.479832秒/exit0、00:17:35.763070Z〜00:18:11.241943Z、正常shutdown。FakeFinalizerを注入した実global account purgeが完了し、token移転後の新owner保持と古い登録の消去を確認。raw/JSONを親確認。
+- prenormal-01は00:13:42.497756Z〜00:17:26.263350Z、whole223.774754秒/exit1。Python800件201.367秒とSkill18件成功、Node40中39成功/1failure、Node13.720562031秒。tests/test_api_contracts.mjsの固定90操作期待に対し新単体GETで91となった唯一の失敗。旧88業務+2healthを89業務+2healthへ更新しNode再検証する。実失敗を保全し最終全suiteで再確認予定。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/app05_review_r1`（新規独立context）。base commit: `8873370cbd0e3a45b3e5159203ba680a5bc2a525`。
+- 未追跡を含む最新全33files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `4c806d4adbab1f6f8e36949f95825901accf0ab0a70782445e0a2d1c1cbe461f` |
+| `docs/04-interfaces.md` | `d695501ef63503363e7c0033a7db723969c3532ee281eb552a4188db08672db5` |
+| `docs/account-deletion.md` | `20bf37ce7b0317b34fba56f7df3dc124d5416cd18ee6170e0eaeaff7664f3f7e` |
+| `docs/data-export.md` | `c82414c1e8b3cf4c0924eb1837cbbbef4f885ef63aff0f80ef45b50b87d31fff` |
+| `docs/notifications.md` | `13b7181d0f282954c076aa3ce31a5f49200e19317d637707d683452d2b4632bc` |
+| `packages/api-client/src/generated/index.d.ts` | `1dd99707b50392f28c070f05ea8a79dfc5eda7616069f5be843cc691fab6f631` |
+| `packages/api-client/src/generated/index.js` | `586625b82cd5171cebb7cc0c85e8448bcf8a9999c7dd488611352cc4e0004002` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `d6023a35d1220544a9159953e53197fd23627db06414f8cb4f39953346dfc02c` |
+| `packages/api-client/src/generated/sdk.gen.js` | `a16529a993c8c2c757d2775ed8ae548f2d0999cca36341cc498d831acfbda9fa` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `0931f84649cdb40c44d5c282ad77d964dffe32046d6299569dd69fe28d0415ff` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `7cc7e9c8c1ec69b4e6f04924428a48d344eeb7cabea8950bf81e57b2929b24d1` |
+| `packages/memory/src/brainoid_memory/push_installations.py` | `90b539bd26fe044471422b9a0650c3276f89e33d035465babbd147742a9ae823` |
+| `packages/memory/src/brainoid_memory/reminders.py` | `cfef1b41463c87f544e9308501d713ed447a0e5a8bd7af92383d574db3af92ac` |
+| `services/api/src/brainoid_api/adapters/fcm.py` | `dc3cb86e7dbbb60e6c97fb320ae0c7fec83dd444a0a5614ea19392cc5b5f2c62` |
+| `services/api/src/brainoid_api/app.py` | `622b48d9d431a662629294586b156f7306bfd596df9785bdb30cb93f37e52d44` |
+| `services/api/src/brainoid_api/repositories/notifications.py` | `6e987e3dc96821e1423204f89c56c9fe319bf1a1345979e438487224d8a1669a` |
+| `services/api/src/brainoid_api/repositories/push_installations.py` | `631d60d9b4d099ddfc069428ae803860b76fcf99c168bde526f90666c50bcb8f` |
+| `services/api/src/brainoid_api/routes/notifications.py` | `d59c33a5480c2d3e256acf9ff12e8dc852e5642d0952f6344385ba57293ed7e2` |
+| `services/api/src/brainoid_api/routes/push_installations.py` | `2c7de93ca2690b0336d22bdd3b0e618698b3499f5da63db49ed32900062569de` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `c7dae602660ba0ac456929fc3af42c1383e7040e00341e2c37dca5651e45c79e` |
+| `services/worker/src/brainoid_worker/notifications.py` | `843992e52bc0ef52a46c112af50fbd66e788383253bf84bc61b35adb025d2412` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `88675cacb0bd8c40e42de0c1e11bddc9788ab2c282e0aa87800e623c55c7f282` |
+| `services/worker/src/brainoid_worker/push_notifications.py` | `b2fc9990df1273f69384744d782889fd1a8331e18c602a520ed9045695da6c29` |
+| `specs/openapi.yaml` | `a502e858b5585608cab1757167e7e5d24542d58f7d56fb124f4af737073bccaf` |
+| `tests/emulator/test_deletion_requests_integration.py` | `8bd86fa87f4fc7809c6ba628563d4e4044922126ab06fe3ac4c0ab65a0b7e7bd` |
+| `tests/emulator/test_push_notifications_integration.py` | `d7efb4fa0e019426525401318eb36ffbbb5b668d043869b2ca5ede1f3547a6af` |
+| `tests/fakes/notification_scenarios.py` | `273c7346a3bba0116ca7f1c807f09530c7e6505fbcbcd55d6a6dea9a909b5596` |
+| `tests/fakes/push_scenarios.py` | `4919ef20eb236e0c691ac748e5d3351ee31002b1a6cc74eb1cda1ea20abbc66b` |
+| `tests/test_api_contracts.mjs` | `d8410ba39f4cf218ea5f57b6ef04c8acc4009eaaefa2a274c8ae1783e5057faa` |
+| `tests/test_notification_devices.py` | `8205d188ed06f0da2e297f91ddab850cae6f893a89a053089724d1a4fefab362` |
+| `tests/test_notification_export.py` | `54d123d2b12b758d8cae85af3c48ae83be111d73d4c21a0ffb81706536e17003` |
+| `tests/test_notification_lifecycle.py` | `e4e2cefcbe2a9a02ac364464de691198ff15edd80e0a3145bf0f0ddfeff76a4f` |
+| `tests/test_push_notifications.py` | `d83ab287ffc845f7960872091b81183c5205b86930502afbb3ca4a3f2876f64a` |
+
+- 正式freeze全465product/33pathsを親独立照合、main/base/index空/diff-check成功。aggregate8af16685760ac8b7e0b9199eabd3771a1be889ab3d50c5d15a364f48262f2d84。最終setup.598298秒/check3.399093秒ともexit0、299Python/全TS/contracts/client/docs等成功。raw SHAも結果JSONと照合。fresh R1開始、最終全通常/全Emulatorは同SHA実行中で未完了をapproveしない。
+
+- targeted-node-01はNode40件成功、whole12.960834秒/exit0、00:18:50.930370Z〜00:19:03.890246Z。親rawで40pass/0failを確認。freeze JSON SHA9d3e737102d09cd1ff7f72a24ccadad64bb253edf3e4fd61df59ce54f22e3bd6、after-check全465SHA一致も確認。
+
+### 同SHA最終通常テスト成功
+
+- final-normal `mise run test` はPython800件230.059秒、Skill18件.088秒、Node40件17.412176771秒、whole257.181905秒/exit0。00:20:15.074747Z〜00:24:32.244356Z。raw/result /tmp/ba-app-05-final-normal.{log,json}を親確認、raw SHA008302a915c264e894960fec62560c492d503a27a5f1b9b569f590f7e491a105一致。R1へ共有。全Emulatorと正式handoff/end auditは継続中。
+
+- 実行shellも親確認: final-normal.shはemulator2変数をunsetしてexec mise run test（SHA51492082e81b5536fdb953c438cea787ffc37a0e5fadbc278b1a69d3636f5893）。final-emulator.shはprocessだけ.env.emulator.exampleをsourceしexec mise run test-emulator（SHAecb8ff0b00d278f59eae7a1e5374d9dacc5c3ff060c90874a16f46d2fb2839c4）。
+- 過去証跡補足prefinal-evidence.json SHA71d5492427d8c75e2fb9dec94be80d2874ac588114dd113a638394f148b43262の全33metadata/rawペアSHAを親照合、全15失敗phaseを保全。旧JSONを補う情報であり上書きしていない。
+
+### 独立R1の公開更新版finding候補
+
+- R1開始audit00:21:24.856456Zはmain/base/index空/全465SHA/33paths一致、SHAb279f7c1e7a31c4d18a64a7a8f6b3ceb9338436a7d08ccee2b7a715310d85f7f。独立重点18件はwhole10.295445秒/exit0。
+- ReviewerのHTTP probeで通知タイトル編集・displayed・ack後も公開versionが1、title編集後updated_atも旧値、GET/ack ETag欠落を再現。固定source.version/job source.version1は維持されている。docs03§2の更新ごと版増加/日時とdocs04§2.2のversion/ETag対応に対するR1-F01/P2候補として全差分reviewを継続。
+- 証跡 /tmp/ba-app-05-review-r1-public-version-{probe.json,probe.log,observations.json}、00:24:31.928716Z〜00:24:34.801926Z、whole2.873073秒/exit1。14case中既存13成功/custom1failure。これは製品の契約不一致再現でありfixture失敗とは区別する。
+- 正式判定/全差分review終了前のためwriterへ製品freeze継続を通知。全Emulatorは継続、修正は正式request_changes後に元writerへ依頼する。
+
+### 独立R1正式終了: request_changes
+
+- /root/app05_review_r1 が全33paths（新規11）と周辺のレビューを完了。正式判定request_changes、必須1件 R1-F01/P2、任意指摘なし。report /tmp/ba-app-05-review-r1-report.md SHAbd6d5f7360df55a62f3376f5df30f48bd42867662a93e10f1459cb6e475851bbを親全文確認、resultのhashと一致。終了通知00:28:48.390664Z。
+- 必須修正: public_notificationのmutable projectionに単調な公開更新版を定義し、現在title/receiptに対応したupdated_at、GET/ackのETagと一致させる。source.version/job grant.version1は変更しない。OpenAPI/client/docs、title/provider受付/displayed/ack版変化、同key/同ackの無変更、現在認可/cursor/export/旧予定/source版不変をHTTP/Firestoreで確認する。
+- 独立18件8.740秒/whole10.295445秒成功。公開版probe14件1.675秒/whole2.873073秒は独自1failureと既存13成功。開始/終了全465SHA/33paths/main/base/index空一致。終了audit00:26:53.676203Z SHAcf06aeb79fd259718e76790233e10fc5553a68fe3a6ff9f9cbc56a1fb221e87c。製品編集なし。
+- 正式終了時全Emulator/正式writer handoff/end auditは未完了と明記。台帳in_progress・review_rounds1へ戻す。元writerが走行中旧suiteを完走し旧証跡を保存後、R1-F01を修正、別prefixの同SHA最終検証とfresh R2全差分reviewを行う。現差分は未承認でcommitしない。
+
+- R1修正前の全Emulator検証完了: `final-emulator` は217 tests / 596.968s、全工程606.042603571026s、2026-10-27T00:20:15.404901+00:00→00:30:21.418582+00:00、exit 0。通常800 + Skill18 + Node40、setup/checkも成功。ただしR1-F01未修正のため完了承認ではなく、この旧SHAの証跡として保存。
+- 旧正式handoff `/tmp/ba-app-05-handoff.md` SHA-256 `c4cb77bb4de5ccafcd36f3f96b411e3c28b0c08b552e6711cf52247156d7b5c6`、writer終了監査 `/tmp/ba-app-05-exit-audit.json` SHA-256 `c84c31bf128c110ac62c0de7b94a4618711bcf56a1a13057087ddbe5bbc3cda9`。465製品SHA/33差分path/main/base/index空一致、18 sessions終了、5 ports閉鎖、diff check 0。
+- 親host監査 `/tmp/ba-app-05-parent-final-audit.json` (00:30:52.185085Z) SHA-256 `451436479b7caa8a6e602ba09ff268b2e5041a76fb5d25a09e9ae143466833e0` も同一SHA・全最終検証exit/raw SHA・port閉鎖を確認。旧証跡 111 filesを `/tmp/ba-app-05-parent-r1-evidence-sha.json` SHA-256 `2cf7b7afd10c6ce93a01656fdc7b83fb2826dce1793d9b54be18d2d34ca1f1a5` に保全した。親の表示用スクリプト1回は監査JSONのfilesが件数整数であるためlen()でTypeError、検証の失敗ではなく表示処理を訂正して確認。
+- 元writerへR1-F01修正着手を許可。修正後は `/tmp/ba-app-05-r1fix-*` に別証跡を保存し、旧証跡を上書きしない。公開projection version/updated_at/GET・ack ETagを修正し、新freeze・全件検証・新規R2全差分レビューを必須とする。
+
+### R1-F01 修正と再検証
+
+- 元writerがimmutable source/grant version=1を維持し、deliveryにprojection_versionと作成/更新時Reminder.version watermarkを追加。公開versionは保存projection版+現在Reminder版との差分、updated_atは現在Reminder/receiptの最大。GET/ack ETagとschema/client/docsを整合中。旧watermark欠落/不整合はfail closed、明示再予定で移行。
+- `r1fix-targeted-01`: command `mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_push_notifications test_notification_export test_notification_devices test_notifications`、2026-10-27T00:43:57.526845+00:00→2026-10-27T00:44:00.915748+00:00、exit 0、全工程 3.389806886028964s、{'unittest': [{'tests': 34, 'seconds': 2.441}], 'node_tests': []}。metadata `/tmp/ba-app-05-r1fix-targeted-01.json` SHA-256 `46f11b4ab6511c90fd71559fd3839800c6554a119a43d27fa5853c1b17951b01`、raw SHA-256 `1cd1b8c58c7a01ab68ecf4118ab2f92532ee6daa7746ce40c8ee06fa243bc139`。初回版1（Reminder v3）、同時計title更新、provider/display/ackまでv1→7、同key・同ack no-op、ETag/source不変、legacy拒否・明示再予定、unknown回復、offline、archive invalidationを検証。全最終検証・新規R2は未完了。
+- `r1fix-generate-client-01`: `mise run generate-client`、2026-10-27T00:44:20.200289+00:00→2026-10-27T00:44:31.070086+00:00、exit 0、10.871594933967572s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `7b34eb3a37803c522605749299567ae94bc9ba1537308f6e113e7ad73b5e861f`、raw SHA-256 `d47ad6f2581535a7a81d704ea6600bd6681d67b6a5b62b53b06d793ca40ad894`。
+- `r1fix-generate-client-02`: `mise run generate-client`、2026-10-27T00:44:38.688124+00:00→2026-10-27T00:44:49.558872+00:00、exit 0、10.870744796004146s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `b11b84b92a8415de65f71a10e8024f6e444d41f6ab18777003605f1657374504`、raw SHA-256 `0fa67e5a852095df65d390cfc0e8aa3a1b221944a99f901bd4cb18cbd6dc1ab7`。
+- `r1fix-format-01`: `mise exec -- uv run --all-packages --locked --offline ruff format packages/memory/src/brainoid_memory/notifications.py services/worker/src/brainoid_worker/notifications.py services/api/src/brainoid_api/routes/notifications.py tests/fakes/push_scenarios.py tests/test_notification_export.py`、2026-10-27T00:44:30.760114+00:00→2026-10-27T00:44:30.806757+00:00、exit 0、0.04663762799464166s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `95bf2d1be758b3032979207f4a4053beeaaea8e236fc969bc87ba498bd615181`、raw SHA-256 `0e3227a0576bf4b1300048e70321b65f0c0078106a8c61ad1f3e4e7a641e0bd2`。
+- `r1fix-types-01`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-27T00:44:39.848609+00:00→2026-10-27T00:44:40.418792+00:00、exit 0、0.5701807549921796s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `24febdbe6f7d5aa2cb60dd73310ceafe77026a1644bcdbf26916417646a80ecb`、raw SHA-256 `5515ea4719b1dc14eb79918f70519df7772d45b6ca573ab36c7345cda00c7b03`。
+- `r1fix-check-01`: `mise run check`、2026-10-27T00:45:15.158163+00:00→2026-10-27T00:45:19.419735+00:00、exit 0、4.261555234959815s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `d09e98f4c4f3b8bb1ff70a7664577c624d012fa3d5f8438284c43ea7bd4489d1`、raw SHA-256 `be12da62576946178224fa9b96c715dd555daa884697a475e36db79160a0df6a`。
+- `r1fix-targeted-emulator-01`: `bash /tmp/ba-app-05-r1fix-targeted-emulator.sh`、2026-10-27T00:44:50.694947+00:00→2026-10-27T00:45:45.477433+00:00、exit 0、54.78532691602595s、counts {'unittest': [{'tests': 30, 'seconds': 47.058}], 'node_tests': []}。metadata SHA-256 `da227585d5bdc21bb249e24887a7c4ba05fa2498bf5a063219c20778703b7b52`、raw SHA-256 `9191acd007e5a7d32ad2ec9fc80dbe8f3e29ec3e88f3328eab1bea5bd80ddceb`。
+- `r1fix-targeted-02`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_push_notifications test_notification_export test_notification_devices test_notifications`、2026-10-27T00:45:54.540292+00:00→2026-10-27T00:45:58.392521+00:00、exit 1、3.85222389298724s、counts {'unittest': [{'tests': 35, 'seconds': 2.806}], 'node_tests': []}。metadata SHA-256 `97f616df04d60fa2751fcfd3322d3865d4a033258492126e83e67753bc4bcc81`、raw SHA-256 `c530a716897cb75fefd05b5a76f7e817f798a93b701e66950425ac9080ca30f6`。
+- `r1fix-targeted-03`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_push_notifications test_notification_export test_notification_devices test_notifications`、2026-10-27T00:46:37.412322+00:00→2026-10-27T00:46:41.049633+00:00、exit 0、3.637305601965636s、counts {'unittest': [{'tests': 35, 'seconds': 2.672}], 'node_tests': []}。metadata SHA-256 `3e09e0269a629d542a051e91d6c9593df081d8b517c4c3cc7ce2fd101da9804d`、raw SHA-256 `c358383bd6eb4439fcf0636931190035357943d64d59787000dbd6c116fa5f4d`。
+- targeted-02は35件中1 failure（acknowledged during provider）。ack後の現在防御でjobをobsoleteとし遅いprovider receiptを保存しないため公開版3が正しいが、新規fixtureが4を誤期待。製品変更なしで期待値を訂正しtargeted-03は35件成功。displayedの競合はtitle2→display3→provider4、human ack競合はtitle2→ack3で停止、再送なし/source不変を検証。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/app05_review_r2`（新規独立context）。base commit: `8873370cbd0e3a45b3e5159203ba680a5bc2a525`。
+- 未追跡を含む最新全33files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/03-data-and-authorization.md` | `cbd4d9c6daaee56c429cc1726e3cf78cb24741f7065b8eeec522b92c059fb133` |
+| `docs/04-interfaces.md` | `58a69edf9371c24e1ff911531865790c8b49fed110ee8efbbcc3560a6fc22cd1` |
+| `docs/account-deletion.md` | `20bf37ce7b0317b34fba56f7df3dc124d5416cd18ee6170e0eaeaff7664f3f7e` |
+| `docs/data-export.md` | `c82414c1e8b3cf4c0924eb1837cbbbef4f885ef63aff0f80ef45b50b87d31fff` |
+| `docs/notifications.md` | `48805c4b77ceb059a487e2569218775ee73b3010582b2e6ff27c06a094a0b440` |
+| `packages/api-client/src/generated/index.d.ts` | `1dd99707b50392f28c070f05ea8a79dfc5eda7616069f5be843cc691fab6f631` |
+| `packages/api-client/src/generated/index.js` | `586625b82cd5171cebb7cc0c85e8448bcf8a9999c7dd488611352cc4e0004002` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `d6023a35d1220544a9159953e53197fd23627db06414f8cb4f39953346dfc02c` |
+| `packages/api-client/src/generated/sdk.gen.js` | `a16529a993c8c2c757d2775ed8ae548f2d0999cca36341cc498d831acfbda9fa` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `cbd9643bba085619d36b5fce2f75921bb8c5f73b1e4ba3c927e548228928f985` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `c62b1aee5f97fc2c260ea96edd606bf506ddcabec276ea822941e9a32ffb3e85` |
+| `packages/memory/src/brainoid_memory/push_installations.py` | `90b539bd26fe044471422b9a0650c3276f89e33d035465babbd147742a9ae823` |
+| `packages/memory/src/brainoid_memory/reminders.py` | `cfef1b41463c87f544e9308501d713ed447a0e5a8bd7af92383d574db3af92ac` |
+| `services/api/src/brainoid_api/adapters/fcm.py` | `dc3cb86e7dbbb60e6c97fb320ae0c7fec83dd444a0a5614ea19392cc5b5f2c62` |
+| `services/api/src/brainoid_api/app.py` | `622b48d9d431a662629294586b156f7306bfd596df9785bdb30cb93f37e52d44` |
+| `services/api/src/brainoid_api/repositories/notifications.py` | `6e987e3dc96821e1423204f89c56c9fe319bf1a1345979e438487224d8a1669a` |
+| `services/api/src/brainoid_api/repositories/push_installations.py` | `631d60d9b4d099ddfc069428ae803860b76fcf99c168bde526f90666c50bcb8f` |
+| `services/api/src/brainoid_api/routes/notifications.py` | `122b0919021bda670d99063f5ad93b2c80a15a3696a59a9c74c8225394affe6e` |
+| `services/api/src/brainoid_api/routes/push_installations.py` | `2c7de93ca2690b0336d22bdd3b0e618698b3499f5da63db49ed32900062569de` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `c7dae602660ba0ac456929fc3af42c1383e7040e00341e2c37dca5651e45c79e` |
+| `services/worker/src/brainoid_worker/notifications.py` | `737a7d6e6b73f00454583d7b70d74f5d8a6e37cc7a4acff9842347b90fd726cc` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `88675cacb0bd8c40e42de0c1e11bddc9788ab2c282e0aa87800e623c55c7f282` |
+| `services/worker/src/brainoid_worker/push_notifications.py` | `b2fc9990df1273f69384744d782889fd1a8331e18c602a520ed9045695da6c29` |
+| `specs/openapi.yaml` | `93702821afa49b86a45ef729aa592ae85ce0824001d3306175527db72dd4d13e` |
+| `tests/emulator/test_deletion_requests_integration.py` | `8bd86fa87f4fc7809c6ba628563d4e4044922126ab06fe3ac4c0ab65a0b7e7bd` |
+| `tests/emulator/test_push_notifications_integration.py` | `d7efb4fa0e019426525401318eb36ffbbb5b668d043869b2ca5ede1f3547a6af` |
+| `tests/fakes/notification_scenarios.py` | `273c7346a3bba0116ca7f1c807f09530c7e6505fbcbcd55d6a6dea9a909b5596` |
+| `tests/fakes/push_scenarios.py` | `c1b47bc1110906c748e549c2dbe35216007545d28b82c98b7e321206911ff540` |
+| `tests/test_api_contracts.mjs` | `d8410ba39f4cf218ea5f57b6ef04c8acc4009eaaefa2a274c8ae1783e5057faa` |
+| `tests/test_notification_devices.py` | `8205d188ed06f0da2e297f91ddab850cae6f893a89a053089724d1a4fefab362` |
+| `tests/test_notification_export.py` | `42e3852414dbd84c9cd3da8e3b1d973c4d1b3977c8cb058f95618789d4e45d85` |
+| `tests/test_notification_lifecycle.py` | `e4e2cefcbe2a9a02ac364464de691198ff15edd80e0a3145bf0f0ddfeff76a4f` |
+| `tests/test_push_notifications.py` | `d83ab287ffc845f7960872091b81183c5205b86930502afbb3ca4a3f2876f64a` |
+- `r1fix-targeted-emulator-02`: `bash /tmp/ba-app-05-r1fix-targeted-emulator.sh`、2026-10-27T00:46:41.102545+00:00→2026-10-27T00:47:40.817139+00:00、exit 0、59.71767851198092s、counts {'unittest': [{'tests': 31, 'seconds': 51.818}], 'node_tests': []}。metadata SHA-256 `9498dcb49f223ad1ed07b774d31a4a2e7a7b9b53f5d3fa27afc6273726e0d198`、raw SHA-256 `47ce112ccbcfd5a3645266365991f09faa4a522f28c95f1fadf8912424b2796d`。
+- `r1fix-prefreeze-check-01`: `mise run check`、2026-10-27T00:47:16.799495+00:00→2026-10-27T00:47:16.951117+00:00、exit 1、0.15161951002664864s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `af14bbfdedcf4a72c9725742721cba80cc2ab8fc641b06afa6e6950977aba946`、raw SHA-256 `13d2be26545daa33c88aae7985d8000d54dc229b2dd3ff66eed4f3ba64c6eac0`。
+- `r1fix-prefreeze-check-02`: `mise run check`、2026-10-27T00:47:26.957988+00:00→2026-10-27T00:47:31.005774+00:00、exit 0、4.049385407008231s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `058ea116929545df79d2288600175485f8213e33419ac552b38a21af4ae5f517`、raw SHA-256 `b6ff3e785fdf5076e06350e5ff2f35262736920518b972dcdf13f84602e3c83e`。
+- `r1fix-final-setup`: `mise run setup`、2026-10-27T00:47:52.621643+00:00→2026-10-27T00:47:53.251250+00:00、exit 0、0.6296001860173419s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `fd4285bea75752393616f165c48df85470385adf424c8f38c5283dbf743ae7e9`、raw SHA-256 `d6b5b5235f323b121aa819e30c68c349198b53f25fe1713c0c82cc635142bf9a`。
+- `r1fix-final-check`: `mise run check`、2026-10-27T00:47:59.685155+00:00→2026-10-27T00:48:03.301121+00:00、exit 0、3.6159577650250867s、counts {'unittest': [], 'node_tests': []}。metadata SHA-256 `6d1bc0a26f98c2f9871c5e2fe5350aed51a8717d09f4c5663ae39f78e39db6da`、raw SHA-256 `ecf8e09e0bca157b06f1fdbbacfb9ed5f2b8128c9ae3c5f60ff25884f0706b34`。
+- prefreeze-check-01は追加callbackのloop束縛lintでexit1。fixtureの束縛を訂正しprefreeze-check-02、最終checkは成功。全失敗を含む修正後事前phase証跡は `/tmp/ba-app-05-r1fix-prefinal-evidence.json` に保存。
+- R2開始前親監査 2026-10-27T00:48:16.588376Z: 全465製品SHA・正確33paths・main/base/index空・diff check 0、final setup/check成功。freeze `/tmp/ba-app-05-r1fix-freeze.json` SHA-256 `8d7569aeac3df0c0093dd6f0d8a30dd79b1c6ba9b5e3856229f1af20ef00523f`、製品aggregate `f900884680966e998586941eba8cee554411bd55af537038079140d4f0c0346f`。新規独立 `/root/app05_review_r2` を起動。writerは編集停止し同SHA全通常23867/全Emulator76028を実行中。
+- 同SHA最終通常 `r1fix-final-normal`: `bash /tmp/ba-app-05-r1fix-final-normal.sh`、2026-10-27T00:48:25.606472+00:00→2026-10-27T00:52:44.582341+00:00、exit0、全工程 258.9918203239795s、Python803/231.671s + Skill18/.088s + Node40成功。metadata SHA-256 `3f55bdd2fe763bafdf178673907b4c69f937776e55883d48ed8f12e1194a1c66`、raw SHA-256 `49e6955c7aea5f8fc4fa606de122e5e42bbcc8c65cbd1b09d1ab192b81b66f3a`。全Emulator・正式handoff/end audit・R2判定は未完了。
+- R2独立実行 `independent-targeted`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_push_notifications test_notification_devices test_notification_lifecycle test_notification_export test_notifications`、2026-10-27T00:50:33.527037+00:00→2026-10-27T00:50:45.366200+00:00、exit0、全工程 11.839149635983631s、['Ran 38 tests']。metadata SHA-256 `7bc8c82d5fbe912dd4bd14e5c87567bee8b2c26dcba9d75646c6aa0b178c6efe`、raw SHA-256 `b16701a045663ae883d9c7d26e9a39396e1700775086d28703a73026a1b2f5c1`。
+- R2独立実行 `independent-probes`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-app-05-review-r2-probe.py`、2026-10-27T00:52:42.117225+00:00→2026-10-27T00:52:44.456044+00:00、exit0、全工程 2.338807175983675s、['Ran 4 tests']。metadata SHA-256 `4f21ece05010427f6d0b91722e8b3cbfb4bb0d372a201811dbf44eff4104ff9f`、raw SHA-256 `76a9711f035bd7a176ddd2b35b605ade6710a10d6d8c8a5e76649e0c3175a5f8`。
+- R2独立重点38件/10.427s、独自probe4件/1.104s成功。probeは公開projection全経路、真のHTTP同時title+ack、部分受付後process停止・非再送、別account再登録中の旧invalid callback。正式レビュー判定と全Emulator/終了監査は未完了。
+- 同SHA最終全Emulator: `bash /tmp/ba-app-05-r1fix-final-emulator.sh`、2026-10-27T00:48:26.184097+00:00→2026-10-27T00:58:57.237725+00:00、exit0、220 tests/621.389s、全工程 631.0840346490149s。metadata SHA-256 `3c4197ada0fd74d453954d5baecba200180236e342accc8acb35c88a68a0f1c4`、raw SHA-256 `590d7ed15fe78fdd6f0d0cc2dfdecf6d8c032425b3a1ddf5150bfd7a4a428c1a`。正常shutdown。
+- 正式最終証跡 `/tmp/ba-app-05-r1fix-handoff.md` SHA-256 `d6b0f9b8b3fba5840291b123ffc8ba66162e108e8e2df96fd01561eaf9eb31e6`。
+- 正式最終証跡 `/tmp/ba-app-05-r1fix-exit-audit.json` SHA-256 `558ac5f72d0f71be8174b96d6f20d636661a18983768a8f1b6e2b39ac3b9b0f6`。
+- 正式最終証跡 `/tmp/ba-app-05-r1fix-parent-final-audit.json` SHA-256 `c362175ee5f70259ac410b5470289f4c6972db39cdb9a3b0e32eccd2a6596bf1`。
+- writer全12sessions終了、旧R1全111証跡不変。親host監査2026-10-27T00:59:34.956096Zで全465SHA/正確33paths/main/base/index空/diff0、全4phase exit0/rawSHA一致、8080/9099/9150/4400/4500全connect_ex=111を確認。正式R2へ受領後の独立照合を依頼。
+
+### 独立レビュー ラウンド2 結果
+
+- 新規担当 `/root/app05_review_r2` が2026-10-27T01:01:15.343183+00:00に正式終了: **approve**、必須0・任意0。最新全33paths（新規11全文）と周辺契約を確認。R1-F01は公開projection単調版/updated_at/ETagにより解消、source/grant版1維持。
+- 正式report `/tmp/ba-app-05-review-r2-report.md` SHA-256 `a47b1cfc3ea424de91072047354a0f636d3ba068df756dc1082ef5f336af9eb1`、result SHA-256 `ea91cfd92be709b8a7b5e38b605cd8c43aa0c4200e55e47d696eded347d71db3`。終了state(01:00:20.309534Z) SHA-256 `23f0b7b5eb28b7fe125adb09db1346257ad18bb01bdac6481c1702f46dd1e325`、終了audit metadata SHA-256 `54b76cd29b3ccf9d92e31c7807c0ac349bbf211bbc8167623e3bf241f4f3e35e`。全465SHA/exact33paths/main/base/index空/diff0一致。親がresult内全review artifact SHAを再計算一致。
+- 独立38+4件成功、提供setup/check・通常803+18+40・Emulator220成功と正式handoff/end auditの全SHAを独立照合。初期標準library shim・aggregate算出/出力名・SDK source探索の訂正は準備処理の失敗として原証跡を保持し、製品検証失敗に混同しない。reviewer製品変更なし。
+
+| 最終受入条件 | 根拠 | 結果 |
+| --- | --- | --- |
+| lock画面に本文を出さない | 実HTTP serialize捕捉、固定generic payload、tokenは送信宛先のみ | 成功 |
+| 本人通知/現在権限/古い世代拒否 | API・共通service・Firestore、recipient/account/member/schedule stamp、旧ack拒否 | 成功 |
+| FCM受付と表示/本人ack分離 | per-installation receipt、HTTP状態、private device・再登録・失効競合 | 成功 |
+| 未確定外部効果の再送防止 | partial/unknown/started/process-stop/lease/応答喪失と確定証拠照合 | 成功 |
+| 削除/export/公開版整合 | bounded purge/移動claim保持、現在projectionとmanifest失効、ETag/同時更新 | 成功 |
+| 必須check・全回帰・独立レビュー | 同SHAsetup/check/通常803+18+40/Emulator220、R2approve必須0 | 成功 |
+- 未実施: 実FCM/APNs・staging・実機表示・cloud配備。docs08§1のfake/emulator完了範囲であり、OPEN-006・OPS-09/10・UI-07の外部結合は後続範囲。新依存/lock/toolchain/device protocol変更なし。移行・切戻し・20登録上限/履歴scan費用はdocs/notifications.mdへ記載。
+
+### 完了・コミット
+
+- 実装コミット: `0c38c456504a7710915c43e294716332ecac30a4` (`feat(notifications): BA-APP-05 add private push delivery and notification APIs`)。ローカルmain、33files/2216 insertions/50 deletions。stage前全path/SHA・indexの全blob・commit後全blob/作業treeをR2 manifestと一致確認。
+- stage全diff `/tmp/ba-app-05-approved-cached.diff` 192859bytes、SHA-256 `750fba77a1b7fa2e25d11393f17489bae03b02d57e6f61f7e615d48a24bb9783`。差分/stat/cached checkを確認、台帳/logや無関係変更なし。
+- 状態: done。FR-009/T-030/T-038受入・全必須検証・R2approveを充足、未解決必須0、review_rounds=2。旧通知の明示再予定移行と外部未実施範囲は前述どおり。完了台帳更新後の親checkを次に実施する。
+- done台帳記入後の親 `mise run check`: 2026-10-27T01:03:14.825160+00:00→2026-10-27T01:03:36.856060+00:00、exit0、22.031982150976546s。299Python/全TS・format/lint/schema/client/compatibility/docs/workflow/台帳整合成功、40/96 done。metadata `/tmp/ba-app-05-parent-record-check.json` SHA-256 `832e99bc93d95134e234b4b6d8503a4b546d568d9a4191db7f17619293c7377d`、raw SHA-256 `c471bd1960748fb6b83d5e0c25fcb514d7bf2f99cd6d787833b074fcb95e4678`。記録commit対象は台帳/logの2filesだけ。
