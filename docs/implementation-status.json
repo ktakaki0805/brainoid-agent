@@ -446,7 +446,13 @@
       "status": "todo"
     },
     "BA-DEV-05": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "fa5f500c3dd6266e711ddd557ed8b7a4358f7c9c",
+      "log_anchor": "ba-dev-05-20261027t185138z",
+      "review_rounds": 2,
+      "updated_at": "2026-10-27T20:01:46.545692+00:00",
+      "implementation_commit": "ba6bc2e452d79f244b0ca363617c4d65aa68296e"
     },
     "BA-DEV-06": {
       "status": "todo"
