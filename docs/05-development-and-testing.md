@@ -227,6 +227,8 @@ workflowのtoken権限は `contents: read` のみ。forkでも実行する `pull
 
 GitHub上でのActions有効化、fork実行の承認方針、必須checkとbranch保護はBA-GOV-01で実repoへ設定する外部前提。ローカルの合格は実GitHub上の実行や保護設定の完了を意味しない。署名build・deployはBA-OPS-05・09・10で追加する。
 
+Piの常駐基盤は[ローカルサービスの起動と検証](device-service.md)を参照する。built UIの存在を仮定せずsynthetic assetsで設定・loopback・session/CSRF・プロセス寿命を検証する。
+
 ## 6. モックとfixture
 
 BA-FND-03の共通型は [contracts.md](contracts.md) にOpenAPI/JSON Schemaとの対応を記録する。`tests/test_contracts.py` はID・UTC日時・IANA名・version・scopeの境界、Contextの形と不変性を検証し、`mise run test` に含まれる。認可済みContextの生成前に必要な会員権限照合は [共通認可](authorization.md) の責務である。BA-IAM-02は現在のmembership/device/sessionと正本resourceをtransaction内で再検査し、表形式unitと実Firestore emulatorで検証する。

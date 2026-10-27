@@ -1,1 +1,1 @@
-"""Raspberry Pi service package. Public API is added by subsequent tickets."""
+"""Raspberry Pi daemon and protected local UI boundary."""

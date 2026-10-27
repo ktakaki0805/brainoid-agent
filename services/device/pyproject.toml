@@ -3,9 +3,16 @@ name = "brainoid-device"
 version = "0.1.0"
 description = "Raspberry Pi service package"
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+    "brainoid-contracts",
+    "starlette==1.10.0",
+    "uvicorn==0.54.0",
+]
 classifiers = ["Private :: Do Not Upload"]
 
 [build-system]
 requires = ["uv_build==0.12.19"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+brainoid-contracts = { workspace = true }

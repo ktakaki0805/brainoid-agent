@@ -1,0 +1,35 @@
+[Unit]
+Description=Brainoid device service
+After=network.target
+
+[Service]
+Type=simple
+User=brainoid-agent
+Group=brainoid-agent
+WorkingDirectory=/opt/brainoid
+EnvironmentFile=/etc/brainoid/device.env
+ExecStartPre=/opt/brainoid/.venv/bin/python -B -m brainoid_device check
+ExecStart=/opt/brainoid/.venv/bin/python -B -m brainoid_device serve
+Restart=on-failure
+RestartSec=5
+UMask=0077
+StateDirectory=brainoid-agent
+StateDirectoryMode=0700
+KillMode=control-group
+TimeoutStopSec=15
+SendSIGKILL=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

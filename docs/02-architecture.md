@@ -105,6 +105,8 @@ CapacitorはWeb UIとネイティブ機能を組み合わせる構成を提供�
 
 PiのPythonサービスは、静的UIのローカル配信、マイク・再生キュー、端末認証、WebSocket、重複排除、Home Assistant接続、ヘルス情報を所有する。ブラウザーへクラウドの更新用資格情報やHAのトークンを渡さない。ローカルAPIはloopbackで待受け、Host・Origin・ローカルセッションを検証し、変更系操作にはCSRF対策を持つ。
 
+BA-DEV-01の[ローカルサービス契約](device-service.md)は、明示的なloopback待受け、静的UI snapshot、状態取得、ローカルsessionとCSRF、専用資格情報領域、所有処理の終了を実装する。cloud接続・音声・SQLiteは後続チケットで接続する。
+
 UIとデバイスサービスを別々に再起動できるようにする。SQLiteには設定、バージョン、処理済みコマンドID、再接続に必要なカーソルを保存する。個人セッション中の会話・音声は既定で永続化しない。PiへGCPのサービスアカウント鍵を配布しない。
 
 ### 4.2 APIとworker

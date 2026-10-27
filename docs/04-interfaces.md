@@ -299,6 +299,8 @@ LLMに公開するのは型付きのtool名とargumentsであり、TenantContext
 
 PiローカルUIとdevice serviceはloopbackで接続し、Host/Origin/sessionを検査する。状態変更にはCSRF対策を行い、cloud credentialsをブラウザへ渡さない。ローカルUI契約はcloud API型を再利用し、mic/再生/停止/ネット状態のadapterだけを追加する。LAN全体に開放する管理APIはMVPに含めない。
 
+BA-DEV-01で実装したローカルHTTPのpath、header、session期限、失敗応答、static/credential境界は[Piサービス契約](device-service.md#http-契約)を正本とする。公開cloud OpenAPIには追加しない。
+
 ## 8. 互換性と契約検証
 
 破壊的なフィールド変更・削除・意味変更はHTTP major versionまたはdevice protocol majorを上げる。既存enumへ新しい値を追加する場合も、旧clientの分岐に影響するため互換性レビューを行う。deviceはhelloで能力とprotocolを広告し、serverは対応しないコマンドを送らない。
