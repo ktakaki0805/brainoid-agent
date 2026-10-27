@@ -313,9 +313,19 @@ class TurnRunTests(TurnRunFixture):
                 elif mode == "deleted":
                     self.store.data[conversation_path(self.tenant, conversation)]["deleted"] = True
                 else:
-                    self.model.close_hook = lambda: self.store.data[
-                        f"tenants/{self.tenant}/memberships/{self.uid}"
-                    ].update(status="revoked")
+
+                    def revoke() -> None:
+                        def write(tx: Transaction) -> None:
+                            path = f"tenants/{self.tenant}/memberships/{self.uid}"
+                            member = tx.get(path)
+                            assert member is not None
+                            tx.set(path, {**member, "status": "revoked"})
+
+                        # Serialize with authority readers: direct dict mutation
+                        # can be lost when their fake TX replaces its snapshot.
+                        self.store.run(write)
+
+                    self.model.close_hook = revoke
                 before = len(self.model.requests)
                 self.execute(run)
                 self.assertEqual(len(self.model.requests) - before, 1 if mode == "cleanup" else 0)

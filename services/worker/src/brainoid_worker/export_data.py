@@ -71,6 +71,7 @@ class ExportData:
                 "tasks",
                 "reminders",
                 "notifications",
+                "commands",
             )
         ]
         while collections:

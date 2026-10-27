@@ -37,6 +37,7 @@ from brainoid_runs.models import Message
 from brainoid_runs.state import RunState, conversation_path, run_path
 from brainoid_tools import Executor, Registry, ResultBinding
 from brainoid_tools.executor import Authorizer as ToolAuthorizer
+from brainoid_tools.home import register_home
 from brainoid_tools.memory import register_memory
 from brainoid_tools.notes import register_notes
 from brainoid_tools.reminders import register_reminders
@@ -46,6 +47,7 @@ from pydantic import Field, JsonValue
 
 from brainoid_worker.entry import Execution, Worker
 from brainoid_worker.memory import BoundMemory, MemoryRuntime, model_record
+from brainoid_worker.memory_erasure import capture
 from brainoid_worker.metered_model import MeteredModel
 from brainoid_worker.model_projection import tool_reply
 from brainoid_worker.result_reuse import ResultReuse
@@ -243,6 +245,7 @@ class RunTurn:
         register_notes(self.tool_registry, self.memory.notes)
         register_tasks(self.tool_registry, self.memory.tasks)
         register_reminders(self.tool_registry, self.memory.reminders)
+        register_home(self.tool_registry, self.memory.home)
         self.tool_authorizer = tool_authorizer or self.memory
         self.execution_authorizer = self.memory
         self.result_reuse = ResultReuse(self.tool_registry, self.execution_authorizer)
@@ -259,6 +262,9 @@ class RunTurn:
         # RunState has already authorized this canonical parent in the same TX.
         # No summary means no summary-specific caller/lease or dependency read set.
         run = tx.get(run_path(job.tenant_id, job.operation_id))
+        if run is not None and run.get("home_command") is not None:
+            self.memory.home.terminal_update(tx, job, run)
+            return None
         if run is not None and run.get("reminder_update") is not None:
             self.memory.reminders.terminal_update(tx, job, run)
             return None
@@ -292,6 +298,8 @@ class RunTurn:
     def _check_results(
         self, tx: Transaction, job: Job, run: Document, history: list[Document]
     ) -> str:
+        if run.get("home_command") is not None:
+            return self.memory.home.terminal_update(tx, job, run)
         if run.get("reminder_update") is not None:
             return self.memory.reminders.terminal_update(tx, job, run)
         if run.get("task_update") is not None:
@@ -383,7 +391,9 @@ class RunTurn:
         def read(tx: Transaction) -> JsonValue | None:
             run, _, _, _ = self.state.check(tx, job)
             runtime = (
-                self.memory.reminders
+                self.memory.home
+                if run.get("home_command") is not None
+                else self.memory.reminders
                 if run.get("reminder_update") is not None
                 else self.memory.tasks
                 if run.get("task_update") is not None
@@ -402,7 +412,7 @@ class RunTurn:
             execution.check(renew=True)
             if any(
                 run.get(marker) is not None
-                for marker in ("note_update", "task_update", "reminder_update")
+                for marker in ("note_update", "task_update", "reminder_update", "home_command")
             ):
                 if (updated := self._direct_update_outcome(job)) is not None:
                     return updated
@@ -501,6 +511,7 @@ class RunTurn:
 
                 result = asyncio.run(execute_tool())
                 if tool_request.call.name in (
+                    "home.set_state",
                     "notes.update",
                     "tasks.update",
                     "reminders.update",
@@ -521,6 +532,12 @@ class RunTurn:
                     Confirmations(self.jobs, self.state).suspend(execution, tool_request, result)
                 if result.status == "outcome_unknown":
                     return Outcome(status="failed", error_code="outcome_unknown").model_dump(
+                        mode="json"
+                    )
+                if tool_request.call.name == "home.set_state":
+                    # Only the durable admission marker above authorizes an ACK.
+                    # A rejected home attempt must not release buffered model prose.
+                    return Outcome(status="failed", error_code="tool_rejected").model_dump(
                         mode="json"
                     )
                 results.append(result)
@@ -571,7 +588,13 @@ class RunTurn:
                     ],
                 }
                 self.result_reuse.current(tx, job, updated)
-                events.append_text(tx, updated, full_text[len(prefix) :], self.jobs.now())
+                # Intermediate prose is internal continuation, not a command
+                # outcome. Keep it buffered across read tools and worker retries.
+                if (
+                    "home.set_state" not in current["agent"]["allowed_tools"]
+                    and self.memory.home.parse_intent(current["input_text"]) is None
+                ):
+                    events.append_text(tx, updated, full_text[len(prefix) :], self.jobs.now())
                 updated.pop("waiting_proposal_id", None)
                 updated.pop("confirmation_decision", None)
                 tx.set(run_path(job.tenant_id, job.operation_id), updated)
@@ -639,7 +662,12 @@ class RunTurn:
                                 )
                             }
                         ),
-                        on_text=writer.add,
+                        # Home-capable turns release text only after tool admission
+                        # or final commit. A model preamble is not an appliance result.
+                        on_text=None
+                        if "home.set_state" in request.agent.allowed_tools
+                        or self.memory.home.parse_intent(request.user_text) is not None
+                        else writer.add,
                         continuation=tuple(
                             ModelMessage.model_validate(m) for m in run.get("continuation", [])
                         ),
@@ -739,6 +767,30 @@ class RunTurn:
             run, parent, _, _ = self.state.check(tx, job)
         except PolicyUnavailable:
             raise AuthorizationUnavailable() from None
+        if run.get("home_command") is not None and outcome != Outcome(
+            status="completed", text=self.memory.home.UPDATE_ACK
+        ):
+            raise PolicyDenied()
+        if (
+            outcome.status == "completed"
+            and run.get("home_command") is None
+            and self.memory.home.direct_intent(tx, job, run)
+        ):
+            # A durable model checkpoint is not admission evidence. Normalize at
+            # the final transaction as well, so resumed results cannot bypass it.
+            # Keep purge provenance, but never publish/reuse the model's prose or
+            # read-tool continuation as the result of this unaccepted request.
+            if run.get("streamed_text"):
+                raise PolicyDenied()
+            outcome = Outcome(status="completed", text=self.memory.home.NOT_ACCEPTED)
+            run = {
+                **run,
+                "purge_dependencies": capture(run, complete=True).model_dump(mode="json"),
+                "memory_records": [],
+                "tool_bindings": [],
+                "continuation": [],
+                "completed_text": "",
+            }
         if run.get("reminder_update") is not None and outcome != Outcome(
             status="completed", text=self.memory.reminders.UPDATE_ACK
         ):

@@ -32,6 +32,7 @@ class ManifestEntry(MemoryValue):
         "tasks",
         "reminders",
         "notifications",
+        "commands",
     ]
     resource_id: ResourceId
     parent_id: ResourceId | None = None

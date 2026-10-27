@@ -35,6 +35,7 @@ from brainoid_jobs.models import Reason, job_id
 from brainoid_jobs.repository import path as job_path
 from brainoid_policy.accounts import AccountUnavailable, account_stamp, fingerprint
 from brainoid_policy.control_ledger import ControlLedger
+from brainoid_policy.devices import current_family
 from brainoid_policy.models import Action, ResourceKind
 from brainoid_policy.scopes import PolicyDenied
 from brainoid_policy.transactions import transaction_policy
@@ -293,24 +294,11 @@ class RunState:
         family_expiry = None
         if run.get("credential") is not None:
             binding = CredentialBinding.model_validate(run["credential"])
-            family = tx.get("device_credential_families/" + binding.family_id)
+            family = current_family(
+                tx, binding, credential_epoch=self.credential_epoch, now=self.now
+            )
             if (
-                family is None
-                or self.credential_epoch is None
-                or binding.credential_epoch != self.credential_epoch
-                or family.get("epoch") != self.credential_epoch
-                or family.get("status") != "active"
-                or normalize_utc(self.now()) >= family["expires_at"]
-                or any(
-                    family.get(field) != getattr(binding, field)
-                    for field in (
-                        "tenant_id",
-                        "device_id",
-                        "authorization_version",
-                        "connection_generation",
-                    )
-                )
-                or binding.tenant_id != job.tenant_id
+                binding.tenant_id != job.tenant_id
                 or binding.device_id != grant.context.actor.actor_id
             ):
                 raise PolicyDenied()

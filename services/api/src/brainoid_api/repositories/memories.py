@@ -94,6 +94,9 @@ class Memories:
         repository = MemoryRepository(
             self.store,
             authorizer=caller,
+            credential_epoch=None
+            if self.credentials is None
+            else self.credentials.credential_epoch,
             sources=CanonicalSources(SavedMessages()),
             ledger=self.ledger,
             now=self.now,

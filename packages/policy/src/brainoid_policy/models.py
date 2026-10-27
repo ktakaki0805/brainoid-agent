@@ -90,6 +90,7 @@ class ResourceKind(StrEnum):
     TASK = "tasks"
     REMINDER = "reminders"
     NOTIFICATION = "notifications"
+    COMMAND = "commands"
 
 
 class ResourceRef(Record):
@@ -139,6 +140,7 @@ class Action(StrEnum):
     WRITE = "write"
     POST = "post"  # Append a conversation message, never edit existing content.
     MODEL_READ = "model_read"
+    CONTROL = "control"  # Read a canonical appliance target for home.control only.
 
 
 class ManagementAction(StrEnum):

@@ -11,6 +11,7 @@ from brainoid_contracts import (
     Version,
     Visibility,
 )
+from brainoid_policy.devices import CredentialBinding as CredentialBinding
 from brainoid_policy.models import Record
 from pydantic import Field, model_validator
 
@@ -108,14 +109,3 @@ class Run(Record):
     error_code: str | None = None
     waiting_proposal_id: ResourceId | None = None
     checkpoint_version: Version | None = None
-
-
-class CredentialBinding(Record):
-    """Admission identity without a bearer; workers recheck current family and epoch."""
-
-    tenant_id: ResourceId
-    device_id: ResourceId
-    family_id: ResourceId
-    credential_epoch: ResourceId
-    authorization_version: Version
-    connection_generation: Version

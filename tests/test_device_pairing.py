@@ -142,6 +142,55 @@ class DevicePairingFixture(unittest.TestCase):
 
 
 class DevicePairingTests(DevicePairingFixture):
+    def test_inactive_missing_and_incomplete_active_family_are_http_authentication_errors(
+        self,
+    ) -> None:
+        credentials = self.credentials()
+        family = self.tokens.verify(credentials.access_token).family_id
+        path = "device_credential_families/" + family
+        original = copy.deepcopy(self.store.data[path])
+        variants: list[dict[str, Any] | None] = [None, {"status": "revoked"}, {"status": "active"}]
+        for field in (
+            "tenant_id",
+            "device_id",
+            "authorization_version",
+            "connection_generation",
+            "epoch",
+            "expires_at",
+        ):
+            missing = copy.deepcopy(original)
+            del missing[field]
+            variants.append(missing)
+        variants.extend(
+            [
+                {**original, "authorization_version": "1"},
+                {**original, "connection_generation": None},
+                {**original, "expires_at": "invalid-timestamp"},
+            ]
+        )
+        for number, document in enumerate(variants):
+            with self.subTest(variant=number):
+                if document is None:
+                    self.store.data.pop(path, None)
+                else:
+                    self.store.data[path] = copy.deepcopy(document)
+                with self.assertRaises(APIError) as rejected:
+                    self.repo.authenticate(credentials.access_token)
+                self.assertEqual(rejected.exception.code, ErrorCode.AUTHENTICATION_REQUIRED)
+                response = self.client.post(
+                    "/v1/device-tokens:refresh",
+                    json=self.refresh_body(credentials).model_dump(mode="json"),
+                    headers={"Idempotency-Key": "incomplete-family-" + str(number)},
+                )
+                self.assertEqual(response.status_code, 401, response.text)
+                self.assertEqual(response.json()["error"]["code"], "authentication_required")
+                self.assertEqual(self.store.data.get(path), document)
+        self.store.data[path] = original
+        self.assertEqual(self.repo.authenticate(credentials.access_token).family_id, family)
+        self.assertEqual(
+            self.refresh(self.refresh_body(credentials)).device_id, credentials.device_id
+        )
+
     def test_http_contract_and_no_plaintext_secrets_or_logs(self) -> None:
         headers = {"Idempotency-Key": KEY}
         with self.assertLogs("brainoid_api", level="INFO") as logs:

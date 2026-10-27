@@ -23,6 +23,7 @@ from brainoid_contracts.guards import protect
 from brainoid_contracts.transactions import Document, Transaction, TransactionStore
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.control_ledger import ControlLedger
+from brainoid_policy.devices import CredentialBinding
 from brainoid_policy.evaluator import Evaluator
 from brainoid_policy.models import (
     Action,
@@ -72,6 +73,7 @@ class VerifiedCaller(MemoryValue):
     subject: Subject
     valid_from: UtcTimestamp
     valid_to: UtcTimestamp
+    device_credential: CredentialBinding | None = None
 
     @model_validator(mode="after")
     def interval(self) -> Self:
@@ -195,6 +197,7 @@ class MemoryRepository:
         allow_untracked_bootstrap: bool = False,
         output: Subject | None = None,
         before_finish: Callable[[], None] = lambda: None,
+        credential_epoch: ResourceId | None = None,
     ) -> None:
         self._store = store
         self._authorizer = authorizer
@@ -204,6 +207,7 @@ class MemoryRepository:
         self._allow_untracked = allow_untracked_bootstrap
         self._output = output
         self._before_finish = before_finish
+        self._credential_epoch = credential_epoch
 
     def entities(self, tx: Transaction, context: TenantContext) -> "EntityTransaction":
         """Compose DB-only entity operations with the caller's transaction.

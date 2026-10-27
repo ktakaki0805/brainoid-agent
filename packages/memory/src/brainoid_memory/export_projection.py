@@ -95,6 +95,17 @@ def project(
                 if k in MemoryView.model_fields
             }
         ).model_dump(mode="json")
+    elif kind == "commands":
+        from brainoid_memory.commands import Commands
+        from brainoid_memory.commands import view as command_view
+
+        try:
+            record_command = Commands.get(access, item_id)
+        except PolicyUnavailable:
+            raise
+        except PolicyDenied:
+            return None
+        public = command_view(record_command).model_dump(mode="json", exclude_none=True)
     elif kind == "notifications":
         from brainoid_memory.notifications import public_notification
 
@@ -154,6 +165,16 @@ def project(
                 document.get("suppress_reuse"),
                 document.get("source_refs", []),
             ]
+            + (
+                [
+                    document.get("binding"),
+                    document.get("actor_stamp"),
+                    document.get("account_stamp"),
+                    document.get("actor_credential"),
+                ]
+                if kind == "commands"
+                else []
+            )
         ),
     )
     return entry, public

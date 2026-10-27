@@ -24,7 +24,9 @@ CONTROL = frozenset(
         "lifecycle_selections",
     }
 )
-PRIVATE = frozenset({"conversations", "facts", "entities", "notes", "tasks", "reminders"})
+PRIVATE = frozenset(
+    {"conversations", "facts", "entities", "notes", "tasks", "reminders", "commands"}
+)
 PERSONAL = frozenset(
     {
         "memberships",
@@ -145,6 +147,13 @@ class LifecycleHandlers(ForgetHandlers):
             canonical = f"tenants/{tenant}/facts/{parts[3]}"
             return self.bound_selection(tx, canonical, intent)
         if root == "entity_external_ids":
+            entity = doc.get("entity_id")
+            return (
+                isinstance(entity, str)
+                and "/" not in entity
+                and self.bound_selection(tx, f"tenants/{tenant}/entities/{entity}", intent)
+            )
+        if root == "home_targets":
             entity = doc.get("entity_id")
             return (
                 isinstance(entity, str)

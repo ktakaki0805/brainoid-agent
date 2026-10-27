@@ -20,6 +20,7 @@ from brainoid_memory.entity_resolver import Inventory, external_key, register_ex
 from brainoid_memory.models import EntityInput, ExternalRef, Label
 from brainoid_memory.repository import EntityTransaction, VersionConflict
 from brainoid_policy.control_ledger import ControlLedger
+from brainoid_policy.devices import CredentialBinding
 from brainoid_policy.models import DeviceSubject, Role, UserSubject
 from brainoid_policy.scopes import PolicyDenied
 from pydantic import Field, JsonValue, TypeAdapter
@@ -123,6 +124,14 @@ class _Caller:
             ),
             valid_from=datetime.fromtimestamp(identity.iat, UTC),
             valid_to=min(datetime.fromtimestamp(identity.exp, UTC), expiry),
+            device_credential=CredentialBinding(
+                tenant_id=identity.tenant_id,
+                device_id=identity.sub,
+                family_id=identity.family_id,
+                credential_epoch=identity.credential_epoch,
+                authorization_version=identity.authorization_version,
+                connection_generation=identity.connection_generation,
+            ),
         )
 
 

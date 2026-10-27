@@ -73,6 +73,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `integrations/{id}` | provider、所有者、許可calendar/家電、secret_ref | OAuth token本文はSecret Manager |
 | `calendar_proposals/{id}` | 正規化操作、引数hash、本人、期限、状態、必要ならrun/tool_call/checkpoint | 一回確認。初期期限5分。confirm/deny後のresumeを永続化 |
 | `commands/{id}` | 操作、対象Pi/家電、期限、状態、観測結果 | 詳細はインターフェース仕様 |
+| `home_targets/{external_key}` | 信頼済みentity/device/外部参照・操作allowlist snapshot | [command受付](commands.md)。公開writerなし。DEV-06 adapter未構成時は拒否 |
 | `jobs/{id}` | outbox/worker状態、source版、リトライ回数 | 外部副作用前後の境界を保存 |
 | `operations/{id}` | export/delete/forgetなどの非同期処理 | 進捗・失敗理由。所有者または適切な管理者のみ |
 | `deletion_tombstones/{id}` | 削除対象ID、epoch、削除範囲、時刻 | 本文なし。復活防止のため保持 |

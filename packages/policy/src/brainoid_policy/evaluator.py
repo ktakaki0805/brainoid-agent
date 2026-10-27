@@ -78,6 +78,8 @@ def _stamp(*records: BaseModel) -> str:
 
 
 def _permission(kind: ResourceKind, action: Action) -> str:
+    if kind == ResourceKind.ENTITY and action == Action.CONTROL:
+        return "home.control"
     if kind in (ResourceKind.ENTITY, ResourceKind.MEMORY):
         return "memory.write" if action == Action.WRITE else "memory.read"
     return {
@@ -86,6 +88,7 @@ def _permission(kind: ResourceKind, action: Action) -> str:
         ResourceKind.TASK: "tasks",
         ResourceKind.REMINDER: "reminders",
         ResourceKind.NOTIFICATION: "reminders",
+        ResourceKind.COMMAND: "home.control",
         ResourceKind.EXPORT: "export",
     }[kind]
 
@@ -269,9 +272,15 @@ class Evaluator:
             raise PolicyDenied()
         return result
 
-    def _destination(self, principal: Principal, output: Subject, kind: ResourceKind) -> Principal:
+    def _destination(
+        self,
+        principal: Principal,
+        output: Subject,
+        kind: ResourceKind,
+        action: Action = Action.READ,
+    ) -> Principal:
         destination = self.principal(principal.context.tenant_id, output)
-        if _permission(kind, Action.READ) not in destination.context.actor.allowed_scopes:
+        if _permission(kind, action) not in destination.context.actor.allowed_scopes:
             raise PolicyDenied()
         if isinstance(output, UserSubject) or destination.user_id is not None:
             if destination.user_id != principal.user_id:
@@ -307,6 +316,8 @@ class Evaluator:
     ) -> ResourceGrant:
         if not isinstance(action, Action):
             raise PolicyDenied()
+        if action == Action.CONTROL and ref.kind != ResourceKind.ENTITY:
+            raise PolicyDenied()
         principal = self.principal(tenant_id, subject)
         if ref.tenant_id != tenant_id:
             raise PolicyDenied()
@@ -338,7 +349,12 @@ class Evaluator:
                 raise PolicyDenied(hidden=False)
         output_stamp = None
         if output is not None:
-            destination = self._destination(principal, output, ref.kind)
+            destination = self._destination(
+                principal,
+                output,
+                ref.kind,
+                Action.CONTROL if action == Action.CONTROL else Action.READ,
+            )
             self._readable(destination, resource)
             output_stamp = destination.stamp
         result = ResourceGrant(principal, resource, action, output_stamp)

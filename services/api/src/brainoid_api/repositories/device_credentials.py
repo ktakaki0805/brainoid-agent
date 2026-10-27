@@ -12,8 +12,10 @@ from uuid import uuid4
 from brainoid_contracts import ResourceId, UtcTimestamp, Version
 from brainoid_contracts.deletion import lifecycle_tenant_path
 from brainoid_policy.control_ledger import ControlLedger
+from brainoid_policy.devices import CredentialBinding, current_family
 from brainoid_policy.models import ManagementAction, UserSubject
-from pydantic import BaseModel, ConfigDict, Field
+from brainoid_policy.scopes import PolicyDenied
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from brainoid_api.auth.authorization import TransactionPolicyState, policy_call, transaction_policy
 from brainoid_api.auth.context import AuthenticatedIdentity
@@ -406,15 +408,39 @@ class DeviceCredentialRepository:
         )
         return document
 
+    @property
+    def credential_epoch(self) -> ResourceId:
+        """Trusted runtime epoch, independently configured from persisted families."""
+        return self._tokens.epoch
+
     def _family(self, tx: Transaction, family_id: ResourceId) -> tuple[Document, Document]:
         family = tx.get("device_credential_families/" + family_id)
-        if (
-            not family
-            or family["status"] != "active"
-            or family["epoch"] != self._tokens.epoch
-            or self._now() >= family["expires_at"]
-        ):
+        # Lifecycle keeps a minimal revoked tombstone without live binding fields.
+        if family is None or family.get("status") != "active":
             raise APIError(ErrorCode.AUTHENTICATION_REQUIRED)
+        try:
+            family = current_family(
+                tx,
+                CredentialBinding.model_validate(
+                    {
+                        "family_id": family_id,
+                        "credential_epoch": self._tokens.epoch,
+                        **{
+                            field: family.get(field)
+                            for field in (
+                                "tenant_id",
+                                "device_id",
+                                "authorization_version",
+                                "connection_generation",
+                            )
+                        },
+                    }
+                ),
+                credential_epoch=self._tokens.epoch,
+                now=self._now,
+            )
+        except (PolicyDenied, ValidationError):
+            raise APIError(ErrorCode.AUTHENTICATION_REQUIRED) from None
         device = self._device(tx, family["tenant_id"], family["device_id"])
         if any(
             family[field] != device[field]

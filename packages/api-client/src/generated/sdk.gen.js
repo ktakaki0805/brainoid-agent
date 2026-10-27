@@ -1425,7 +1425,7 @@ export const rejectCalendarProposal = (options) => (options.client ?? client).po
 /**
  * 照明・空調コマンドを保存
  *
- * 照明・空調コマンドを保存
+ * 現在のentity・端末allowlist・信頼済みhome_targetsを検査し、30秒期限のqueued commandを冪等保存する。202は受付のみで家電の実行成功ではない。snapshot未構成時は拒否する。
  */
 export const createDeviceCommand = (options) => (options.client ?? client).post({
     security: [{
@@ -1447,7 +1447,7 @@ export const createDeviceCommand = (options) => (options.client ?? client).post(
 /**
  * 家電操作の結果取得
  *
- * 家電操作の結果取得
+ * 現在認可と固定target/device bindingを再検査する。未claimの30秒期限到来はexpiredへ永続遷移しversionを進める。outcome_unknownを成功へ変更しない。
  */
 export const getDeviceCommand = (options) => (options.client ?? client).get({
     security: [{
@@ -1465,7 +1465,7 @@ export const getDeviceCommand = (options) => (options.client ?? client).get({
 /**
  * 未実行家電操作を取り消す
  *
- * queued/delivered/acceptedかつstart claim前のみ取消し可。running以降は409 already_executing。
+ * 元のactorだけがqueued/delivered/acceptedかつstart claim前に取消し可。claimと同じ文書をtransactionで検査する。claim済みは409 conflict、期限切れは410。任意If-Matchの古い版は412。同keyで取消しを再取得できる。
  */
 export const cancelDeviceCommand = (options) => (options.client ?? client).post({
     security: [{

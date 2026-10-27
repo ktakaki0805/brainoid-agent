@@ -40,6 +40,7 @@ from brainoid_memory.retrieval import SearchInput, retrieve
 from brainoid_memory.vector_store import VectorConfigurationError, VectorSearch, VectorUnavailable
 from brainoid_persistence.firestore import PersistenceUnavailable
 from brainoid_policy.accounts import fingerprint
+from brainoid_policy.devices import CredentialBinding
 from brainoid_policy.models import DeviceSubject
 from brainoid_policy.scopes import PolicyDenied, PolicyUnavailable
 from brainoid_runs.memory_sources import SavedMessages
@@ -53,6 +54,7 @@ from brainoid_tools import (
     ResultUse,
     ToolRejected,
 )
+from brainoid_tools.home import SetStateArguments
 from brainoid_tools.memory import (
     ForgetArguments,
     MemoryArguments,
@@ -138,7 +140,12 @@ class RunCaller:
                 raise PolicyDenied()
             deadline = min(deadline, family["expires_at"])
         return VerifiedCaller(
-            subject=self.job.grant.principal.subject, valid_from=live.created_at, valid_to=deadline
+            subject=self.job.grant.principal.subject,
+            valid_from=live.created_at,
+            valid_to=deadline,
+            device_credential=None
+            if run is None or run.get("credential") is None
+            else CredentialBinding.model_validate(run["credential"]),
         )
 
 
@@ -242,6 +249,7 @@ class MemoryRuntime:
         self.vector_search = vector_search
         self.handler = handler
         self.delegate = handler.tool_authorizer
+        from brainoid_worker.home import HomeRuntime
         from brainoid_worker.notes import NotesRuntime
         from brainoid_worker.reminders import RemindersRuntime
         from brainoid_worker.tasks import TasksRuntime
@@ -249,6 +257,7 @@ class MemoryRuntime:
         self.notes = NotesRuntime(self)
         self.tasks = TasksRuntime(self)
         self.reminders = RemindersRuntime(self)
+        self.home = HomeRuntime(self)
 
     def stopped(self, control: CallControl) -> bool:
         return control.cancellation.cancelled or (
@@ -265,6 +274,7 @@ class MemoryRuntime:
         repository = MemoryRepository(
             self.handler.jobs.store,
             authorizer=RunCaller(self, job),
+            credential_epoch=self.handler.state.credential_epoch,
             sources=CanonicalSources(SavedMessages()),
             ledger=self.handler.jobs.ledger,
             now=self.handler.jobs.now,
@@ -451,6 +461,8 @@ class MemoryRuntime:
         )
 
     def check(self, tx: Transaction, request: ToolExecution, arguments: Arguments) -> Authority:
+        if request.call.name == "home.set_state" and isinstance(arguments, SetStateArguments):
+            return self.home.check(tx, request, arguments)
         if request.call.name.startswith("reminders.") and self.reminders.owns(arguments):
             return self.reminders.check(tx, request, arguments)
         if request.call.name.startswith("tasks.") and self.tasks.owns(arguments):
@@ -791,6 +803,8 @@ class MemoryRuntime:
         *,
         consumer: ResultConsumer,
     ) -> ResultUse:
+        if request.call.name == "home.set_state" and isinstance(arguments, SetStateArguments):
+            return self.home.check_result(tx, request, arguments, result, consumer=consumer)
         if request.call.name.startswith("reminders.") and self.reminders.owns(arguments):
             return self.reminders.check_result(tx, request, arguments, result, consumer=consumer)
         if request.call.name.startswith("tasks.") and self.tasks.owns(arguments):

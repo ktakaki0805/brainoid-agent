@@ -3233,7 +3233,7 @@ export type CreateDeviceCommandErrors = {
 export type CreateDeviceCommandError = CreateDeviceCommandErrors[keyof CreateDeviceCommandErrors];
 export type CreateDeviceCommandResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 受付済み。同key再送は現在認可で同じcommandを返す。
      */
     202: Command;
 };
@@ -3262,7 +3262,7 @@ export type GetDeviceCommandErrors = {
 export type GetDeviceCommandError = GetDeviceCommandErrors[keyof GetDeviceCommandErrors];
 export type GetDeviceCommandResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在のcommand状態
      */
     200: Command;
 };
@@ -3278,6 +3278,10 @@ export type CancelDeviceCommandData = {
          * device bearerに追加するセッション参照。単独では認証しない。
          */
         'X-Private-Session'?: ResourceId;
+        /**
+         * 任意の期待version。未指定でも現在状態とclaimを原子的に検査する。
+         */
+        'If-Match'?: string;
     };
     path: {
         tenant_id: ResourceId;
@@ -3295,7 +3299,7 @@ export type CancelDeviceCommandErrors = {
 export type CancelDeviceCommandError = CancelDeviceCommandErrors[keyof CancelDeviceCommandErrors];
 export type CancelDeviceCommandResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 取消し済みcommand
      */
     200: Command;
 };

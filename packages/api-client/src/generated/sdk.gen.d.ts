@@ -508,19 +508,19 @@ export declare const rejectCalendarProposal: <ThrowOnError extends boolean = fal
 /**
  * 照明・空調コマンドを保存
  *
- * 照明・空調コマンドを保存
+ * 現在のentity・端末allowlist・信頼済みhome_targetsを検査し、30秒期限のqueued commandを冪等保存する。202は受付のみで家電の実行成功ではない。snapshot未構成時は拒否する。
  */
 export declare const createDeviceCommand: <ThrowOnError extends boolean = false>(options: Options<CreateDeviceCommandData, ThrowOnError>) => RequestResult<CreateDeviceCommandResponses, CreateDeviceCommandErrors, ThrowOnError>;
 /**
  * 家電操作の結果取得
  *
- * 家電操作の結果取得
+ * 現在認可と固定target/device bindingを再検査する。未claimの30秒期限到来はexpiredへ永続遷移しversionを進める。outcome_unknownを成功へ変更しない。
  */
 export declare const getDeviceCommand: <ThrowOnError extends boolean = false>(options: Options<GetDeviceCommandData, ThrowOnError>) => RequestResult<GetDeviceCommandResponses, GetDeviceCommandErrors, ThrowOnError>;
 /**
  * 未実行家電操作を取り消す
  *
- * queued/delivered/acceptedかつstart claim前のみ取消し可。running以降は409 already_executing。
+ * 元のactorだけがqueued/delivered/acceptedかつstart claim前に取消し可。claimと同じ文書をtransactionで検査する。claim済みは409 conflict、期限切れは410。任意If-Matchの古い版は412。同keyで取消しを再取得できる。
  */
 export declare const cancelDeviceCommand: <ThrowOnError extends boolean = false>(options: Options<CancelDeviceCommandData, ThrowOnError>) => RequestResult<CancelDeviceCommandResponses, CancelDeviceCommandErrors, ThrowOnError>;
 /**

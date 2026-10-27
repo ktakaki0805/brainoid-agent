@@ -3,11 +3,13 @@
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 
-from brainoid_contracts import ResourceId, Version
+from brainoid_contracts import ResourceId
 from brainoid_policy.control_ledger import ControlLedger
-from brainoid_policy.models import DeviceState, DeviceSubject, Record
+from brainoid_policy.devices import DeviceBinding as DeviceBinding
+from brainoid_policy.devices import current_device
+from brainoid_policy.models import DeviceState
 
-from brainoid_api.auth.authorization import TransactionPolicyState, policy_call, transaction_policy
+from brainoid_api.auth.authorization import policy_call, transaction_policy
 from brainoid_api.common.transactions import Transaction
 from brainoid_api.errors import APIError, ErrorCode
 
@@ -33,15 +35,6 @@ def validate_entities(
                 raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
 
 
-class DeviceBinding(Record):
-    """Persist with trusted commands; never accept a binding from model/client input."""
-
-    tenant_id: ResourceId
-    device_id: ResourceId
-    authorization_version: Version
-    connection_generation: Version
-
-
 class DeviceAuthorization:
     def __init__(
         self, ledger: ControlLedger, *, now: Callable[[], datetime] = lambda: datetime.now(UTC)
@@ -63,32 +56,18 @@ class DeviceAuthorization:
         Existing policy.worker/resource(previous=...) also rechecks saved output grants.
         A new credential or replacement device cannot upgrade an old command binding.
         """
-        state = TransactionPolicyState(tx, ledger=self._ledger, allow_untracked_bootstrap=True)
-        device = policy_call(lambda: state.device(binding.tenant_id, binding.device_id))
         policy = transaction_policy(
             tx, ledger=self._ledger, allow_untracked_bootstrap=True, now=self._now
         )
-        policy_call(
-            lambda: policy.principal(
-                binding.tenant_id,
-                DeviceSubject(
-                    device_id=binding.device_id,
-                    connection_generation=binding.connection_generation,
-                    private_session_id=private_session_id,
-                ),
+        device = policy_call(
+            lambda: current_device(
+                policy,
+                binding,
+                scope=scope,
+                entity_id=entity_id,
+                private_session_id=private_session_id,
             )
         )
-        if (
-            device is None
-            or device.authorization_version != binding.authorization_version
-            or (scope is not None and scope not in device.allowed_scopes)
-            or (entity_id is not None and entity_id not in device.allowed_entity_ids)
-        ):
-            raise APIError(ErrorCode.OPERATION_FORBIDDEN)
         if entity_id is not None:
             validate_entities(tx, binding.tenant_id, (entity_id,))
-        if private_session_id is not None and scope is not None:
-            session = state.session(binding.tenant_id, private_session_id)
-            if session is None or scope not in session.allowed_scopes:
-                raise APIError(ErrorCode.OPERATION_FORBIDDEN)
         return device

@@ -3,7 +3,9 @@
 import copy
 from uuid import uuid4
 
+from brainoid_api.app import create_app
 from brainoid_api.auth.device_tokens import DeviceTokens
+from brainoid_api.auth.runtime import AuthServices, get_auth_services
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.device_credentials import (
@@ -16,6 +18,7 @@ from brainoid_api.repositories.device_credentials import (
 from brainoid_api.repositories.entities import Entities
 from brainoid_api.repositories.tenants import TenantPatch, Tenants
 from brainoid_api.services.deletion_requests import DeleteAccount, DeleteTenant, LeaveTenant
+from brainoid_api.settings import load_settings
 from brainoid_contracts import DisplayPolicy, FirebaseUid, ResourceId, TenantContext, Visibility
 from brainoid_contracts.deletion import subject_id
 from brainoid_contracts.transactions import Transaction
@@ -28,6 +31,8 @@ from brainoid_memory.models import ExternalRef
 from brainoid_policy.control_ledger import LedgerError
 from brainoid_worker.entry import Execution
 from brainoid_worker.lifecycle_handlers import DEVICE_GLOBALS
+from starlette.testclient import TestClient
+from test_api_foundation import LOCAL_ENV
 from test_deletion_requests import KEY, OWNER, USER, DeletionFixture
 from test_device_pairing import EPOCH, KEYRING
 
@@ -397,6 +402,26 @@ class DeletionInventoryTests(DeletionFixture):
         for path, document in preserved.items():
             self.assertEqual(self.store.data[path], document)
         credentials.authenticate(pairs[1][6].access_token)
+        # Actual purge above produced the minimal tombstone; old refresh replay
+        # must also remain an authentication rejection at the public HTTP boundary.
+        app = create_app(settings_loader=lambda: load_settings(LOCAL_ENV))
+        app.dependency_overrides[get_auth_services] = lambda: AuthServices(devices=credentials)
+        with TestClient(app, raise_server_exceptions=False) as client:
+            response = client.post(
+                "/v1/device-tokens:refresh",
+                json=refresh.model_dump(mode="json"),
+                headers={"Idempotency-Key": KEY + "refresh"},
+            )
+        self.assertEqual(response.status_code, 401, response.text)
+        self.assertEqual(response.json()["error"]["code"], "authentication_required")
+        self.assertEqual(
+            self.store.data[f"device_credential_families/{family}"],
+            {
+                "tenant_id": self.tenant,
+                "device_id": issued.device_id,
+                "status": "revoked",
+            },
+        )
         for replay in (
             lambda: credentials.create(body, KEY + "pair", "127.0.0.1"),
             lambda: credentials.create(body, KEY + "pending-repair", "127.0.0.1"),

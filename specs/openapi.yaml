@@ -2860,17 +2860,22 @@ paths:
     post:
       operationId: createDeviceCommand
       summary: 照明・空調コマンドを保存
-      description: 照明・空調コマンドを保存
+      description: 現在のentity・端末allowlist・信頼済みhome_targetsを検査し、30秒期限のqueued commandを冪等保存する。202は受付のみで家電の実行成功ではない。snapshot未構成時は拒否する。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '202':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 受付済み。同key再送は現在認可で同じcommandを返す。
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Command'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
         default:
           description: 共通エラー
           content:
@@ -2894,13 +2899,13 @@ paths:
     get:
       operationId: getDeviceCommand
       summary: 家電操作の結果取得
-      description: 家電操作の結果取得
+      description: 現在認可と固定target/device bindingを再検査する。未claimの30秒期限到来はexpiredへ永続遷移しversionを進める。outcome_unknownを成功へ変更しない。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 現在のcommand状態
           content:
             application/json:
               schema:
@@ -2930,17 +2935,22 @@ paths:
     post:
       operationId: cancelDeviceCommand
       summary: 未実行家電操作を取り消す
-      description: queued/delivered/acceptedかつstart claim前のみ取消し可。running以降は409 already_executing。
+      description: 元のactorだけがqueued/delivered/acceptedかつstart claim前に取消し可。claimと同じ文書をtransactionで検査する。claim済みは409 conflict、期限切れは410。任意If-Matchの古い版は412。同keyで取消しを再取得できる。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 取消し済みcommand
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Command'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 引用符付きversion
         default:
           description: 共通エラー
           content:
@@ -2958,6 +2968,13 @@ paths:
         schema: *id001
       - *id002
       - *id007
+      - name: If-Match
+        in: header
+        required: false
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+        description: 任意の期待version。未指定でも現在状態とclaimを原子的に検査する。
   /tenants/{tenant_id}/operations:
     post:
       operationId: createTenantOperation

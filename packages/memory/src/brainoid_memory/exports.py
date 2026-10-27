@@ -64,6 +64,7 @@ class Exports:
         sources: SourceResolver,
         *,
         now: Clock,
+        credential_epoch: ResourceId | None = None,
     ) -> None:
         self.jobs, self.objects, self.pages, self.sources, self.now = (
             jobs,
@@ -76,6 +77,7 @@ class Exports:
         if not isinstance(jobs.store, GuardedTransactions):
             jobs.store = GuardedTransactions(jobs.store)
         self.store = jobs.store
+        self.credential_epoch = credential_epoch
 
     def access(self, tx: Transaction, tenant: ResourceId, authorize: Authorize) -> FactTransaction:
         caller = authorize(tx, tenant)
@@ -85,6 +87,7 @@ class Exports:
         repository = MemoryRepository(
             self.store,
             authorizer=_Caller(authorize),
+            credential_epoch=self.credential_epoch,
             sources=self.sources,
             ledger=self.jobs.ledger,
             now=self.now,
