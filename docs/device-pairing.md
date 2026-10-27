@@ -66,3 +66,5 @@ keyring JSON は `test_only` boolean、`active_signing_kid`、PKCS8 PEM の `sig
 [fake clock/HTTP テスト](../tests/test_device_pairing.py)はコード失敗5回、selector衝突、期限境界、owner/admin・越境拒否、rate limit、秘密の応答/DB/log非露出、再送、鍵・epoch変更、token改ざん・差替え、最新台帳を確認する。[emulator テスト](../tests/emulator/test_device_pairing_integration.py)は同時確認/二重交換/同一refresh、別refresh競合、Firestore commit応答喪失、同時誤入力、実Firebaseとdevice認証の相互拒否を確認する。
 
 `mise run setup`、`mise run check`、`mise run test`、`.env.emulator.example`を明示loadした `mise run test-emulator`を使う。staging実鍵・IAM、実backup復元、Pi秘密保存、接続中失効とUI実機は本チケットで実行済みと扱わない。
+
+WSS再接続では資格情報の `connection_generation` を増やさない。接続ごとのwire世代は別のdurable leaseに保存する。[WSS gatewayの世代・移行契約](device-gateway.md#two-different-generations)を参照する。

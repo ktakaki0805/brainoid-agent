@@ -21,6 +21,9 @@ dependencies = [
     "pyjwt==2.15.1",
     "uvicorn==0.54.0",
     "brainoid-runs",
+    "jsonschema==4.26.0",
+    "websockets==17.3",
+    "anyio==4.15.1",
 ]
 classifiers = ["Private :: Do Not Upload"]
 

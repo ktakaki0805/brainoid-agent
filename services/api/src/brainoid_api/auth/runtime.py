@@ -30,6 +30,8 @@ from brainoid_api.auth.firebase_identity import (
 from brainoid_api.auth.profiles import FirestoreProfiles, ProfileReader
 from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
+from brainoid_api.device_gateway import DeviceGateway
+from brainoid_api.device_leases import DeviceLeases
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.agents import Agents
 from brainoid_api.repositories.conversations import Conversations
@@ -69,6 +71,7 @@ class AuthServices:
     calendar_events: CalendarEvents | None = None
     calendar_write_enabled: bool = False
     calendar_disconnect: CalendarDisconnect | None = None
+    device_gateway: DeviceGateway | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]
@@ -176,6 +179,7 @@ async def authentication_lifespan(
             DeletionRequests(store, DeletionLedger(objects), ledger)
             if settings.app_env == "local-emulator"
             else None,
+            device_gateway=DeviceGateway(DeviceLeases(store, devices)),
         )
     finally:
         try:

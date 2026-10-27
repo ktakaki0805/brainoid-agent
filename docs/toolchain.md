@@ -192,3 +192,5 @@ BA-DEV-01 は device member に `uv add --package brainoid-device` で `starlett
 device の配布にはこれらと既存 lock の anyio/h11/click、contracts の Pydantic 等の license notice を含める。外部 package の版追加・更新はなく、device の依存閉包が増える。追加の実行権限は指定 loopback TCP listener、built UI の読取、private credential directory の読書き、所有 child process の生成/終了だけ。cloud credential・IAM・特権 port・browser への秘密配布は不要。[サービス契約と検証](device-service.md)に実行境界、session、格納先と未実施の実機確認を記録する。
 
 BA-DEV-02はPython標準の `sqlite3` / `fcntl` を使用し、新しいpackageやlock更新はない。SQLiteのtransaction・migration・command台帳と、Linux directory flockによる保存領域の単独所有を担う。実行権限はサービスUIDが所有する別の0700 state directoryと既存credential directoryの読書き・fsync/unlinkに限定する。Python同梱SQLiteの配布条件を既存Python runtimeのnoticeと併せて保持する。[保存層契約](device-storage.md)にSQLite設定、reset、復旧と実機未検証の条件を記録する。
+
+BA-DEV-03のAPI実行依存は既存固定版 `anyio==4.15.1`（MIT、request cancel scopeに対するcleanupの保護）、`jsonschema==4.26.0`（MIT）と `websockets==17.3`（BSD-3-Clause）を直接宣言する。前者は同梱WSS schema検証、後者はUvicornの専用transportに使う。推移依存版の変更や外部権限の追加はない。[接続・ログ契約](device-gateway.md)を参照する。

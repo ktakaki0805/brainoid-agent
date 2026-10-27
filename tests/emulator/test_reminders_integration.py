@@ -1,9 +1,11 @@
 """APP-03 Firestore races, ambiguous commits, generation fences and default snooze."""
 
 import json
+from datetime import UTC, datetime, timedelta
 from functools import partial
 from typing import Any
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from brainoid_agent_core.types import ToolCall
 from brainoid_api.auth.context import AuthenticatedIdentity
@@ -36,15 +38,28 @@ BODY = {
     "title": "Emulator reminder",
     "visibility": "shared",
     "display_policy": "shared_display",
-    "due_at": "2026-10-28T00:30:00+09:00",
     "timezone": "Asia/Tokyo",
 }
-SNOOZE = {"due_at": "2026-11-01T06:30:00Z", "timezone": "America/New_York", "expected_version": 1}
+SNOOZE = {"timezone": "America/New_York", "expected_version": 1}
+
+
+def scheduled_bodies(now: datetime) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Keep Tokyo 00:30 and New York's repeated 01:30 future under the fixture clock."""
+    due = datetime(now.year, 10, 28, 0, 30, tzinfo=ZoneInfo("Asia/Tokyo"))
+    if due <= now:
+        due = due.replace(year=due.year + 1)
+    november = datetime(due.year, 11, 1, 1, 30, tzinfo=ZoneInfo("America/New_York"))
+    snooze = (november + timedelta(days=(6 - november.weekday()) % 7)).replace(fold=1)
+    return (
+        {**BODY, "due_at": due.isoformat()},
+        {**SNOOZE, "due_at": snooze.astimezone(UTC).isoformat().replace("+00:00", "Z")},
+    )
 
 
 class RemindersIntegrationTests(MemoryIntegrationFixture):
     def setUp(self) -> None:
         super().setUp()
+        self.reminder_body, self.snooze_body = scheduled_bodies(self.now)
         self.reminders = ReminderRequests(self.memories)
 
     def create_reminder(self) -> ReminderView:
@@ -52,7 +67,10 @@ class RemindersIntegrationTests(MemoryIntegrationFixture):
             self.identity(),
             self.tenant,
             ReminderCreate.model_validate(
-                {**BODY, "delivery_target": {"kind": "user", "id": self.identity().user_id}}
+                {
+                    **self.reminder_body,
+                    "delivery_target": {"kind": "user", "id": self.identity().user_id},
+                }
             ),
             "emulator-reminder-key",
         )
@@ -74,7 +92,11 @@ class RemindersIntegrationTests(MemoryIntegrationFixture):
 
         def update(identity: AuthenticatedIdentity, key: str) -> ReminderView:
             return self.reminders.snooze(
-                identity, self.tenant, first.id, ReminderSnooze.model_validate(SNOOZE), key
+                identity,
+                self.tenant,
+                first.id,
+                ReminderSnooze.model_validate(self.snooze_body),
+                key,
             )
 
         results = self.concurrent(
@@ -110,7 +132,7 @@ class RemindersIntegrationTests(MemoryIntegrationFixture):
                 self.identity(),
                 self.tenant,
                 record.id,
-                ReminderSnooze.model_validate(SNOOZE),
+                ReminderSnooze.model_validate(self.snooze_body),
                 "emulator-snooze-loss",
             )
 
@@ -128,7 +150,7 @@ class RemindersIntegrationTests(MemoryIntegrationFixture):
             self.identity(),
             self.tenant,
             record.id,
-            ReminderSnooze.model_validate(SNOOZE),
+            ReminderSnooze.model_validate(self.snooze_body),
             "emulator-t038-snooze",
         )
         for event in ("delivery", "ack", "completion"):
@@ -154,6 +176,10 @@ class RemindersIntegrationTests(MemoryIntegrationFixture):
 
 
 class RemindersDefaultToolIntegrationTests(TurnRunIntegrationFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        self.reminder_body, self.snooze_body = scheduled_bodies(self.now)
+
     def test_list_then_snooze_on_actual_default_tool_and_http_repository(self) -> None:
         memories = Memories(
             self.store,
@@ -168,7 +194,10 @@ class RemindersDefaultToolIntegrationTests(TurnRunIntegrationFixture):
             self.identity(),
             self.tenant,
             ReminderCreate.model_validate(
-                {**BODY, "delivery_target": {"kind": "user", "id": self.identity().user_id}}
+                {
+                    **self.reminder_body,
+                    "delivery_target": {"kind": "user", "id": self.identity().user_id},
+                }
             ),
             "emulator-run-reminder",
         )
@@ -181,14 +210,14 @@ class RemindersDefaultToolIntegrationTests(TurnRunIntegrationFixture):
                 ToolCall(
                     call_key="snooze",
                     name="reminders.snooze",
-                    arguments_json=json.dumps({"reminder_id": record.id, **SNOOZE}),
+                    arguments_json=json.dumps({"reminder_id": record.id, **self.snooze_body}),
                 ),
             )
         )
         self.handler = RunTurn(self.jobs, model, credential_epoch=self.tokens.epoch)
         self.worker = Worker(self.jobs, LocalCaller(), {"run_turn": self.handler})
         conversation = self.conversation()
-        changes = {k: v for k, v in SNOOZE.items() if k != "expected_version"}
+        changes = {k: v for k, v in self.snooze_body.items() if k != "expected_version"}
         run = self.conversations.turn(
             self.identity(),
             self.tenant,

@@ -6,6 +6,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from fastapi import FastAPI
 
 from brainoid_api.auth.runtime import VectorSearchFactory, authentication_lifespan
+from brainoid_api.device_gateway import router as device_gateway_router
 from brainoid_api.errors import RequestContextMiddleware, install_error_handlers, logger
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
 from brainoid_api.routes.agents import router as agents_router
@@ -105,6 +106,7 @@ def create_app(
     app.include_router(memberships_router, prefix="/v1")
     app.include_router(device_pairings_router, prefix="/v1")
     app.include_router(devices_router, prefix="/v1")
+    app.include_router(device_gateway_router, prefix="/v1")
     app.include_router(entities_router, prefix="/v1")
     app.include_router(memories_router, prefix="/v1")
     app.include_router(notes_router, prefix="/v1")

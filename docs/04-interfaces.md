@@ -212,6 +212,8 @@ APIインスタンスは接続端末に限定したFirestore server-side watch�
 
 hello_ackを受けたPiは必ずHTTP snapshotを取得し、next_cursorがなくなるまで続頁を読む。snapshotは現在のactive session、出力割当run、未完了command/notification、delivery cursorを返す。個人session開始・run割当はDBに保存してから対応frameを配信し、frame喪失時もsnapshotから復元できるようにする。Piは割当runのSSEへ接続し、output assignment generationと現在sessionを照合して表示/再生する。再接続で見つかった古いspeechを自動再生しない。snapshotにない失効sessionのローカル本文は消去する。
 
+WSSの `connection_generation` は `device_connections` のtransport世代であり、既存device/credential/command/sessionの同名フィールドが表す認可世代とは区別する。再接続は認可世代を変えない。両方の検査と配送hookの責務は[WSS gateway](device-gateway.md)を参照する。
+
 接続には単調増加する `connection_generation` と期限付きleaseを持たせ、新しい接続を確定したら旧generationを無効にする。Piもgenerationを検査し、古い接続からの新規実行を拒否する。heartbeatが3回分途絶えたらofflineとして扱い、再接続はjitter付き指数backoff（初期1秒、最大30秒）とする。
 
 Cloud RunのWebSocketはrequest timeoutの対象で、最大60分・既定5分である。初期設定は60分とし、55分前後のjitter付き再接続と、予期しない切断からの再同期を実装する。session affinityに正しさを依存させない。[公式資料](https://docs.cloud.google.com/run/docs/triggering/websockets)
