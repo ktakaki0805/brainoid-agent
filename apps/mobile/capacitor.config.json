@@ -1,0 +1,5 @@
+{
+  "appId": "dev.brainoid.agent",
+  "appName": "Brainoid Agent",
+  "webDir": "dist"
+}

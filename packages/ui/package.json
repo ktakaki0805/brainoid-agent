@@ -8,12 +8,20 @@
     "typecheck": "tsc --project tsconfig.json"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./react": "./src/components.tsx",
+    "./platform": "./platform/index.ts",
+    "./fake": "./src/fake.ts",
+    "./preview": "./src/preview.tsx",
+    "./styles.css": "./src/styles.css"
   },
   "devDependencies": {
     "react": "19.3.1"
   },
   "peerDependencies": {
     "react": "19.3.1"
+  },
+  "dependencies": {
+    "@brainoid-internal/api-client": "workspace:*"
   }
 }

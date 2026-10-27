@@ -3,6 +3,8 @@
   "files": {
     "includes": [
       "apps/**",
+      "!apps/*/dist",
+      "!apps/*/dist-fake",
       "packages/ui/**",
       "packages/api-client/**",
       "packages/openapi-generator/**",

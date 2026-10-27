@@ -130,6 +130,8 @@ BA-IAM-03 以降、Firebase 利用環境では `CURSOR_SIGNING_KEY`（32〜512�
 | `mise run seed-demo` | 固定fixtureをupsert。既存のfixture IDを再利用し、アプリの時刻も固定 |
 | `mise run reset-demo` | 専用local projectのAuthユーザーとFirestore全データ（子collection含む）を消去 |
 | `mise run test-emulator` | 実emulatorを起動し、二重seed・初期化・prod拒否を検証して自動終了 |
+| `mise run check:ui` | 共通React UIを使うmobile・displayの通常静的bundleを個別build。`check`にも含む |
+| `mise run dev:mobile` / `dev:display` | [UI基盤](ui-foundation.md)を明示的なfake transportでlocalhost起動 |
 
 現在のPython検証タスクは `uv run --all-packages --locked --offline` を使う。lockfileの整合確認とキャッシュからの環境同期を行い、ネットワークからの依存取得が必要な場合は失敗する。先に `mise run setup` を実行する。
 

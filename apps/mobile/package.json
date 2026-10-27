@@ -5,7 +5,11 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
-    "typecheck": "tsc --project tsconfig.json"
+    "typecheck": "tsc --project tsconfig.json",
+    "build": "vite build",
+    "build:fake": "vite build --mode fake",
+    "dev:fake": "vite --mode fake --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
     "@brainoid-internal/api-client": "workspace:*",

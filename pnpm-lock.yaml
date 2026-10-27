@@ -91,6 +91,10 @@ importers:
         version: 5.9.3
 
   packages/ui:
+    dependencies:
+      '@brainoid-internal/api-client':
+        specifier: workspace:*
+        version: link:../api-client
     devDependencies:
       react:
         specifier: 19.3.1
