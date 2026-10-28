@@ -102,6 +102,10 @@ class Repository(FetcherInterface):
         }
         for item in (PROJECT / "services/device/src/brainoid_device").glob("*.py"):
             files["lib/brainoid_device/" + item.name] = item.read_bytes()
+        for name in ("device_protocol.schema.json", "run_events.schema.json"):
+            files["lib/brainoid_device/" + name] = (
+                PROJECT / "services/device/src/brainoid_device" / name
+            ).read_bytes()
         if broken:
             files["lib/brainoid_device/__main__.py"] = b"def main():\n    return 1\n"
         files.update(extra or {})

@@ -14,11 +14,14 @@ target名は英数字・underscore・hyphenからなるbasenameと `.tar`。配�
 | --- | --- |
 | `release.json` | [manifest v1 schema](../packaging/device/update-manifest.schema.json)。単調増加整数version、Linux、現在のarchitecture、protocol 1、SQLite schema 2、runtime ABI |
 | `lib/**/*.py` | 配布するPythonソース。`lib/brainoid_device/__init__.py` と `__main__.py` が必須。固定entrypoint `brainoid_device.__main__.main` が `serve` を受ける |
+| `lib/brainoid_device/device_protocol.schema.json`、`lib/brainoid_device/run_events.schema.json` | daemon が import する固定の2 schema。正本 specs と同じ内容を同梱する。他の lib JSON は拒否 |
 | `ui/**` | [既存static境界](device-service.md#保存領域と配信範囲)で許可された表示asset。`ui/index.html` が必須 |
 
 archive全体96MiB、展開合計64MiB、各file 8MiB、4096 file、深さ16まで。USTARの固定headerを先に検査し、PAX/GNU extension、圧縮、directory entry、symlink/hardlink/device/FIFO、重複、絶対path、`.`/`..`、隠しcomponent、backslashを拒否する。archiveのmode/ownerを適用せず、新しい0700 stagingへ0600 fileを作る。資格情報・SQLite・journal・音声・会話は配布物に含めない。署名されたPython自身は信頼するアプリコードであり、サービスUIDを侵害したコードから秘密を隔離するsandboxではない。
 
 ## 起動と更新
+
+DEV-10 の schema 同梱版には、この2 path を許可する updater が必要。旧 updater は安全側に拒否するため、導入者は検証済み checkout/lock の updater を既存 bootstrap 手順で配置・再起動してから新 target を適用する。archive だけで依存や updater 自身を更新した扱いにはしない。初回の `uv sync --all-packages --locked` 環境は今回の直接依存と同じ固定版を既に含む。device だけを独自導入した環境では、導入者が lock の実行依存を事前確認・配置する必要があり、未配置のまま activation を成功扱いにしない。
 
 非root専用UID、Linux 5.4以降のpidfd / waitid(P_PIDFD)、所有processの `/proc` 情報の読取、既存のprivate/state directory、実行依存が前提。初回の空stateは既存 `python -m brainoid_device check` で正常に初期化してから、updaterへ渡す。updaterはDBを作り直したりmigrationしたりしない。state・credential・update directoryは相互に同一・親子にせず、すべてcanonical path、サービスUID所有0700にする。信頼rootは通常fileでgroup/other書込不可とする。root、祖先、既存release/cacheのlinkや危険な権限を検査する。
 

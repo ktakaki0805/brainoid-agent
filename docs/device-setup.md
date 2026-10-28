@@ -1,6 +1,6 @@
 # Piの導入とローカル復旧
 
-BA-DEV-09、FR-003/014。[導入処理](../packaging/device/install.sh)、[復旧画面](../apps/display/src/recovery/index.tsx)、[確認後のreset](../services/device/src/brainoid_device/reset_command.py)を提供する。クラウド登録、音声、家電操作との結合は未提供で、オフラインAIは利用できない。ローカル消去はクラウド登録解除・Home Assistant側の資格情報失効の証明ではない。再読込み後も画面はこの区別を表示する。
+BA-DEV-09、FR-003/014。[導入処理](../packaging/device/install.sh)、[復旧画面](../apps/display/src/recovery/index.tsx)、[確認後のreset](../services/device/src/brainoid_device/reset_command.py)を提供する。[クラウド登録・接続](device-cloud.md)は明示設定時に提供する。音声、家電操作との結合は未提供で、オフラインAIは利用できない。ローカル消去はクラウド登録解除・Home Assistant側の資格情報失効の証明ではない。再読込み後も画面はこの区別を表示する。
 
 ## 構成と導入前提
 
@@ -45,7 +45,7 @@ sudo reboot
 
 ## 切断時の確認と回復
 
-画面の「状態を再確認」でローカルsessionを取り直し、service/保存層、link、OSの時刻同期、空き容量、保存済み音量/マイク設定を観察する。linkありはインターネット到達性を意味しない。`timedatectl` が使えなければ同期は未確認。cloud/audioは未提供のまま。通信断からのクラウド自動復帰・ペアリングは後続adapterの実装を必要とする。
+画面の「状態を再確認」でローカルsessionを取り直し、service/保存層、link、OSの時刻同期、空き容量、保存済み音量/マイク設定を観察する。linkありはインターネット到達性を意味しない。`timedatectl` が使えなければ同期は未確認。audioは未提供のまま。cloud設定時は接続状態を診断に表示し、通信断からの自動再接続・ペアリングは [cloud transport](device-cloud.md) が所有する。
 
 ~~~bash
 ip -brief link
@@ -66,7 +66,7 @@ ss -ltnp
 
 resetは新規work/遅延callbackの世代を無効化し、DEV-02のdurable intentを作り、メモリの私的表示/音声/tokenを消して所有taskと専用session内のchild/子孫を停止する。信頼済みguardianがPID再利用を防ぐためcommand leaderを保持し、pidfdで同一性を照合して子孫まで停止/回収を確認する。guardianはupdaterから見えるdaemonのsessionに残り、親の強制終了でも消去を続ける。Runtime/updaterはguardianを先にSIGKILLせず強制drainを要求し、未完了では成功/rollbackを認めない。取消finallyの後にもcleanupを行い、[既存のlocal reset](device-storage.md#local-reset)で資格情報・SQL登録/cursor/待機commandを消す。HTTP切断でresetを取消さない。終了に失敗したらmarkerを保持して操作を遮断する。再起動時はDEV-02が消去を再開し、旧startup hookを再開しない。成功時はlocal sessionを破棄し、同じプロセスは未登録の復旧画面だけを提供する。接続adapterを自動再開しない。
 
-future adapterは `Runtime.start_task/start_child` にすべての処理を登録し、`register_private_cleanup` に冪等なメモリ/一時file消去を登録する。非同期処理は開始時の `generation` を保持し、結果の公開/実行前に `permits_work(generation)` と現在の保存層/認可を検証する。未登録task、daemon化child、取消を無視して外部操作を続けるadapterは契約違反。`start_child` の返すhandleで `wait()` しても、子孫が残る間のleaderの回収はRuntimeだけが行う。通常完了sessionは自動回収する。現在の本番entryに私的本文/音声のdisk cacheや実cloud/audio adapterは存在しない。
+future adapterは `Runtime.start_task/start_child` にすべての処理を登録し、`register_private_cleanup` に冪等なメモリ/一時file消去を登録する。非同期処理は開始時の `generation` を保持し、結果の公開/実行前に `permits_work(generation)` と現在の保存層/認可を検証する。未登録task、daemon化child、取消を無視して外部操作を続けるadapterは契約違反。`start_child` の返すhandleで `wait()` しても、子孫が残る間のleaderの回収はRuntimeだけが行う。通常完了sessionは自動回収する。cloud adapter はこの Runtime 境界を使う。資格情報と未確定要求は保護領域だけに置き、音声のdisk cache/audio adapter は未提供。
 
 応答喪失や消去失敗は成功と表示しない。状態を再確認し、未完了ならserviceを再起動して再試行する。intent自体の書込に失敗した場合も完了とは扱わず、容量/権限を修復して明示的に再実行する。初期化後に旧backupを戻さない。unlinkを媒体の物理消去保証としない。
 

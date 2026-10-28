@@ -1,4 +1,4 @@
-"""Local service and durable storage; no cloud/audio/device-control adapters yet."""
+"""Local service, protected cloud transport and durable device storage."""
 
 import asyncio
 import os
@@ -14,13 +14,16 @@ from starlette.routing import Route
 from starlette.types import ASGIApp
 
 from brainoid_device.assets import load_assets
+from brainoid_device.cloud_client import CloudClient
 from brainoid_device.config import Settings
+from brainoid_device.device_transport import DeviceTransport
 from brainoid_device.diagnostics import local_diagnostics
 from brainoid_device.ledger import DeviceStorage
 from brainoid_device.local_api import LocalBoundary, Sessions, error
 from brainoid_device.reset_command import ResetCommand
 from brainoid_device.runtime import Runtime
 from brainoid_device.storage import CredentialStore
+from brainoid_device.ui_bridge import UIBridge
 
 STARTUP_SECONDS = 5.0
 
@@ -50,11 +53,22 @@ class DeviceApplication:
             self.reset.status = (
                 "complete" if self.storage.snapshot().status == "unregistered" else "failed"
             )
+        self.cloud = (
+            CloudClient(settings.cloud, self.runtime, self.storage, self.credentials)
+            if settings.cloud is not None and not resumed_reset
+            else None
+        )
+        self.transport = DeviceTransport(self.cloud) if self.cloud else None
+        self.bridge = UIBridge(self.cloud, sessions) if self.cloud else None
 
         @asynccontextmanager
         async def lifespan(app: Starlette) -> AsyncIterator[None]:
             self.runtime.running = True
             try:
+                if self.cloud is not None and self.cloud.active:
+                    self.cloud.start(self.cloud.maintain())
+                    assert self.transport is not None
+                    self.cloud.start(self.transport.run())
                 if startup is not None and not resumed_reset:
                     await self._run_startup(startup)
                 self._check_startup_stop()
@@ -64,6 +78,8 @@ class DeviceApplication:
                 try:
                     await self.reset.finish()
                     await self.runtime.close()
+                    if self.cloud is not None:
+                        await self.cloud.close()
                 except Exception:
                     self.shutdown_failed = True
                     raise RuntimeError("device_resource_shutdown_failed") from None
@@ -107,6 +123,7 @@ class DeviceApplication:
                 storage=storage.status,
                 reset=self.reset.status,
                 volume_pct=storage.preferences.volume_pct if storage.preferences else None,
+                cloud=self.cloud.status if self.cloud else "unavailable",
                 microphone_muted=storage.preferences.microphone_muted
                 if storage.preferences
                 else None,
@@ -167,6 +184,7 @@ class DeviceApplication:
                     Route("/local/diagnostics", diagnostics, methods=["GET"]),
                     Route("/local/reset/prepare", reset, methods=["POST"]),
                     Route("/local/reset", reset, methods=["POST"]),
+                    *(self.bridge.routes() if self.bridge else []),
                     Route("/{path:path}", static, methods=["GET"]),
                 ],
                 lifespan=lifespan,

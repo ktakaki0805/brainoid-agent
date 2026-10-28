@@ -1,6 +1,6 @@
 # Pi 常駐サービスとローカル UI 境界
 
-BA-DEV-01/02/09、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[端末 protocol](../specs/device-protocol.schema.json)の cloud 接続、ペアリング、音声、家電操作はまだ接続していない。更新は[専用supervisor](device-updates.md)が所有する明示的なローカル経路として提供する。
+BA-DEV-01/02/09/10、FR-003/014。`brainoid-device` は Python の独立プロセスとして静的 UI とローカル状態 API を提供する。ページの再読込み・ローカルセッションの終了はプロセスやその所有タスクを再起動しない。[SQLite保存層](device-storage.md)は設定・配送位置・command台帳とresetを提供する。[cloud 接続・ペアリング・型付き会話中継](device-cloud.md)は管理者が明示設定した場合に常駐 task として起動する。音声・家電操作は未接続。更新は[専用supervisor](device-updates.md)が所有する明示的なローカル経路として提供する。
 
 ## 起動・設定検査・停止
 
@@ -102,6 +102,6 @@ Linux 実プロセス試験は IPv4/IPv6 listener、実 interface の非 loopbac
 
 Linux x86_64 での HTTP 再読込み検証を、実 GUI browser、Raspberry Pi、systemd によるインストール/起動の検証として扱わない。DEV-01時点の描画確認は未実施だった。BA-DEV-09ではbuilt UIをlocal headless browserで検証する。実機の性能・権限・OS統合は引き続き未実施。unit は `systemd-analyze verify` で静的確認する。未設置の `/opt/brainoid/.venv/bin/python` は元 unit の検査で失敗するため、開発環境では executable path だけを存在する Python に置き換えた一時 copy の検査と区別して記録する。
 
-この変更は cloud API/永続層・Firestore transaction・認可 repository を変更しない。従って device の受入に Emulator は不要で、ローカル OS process/socket と fixture で独立検証する。将来の device/cloud bridge 結合検証は BA-DEV-10 が担当する。
+この変更は cloud API/永続層・Firestore transaction・認可 repository を変更しない。従って device の受入に Emulator は不要で、ローカル OS process/socket と fixture で独立検証する。device/cloud bridge の追加境界と Emulator 検証は [BA-DEV-10](device-cloud.md) を参照する。
 
 設計確認の一次資料（2026-10-27）: [Starlette lifespan](https://starlette.dev/lifespan/)、[response/Cookie](https://starlette.dev/responses/)、[Uvicorn 設定](https://uvicorn.dev/settings/)、[固定版 server source](https://github.com/Kludex/uvicorn/blob/0.54.0/uvicorn/server.py)、[systemd process 終了](https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html)、[Python event loop の Unix signal](https://docs.python.org/3.13/library/asyncio-eventloop.html#asyncio.loop.add_signal_handler)。依存の条件は[ツール台帳](toolchain.md)に記録する。

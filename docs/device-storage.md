@@ -1,6 +1,6 @@
 # Piの設定・cursor・command台帳
 
-BA-DEV-02、FR-003/014、T-017。標準Python `sqlite3` による[保存層](../services/device/src/brainoid_device/ledger.py)を[常駐サービス](device-service.md)へ接続する。追加のパッケージ依存はない。cloud・Home Assistantの実呼出し、実行判断、resetの確認UIはDEV-05/06/07/09で接続する。
+BA-DEV-02、FR-003/014、T-017。標準Python `sqlite3` による[保存層](../services/device/src/brainoid_device/ledger.py)を[常駐サービス](device-service.md)へ接続する。追加のパッケージ依存はない。cloud の資格情報・pending要求・SSE cursor は [DEV-10](device-cloud.md)、reset の確認 UI は [DEV-09](device-setup.md) が接続する。Home Assistant の実呼出し・実行判断は DEV-06/07 の範囲。
 
 ## 永続化と利用契約
 

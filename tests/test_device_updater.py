@@ -251,6 +251,8 @@ class VerificationTests(UpdaterFixture):
                 "state/agent.sqlite3",
                 "lib/bad\\name.py",
                 "ui/.hidden.html",
+                "lib/brainoid_device/unknown.schema.json",
+                "lib/other/device_protocol.schema.json",
             ),
             start=1,
         ):

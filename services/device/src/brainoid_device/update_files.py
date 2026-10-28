@@ -222,6 +222,11 @@ def archive_files(archive: Path) -> dict[str, bytes]:
             len(parts) >= 2
             and (
                 (parts[0] == "lib" and path.suffix == ".py")
+                or item.name
+                in {
+                    "lib/brainoid_device/device_protocol.schema.json",
+                    "lib/brainoid_device/run_events.schema.json",
+                }
                 or (
                     parts[0] == "ui"
                     and path.suffix.lower()

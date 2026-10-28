@@ -1,5 +1,6 @@
 """Strict single-origin HTTP boundary and bounded, ephemeral browser sessions."""
 
+import asyncio
 import re
 import secrets
 import time
@@ -14,6 +15,8 @@ from brainoid_device.config import Settings
 COOKIE = "brainoid_local"
 SESSION_SECONDS = 1800
 MAX_SESSIONS = 32
+BODY_ROUTES = {"/local/cloud/pairing", "/local/cloud/operations"}
+MAX_BODY = 32768
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 SAFE_HEADERS = {
     "cache-control": "no-store",
@@ -112,6 +115,41 @@ class LocalBoundary:
             await response(scope, receive, send)
             return
 
+        if scope["path"] in BODY_ROUTES and scope["method"] == "POST":
+            # Narrow typed JSON admission only. Buffer before dispatch so a lying
+            # Content-Length or slow upload cannot reach a side-effecting handler.
+            body = bytearray()
+            try:
+                async with asyncio.timeout(3):
+                    while True:
+                        message = await receive()
+                        if message["type"] != "http.request":
+                            return
+                        body.extend(message.get("body", b""))
+                        if len(body) > MAX_BODY:
+                            await error("body_too_large", 413)(scope, receive, send)
+                            return
+                        if not message.get("more_body", False):
+                            break
+            except TimeoutError:
+                await error("body_timeout", 408)(scope, receive, send)
+                return
+            expected = dict(scope["headers"]).get(b"content-length", b"0")
+            if len(body) != int(expected):
+                await error("invalid_body", 400)(scope, receive, send)
+                return
+            original_receive = receive
+            delivered = False
+
+            async def buffered_receive() -> Message:
+                nonlocal delivered
+                if delivered:
+                    return await original_receive()
+                delivered = True
+                return {"type": "http.request", "body": bytes(body), "more_body": False}
+
+            receive = buffered_receive
+
         async def send_safe(message: Message) -> None:
             if message["type"] == "http.response.start":
                 security_names = {name.encode() for name in SAFE_HEADERS}
@@ -149,6 +187,9 @@ class LocalBoundary:
             b"sec-fetch-site",
             b"content-length",
             b"transfer-encoding",
+            b"content-type",
+            b"x-private-session",
+            b"authorization",
         ):
             if len(headers.get(name, [])) > 1:
                 return error("duplicate_header", 400)
@@ -161,8 +202,21 @@ class LocalBoundary:
             return error("origin_denied", 403)
         if scope["method"] not in {"GET", "HEAD"} and origin is None:
             return error("origin_required", 403)
-        if b"transfer-encoding" in headers or headers.get(b"content-length", [b"0"]) != [b"0"]:
+        if b"authorization" in headers:
+            return error("authorization_not_supported", 400)
+        if scope["path"] in BODY_ROUTES and scope["method"] == "POST":
+            length = headers.get(b"content-length", [b""])[0]
+            if (
+                b"transfer-encoding" in headers
+                or not re.fullmatch(rb"[0-9]{1,5}", length)
+                or not 1 <= int(length) <= MAX_BODY
+                or headers.get(b"content-type") != [b"application/json"]
+            ):
+                return error("invalid_body", 413)
+        elif b"transfer-encoding" in headers or headers.get(b"content-length", [b"0"]) != [b"0"]:
             return error("body_not_supported", 413)
+        if scope["path"].startswith("/local/cloud/") and scope.get("query_string"):
+            return error("invalid_operation", 400)
         raw_path = scope.get("raw_path", b"")
         if len(raw_path) + len(scope.get("query_string", b"")) > 2048:
             return error("path_too_long", 414)

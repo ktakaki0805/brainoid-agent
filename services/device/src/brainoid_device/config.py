@@ -4,6 +4,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 class ConfigurationError(ValueError):
@@ -24,12 +25,42 @@ def directory(value: str, setting: str) -> Path:
 
 
 @dataclass(frozen=True)
+class CloudSettings:
+    api_url: str
+    local_test: bool = False
+
+    def __post_init__(self) -> None:
+        try:
+            parsed = urlsplit(self.api_url)
+            if (
+                not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or parsed.scheme not in {"https", "http"}
+                or any(c.isspace() or c in "\\%" for c in self.api_url)
+                or (parsed.port is not None and not 1 <= parsed.port <= 65535)
+                or (
+                    parsed.scheme == "http"
+                    and not (self.local_test and parsed.hostname in {"127.0.0.1", "::1"})
+                )
+                or (self.local_test and parsed.hostname not in {"127.0.0.1", "::1"})
+            ):
+                raise ValueError
+        except ValueError:
+            raise ConfigurationError("DEVICE_CLOUD_API: requires a trusted HTTPS origin") from None
+
+
+@dataclass(frozen=True)
 class Settings:
     host: str
     port: int
     static_dir: Path
     credentials_dir: Path
     state_dir: Path
+    cloud: CloudSettings | None = None
 
     def __post_init__(self) -> None:
         if self.host not in {"127.0.0.1", "::1"}:
@@ -84,4 +115,14 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     static_dir = directory(source["DEVICE_STATIC_DIR"], "DEVICE_STATIC_DIR")
     credentials_dir = directory(source["DEVICE_CREDENTIALS_DIR"], "DEVICE_CREDENTIALS_DIR")
     state_dir = directory(source["DEVICE_STATE_DIR"], "DEVICE_STATE_DIR")
-    return Settings(source["DEVICE_HOST"], int(port_value), static_dir, credentials_dir, state_dir)
+    cloud = None
+    if source.get("DEVICE_CLOUD_API"):
+        mode = source.get("DEVICE_CLOUD_MODE", "production")
+        if mode not in {"production", "local-test"}:
+            raise ConfigurationError("DEVICE_CLOUD_MODE: requires production or local-test")
+        cloud = CloudSettings(source["DEVICE_CLOUD_API"], local_test=mode == "local-test")
+    elif source.get("DEVICE_CLOUD_MODE"):
+        raise ConfigurationError("DEVICE_CLOUD_API: required when cloud mode is set")
+    return Settings(
+        source["DEVICE_HOST"], int(port_value), static_dir, credentials_dir, state_dir, cloud
+    )
