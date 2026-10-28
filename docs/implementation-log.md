@@ -11753,3 +11753,363 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - FR-003/004/014: device専用credentialでpairing/refreshとHTTP/SSE/WSSを接続し、cloud credentialをUI/logへ渡さずtyped local operationを中継する。API instance変更・永続cursor・410履歴回復と失効/期限切れ/旧世代出力停止を確認。曖昧mutationは同key/body digestと持続budgetで照合し、未確定結果を新要求で上書きしない。設定なしのlocal recoveryと署名更新/rollbackの通常回帰も成功。
 - 最終検証: setup/check成功、cloud focused30、updater11、official Emulator5、通常Python1220＋planner18＋Node46成功、独立review追加5成功。失敗履歴と観測warning/実機未実施等の限界は上記を保持。台帳done後の必須checkを次に実行し、台帳/logだけを記録commitする。
 - `parent-postdone-check`: `mise run check`、2026-10-28T00:08:04.197389+00:00→2026-10-28T00:08:36.284878+00:00、exit 0、32.090764066029806s、unittest/counts ['Success: no issues found in 423 source files']、Node []。metadata SHA-256 `7a52937e0d553b4980eb6dec0112f46de1673f947261527213e411e4ba1153e3`、raw SHA-256 `16b30750d7e9442e032a8cf466c06ca12705cce05c7fb675fe4fe20e14884585`。
+
+## ba-dev-04-20261028t001044z
+
+- チケット: BA-DEV-04 端末snapshot・session・run割当通知 / FR-012・FR-014。
+- 状態in_progress、開始 2026-10-28T00:10:44.683190+00:00。main / base `d353938fa891b79e24e85172e1ce6494fec4342d`、開始時clean、既存無関係変更なし。ID指定なしplannerで選択。実装担当 `/root/dev04_implementation`、親は台帳・log・commit担当。
+- 依存done/祖先確認: BA-DEV-03 `4ab0f971faa14eba7093908905cf9951f6ed71fa`, BA-IAM-09 `9f4a382c3b4c595b571927545fb652aebc2bd537`, BA-RUN-05 `3011d889d2fee0c72cfcec954ac11108cca4d35a`, BA-DEV-10 `424e53c8095528fd9a5c8e24e5e118f412a4d6e4`, BA-APP-05 `0c38c456504a7710915c43e294716332ecac30a4`, BA-APP-06 `0f2fce2190728c8db39b9b20797bb6d4aadd0c37`。全631product開始map `/tmp/ba-dev-04-start.json`。前DEV10のsealed204証跡hash不変を確認。
+- 範囲・受入: active session・割当run・未完了command/notificationとcursorのページ付きsnapshot、DB確定後のsession_started/run_available/session_revoked/通知配送、hello_ack後の全頁同期とgeneration/scope/期限照合、displayedと本人ack分離、失効session本文消去。frame喪失/再接続とpage途中切断から復旧し、他端末・失効sessionを排除し、旧音声を自動再生せずnotification ID重複表示を防ぐ。
+- 検証: T-021/T-030/T-035、既存認可/資格情報/PrivateSessions.snapshot・run/notification/commandとの実結合、ページcursorのscope/世代/期限/再送、権限変更・切断・restart・private出力停止の正負例。setup/check/通常全回帰と変更境界に必要なofficial Emulator検証を実完了まで実行し、各round新規独立contextで全差分レビューする。
+- 外部前提なし、既存fake/emulatorで検証。本人同意判定はIAM09、UI表示はUI10、家電実行はDEV07、予定生成/snoozeはAPP03/04を再利用。実cloud/provider/HA/Pi、host導入、push/PR/deployは行わない。
+- `writer-targeted01`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot`、2026-10-28T00:20:36.519966+00:00→2026-10-28T00:20:37.943598+00:00、exit 1、1.423632s、unittest/counts ['Ran 3 tests in 0.447s']、Node []。metadata SHA-256 `84e0bc9f3fe7a3e186e26fbf6911d009203ac321995d2f757ce9205451c0335d`、raw SHA-256 `0acaa6407393eb692b4de6a0061b40e8b4f13b31d0f8aba9a550aec6f94146d2`。
+- `writer-targeted02`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot`、2026-10-28T00:21:13.947970+00:00→2026-10-28T00:21:16.253625+00:00、exit 0、2.305655s、unittest/counts ['Ran 3 tests in 1.256s']、Node []。metadata SHA-256 `6a61dbde0e95fca7ceef361e6806c321e05bfcbfd5ee0b753cfae14717de4295`、raw SHA-256 `3c85438fe7a4ae8bc3c4bda9d11c628ca4c551d43e0985b45fe1a9b021bf6c54`。
+- `writer-targeted03`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_private_sessions test_notification_devices`、2026-10-28T00:22:40.582552+00:00→2026-10-28T00:22:44.543633+00:00、exit 1、3.961081s、unittest/counts ['Ran 17 tests in 2.784s']、Node []。metadata SHA-256 `b8fcc0503f542738f39b3f521a0227ba11b8ddba129fa7d65493c915673af9d3`、raw SHA-256 `762074f4e1995b00c2137d8904cc206b3f8f758850ab0593a582aa52961cc98d`。
+- `writer-targeted04`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_private_sessions test_notification_devices test_device_cloud test_device_cloud_revision`、2026-10-28T00:24:28.892878+00:00→2026-10-28T00:24:41.137810+00:00、exit 0、12.244932s、unittest/counts ['Ran 48 tests in 10.591s']、Node []。metadata SHA-256 `bbe46fca0451bcc508311b68689dba58b8c2d53c664d6a741921a0514ef304ed`、raw SHA-256 `af043c23ccf4cfe937c9ed5641f65fd5b1d37cddcdbcc83958d610878a3de9e3`。
+
+- 初回sandboxのTestClient起動が完了せず、writerが回収したhost PID/birth 667679/42310250・667692/42310256を対象にSIGINT後SIGTERM、所有session9857を実exit143で収集。writer同host namespace終了証跡SHA `c80cdc4760d3d60f80d22079bbea3b57556de31d4749824f8e4bbe14a9ff359b`。最初の起動では継続的な子孫/listener/一時root採取がなく、既知2identity以外の終了を遡及的に証明しない。後続はscoped hostとresource記録を使用。targeted03の追加失効テストはfixture冪等key長の不備で失敗を保持、修正後targeted04は関連48件/10.591s exit0。最終source/check/fullnormal/Emulator/独立レビューは未完了。
+- `writer-check01`: `mise run check`、2026-10-28T00:26:37.447024+00:00→2026-10-28T00:26:37.986207+00:00、exit 1、0.539183s、unittest/counts []、Node []。metadata SHA-256 `60df0e12ab5163191c3afe69380ecafdaaa50282356df62810bf2c3729a231d1`、raw SHA-256 `12600dc8eb1623d82106b9f0eb729593b73f616f1adfd1818fc8ddcf712fd3c2`。
+- `writer-emulator01`: `mise exec -- python -B /tmp/ba-dev-04-writer-emulator01.py`、2026-10-28T00:26:14.619007+00:00→2026-10-28T00:26:14.748650+00:00、exit 1、0.129643s、unittest/counts []、Node []。metadata SHA-256 `be03232bac6deb1ddea0780da70644bc914c088c7a7fa26debf1b63a6be43758`、raw SHA-256 `a367e0f4862df8db06aa13e12037bfcc29d10fea3a0525343f93672035da6282`。
+- `writer-setup01`: `mise run setup`、2026-10-28T00:26:27.737072+00:00→2026-10-28T00:26:28.508830+00:00、exit 0、0.771758s、unittest/counts []、Node []。metadata SHA-256 `dc94cd8e7fff8b02f93237b9dd43110f4579117e96aa922d7b361d7c1b358222`、raw SHA-256 `d7e3fdcf56f7cea915043d2263bf552aae29712a6f4bef4074e8ff6e1bc597c2`。
+- `writer-check02`: `mise run check`、2026-10-28T00:29:15.896938+00:00→2026-10-28T00:29:20.711773+00:00、exit 0、4.814835s、unittest/counts []、Node []。metadata SHA-256 `c228e9f35751fd6d60fb846c61c9c7f32aa4fb86ee7e0264f5ec893e2b82432e`、raw SHA-256 `c48210c7aed145e7cdea5d20876f9acd1f80d42a8be1549f61040ef0b5dde4c5`。
+- `writer-emulator02`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator02.py`、2026-10-28T00:26:24.647756+00:00→2026-10-28T00:27:51.464945+00:00、exit 0、86.817189s、unittest/counts ['Ran 35 tests in 78.854s']、Node []。metadata SHA-256 `d4d6298d9f63d0f0c849b64a31e167a9127a393c691a918977c2c0fd3675d765`、raw SHA-256 `a8a30b72831c5783ca6b4bd07a305fd6ec71afc650d069710176943c0df48033`。
+- `writer-targeted05`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_commands test_device_cloud_revision`、2026-10-28T00:29:13.206011+00:00→2026-10-28T00:29:25.746636+00:00、exit 1、12.540625s、unittest/counts ['Ran 33 tests in 11.179s']、Node []。metadata SHA-256 `0e7a706121e3ed849da06ac542ce72218be09d1eb73311f789435d76de1fffd0`、raw SHA-256 `02b9f760b11de9174acd50dd9391e11cbe09d78f9b3be1a38bacf3a0acdb8897`。
+- `writer-check03`: `mise run check`、2026-10-28T00:30:22.962493+00:00→2026-10-28T00:30:27.779391+00:00、exit 0、4.816898s、unittest/counts []、Node []。metadata SHA-256 `6907be590e4c20ebd0507bec832d0641c5554e879684072372e83d8019b5ac22`、raw SHA-256 `2165ad7dcf0ba649752ba18fab1c38743bf08beaae23d999d9978efd37de685a`。
+- `writer-check04`: `mise run check`、2026-10-28T00:31:45.918963+00:00→2026-10-28T00:31:51.487689+00:00、exit 0、5.568726s、unittest/counts []、Node []。metadata SHA-256 `06b5b6a8f6dba9f37058c4674ec49dcdd890297f654ab0ce3b8ccae413a11e7e`、raw SHA-256 `5b0e2a58fce5ba96061699deca63f53efb6ce698ac8ad608574ea188ad96af7e`。
+- `writer-targeted06`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_commands test_private_sessions test_notification_devices test_device_cloud test_device_cloud_revision`、2026-10-28T00:30:18.643416+00:00→2026-10-28T00:30:36.076008+00:00、exit 0、17.432592s、unittest/counts ['Ran 67 tests in 15.683s']、Node []。metadata SHA-256 `1a0a2ae091fc9c826239c63b07f41b2baaf5b0a1339df88e0d56253f95b148aa`、raw SHA-256 `4cad949988f264269e43ca6e5750a3434e00c5cfe17c5aeb284ed8e8ffebc2f8`。
+- `writer-targeted07`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_cloud_revision`、2026-10-28T00:31:45.742135+00:00→2026-10-28T00:31:57.800860+00:00、exit 1、12.058725s、unittest/counts ['Ran 16 tests in 9.814s']、Node []。metadata SHA-256 `337468a991dbe5a9bbf87b14e77142faa335012a8d52f863949c81a5a4455a5b`、raw SHA-256 `7c60833a2f9d7edf4a7256bfc5a9e458e9ace37409297cc52853cd13224c35a6`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/dev04_review_r1`（新規独立context）。base commit: `d353938fa891b79e24e85172e1ce6494fec4342d`。
+- 未追跡を含む最新全27files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `351161a03a50b6869584319b6007555d72cc6e50388309e7d5d4001ff8ae70c8` |
+| `docs/device-cloud.md` | `102885c106a9cbf36e30f031914b0eb8d793bfba290dc606b7a036cb9e0a217c` |
+| `docs/device-gateway.md` | `237cfa34f620136f3357efe502c26e955e0aa07a7cf8a55d8eb4b67521a35580` |
+| `docs/device-snapshot.md` | `019908dbb330917bc6b40490e1d99ae2e1059f6052a781d3a5963e19878cf014` |
+| `docs/private-sessions.md` | `22d729546afa9208522cd3c9b49cfaaad5f1596d6a793b2edb13dfab0ecdc1a3` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `21f43b4dbd7e02f7fd7922a2d5d25565a39924a253d7b390470cf88f87431534` |
+| `packages/api-client/src/generated/sdk.gen.js` | `d17484bb1865fceff2a4658426bb158cb8499bba82d74be740c84b9dfe1b8fe4` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `762b26087b3112c06d17db979d83fa7c1dbbcf90f6073c7b5146cd2f03b08d1e` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `7a5f14de72b5c36c70b616725910d7870a09f075c7969bb082929c9703cdef22` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `681462b25238fa997becc0ac1095e7c04846b912bde7ef962453324c39b31b21` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `6f091e541ce196e0996355198080b35e59e7ca7efa16ea5684aa3ca767d2a87f` |
+| `services/api/src/brainoid_api/device_notifications.py` | `d6cd9c288af410ae4b274b67235aa706f88120164eed9c02a0369a86c8c1afa5` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `c5d189ca69439b02de1202133f0d60c7bd5be54f740f4e8a84e623c01f8daf9d` |
+| `services/api/src/brainoid_api/routes/devices.py` | `4ed59b1f28f016d7e6d0acedd0373abe3fccebc78ae04d7230ca553e548ddf7d` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `fce95b71761c9bb3f388c7e1330b42c08f3977557de5ea5c952942972fedb558` |
+| `services/device/src/brainoid_device/app.py` | `a3e4c1272c91009e9dcaa3be04671964c87c470b2249dd4fda1e6ae0088b1c9e` |
+| `services/device/src/brainoid_device/cloud_client.py` | `376c346f386c9f748b592a2521463293b1c6869cd1e5c41327b163a0e1383417` |
+| `services/device/src/brainoid_device/device_transport.py` | `899d387948fd12bfaf8e57e327aa6e9009c4eb79f162a1afa831992f33704b78` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `65a7e2b0411e9b7c0098f00f20081d9c49ce1a1ec916c74dfc10fa8820b96837` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `0e92cc591dd0309da11e4d8d75638428c572105fde8db6726c0af9e3937e9a70` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `c5aa8a1da96c306e04216b32c2681e46a593e5c4ff944e3fb224dfd53e66c972` |
+| `specs/openapi.yaml` | `47499a251c9afe0730410795fd9fa99a5dc83c1235eea804b1d2a60e44668aee` |
+| `tests/emulator/test_device_snapshot_integration.py` | `292a0410d5b3cd4962fcfb883a4cc005a0f6ed9c9a43912a4fb025189a685674` |
+| `tests/fakes/memory_repository.py` | `93c66a3d90d031c4ce0e91683677cd48065d2330b596bd986c326fa1edb88534` |
+| `tests/test_common_mutations.py` | `8ec348809310809555f93b21f94ce070add1622521ebb340371805d090f59d48` |
+| `tests/test_device_snapshot.py` | `2c1df76fbddf1226cf9b43aea44f30d5ba459ee57f00338090d798342edb7ce0` |
+| `tests/test_device_snapshot_upgrade.py` | `68cf96f6431c36ee560c99aecc2d8d26e85249360c3b6df3188254f5382b36a9` |
+- `writer-check05`: `mise run check`、2026-10-28T00:35:26.816379+00:00→2026-10-28T00:35:33.610572+00:00、exit 0、6.794193s、unittest/counts []、Node []。metadata SHA-256 `383f4ac2279c8ead5080c850533f3299fe5c12d559798b2444de9b77a57b9c3a`、raw SHA-256 `0b50f3c7d2ccc641aa7a83fcaf449596800855b9da077717542eca90d379b047`。
+- `writer-emulator03`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator03.py`、2026-10-28T00:31:45.825469+00:00→2026-10-28T00:33:18.654567+00:00、exit 0、92.829098s、unittest/counts ['Ran 35 tests in 81.089s']、Node []。metadata SHA-256 `6769ca1f750b21cd0b960233578ca69153aa8abc386b2a43a998c901e80dc0b5`、raw SHA-256 `bedbf7175233434b52ecc81a507761b2108f38152cc0c9dc77af5f43723ac4c3`。
+- `writer-setup02`: `mise run setup`、2026-10-28T00:36:03.253247+00:00→2026-10-28T00:36:03.949107+00:00、exit 0、0.69586s、unittest/counts []、Node []。metadata SHA-256 `f4223e62eb710f33718bc1c647e258400696a0757baddda4d23a0f22889a8692`、raw SHA-256 `0a957e7e33c6f70e155381d6e6a01f9fa27d9944652b4ca2a6adc6028de76da4`。
+- `writer-targeted08`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_snapshot_upgrade test_device_cloud_revision`、2026-10-28T00:35:25.720031+00:00→2026-10-28T00:35:38.344251+00:00、exit 0、12.62422s、unittest/counts ['Ran 17 tests in 11.211s']、Node []。metadata SHA-256 `05df94a90e9e1388e98a89a9e51bb44e1412dd91b3f7c20135c4040cb3cd0f95`、raw SHA-256 `c95689c935a5f0e5983a4363ac5c137e746bee46b4c9390880bacdbc3cd881bb`。
+
+- R1固定: 27変更・640 product paths・削除0。normalized freeze SHA `f410e97ef390c19226617dd29bfa690dfcbeaaf881f288f5d7d5a3b8d686c5c4`、compact digest `b1eb22fba1494fb837c156032fce4edc97e22a2dfbc1d9bf6ab470fdb24d3678`。親開始監査SHA `c8c716e3fdc1d010aabdd17897021d6ed883fc9f12de2c6c0edf02e86a80b51c` がsetup02/check05/targeted08の前後全map・raw hash・exit0を確認。新規独立 `/root/dev04_review_r1` が全差分を確認。normal01と最終Emulator04は未完了、成功扱いにしない。
+- 前freeze修正: snapshot取得時の通知cache公開をcurrent syncで再検証し、source削除後の古い本文非公開を追加検証。targeted07はfake transactionがdeepcopyでstoreを置換した後の古い参照を復元したfixture不備で失敗、live store復元へ修正。新しい共有DTO moduleが旧runtimeの署名更新に同梱されない問題は、端末内snapshot_models.pyを既存Python配布規則で同梱し、API共通DTOとのschema parityと旧contracts配置でのsigned candidate importで確認。追加archive許可や依存環境の暗黙更新は行わない。これらは独立レビューで再確認する。
+- 既存互換検査のnullable差を修正し、共有runのprivate_session_idは従来のoptional/non-null契約どおり省略。混在command/notificationのshared sequence1/2/3でもsnapshot watermarkだけでlocal command cursor0を進めない検証を追加。128超の過去expired履歴をeligible上限に算入せず、取引portのequality query全件materializationという限界は文書化。snapshotのconnection_generationはcredential認可世代、WSSは別transport世代、immutable出力割当のassignment generation1という契約を明示。
+- `writer-emulator04`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator04.py`、2026-10-28T00:35:26.319217+00:00→2026-10-28T00:37:10.594896+00:00、exit 0、104.275679s、unittest/counts ['Ran 35 tests in 92.048s']、Node []。metadata SHA-256 `b405ad99001b5f32f0bdc92c014193838649dc6eb6f61f75147cca617fc9d16f`、raw SHA-256 `9017f024b2472d0a8bcde3afb9d53eb972d719599bf25d04d428f24bd4141b88`。
+- `writer-normal01`: `mise run test`、2026-10-28T00:36:05.843400+00:00→2026-10-28T00:43:18.152521+00:00、exit 0、432.309121s、unittest/counts ['Ran 1230 tests in 402.731s', 'Ran 18 tests in 0.065s']、Node ['ℹ tests 46']。metadata SHA-256 `241af9e3e241b9495438212a66f4d9923977bb9c6b929d5b38ed9ec65941f0e2`、raw SHA-256 `50712f56c4c14ab56d89e272f9fc1b08bb2d3fcd3de8c1a4cc619ea18b624550`。
+
+- 最終Emulator04は35件/92.048s exit0、通常normal01はPython1230件/402.731s＋planner18件/0.065s＋Node46件（fail0）exit0。親がsetup02/check05/targeted08/Emulator04/normal01の全640map前後・raw hash・実exitを再照合、最終監査SHA `b875b50f4b301976b12e0fe8537e39a240c6e68775112d73539e871dc5cd166d`。通常suiteのSQLite ResourceWarningは観測・保持し、非失敗だが起源は断定しない。
+- writer全所有session収集済み。writer最終phase362identity終了確認SHA `f8d74ed0a60e87651d7026872130db0ac7ca49a967404a494d3fcde78189c0ad`、親が同host namespaceで全635記録identity（20phaseと初回既知chain）・5Emulatorportsの終了を読み取り専用確認、SHA `53653d6a55927de99f548dd7c7ed2f1ac917d275c860b3833a73473dfa5bb7b9`。12個のphase専用TMPDIRにはuv lock/redocly/node compile cache等の不活性な内容を保持し、空とは主張しない。v1の全ba-*差分globは証跡ファイルも含むため所有/漏れ/cleanupの根拠に使わない。
+
+### 独立レビュー R1 完了・request_changes
+
+- `/root/dev04_review_r1` が全27変更を確認し、必須3件・任意1件で正式終了。最新report SHA `c8ff2b6dd66740dd9204ce5e4003ed8dacfaf3cd551b06aee3f91e9156e8e16f`、validation SHA `593ebb8090d2eb4f29b7048f20c0dced611ff7146f8a1ea51fa0d0ddf2fc3708`、source/index SHA `5415ef199c303ab349a3ce05b2fb049df766efac1dd65725bdcffa8c2f5fc75d`、resource SHA `a6c4eef5d78bc74bf7422c4241af1e7ca2c70b523dba017ae01f445e77d8e63c`。通常suiteの成功を含む最終検証を独立監査しても、以下の反例は残る。
+- R1-01 P1: syncがclient.generationのみを検査し、session_revokedのclearはoutput_generationだけを進めるため、遅延した正規snapshot応答が失効sessionをreadyへ復活させる。first/continuationページを失効/置換をまたいで保持する回帰を追加し、全page set・通知continuationとpartial metadataを出力世代でfenceする。
+- R1-02 P1: ページごと・1秒poll・hintごとに端末jobs/commands/notifications全履歴をmaterializeし、128 live上限前に無制限read/認可を実行。expired140＋live1でも141jobs＋141run readsを確認。取得前のread/scan上限とdurable continuationまたはactive indexでboundedにし、hintごとの全scanを解消。古い履歴の後にもliveを回収できるfake計測とFirestore Emulatorで検証。既存port制約の記述は解消根拠ではない。
+- R1-03 P2: Notification.expires_atはdue+5分の音声自動再生期限だがsnapshot/WSS/local inbox/receipt保持で通知寿命として扱い、offline後の未表示文字通知が消える。due+301sでcanonical APIは200/pendingだがsnapshotは空。text保持・dedup/ACKを音声期限から分け、no-autoplay、ACK応答喪失/restart/current source失効を検証する。
+- 独立反例: probes03は1件/0.244s exit1で失効snapshot競合を再現、raw SHA `00e232a780ccc1ffcc1aac6538b2be84a3f7c22075e87438426572319a87786f`。probes-moreは2件/0.528s exit1（通知復旧assert失敗、履歴read計測は成功）、raw SHA `d081f72c457bdfc4e1e239d2fb0aad8ae3cf20486579bb344156c58f57c8772d`。製品passとは扱わない。初回import失敗・sandbox143も保持、既知host4identity終了を親が同namespaceで再確認。初回未観測子孫/一時領域は遡及的に証明しない。
+- 任意O1: docs/device-gateway.mdの受理frame列挙へnotification_ackを追記。元writerへ必須3件とこの文書修正を返す。台帳in_progress/review_rounds1、全writer検証session終了後にfreeze解除。親closure SHA `61fc6da2cd83173097c9d2f6e71c9518554e718260d531e4015d288edcb31c20`。修正後は最終check/fullnormal/必要なEmulatorと、新規独立R2の最新全差分レビューが必要。
+- `writer-check06`: `mise run check`、2026-10-28T01:03:32.699729+00:00→2026-10-28T01:03:32.887823+00:00、exit 1、0.188094s、unittest/counts []、Node []。metadata SHA-256 `2649f538cddfb8595500ae638aa5bb10126d8c0c54e2f928cd40c6d767081a4a`、raw SHA-256 `138727056f36da12ddf5824abefd6461abbcbf8ed0c28f3f035a17474df4b5a5`。
+- `writer-emulator05`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator05.py`、2026-10-28T01:03:33.245012+00:00→2026-10-28T01:05:06.267705+00:00、exit 0、93.022693s、unittest/counts ['Ran 36 tests in 83.945s']、Node []。metadata SHA-256 `92719c5da6a462b949333574b2c43aadf3f22e377172857dc6039c5de0e421f3`、raw SHA-256 `82a451262bb1b1a9b0cb5401e566cc1796cc010364683433a1ba3bbf9e7bb3c9`。
+- `writer-setup03`: `mise run setup`、2026-10-28T01:03:21.116934+00:00→2026-10-28T01:03:21.761002+00:00、exit 0、0.644068s、unittest/counts []、Node []。metadata SHA-256 `78ca1d917fe8e76115c4a2b50e488832a48f0826afb7133107d64456f5b0028a`、raw SHA-256 `29846e58a3caffe818cf994b76f98d32a5e2a3e6627dc4313530e0cbe476d01a`。
+- `writer-targeted09`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_snapshot_upgrade`、2026-10-28T00:58:08.164255+00:00→2026-10-28T00:58:13.154503+00:00、exit 0、4.990248s、unittest/counts ['Ran 10 tests in 3.838s']、Node []。metadata SHA-256 `22dcb06a1c14fd6f031732f50f86deb47fd8a3daff234d2bdf164343a43ea38e`、raw SHA-256 `8cd723cef8c6912e2d00377adf5e2309d4c4eadfc6ef3bb33747b9a4a71aa322`。
+- `writer-targeted10`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_snapshot_upgrade test_firestore_transactions`、2026-10-28T01:01:05.396758+00:00→2026-10-28T01:01:15.002794+00:00、exit 0、9.606036s、unittest/counts ['Ran 23 tests in 8.356s']、Node []。metadata SHA-256 `8dd0b70424eac4b0a5dada00900c87c22483f8c835067dca209800c745189acb`、raw SHA-256 `39d0c7545aa0a360a58edd9eff11b0b5bd945dafa3be07d60807552e7f1257e5`。
+- `writer-targeted11`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_snapshot_upgrade test_firestore_transactions test_device_cloud_revisions`、2026-10-28T01:03:32.919229+00:00→2026-10-28T01:03:46.929467+00:00、exit 1、14.010238s、unittest/counts ['Ran 27 tests in 12.527s']、Node []。metadata SHA-256 `3944cf80c3f16daa2db0ae5d4141fbfcd220069a9630dccc6ccdcd91c5495556`、raw SHA-256 `913e3c73458de11e5221cb93cfd778bc24a454eb1662a9793f01340f1ccac615`。
+- `writer-check07`: `mise run check`、2026-10-28T01:06:55.573899+00:00→2026-10-28T01:07:00.253973+00:00、exit 0、4.680074s、unittest/counts []、Node []。metadata SHA-256 `5d14dd71fe7e02d831f128dfef7d1a5b95d4623dc4fb284122edb79687f61ea2`、raw SHA-256 `d170f931680c07d6f35182596f9cce45d4f00b4dd8bd8f9bfd7208201de81ba7`。
+- `writer-setup04`: `mise run setup`、2026-10-28T01:06:52.811567+00:00→2026-10-28T01:06:53.453907+00:00、exit 0、0.64234s、unittest/counts []、Node []。metadata SHA-256 `e913364f18c1bf2d44540094dc274e088804396f86cb1d110a0e62d072728e7f`、raw SHA-256 `e2f879ead6ee8217c9a89495093ef5c0944fd853ba41032fa0b7ba3615f12355`。
+- `writer-targeted12`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_snapshot_upgrade test_firestore_transactions test_device_cloud_revision`、2026-10-28T01:06:56.942860+00:00→2026-10-28T01:07:16.215469+00:00、exit 0、19.272609s、unittest/counts ['Ran 34 tests in 17.306s']、Node []。metadata SHA-256 `f524a379ddc6c1f00249f8d7dd58a0574f5729c2b29d996a8f48c6b6c6438ec7`、raw SHA-256 `51e8c722e1ea9498c591571b4a1359bcfb2b7d104b76dd3b46ac93bc84d7a9c7`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/dev04_review_r2`（新規独立context）。base commit: `d353938fa891b79e24e85172e1ce6494fec4342d`。
+- 未追跡を含む最新全35files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `351161a03a50b6869584319b6007555d72cc6e50388309e7d5d4001ff8ae70c8` |
+| `docs/device-cloud.md` | `102885c106a9cbf36e30f031914b0eb8d793bfba290dc606b7a036cb9e0a217c` |
+| `docs/device-gateway.md` | `c320940532f89edc80f87732ed59f5cfd507279cc83c55d688aa8e3706a6f969` |
+| `docs/device-snapshot.md` | `7e13f595c10d4320d7b6fb9fd651380f7e57393c7800dcf9589785fefa0fdeae` |
+| `docs/private-sessions.md` | `22d729546afa9208522cd3c9b49cfaaad5f1596d6a793b2edb13dfab0ecdc1a3` |
+| `packages/api-client/src/generated/index.d.ts` | `6742583456e0952feeb9169b8caf775b1cffd4bbcf60611b58f3e097bbf09b55` |
+| `packages/api-client/src/generated/index.js` | `161b36791a5bd0a47042bb8ade08d0d94c52457d39f4358baec8ee66199f779d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `9985b1370f2f96e017df1e520e2f3bde6d2ee7227019a7af9e4927e216ab057c` |
+| `packages/api-client/src/generated/sdk.gen.js` | `43c3fd7075db3bb44d54868c356c1c23b3e8313695b5e865d920fcb25933f76b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f70f2c7f0252aa17967bcd67ab8e00173c1ee6da1d84688139d005e90d49f938` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `14ff2cfc615c01a949f0e69f8b4491e2dffe9de6c1d1e64a6df37e490f4994b3` |
+| `packages/contracts/src/brainoid_contracts/guards.py` | `fbd74c1fd46e503977a04ad37dffab5f4113f5bc7907f20ac025bf3419233bda` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `5b1b51ba2e39514a37ce824b43cecde23567345e70442814264b14523263c297` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `681462b25238fa997becc0ac1095e7c04846b912bde7ef962453324c39b31b21` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `e96331f4259a855e8522f07fef01c6ae47d91249c1bbafdda7f7c4b62a491b3e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `6f091e541ce196e0996355198080b35e59e7ca7efa16ea5684aa3ca767d2a87f` |
+| `services/api/src/brainoid_api/device_notifications.py` | `440d3b3034dcfe6fec3057b12a421928b32a8f91dace6fe90c653c706339641f` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `58f50f783b6b0497cc0de0aca42a1b540a22a8a560cc4af0429d7421032cca4f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `407bbe6546771b543fa819c666bc09e9f071aef5ba50ae0445a2c874f0b89fec` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `fce95b71761c9bb3f388c7e1330b42c08f3977557de5ea5c952942972fedb558` |
+| `services/device/src/brainoid_device/app.py` | `a3e4c1272c91009e9dcaa3be04671964c87c470b2249dd4fda1e6ae0088b1c9e` |
+| `services/device/src/brainoid_device/cloud_client.py` | `376c346f386c9f748b592a2521463293b1c6869cd1e5c41327b163a0e1383417` |
+| `services/device/src/brainoid_device/device_transport.py` | `6413ee981e9873c92a109f73d4d3c61e2a4141a70c40d98f58af350fdb7c3fd7` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `ce1b48e51f6b1543a5577c11b7846482afaac1430cc75ffd75b73e7c0aecbe84` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `3f3c11beda09a33081955dfdf7bdba80ffd4ef90490964f17977b35908b377c5` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `c5aa8a1da96c306e04216b32c2681e46a593e5c4ff944e3fb224dfd53e66c972` |
+| `specs/openapi.yaml` | `981f26a5b7185203aa4e2f924a6859934dca9503928f59eb0d637117c60f7e88` |
+| `tests/emulator/test_device_snapshot_integration.py` | `0a326f9e05d422aa99f5b4f3a6da763f82f7713e9b8dcb2fcecf8335289e966b` |
+| `tests/emulator/test_memory_integration.py` | `5e881ecb54a522ef5ce3c95fca30bd4fd66d4c85d5131c8a38900550b5f3032a` |
+| `tests/fakes/memory_repository.py` | `03828f80e0d3c2b6a12d03021dab327d255fa3133736a291d9ea088452f4b022` |
+| `tests/test_common_mutations.py` | `3686b62ec5c364922d501b5e0c7d6078a58f5bcb1e432105df585134eacefec4` |
+| `tests/test_device_snapshot.py` | `3c9b78350c4055dea924f2190489b48ff506a93957c9b4b5b5d5764aa84fc8ee` |
+| `tests/test_device_snapshot_upgrade.py` | `014346d3ddc0c6dcb58cb06fe23e9be6f5e0d5cf60e9c86607a13236b618c678` |
+| `tests/test_firestore_transactions.py` | `4c8a53c5679af5a8e8c3208bf93d2c7a45eb3b1be3f7ecb2c1a918fb5763a482` |
+| `tests/test_turn_run.py` | `de13cb607324e323c6b7a736ae352802b2103e3428e388997090b4d6d0f99f33` |
+
+- R2開始時: setup04/check07/targeted12（34 tests/17.306s）を最新640ファイルの実行前後map・raw・実exitと照合済み。audit SHA-256 `e706999b961747c63dbea9ec83d3b2e1e37c105061a2c9db2900c37421938713`。通常normal02と公式Emulator06は実装担当所有で実行中、未完了を合格扱いしない。R1修正はbounded query_page・current-authority final validation・output世代fence・音声期限後のtext/dedup保持・notification_ack文書を含む。新規レビューで最新全差分を再確認する。
+- `writer-emulator06`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator06.py`、2026-10-28T01:08:19.326580+00:00→2026-10-28T01:10:09.609050+00:00、exit 0、110.28247s、unittest/counts ['Ran 36 tests in 101.081s']、Node []。metadata SHA-256 `ed062392567b2f13139e5366744ec069a563dfb828a3ce68bf31c7475a8aa7b9`、raw SHA-256 `516f8943b4d34bd1d1ab2fa0c4f69f6e13288012befa149eb7d9cb016ec8be80`。
+
+- R2独自probe02: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r2-probes.py`、2026-10-28T01:13:26.793596+00:00→2026-10-28T01:13:45.962052+00:00、実exit1、2 tests/17.849s。通知のsource削除後displayed再送404が有効な端末資格情報を消すという不具合の反例1件、容量超過後の復旧と予期しないRuntimeErrorの可視性を確認する正例1件。失敗を製品合格扱いしない。640ファイル実行前後mapとindex不変、metadata SHA-256 `040d124a2f91ed8ad32718a38e11d5a103b89afa9874b596dd8b5fab130c4be5`、raw SHA-256 `e6b1755cbaef74519ff652b20c91dc65b6d48ee590042aa4c01472cb9bb91564`。初回probe01は監視wrapperの/proc/1権限例外で終了し、正式なtest終了根拠には使わない。
+- `writer-normal02`: `mise run test`、2026-10-28T01:08:16.879155+00:00→2026-10-28T01:15:50.895247+00:00、exit 1、454.016092s、unittest/counts ['Ran 1240 tests in 424.438s', 'Ran 18 tests in 0.070s']、Node ['ℹ tests 46']。metadata SHA-256 `8a4106a00591a39febe1b965092fc80d968bd6b99e13b3055dd2b3741e4ead92`、raw SHA-256 `8d7fa6ddb7362c122c9637b3486afa5981cb9a02e9b17f555424a7d4e3d67d0f`。
+
+### 独立レビュー ラウンド2 確定
+
+- `/root/dev04_review_r2`: request_changes、要修正2件。R2-01/P1: source削除後のdisplayed自動再送404が有効なpairingを消去しRuntime異常へ昇格。通知単位の期待される拒否を復旧処理内で扱い、未確認receipt保持・再認可/restart時の二重表示防止・実transportでの継続を検証する。R2-02/P2: snapshot:validate追加後のAPI操作数93に対してNode契約試験が92のまま。生成methodの網羅性を保持して修正し全体gateを再実行する。
+- R1-01/02/03と任意O1は最新差分で解消確認済み。追加の任意指摘なし。formal report SHA-256 `aacf5b477971c1ff838ac94cb1677dcbe0c4439eeb5346e9b6e4dafd025addf0`、validation `4545231eced767bfa7f9802498239ed2fed5d7266f9e5086fbadf9dccff57435`。全640sourceは不変、parent formal closure `13eb81d7a87b667d3a53231d4fcff9fb0b7dd97b69910c6afb7bf17fe10fbcc0`。レビュー中index raw不変。親の終了時にはraw bytesが変化したが、633件全stage0のpath/mode/blobはHEADと完全一致、staged差分なし（stat cache更新と整合、更新主体は未特定）。親の初回close helperはこのraw hash差のassertでmetadataを書き込む前に終了し、logical index照合後に再実行した。
+- 実装担当の1049記録済みPID/birth・Emulator5port、reviewer5既知identity・4portを同じhost namespaceで終了確認。初回monitor失敗の未記録process treeについて包括確認は主張しない。inert UV/cache/evidenceは保持。全実行session終了後に元の実装担当へ戻す。
+- `writer-check08`: `mise run check`、2026-10-28T01:25:05.545345+00:00→2026-10-28T01:25:10.009648+00:00、exit 0、4.464303s、unittest/counts []、Node []。metadata SHA-256 `fac400a1c179a65d7671c53031da35b05c4331b6a902b2758050289e84c01b76`、raw SHA-256 `f55ac18bca606ef6894190e73d126f96ee9f7dba8097e5d1cb82095f24d8a383`。
+- `writer-node01`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs`、2026-10-28T01:24:33.995871+00:00→2026-10-28T01:24:48.153400+00:00、exit 0、14.157529s、unittest/counts []、Node ['ℹ tests 46']。metadata SHA-256 `2b14b1d3e72efbb238bc0e2fe1602c3d5d051463d11ee6c759777ae85d7d601c`、raw SHA-256 `1cfdb81879529dbc0741ebcd4f300d5d37247f94e5a6595b95b59f9b0164e390`。
+- `writer-setup05`: `mise run setup`、2026-10-28T01:25:03.226017+00:00→2026-10-28T01:25:03.868876+00:00、exit 0、0.642859s、unittest/counts []、Node []。metadata SHA-256 `3fb8ff2634bc896fdad17a00920161246d14d1a9dfa5214718ab72c4fc3b7568`、raw SHA-256 `5e64fc94542d36fa830dcf978ff5aa0a546dba388a0b65c42decac80892b5fa5`。
+- `writer-targeted13`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot_transport`、2026-10-28T01:24:30.423786+00:00→2026-10-28T01:24:40.558663+00:00、exit 0、10.134877s、unittest/counts ['Ran 5 tests in 9.003s']、Node []。metadata SHA-256 `9e7cae8635e77972deddfae6e63a52f532b6a881feaeca54f6f6805ad858689a`、raw SHA-256 `6e161b51354f7cd450ebafc304c0f4b3d5aed20219bdc4e96c435dc81aac9f78`。
+- `writer-targeted14`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot test_device_snapshot_transport test_device_snapshot_upgrade test_firestore_transactions test_device_cloud_revision`、2026-10-28T01:25:18.402938+00:00→2026-10-28T01:25:45.629654+00:00、exit 0、27.226716s、unittest/counts ['Ran 39 tests in 25.705s']、Node []。metadata SHA-256 `5396e21811bcec2a3b469bbcde86ac538b8eb23de786bfa985ebc8d8244ee9c7`、raw SHA-256 `bd5e640125d8beb4204de3cf9098eeb31953994e135c8f6dffee46a34ae1eff5`。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/dev04_review_r3`（新規独立context）。base commit: `d353938fa891b79e24e85172e1ce6494fec4342d`。
+- 未追跡を含む最新全37files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `351161a03a50b6869584319b6007555d72cc6e50388309e7d5d4001ff8ae70c8` |
+| `docs/device-cloud.md` | `102885c106a9cbf36e30f031914b0eb8d793bfba290dc606b7a036cb9e0a217c` |
+| `docs/device-gateway.md` | `c320940532f89edc80f87732ed59f5cfd507279cc83c55d688aa8e3706a6f969` |
+| `docs/device-snapshot.md` | `578ba1a57251f28ea12c46fc7795ac42fefbfd51fd787db11e9ab06c8265f501` |
+| `docs/private-sessions.md` | `22d729546afa9208522cd3c9b49cfaaad5f1596d6a793b2edb13dfab0ecdc1a3` |
+| `packages/api-client/src/generated/index.d.ts` | `6742583456e0952feeb9169b8caf775b1cffd4bbcf60611b58f3e097bbf09b55` |
+| `packages/api-client/src/generated/index.js` | `161b36791a5bd0a47042bb8ade08d0d94c52457d39f4358baec8ee66199f779d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `9985b1370f2f96e017df1e520e2f3bde6d2ee7227019a7af9e4927e216ab057c` |
+| `packages/api-client/src/generated/sdk.gen.js` | `43c3fd7075db3bb44d54868c356c1c23b3e8313695b5e865d920fcb25933f76b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f70f2c7f0252aa17967bcd67ab8e00173c1ee6da1d84688139d005e90d49f938` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `14ff2cfc615c01a949f0e69f8b4491e2dffe9de6c1d1e64a6df37e490f4994b3` |
+| `packages/contracts/src/brainoid_contracts/guards.py` | `fbd74c1fd46e503977a04ad37dffab5f4113f5bc7907f20ac025bf3419233bda` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `5b1b51ba2e39514a37ce824b43cecde23567345e70442814264b14523263c297` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `681462b25238fa997becc0ac1095e7c04846b912bde7ef962453324c39b31b21` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `e96331f4259a855e8522f07fef01c6ae47d91249c1bbafdda7f7c4b62a491b3e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `6f091e541ce196e0996355198080b35e59e7ca7efa16ea5684aa3ca767d2a87f` |
+| `services/api/src/brainoid_api/device_notifications.py` | `440d3b3034dcfe6fec3057b12a421928b32a8f91dace6fe90c653c706339641f` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `58f50f783b6b0497cc0de0aca42a1b540a22a8a560cc4af0429d7421032cca4f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `407bbe6546771b543fa819c666bc09e9f071aef5ba50ae0445a2c874f0b89fec` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `fce95b71761c9bb3f388c7e1330b42c08f3977557de5ea5c952942972fedb558` |
+| `services/device/src/brainoid_device/app.py` | `a3e4c1272c91009e9dcaa3be04671964c87c470b2249dd4fda1e6ae0088b1c9e` |
+| `services/device/src/brainoid_device/cloud_client.py` | `376c346f386c9f748b592a2521463293b1c6869cd1e5c41327b163a0e1383417` |
+| `services/device/src/brainoid_device/device_transport.py` | `6413ee981e9873c92a109f73d4d3c61e2a4141a70c40d98f58af350fdb7c3fd7` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `ce1b48e51f6b1543a5577c11b7846482afaac1430cc75ffd75b73e7c0aecbe84` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `cc5c9b9e6b0f20f31d3e78d58c3fa7063036d5a9a67f91fe0c058e8e344c7e6b` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `c5aa8a1da96c306e04216b32c2681e46a593e5c4ff944e3fb224dfd53e66c972` |
+| `specs/openapi.yaml` | `981f26a5b7185203aa4e2f924a6859934dca9503928f59eb0d637117c60f7e88` |
+| `tests/emulator/test_device_snapshot_integration.py` | `0a326f9e05d422aa99f5b4f3a6da763f82f7713e9b8dcb2fcecf8335289e966b` |
+| `tests/emulator/test_memory_integration.py` | `5e881ecb54a522ef5ce3c95fca30bd4fd66d4c85d5131c8a38900550b5f3032a` |
+| `tests/fakes/memory_repository.py` | `03828f80e0d3c2b6a12d03021dab327d255fa3133736a291d9ea088452f4b022` |
+| `tests/test_api_contracts.mjs` | `4f3d4a1144ff60ece4d673abcaf91716e51284da9730455f2360e7377a54b77c` |
+| `tests/test_common_mutations.py` | `3686b62ec5c364922d501b5e0c7d6078a58f5bcb1e432105df585134eacefec4` |
+| `tests/test_device_snapshot.py` | `b9cc4b4f5a1583a8ffb40ae503fa3958b8712cef41ce19724eea4c231fca1942` |
+| `tests/test_device_snapshot_transport.py` | `cc439d66deb98ef6694e349cc85700bac08d32b277275009d71b37e95aa87fac` |
+| `tests/test_device_snapshot_upgrade.py` | `014346d3ddc0c6dcb58cb06fe23e9be6f5e0d5cf60e9c86607a13236b618c678` |
+| `tests/test_firestore_transactions.py` | `4c8a53c5679af5a8e8c3208bf93d2c7a45eb3b1be3f7ecb2c1a918fb5763a482` |
+| `tests/test_turn_run.py` | `de13cb607324e323c6b7a736ae352802b2103e3428e388997090b4d6d0f99f33` |
+
+- R3開始時の実装担当修正: 通知receipt自動再照合で期待される403/404/410・session消失だけを局所処理し、権限外本文を除去・未確認receiptを保持する。端末認証の失効・予期しない例外は既存経路へ伝える。actual DeviceTransport.runのsource/session拒否、再認可・restart dedup、容量復旧・RuntimeError可視性を追加し、API操作数93とvalidateDeviceSnapshot生成methodを明示確認。setup05/check08/39対象test/46Nodeの全641ファイル前後map・raw・実exitを親が照合。audit SHA-256 `3a51c3207fedb14ce55f9f59a3b32290d10fa999e251dfcef8cc6211d977aecb`。normal03/Emulator07は実装担当所有で実行中。
+- `writer-emulator07`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator07.py`、2026-10-28T01:26:28.868928+00:00→2026-10-28T01:28:14.950914+00:00、exit 0、106.081986s、unittest/counts ['Ran 36 tests in 96.727s']、Node []。metadata SHA-256 `31f608c0b06e6fc3dcf9a0add6645d7d3cf5b9802766c4a26f5f90eda9baeff6`、raw SHA-256 `3823b60b8585a637490ba36d0fe20e44921c7805e6eec1f775dc5c4440fa8f49`。
+
+- R3独自probe02: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r3-probe.py`、2026-10-28T01:30:07.720620+00:00→2026-10-28T01:30:10.539364+00:00、実exit0、2 tests/1.602s。実際のHTTP/WSS自動receipt再送中にcanonical family/deviceを失効させ、ACK/refresh拒否でclient停止・失効資格情報とsnapshot/inbox消去・ready=falseを確認。通知単位のcatchが端末全体の失効を無視しないことを確認した。641ファイル・indexの実行前後一致、metadata SHA-256 `1b3fdcc542931c0ec314906ebf78f96518331c684ecfdc86b9a2a9a1f4e3501a`、raw `f4b19845d790700774750f3bcf46ab288f9a804f52ba74a0af8ca427a73f5df3`。初回probe01のPYTHONPATH import failureは保持し、修正版02と区別する。
+- `writer-normal03`: `mise run test`、2026-10-28T01:26:26.444104+00:00→2026-10-28T01:34:16.419967+00:00、exit 0、469.975863s、unittest/counts ['Ran 1245 tests in 439.415s', 'Ran 18 tests in 0.065s']、Node ['ℹ tests 46']。metadata SHA-256 `97ca58da13808ad7cba7023f198d34effb89b9c79ef34ba98e7c4c7a15003b5b`、raw SHA-256 `79eab7a37b168f24bb1cf7d3820dada191bba9cb00c31887a184f6f5ebb4e970`。
+- `writer-race03`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-r3-display-probe.py -v`、2026-10-28T01:34:24.142739+00:00→2026-10-28T01:34:25.254584+00:00、exit 1、1.111845s、unittest/counts []、Node []。metadata SHA-256 `fb6712c5f1632abcce96be070134aa0086a14e72acf88dd833c54beed4985d1f`、raw SHA-256 `e01fedc029273bc9a47ff65dd0c86753d1a3b5dd7d8b100898154ee823a2c6d1`。
+
+- R3独自probe03: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r3-local-probe.py`、2026-10-28T01:33:57.893647+00:00→2026-10-28T01:33:59.656185+00:00、実exit0、['Ran 1 test in 0.457s']。actual DeviceApplication/local session/CSRF/Host/Origin/body/path admission、displayedと本人ACK分離、private消去とlifecycle drainの正例。全641sourceとindex前後一致、metadata SHA-256 `773c8e57db7bd090b8fd0ac9e4252b30ce8065632aa0905cfdcf2a95d9209bc9`、raw `23f91624e643e10ce61b687ebc0b7c13a056d1d1e93cf089ee96968864ea69f2`。
+
+- R3独自probe04: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r3-race-probe.py`、2026-10-28T01:35:06.249875+00:00→2026-10-28T01:35:07.542590+00:00、実exit1、['Ran 1 test in 0.295s']。actual local snapshot/displayed同時要求で、displayed ACK成功後の古いpending GETが表示済み通知を復活させる反例。失敗はR3-01/P2の根拠であり製品合格ではない。全641sourceとindex前後一致、metadata SHA-256 `602fe2709bf19dcf1529190a806fb6a7e5c675ef0729db1dc63e7cd7e5e25565`、raw `4fe727bddfd2f1716cfc3847f3f2dd67be8e0dc65578b4bee0f6ba029ced9c4d`。
+
+### 独立レビュー ラウンド3 確定
+
+- `/root/dev04_review_r3`: request_changes、要修正1件。R3-01/P2: actual local snapshot/displayedの同時要求で、displayed ACKが成功しreceiptを除去した後、先行pending GETの遅延応答が同じ通知本文を再公開する。表示受付/ACK完了と取得・公開を同期するfenceまたは適切なserializationと、成功ACK後に古いGETを解放する回帰テストが必要。自動receipt照合の再帰lock deadlock・ACK喪失・restart/current authorityを維持する。
+- R1全3件/O1、R2全2件は解消確認済み。通常全回帰1245Python+18planner+46Node、対象39件、Emulator36件は実完了passだがR3反例を解消しない。正式report SHA-256 `9a4dc2829df295fdda57ebf9ecfc54187c805a6869cab1132b9ffd02814a864b`、validation `d48011d1c5ca9462025c248dd39b3dfde1c74b247521833fbce4fbe9c433a314`、親closure `a715596aa800d1ed8eb196764553643b209fb132cd27c913f7c7cd766d8a4e77`。641sourceとlogical index不変。所有resourceは同じhost namespaceでwriter1507既知identity/Emulator5port、reviewer12既知identity/2port/4fixture終了確認。sampling限界を保持しcache/evidenceは削除しない。全session終了後、元の実装担当へ返す。
+- `writer-targeted15`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot_local test_device_snapshot_transport test_device_snapshot`、2026-10-28T01:43:49.627971+00:00→2026-10-28T01:44:15.066693+00:00、exit 0、25.438722s、unittest/counts ['Ran 26 tests in 24.008s']、Node []。metadata SHA-256 `161ea43cd11e3e9c8289a59cb5867977af4d2f1b9d1a76aead95f89301d3cd5a`、raw SHA-256 `f67d8ee40e6769a6ba9392b587770ea4e601e8078310d986084ec618ae32e5a1`。
+- `writer-check09`: `mise run check`、2026-10-28T01:47:08.195941+00:00→2026-10-28T01:47:09.952059+00:00、exit 1、1.756118s、unittest/counts []、Node []。metadata SHA-256 `73d1eed2fb8623bf482c034e0db716194aef7df7a060ae99ba505b5a8bac5812`、raw SHA-256 `8f4e1a1275333ef4f4b5f596b2d2215436bfd16177fcf38242349c6f70da2422`。
+- `writer-setup06`: `mise run setup`、2026-10-28T01:47:05.049426+00:00→2026-10-28T01:47:05.692768+00:00、exit 0、0.643342s、unittest/counts []、Node []。metadata SHA-256 `aafbf61d89491a4e9941858e02461bc5ca5b4fb199b2e3efb06b56dec5c8e87d`、raw SHA-256 `055d32993cf95268bb9178ddc5dbc2b91f9b138d23e107218ca4ebb2321acb20`。
+- `writer-targeted16`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot_local test_device_snapshot test_device_snapshot_transport test_device_snapshot_upgrade test_firestore_transactions test_device_cloud_revision`、2026-10-28T01:47:09.598079+00:00→2026-10-28T01:47:37.896688+00:00、exit 0、28.298609s、unittest/counts ['Ran 43 tests in 26.640s']、Node []。metadata SHA-256 `8a890cc52478516004a36ee23bb5e5f4d41b8dbe9e9c01769bb966f913d65e79`、raw SHA-256 `cfb0c92088a6da279bbebd15fe92b7cee1234ab36258162bf151f49f934f18e2`。
+- `writer-check10`: `mise run check`、2026-10-28T01:48:07.582386+00:00→2026-10-28T01:48:12.367103+00:00、exit 0、4.784717s、unittest/counts []、Node []。metadata SHA-256 `eb900d5eef7b440c20d29db860076ee460de1216778433ab361793fb053c679e`、raw SHA-256 `32f983535af79bca7e4e01e5798a67cff74ba1477b3ec92422ed00d1828abd3c`。
+- `writer-setup07`: `mise run setup`、2026-10-28T01:48:02.830160+00:00→2026-10-28T01:48:03.473911+00:00、exit 0、0.643751s、unittest/counts []、Node []。metadata SHA-256 `1ca52adccca5aeb65173646138287fdee519540704a80338f0433ffb9b3b0939`、raw SHA-256 `c283b88733ea057f04a120b4443ad207c9a1cb05b737127bd0ce3964ecc1b094`。
+- `writer-targeted17`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot_local test_device_snapshot test_device_snapshot_transport test_device_snapshot_upgrade test_firestore_transactions test_device_cloud_revision`、2026-10-28T01:48:08.078386+00:00→2026-10-28T01:48:38.557800+00:00、exit 0、30.479414s、unittest/counts ['Ran 43 tests in 28.100s']、Node []。metadata SHA-256 `d921f7b5272a8dd325983ece0370fac03dbe8743985f3b79ff065d17836ae689`、raw SHA-256 `afed9f38a98e84b3978d82db147083e6328630ec0e7554b96162c26807c24e7f`。
+
+### 独立レビュー ラウンド4 対象固定
+
+- 担当 `/root/dev04_review_r4`（新規独立context）。base commit: `d353938fa891b79e24e85172e1ce6494fec4342d`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `351161a03a50b6869584319b6007555d72cc6e50388309e7d5d4001ff8ae70c8` |
+| `docs/device-cloud.md` | `102885c106a9cbf36e30f031914b0eb8d793bfba290dc606b7a036cb9e0a217c` |
+| `docs/device-gateway.md` | `c320940532f89edc80f87732ed59f5cfd507279cc83c55d688aa8e3706a6f969` |
+| `docs/device-snapshot.md` | `f63da9b3778275c0f7c6352811f4f75430a919b8bf5affb3d57632c758a201a6` |
+| `docs/private-sessions.md` | `22d729546afa9208522cd3c9b49cfaaad5f1596d6a793b2edb13dfab0ecdc1a3` |
+| `packages/api-client/src/generated/index.d.ts` | `6742583456e0952feeb9169b8caf775b1cffd4bbcf60611b58f3e097bbf09b55` |
+| `packages/api-client/src/generated/index.js` | `161b36791a5bd0a47042bb8ade08d0d94c52457d39f4358baec8ee66199f779d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `9985b1370f2f96e017df1e520e2f3bde6d2ee7227019a7af9e4927e216ab057c` |
+| `packages/api-client/src/generated/sdk.gen.js` | `43c3fd7075db3bb44d54868c356c1c23b3e8313695b5e865d920fcb25933f76b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f70f2c7f0252aa17967bcd67ab8e00173c1ee6da1d84688139d005e90d49f938` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `14ff2cfc615c01a949f0e69f8b4491e2dffe9de6c1d1e64a6df37e490f4994b3` |
+| `packages/contracts/src/brainoid_contracts/guards.py` | `fbd74c1fd46e503977a04ad37dffab5f4113f5bc7907f20ac025bf3419233bda` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `5b1b51ba2e39514a37ce824b43cecde23567345e70442814264b14523263c297` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `681462b25238fa997becc0ac1095e7c04846b912bde7ef962453324c39b31b21` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `e96331f4259a855e8522f07fef01c6ae47d91249c1bbafdda7f7c4b62a491b3e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `6f091e541ce196e0996355198080b35e59e7ca7efa16ea5684aa3ca767d2a87f` |
+| `services/api/src/brainoid_api/device_notifications.py` | `440d3b3034dcfe6fec3057b12a421928b32a8f91dace6fe90c653c706339641f` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `58f50f783b6b0497cc0de0aca42a1b540a22a8a560cc4af0429d7421032cca4f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `407bbe6546771b543fa819c666bc09e9f071aef5ba50ae0445a2c874f0b89fec` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `fce95b71761c9bb3f388c7e1330b42c08f3977557de5ea5c952942972fedb558` |
+| `services/device/src/brainoid_device/app.py` | `a3e4c1272c91009e9dcaa3be04671964c87c470b2249dd4fda1e6ae0088b1c9e` |
+| `services/device/src/brainoid_device/cloud_client.py` | `376c346f386c9f748b592a2521463293b1c6869cd1e5c41327b163a0e1383417` |
+| `services/device/src/brainoid_device/device_transport.py` | `6413ee981e9873c92a109f73d4d3c61e2a4141a70c40d98f58af350fdb7c3fd7` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `ce1b48e51f6b1543a5577c11b7846482afaac1430cc75ffd75b73e7c0aecbe84` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `76706b2d6a7018cc55c5a0818322f265fcced80adb83872d0c8724c9cf066142` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `a95601ceb336abd49f5b68603e69f49f9cae80de7831b05c8e88a8e65a75b1db` |
+| `specs/openapi.yaml` | `981f26a5b7185203aa4e2f924a6859934dca9503928f59eb0d637117c60f7e88` |
+| `tests/emulator/test_device_snapshot_integration.py` | `0a326f9e05d422aa99f5b4f3a6da763f82f7713e9b8dcb2fcecf8335289e966b` |
+| `tests/emulator/test_memory_integration.py` | `5e881ecb54a522ef5ce3c95fca30bd4fd66d4c85d5131c8a38900550b5f3032a` |
+| `tests/fakes/memory_repository.py` | `03828f80e0d3c2b6a12d03021dab327d255fa3133736a291d9ea088452f4b022` |
+| `tests/test_api_contracts.mjs` | `4f3d4a1144ff60ece4d673abcaf91716e51284da9730455f2360e7377a54b77c` |
+| `tests/test_common_mutations.py` | `3686b62ec5c364922d501b5e0c7d6078a58f5bcb1e432105df585134eacefec4` |
+| `tests/test_device_snapshot.py` | `b9cc4b4f5a1583a8ffb40ae503fa3958b8712cef41ce19724eea4c231fca1942` |
+| `tests/test_device_snapshot_local.py` | `6400e46ccfaeb4b7d01df850bae481959158b65b0b14c9049135aacd194e62b5` |
+| `tests/test_device_snapshot_transport.py` | `cc439d66deb98ef6694e349cc85700bac08d32b277275009d71b37e95aa87fac` |
+| `tests/test_device_snapshot_upgrade.py` | `014346d3ddc0c6dcb58cb06fe23e9be6f5e0d5cf60e9c86607a13236b618c678` |
+| `tests/test_firestore_transactions.py` | `4c8a53c5679af5a8e8c3208bf93d2c7a45eb3b1be3f7ecb2c1a918fb5763a482` |
+| `tests/test_turn_run.py` | `de13cb607324e323c6b7a736ae352802b2103e3428e388997090b4d6d0f99f33` |
+
+- R4開始時の修正: 表示受付で対象IDの取得中read markerを無効化し、成功ACK後にreceiptが除かれても古いpending応答を再採用しない。snapshot構築時のclient/output/display世代を送信まで結び付け、owned()の結果受渡し・ASGI送信待ち・scope消去にも対応する。表示によって会話/セッション世代は変更せず、無制限tombstoneやACKを跨ぐ再帰lockを追加しない。実local経路の4並行ケースを含む43testsとsetup07/check10の642ファイル前後map/raw/exitを照合済み（audit `31e210839a9bdd48e1c511d79e087fef99503595f455586fe0dc4865ea348b01`）。normal04/Emulator08は実行中。check09のテスト型参照失敗と途中passは履歴として保持する。
+- `writer-emulator08`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator08.py`、2026-10-28T01:49:27.414901+00:00→2026-10-28T01:51:16.782902+00:00、exit 0、109.368001s、unittest/counts ['Ran 36 tests in 100.284s']、Node []。metadata SHA-256 `43b80629660f36e6330bf9d38c84c42b8abb719c2fed37002299207e3a1f95fc`、raw SHA-256 `6cf3fdfa034b2d8abd4f3a0811436926fd7663ecd4b2da03f90af413b940649c`。
+
+- R4独自probe01: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r4-probe01.py`、2026-10-28T01:52:16.330519+00:00→2026-10-28T01:52:18.963641+00:00、実exit1、5 tests/1.443s。snapshotの4並行ケースはpass。通常のlocal operations/list_messages応答をowned結果受渡しで止め、canonical session終了・実syncによるoutput世代更新後に解放するとprivate本文を200で送る反例1件（R4-01/P1）。失敗は製品合格ではない。642source/indexの前後一致、metadata SHA-256 `a1cf7c28bf6f86ec281d7e01d905a1f41d37cbb6a155608efa28eba88e6883e1`、raw `727e0e4e9e1804f609b79d951326d359d6475d9528363bdd73e9a379f1d9e736`。
+
+- R4独自probe02: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r4-probe02.py`、2026-10-28T01:54:40.688077+00:00→2026-10-28T01:54:42.368522+00:00、実exit1、1 test/0.390s。製品operation/owned coroutineへawaitを追加せず、実cloud.start taskの完了callbackでcanonical sessionを終了しsession_hintを処理した後、未変更owned()の待ち手を再開する。local list_messagesがprivate本文200を返すため、R4-01が実asyncio結果受渡しでも成立することを確認。642source/index前後一致、metadata SHA-256 `a7e43b661ae79000236ba4bc7552a32ffcdb69b3c97d4c66ef596fa0b194321f`、raw `14e761a0a049602b4f915f26c73982a154f40b2eab7199b67fafd4e709cb24c1`。
+- `writer-normal04`: `mise run test`、2026-10-28T01:49:29.275510+00:00→2026-10-28T01:57:21.101642+00:00、exit 0、471.826132s、unittest/counts ['Ran 1249 tests in 441.008s', 'Ran 18 tests in 0.066s']、Node ['ℹ tests 46']。metadata SHA-256 `7c0e93f833e6125ce88ddc5e89880ba0f7ce8fafa6fa2d338adfe1086b2a9a3b`、raw SHA-256 `01c497119fcea8a50708dcbc30d02b78747d38bf4651768e7a863e4dde7be7ee`。
+
+### 独立レビュー ラウンド4 確定
+
+- `/root/dev04_review_r4`: request_changes、要修正R4-01/P1が1件。通常のlocal operations/list_messagesが、owned child taskで作成したprivate本文を待ち手へ渡す間のcanonical session終了・local clear後、新しいoutput世代でGuardedResponseを構築して200送信する。遅延結果wrapperと製品coroutineへawaitを足さない通常done callbackの両方で実local経路の反例を確認。操作の元のclient/output/session fenceを結果受渡し前から送信まで保持し、自然なtask完了callbackの回帰テストを追加する。通知display世代を通常応答やrun streamに混ぜない。
+- R3通知raceは4独自再実行すべてpassで解消確認、R1/R2とO1も維持。最終通常1249Python+18planner+46Node、対象43、Emulator36はpassだがR4反例は未解消。formal report SHA-256 `dbe43a62388c23eba47491b141f323dd99002e4fa5a95708f7c5cb93cb07f480`、provided audit `c0ff2219a80612ac9ba21c94934f0a7d85d881a3fb8d4c217ab2305f256db030`、親closure `4447fa20f83245fdb01eb350125e2b33bb9ed327eb4b59cd47549d03220ea79a`。全642sourceとlogical index不変、writer1922既知PID/birth・5Emulatorportとreviewer6既知PID/birth・6fixtureを同じhost namespaceで終了確認。nonfatal SQLite warningの由来は未特定として保持。全session終了後に元の実装担当へ戻す。
+- `writer-check11`: `mise run check`、2026-10-28T02:11:08.112760+00:00→2026-10-28T02:11:12.818563+00:00、exit 0、4.705803s、unittest/counts []、Node []。metadata SHA-256 `726ea5b72a26894f6a4c5ea69f39afc9488c6f82218188d1c139c36420f49f05`、raw SHA-256 `b7436a10e803136ed1b719da06970b1053296d73ff862eaa6e57ffbc4cfb9626`。
+- `writer-setup08`: `mise run setup`、2026-10-28T02:10:59.571230+00:00→2026-10-28T02:11:00.216219+00:00、exit 0、0.644989s、unittest/counts []、Node []。metadata SHA-256 `6912226fa0993f17815ff1733fc8f5b421d9dba50a729fa6d13ca90e925b05d6`、raw SHA-256 `00f4677910d47d31e18ffdc00a6eada993a7c8649efac884cf78fedca1a4429f`。
+- `writer-targeted18`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot_local`、2026-10-28T02:10:33.672667+00:00→2026-10-28T02:10:36.995471+00:00、exit 0、3.322804s、unittest/counts ['Ran 9 tests in 2.198s']、Node []。metadata SHA-256 `c36770cff6d12522b90d740c443c6e78f94e1ea184ecc35ec9787c745ca235c7`、raw SHA-256 `2005c728d1564fac3be5ba98e9d53281451beb0c1e0c5894d1f696d0ab2dc521`。
+- `writer-targeted19`: `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest -v test_device_snapshot_local test_device_snapshot test_device_snapshot_transport test_device_snapshot_upgrade test_firestore_transactions test_device_cloud_revision`、2026-10-28T02:11:17.888861+00:00→2026-10-28T02:11:47.854587+00:00、exit 0、29.965726s、unittest/counts ['Ran 48 tests in 28.313s']、Node []。metadata SHA-256 `60122485e187c23deacaae12845af2d6595eb31e55b6d9fae4b34e1d10843c5d`、raw SHA-256 `00eaa5e80e23c44dfd23be691f586a6ca2e8f30ddd305b9f203bcaf1da935eea`。
+
+### 独立レビュー ラウンド5 対象固定
+
+- 担当 `/root/dev04_review_r5`（新規独立context）。base commit: `d353938fa891b79e24e85172e1ce6494fec4342d`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/04-interfaces.md` | `351161a03a50b6869584319b6007555d72cc6e50388309e7d5d4001ff8ae70c8` |
+| `docs/device-cloud.md` | `102885c106a9cbf36e30f031914b0eb8d793bfba290dc606b7a036cb9e0a217c` |
+| `docs/device-gateway.md` | `c320940532f89edc80f87732ed59f5cfd507279cc83c55d688aa8e3706a6f969` |
+| `docs/device-snapshot.md` | `046cfc4acac818179e885cdadd04def718e97b423e8d4383a5b56342bb2e486d` |
+| `docs/private-sessions.md` | `22d729546afa9208522cd3c9b49cfaaad5f1596d6a793b2edb13dfab0ecdc1a3` |
+| `packages/api-client/src/generated/index.d.ts` | `6742583456e0952feeb9169b8caf775b1cffd4bbcf60611b58f3e097bbf09b55` |
+| `packages/api-client/src/generated/index.js` | `161b36791a5bd0a47042bb8ade08d0d94c52457d39f4358baec8ee66199f779d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `9985b1370f2f96e017df1e520e2f3bde6d2ee7227019a7af9e4927e216ab057c` |
+| `packages/api-client/src/generated/sdk.gen.js` | `43c3fd7075db3bb44d54868c356c1c23b3e8313695b5e865d920fcb25933f76b` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `f70f2c7f0252aa17967bcd67ab8e00173c1ee6da1d84688139d005e90d49f938` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `14ff2cfc615c01a949f0e69f8b4491e2dffe9de6c1d1e64a6df37e490f4994b3` |
+| `packages/contracts/src/brainoid_contracts/guards.py` | `fbd74c1fd46e503977a04ad37dffab5f4113f5bc7907f20ac025bf3419233bda` |
+| `packages/contracts/src/brainoid_contracts/transactions.py` | `5b1b51ba2e39514a37ce824b43cecde23567345e70442814264b14523263c297` |
+| `packages/memory/src/brainoid_memory/notifications.py` | `681462b25238fa997becc0ac1095e7c04846b912bde7ef962453324c39b31b21` |
+| `packages/persistence/src/brainoid_persistence/firestore.py` | `e96331f4259a855e8522f07fef01c6ae47d91249c1bbafdda7f7c4b62a491b3e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `6f091e541ce196e0996355198080b35e59e7ca7efa16ea5684aa3ca767d2a87f` |
+| `services/api/src/brainoid_api/device_notifications.py` | `440d3b3034dcfe6fec3057b12a421928b32a8f91dace6fe90c653c706339641f` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `58f50f783b6b0497cc0de0aca42a1b540a22a8a560cc4af0429d7421032cca4f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `407bbe6546771b543fa819c666bc09e9f071aef5ba50ae0445a2c874f0b89fec` |
+| `services/api/src/brainoid_api/services/private_sessions.py` | `fce95b71761c9bb3f388c7e1330b42c08f3977557de5ea5c952942972fedb558` |
+| `services/device/src/brainoid_device/app.py` | `a3e4c1272c91009e9dcaa3be04671964c87c470b2249dd4fda1e6ae0088b1c9e` |
+| `services/device/src/brainoid_device/cloud_client.py` | `376c346f386c9f748b592a2521463293b1c6869cd1e5c41327b163a0e1383417` |
+| `services/device/src/brainoid_device/device_transport.py` | `6413ee981e9873c92a109f73d4d3c61e2a4141a70c40d98f58af350fdb7c3fd7` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `ce1b48e51f6b1543a5577c11b7846482afaac1430cc75ffd75b73e7c0aecbe84` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `76706b2d6a7018cc55c5a0818322f265fcced80adb83872d0c8724c9cf066142` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `30d3bfa194607bc7fc52a532dd0d88785a60f34b50db49269b92759ff303f140` |
+| `specs/openapi.yaml` | `981f26a5b7185203aa4e2f924a6859934dca9503928f59eb0d637117c60f7e88` |
+| `tests/emulator/test_device_snapshot_integration.py` | `0a326f9e05d422aa99f5b4f3a6da763f82f7713e9b8dcb2fcecf8335289e966b` |
+| `tests/emulator/test_memory_integration.py` | `5e881ecb54a522ef5ce3c95fca30bd4fd66d4c85d5131c8a38900550b5f3032a` |
+| `tests/fakes/memory_repository.py` | `03828f80e0d3c2b6a12d03021dab327d255fa3133736a291d9ea088452f4b022` |
+| `tests/test_api_contracts.mjs` | `4f3d4a1144ff60ece4d673abcaf91716e51284da9730455f2360e7377a54b77c` |
+| `tests/test_common_mutations.py` | `3686b62ec5c364922d501b5e0c7d6078a58f5bcb1e432105df585134eacefec4` |
+| `tests/test_device_snapshot.py` | `b9cc4b4f5a1583a8ffb40ae503fa3958b8712cef41ce19724eea4c231fca1942` |
+| `tests/test_device_snapshot_local.py` | `552ae79a0b37ba1710a39f0a7b35fec45a5a3ccf7487f0ab873be219f62dc7cc` |
+| `tests/test_device_snapshot_transport.py` | `cc439d66deb98ef6694e349cc85700bac08d32b277275009d71b37e95aa87fac` |
+| `tests/test_device_snapshot_upgrade.py` | `014346d3ddc0c6dcb58cb06fe23e9be6f5e0d5cf60e9c86607a13236b618c678` |
+| `tests/test_firestore_transactions.py` | `4c8a53c5679af5a8e8c3208bf93d2c7a45eb3b1be3f7ecb2c1a918fb5763a482` |
+| `tests/test_turn_run.py` | `de13cb607324e323c6b7a736ae352802b2103e3428e388997090b4d6d0f99f33` |
+
+- R5開始時: 通常typed operation開始/owned待機前のclient/output世代・明示sessionを応答開始と各sendまで保持する。通知display世代は混ぜず、callbackエラーcode/statusを維持。自然done callback、canonical end/sync、session置換、送信前expiry、表示とoperation独立性の実local試験を追加。setup08/check11/対象48testsの全642map/raw/実exitを親が照合済み（audit 178a4ad106d5710af878fb0b089adfee8d7baa14591bfb387f47fa500bd663f4）。normal05は実装担当所有で継続中。
+- `writer-emulator09`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-writer-emulator09.py`、2026-10-28T02:12:33.306594+00:00→2026-10-28T02:14:23.687160+00:00、exit 0、110.380566s、unittest/counts ['Ran 36 tests in 101.011s']、Node []。metadata SHA-256 `7ed6e2d5bfd9ee2c95213a08832e41332f4de9c6b5657252cbc9c63aeeb1712a`、raw SHA-256 `83718cca9c331b1a83249bc4441ce057e976dbc3e9b97c8684d7641edceaeaaf`。
+
+- R5独自probe01: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-dev-04-review-r5-probe01.py`、2026-10-28T02:15:39.650891+00:00→2026-10-28T02:15:43.791113+00:00、実exit0、11 tests/2.926s。R4 natural done-callback再現が409/private本文なしとなり、最新local回帰9件と応答start→body間のcanonical revokeで私的byteを送らずRuntime健全の独自試験もpass。全642source/index前後一致、metadata SHA-256 `1661bd8951dd54496a67ef0c5817921628111296bc2e835846a5e000429bbb85`、raw `0bfd0f6730cd65e889079106f4452fa9e0cf246624e6a040561bcab2b2a2672a`。
+- `writer-normal05`: `mise run test`、2026-10-28T02:12:31.592123+00:00→2026-10-28T02:20:19.716584+00:00、exit 0、468.124461s、unittest/counts ['Ran 1254 tests in 437.180s', 'Ran 18 tests in 0.066s']、Node ['ℹ tests 46']。metadata SHA-256 `ce13963af1ec173d2fbe4f6d5dc02727a5c8caa2f50a81f21b71e52a151dcb83`、raw SHA-256 `d6d41489daab7cf39593f4e5e74da73037b87e0c865a8372c0783a1e0cd46cfa`。
+
+### 独立レビュー ラウンド5 確定
+
+- `/root/dev04_review_r5`: approve、要修正0・任意指摘0。全38差分/642sourceを確認し、R1〜R4の全必須指摘とO1を解消確認。元の認可世代と明示sessionをordinary operation開始前から各sendまで保持し、自然done callback再現と応答開始後の失効でもprivate本文を遮断する。通知表示世代はsnapshotだけに限定する。独自11tests/2.926s pass。
+- 最終setup08/check11/対象48tests/公式Emulator36tests/通常1254Python+18planner+46Nodeすべて実完了・成功。642mapとrawhash/exitを独立監査済み。formal report SHA-256 `420dca3766d453f095c17c0b35e500ed5962eade8977e15708952f2c33c7b311`、provided audit `d388e02010a45fdf06ffe238eea78dc778a58abd9564e46a7cddc42258a05a98`、親closure `28402cbbaa52481e5c8ca8df61e40ad4dace3bcd2ca4dc9ef4fe99c11578ae13`。全source/logicalindex不変。全所有session終了、parent同一host確認writer2288記録済みPID/birth・5Emulatorport、reviewer3PID/birth・11fixture終了。sampling限界とinert caches/SQLite warning由来未特定を保持。
+
+### 完了結果
+
+- BA-DEV-04 done。実装コミット `bba104a3ba1445c63e0669bbe1343ef7a78677d1`（main、base直下、承認済み全38ファイル・642sourceの内容一致をcommit後も照合）。独立レビュー5回、最終approve、必須・任意の未解決指摘0。
+- 実装: 有界Firestore keyset pageと現在認可によるfinal validation、canonical状態からのgateway通知、Pi全頁復旧・中断再開、本文なしの保護journal、displayedと本人ACK分離、通知の音声期限と文字寿命の分離。snapshot/ordinary operation/SSEの元の認可を失効後の遅い出力へ引き継がず、表示済み通知の並行再公開も防ぐ。既存command受領cursorと署名更新・rollback互換を維持する。
+
+| 受入条件 | 最終確認 |
+| --- | --- |
+| frame喪失・再接続でsession/run復旧 | actual HTTP/WSS、再接続世代2、canonical DB/service再構成、official Emulatorで確認 |
+| 他端末・失効session・古い音声を排除 | current元source/出力先/credential/session検査、全頁・final validation・通常応答・各sendのfence、100ms失効監視、autoplay=false |
+| page途中切断・通知重複を回復 | 保護metadata継続、20候補/23lookahead・合計128制限、ACK前後喪失・再起動・source拒否・display/read/送信競合と自然done callbackを確認 |
+| 契約・移行・回帰 | API/device DTO parity、旧contracts環境から署名candidate起動、generated93operation、既存認可・command・updater・reset全回帰 |
+
+- 最終検証: setup08/check11 pass（両UI build含む）、対象48 tests/28.313s、独立11 tests/2.926s、official Auth/Firestore Emulator36 tests/101.011s、通常1254 Python/437.180s +18 planner/0.066s +46 Nodeすべてpass。前後642map/raw/実exitを実装・親・reviewerが照合。通常raw `d6d41489daab7cf39593f4e5e74da73037b87e0c865a8372c0783a1e0cd46cfa`、最終親audit `4df77f09c5da67df4dbb5bb6a4a5d698a94e07fe2971b51258a3372a025687e5`。
+- R1のsnapshot失効race/履歴全走査/音声TTLで文字消失、R2のitem拒否によるpairing消去/操作数期待値、R3のdisplay成功後の遅延GET再公開、R4のordinary operation結果受渡しで新認可を採用するraceを、元の実装担当が修正し新規contextが全差分再確認した。失敗・旧map・import-only probeの証跡は保持する。
+- 制限・未実施: docs08共通条件と本ticketに従うfixture/emulatorでの実装完了。実cloud/provider/HA/Pi・host導入・物理音声・UI10の実画面は未実施。本変更にfrontend差分はなくbrowser passを主張しない。metadata上限128、走査中追加は次巡で回復する仕様はdevice-snapshot文書に記載。nonfatal SQLite ResourceWarningはrawに保持し、由来は未特定。
+- 所有resource: 全validation/probe sessionを実回収。同一host namespaceで親がwriter2288記録済みPID/birthと固定5port、reviewer3PID/birthと11fixtureの終了を照合。未観測短命processの完全捕捉や旧v1 globの所有証明は主張せず、inert cache/evidenceは保持。
+- 台帳done更新後の必須mise run checkと記録commitを続けて実施する。記録commit自身のhashはこのlogへ自己参照させない。
+- `parent-postdone-check01`: `mise run check`、2026-10-28T02:27:18.908611+00:00→2026-10-28T02:27:22.926640+00:00、exit 0、4.01864059898071s、unittest/counts ['Success: no issues found in 433 source files']、Node []。metadata SHA-256 `8cd31268a52b48e14d26ab5ca43ab603f70e7ab6c66d66a637a4ed94e500839b`、raw SHA-256 `5a062135e1a0b130faaf82d2fb8447a12a5feff78422907cc83f5d9cedac612b`。
+
+- 台帳done更新後の必須check: parent-postdone-check01 実exit0、4.01864059898071s、親session80648を実回収。raw SHA-256 `5a062135e1a0b130faaf82d2fb8447a12a5feff78422907cc83f5d9cedac612b`、metadata `8cd31268a52b48e14d26ab5ca43ab603f70e7ab6c66d66a637a4ed94e500839b`。承認済み642sourceは不変、未commitは台帳/logのみ。親checkは静的検証と両UI buildであり、未サンプル子processやglobal tempの包括cleanupは主張しない。記録commitへ進む。

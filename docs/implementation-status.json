@@ -443,7 +443,13 @@
       "implementation_commit": "4ab0f971faa14eba7093908905cf9951f6ed71fa"
     },
     "BA-DEV-04": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "d353938fa891b79e24e85172e1ce6494fec4342d",
+      "log_anchor": "ba-dev-04-20261028t001044z",
+      "updated_at": "2026-10-28T02:27:07.545854+00:00",
+      "review_rounds": 5,
+      "implementation_commit": "bba104a3ba1445c63e0669bbe1343ef7a78677d1"
     },
     "BA-DEV-05": {
       "status": "done",
