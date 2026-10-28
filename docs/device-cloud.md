@@ -73,3 +73,5 @@ SQLite schema 変更はない。旧版への rollback は service を停止し�
 一次資料（2026-10-28確認）: [HTTPX AsyncClient と streaming cleanup](https://www.python-httpx.org/async/)、[HTTPX trust_env](https://www.python-httpx.org/environment_variables/)、[websockets asyncio client の header/proxy/limits](https://websockets.readthedocs.io/en/stable/reference/asyncio/client.html)。インストール済み17.3のAPIとも照合した。
 
 BA-DEV-04の[状態復旧](device-snapshot.md)はhello_ack後の全頁同期、session失効時の出力fenceと通知のdisplayed receiptを接続する。
+
+BA-UI-10は[本番displayのlocal接続と停止](ui-private-sessions.md)を追加する。bodyなしのCSRF付き`POST /local/cloud/private-sessions/{id}/stop`はこの端末の個人表示だけを停止し、cloud本人委任を終了しない。停止は別の保護journalへ元の固定5分期限まで保存する。typed `create_turn.turn`の正式な追加field `expected_output_private_session_id`は本人スマホ用の出力一致条件であり、device主体では拒否する。ブラウザへcloud資格情報を渡さない境界は変えない。

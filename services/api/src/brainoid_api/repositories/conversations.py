@@ -501,6 +501,10 @@ class Conversations:
         return self.current_read(read)
 
     def output(self, tx: Transaction, principal: Principal, body: TurnCreate) -> Subject:
+        if body.expected_output_private_session_id is not None and not isinstance(
+            principal.subject, UserSubject
+        ):
+            raise APIError(ErrorCode.INVALID_REQUEST)
         if body.output_device_id is None:
             output = principal.subject
         else:
@@ -521,6 +525,11 @@ class Conversations:
                 )
                 if candidate is not None and candidate.get("user_id") == principal.user_id:
                     session = ResourceId(candidate["id"])
+            if (
+                body.expected_output_private_session_id is not None
+                and session != body.expected_output_private_session_id
+            ):
+                raise APIError(ErrorCode.CONFLICT)
             output = DeviceSubject(
                 device_id=body.output_device_id,
                 connection_generation=device["connection_generation"],
@@ -713,7 +722,13 @@ class Conversations:
         receipt = self.idempotency.execute(
             operation=f"turns.create:{conversation}",
             key=key,
-            body=body.model_dump(mode="json"),
+            # Preserve old receipts when the additive precondition was omitted.
+            body=body.model_dump(
+                mode="json",
+                exclude={"expected_output_private_session_id"}
+                if body.expected_output_private_session_id is None
+                else set(),
+            ),
             authorize=authorize,
             mutate=mutate,
         )

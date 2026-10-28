@@ -25,6 +25,7 @@ const date = (value: unknown) => {
     Number(match[6]) <= 59
   );
 };
+export { date as isTimestamp };
 const string = (value: unknown, max: number, min = 0) =>
   typeof value === "string" && [...value].length >= min && [...value].length <= max;
 const integer = (value: unknown, min: number) =>

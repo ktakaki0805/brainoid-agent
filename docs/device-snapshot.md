@@ -1,5 +1,7 @@
 # 端末の状態復旧
 
+BA-UI-10の[表示・期限・local停止の画面](ui-private-sessions.md)が、この完全snapshotと型付きoperation/SSEを本番displayで利用する。端末側の明示停止はcloud委任終了と区別し、同じsessionの再表示を最大期限まで保護journalで抑止する。
+
 BA-DEV-04 / FR-012・FR-014、T-021・T-030・T-035。スマホで確定した個人session、Piに割り当てられたrun、未完了command、未表示notificationを [snapshot API](../specs/openapi.yaml) と [WSS gateway](device-gateway.md) で届ける。
 
 `GET /v1/devices/{device_id}/snapshot` は専用device bearerだけを受け取り、毎回現在のcredential・membership・session・出典を検査する。sessionだけの同期はconversationやmemory権限を要求しない。期限切れsessionの状態保存は全ての読み取りの後に行う。snapshot、heartbeat、再接続はidle期限を延長しない。

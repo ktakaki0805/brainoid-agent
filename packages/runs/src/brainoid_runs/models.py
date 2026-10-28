@@ -83,11 +83,17 @@ class TurnCreate(Record):
     text: Annotated[str, Field(strict=True, min_length=1, max_length=8000, repr=False)]
     output_mode: Literal["text"]
     output_device_id: ResourceId | None = None
+    # A user-to-Pi output precondition, never a grant of session authority.
+    expected_output_private_session_id: ResourceId | None = None
 
     @model_validator(mode="after")
     def nonnull_destination(self) -> Self:
         if "output_device_id" in self.model_fields_set and self.output_device_id is None:
             raise ValueError("Destination must be omitted or a resource ID")
+        if "expected_output_private_session_id" in self.model_fields_set and (
+            self.expected_output_private_session_id is None or self.output_device_id is None
+        ):
+            raise ValueError("Session precondition requires an explicit destination")
         return self
 
 

@@ -915,3 +915,15 @@ textarea:focus-visible {
   border: 1px solid var(--line);
   border-radius: 0.75rem;
 }
+.output-target {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.output-target fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+}
+.output-target input[type="checkbox"] {
+  width: auto;
+}

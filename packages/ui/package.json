@@ -18,7 +18,9 @@
     "./session": "./src/session.ts",
     "./session-view": "./src/session-view.tsx",
     "./session-fake": "./src/session-fake.tsx",
-    "./calendar": "./src/calendar/contracts.ts"
+    "./calendar": "./src/calendar/contracts.ts",
+    "./output-target": "./src/output-target/lifetime.ts",
+    "./chat-events": "./src/chat/events.ts"
   },
   "devDependencies": {
     "react": "19.3.1",

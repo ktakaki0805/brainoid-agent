@@ -195,6 +195,7 @@ export function SessionPreview({
               <option value="revoked">表示権限の失効</option>
               <option value="fast_tools">worker先行完了・操作結果</option>
               <option value="fast_unknown">worker先行失敗・結果不明</option>
+              <option value="policy_lost">表示許可の反映後に応答を喪失</option>
               <option value="disconnect_tools">切断中に完了・操作結果</option>
               <option value="read_failure">切断後の状態取得503</option>
               <option value="message_failure">切断後の履歴取得503</option>

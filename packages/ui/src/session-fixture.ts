@@ -8,6 +8,7 @@ import { createNoteFixture } from "./notes/fixture.ts";
 import { createReminderFixture } from "./reminders/fixture.ts";
 import { createPushFixture } from "./reminders/push-fixture.ts";
 import { createTaskFixture } from "./tasks/fixture.ts";
+import { createPrivateSessionFixture } from "./output-target/fixture.ts";
 
 export const tenantA = "10000000-0000-4000-8000-000000000001";
 export const tenantB = "10000000-0000-4000-8000-000000000002";
@@ -25,6 +26,7 @@ export function fixtureTenant(id: string, name: string): Tenant {
   };
 }
 export function createSessionFixture() {
+  const privateSessions = createPrivateSessionFixture();
   const calendar = createCalendarFixture();
   const devices = createDevicesFixture();
   const chat = createChatFixture((tenant, uid, proposal, run) =>
@@ -73,6 +75,8 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const privateResponse = await privateSessions.handle(request, user.uid);
+    if (privateResponse) return privateResponse;
     const deviceResponse = await devices.handle(request);
     if (deviceResponse) return deviceResponse;
     const calendarResponse = await calendar.handle(request, user.uid);
@@ -127,5 +131,6 @@ export function createSessionFixture() {
     push,
     calendar,
     devices,
+    privateSessions,
   };
 }

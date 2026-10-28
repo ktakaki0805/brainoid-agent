@@ -15,7 +15,9 @@ import {
   listConversations,
   listMessages,
   streamRunEvents,
+  updateConversation,
 } from "@brainoid-internal/api-client";
+import { OutputTargetController } from "../output-target/controller.ts";
 import { RequestFailure, type SessionContext, StaleContext } from "../session.ts";
 import { type EventState, initialEvents, isId, reduceEvent, validateRunEvent } from "./events.ts";
 
@@ -32,6 +34,7 @@ export interface ChatState {
   notice?: string | undefined;
   output: "current" | "unspecified";
   finalVerified: boolean;
+  outputDevice?: string | undefined;
   historyUnavailable?: "expired" | "cancelled" | undefined;
 }
 const empty = (): ChatState => ({
@@ -60,7 +63,19 @@ export class ChatController {
   private closed = false;
   private selectedAbort = new AbortController();
   private streamAbort: AbortController | undefined;
-  private turn: { text: string; key: string } | undefined;
+  private turn:
+    | {
+        text: string;
+        key: string;
+        device?: string | undefined;
+        binding?: string | undefined;
+        session?: string | undefined;
+      }
+    | undefined;
+  private policy: { id: string; version: number; key: string; uncertain: boolean } | undefined;
+  readonly outputTarget: OutputTargetController;
+  private outputStop: () => void;
+  private outputBinding = "";
   private creation: { body: ConversationCreate; key: string } | undefined;
   private cancelKey?: string | undefined;
   private release: () => void;
@@ -72,9 +87,20 @@ export class ChatController {
     this.surface = surface;
     if (!context.tenantId) throw new Error("Tenant required");
     this.tenantId = context.tenantId;
+    this.outputTarget = new OutputTargetController(context);
+    this.outputStop = this.outputTarget.subscribe(() => {
+      const state = this.outputTarget.snapshot();
+      const binding = `${state.session?.id ?? ""}:${state.destination}:${this.outputTarget.generation}`;
+      if (binding === this.outputBinding || this.closed) return;
+      this.outputBinding = binding;
+      this.clearOutput();
+    });
     this.release = context.own(() => this.dispose());
   }
   snapshot = () => this.state;
+  get pendingDisplayPolicy() {
+    return this.policy?.id;
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -99,11 +125,22 @@ export class ChatController {
     this.turn = undefined;
     this.cancelKey = undefined;
   }
+  clearOutput() {
+    this.resetSelection();
+    this.publish({
+      ...empty(),
+      agents: this.state.agents,
+      conversations: this.state.conversations,
+    });
+  }
   dispose() {
     if (this.closed) return;
     this.closed = true;
     this.resetSelection();
     this.creation = undefined;
+    this.policy = undefined;
+    this.outputStop();
+    this.outputTarget.dispose();
     this.publish(empty());
     this.release?.();
   }
@@ -369,10 +406,83 @@ export class ChatController {
       this.publish({ ...this.state, draft: text });
     }
   }
+  async allowPrivateDisplay() {
+    const conversation = this.state.conversation,
+      epoch = this.selection;
+    if (
+      this.closed ||
+      this.state.busy ||
+      (!this.policy &&
+        (!conversation ||
+          conversation.visibility !== "private" ||
+          conversation.display_policy !== "never"))
+    )
+      return;
+    if (!this.policy && conversation)
+      this.policy = {
+        id: conversation.id,
+        version: conversation.version,
+        key: crypto.randomUUID(),
+        uncertain: false,
+      };
+    const pending = this.policy;
+    if (!pending) return;
+    this.publish({ ...this.state, busy: true, notice: undefined });
+    try {
+      const updated = this.conversation(
+        await this.request(async (client, signal, tenant) =>
+          data(
+            await updateConversation({
+              client,
+              signal,
+              path: { tenant_id: tenant, conversation_id: pending.id },
+              body: { display_policy: "authenticated_session" },
+              headers: { "Idempotency-Key": pending.key, "If-Match": `"${pending.version}"` },
+            }),
+          ),
+        ),
+      );
+      if (
+        updated.id !== pending.id ||
+        updated.display_policy !== "authenticated_session" ||
+        updated.version < pending.version
+      )
+        throw new Error("Wrong conversation policy");
+      this.assert(epoch);
+      this.policy = undefined;
+      this.publish({
+        ...this.state,
+        conversation:
+          this.state.conversation?.id === updated.id ? updated : this.state.conversation,
+        conversations: this.state.conversations.map((value) =>
+          value.id === updated.id ? updated : value,
+        ),
+        busy: false,
+      });
+    } catch (error) {
+      if (
+        !pending.uncertain &&
+        error instanceof RequestFailure &&
+        [400, 409, 412, 429].includes(error.status)
+      ) {
+        this.policy = undefined;
+        this.failure(error, epoch);
+        this.publishIfCurrent(epoch, {
+          ...this.state,
+          notice: "表示設定を変更できませんでした。会話を選び直して現在の設定を確認してください。",
+        });
+      } else {
+        pending.uncertain = true;
+        this.failure(error, epoch);
+      }
+    }
+  }
   async send() {
+    this.outputTarget.tick();
     const { conversation, draft } = this.state;
     if (
       !conversation ||
+      this.policy ||
       this.state.busy ||
       (this.state.run && !terminal(this.state.run)) ||
       (!this.state.run &&
@@ -384,10 +494,33 @@ export class ChatController {
       [...draft].length > 8000
     )
       return;
+    const target = this.outputTarget.target();
+    if (
+      target &&
+      conversation.visibility === "private" &&
+      conversation.display_policy !== "authenticated_session"
+    ) {
+      this.publish({
+        ...this.state,
+        notice: "この会話はPiへの表示を許可していません。下の確認操作で許可してください。",
+      });
+      return;
+    }
     const epoch = this.selection;
     this.streamAbort?.abort();
     this.refreshing++;
-    if (this.turn?.text !== draft) this.turn = { text: draft, key: crypto.randomUUID() };
+    if (
+      this.turn?.text !== draft ||
+      this.turn?.device !== target?.device ||
+      this.turn?.binding !== target?.binding
+    )
+      this.turn = {
+        text: draft,
+        key: crypto.randomUUID(),
+        device: target?.device,
+        binding: target?.binding,
+        session: target?.session,
+      };
     const pending = this.turn;
     if (!pending) return;
     this.publish({ ...this.state, busy: true, notice: undefined });
@@ -399,7 +532,16 @@ export class ChatController {
               client,
               signal,
               path: { tenant_id: tenant, conversation_id: conversation.id },
-              body: { text: pending.text, output_mode: "text" },
+              body: {
+                text: pending.text,
+                output_mode: "text",
+                ...(pending.device
+                  ? {
+                      output_device_id: pending.device,
+                      expected_output_private_session_id: pending.session ?? "",
+                    }
+                  : {}),
+              },
               headers: { "Idempotency-Key": pending.key },
             }),
           ),
@@ -416,6 +558,7 @@ export class ChatController {
         run: undefined,
         events: initialEvents(accepted.run_id),
         output: "current",
+        outputDevice: pending.device,
         finalVerified: false,
         historyUnavailable: undefined,
       });

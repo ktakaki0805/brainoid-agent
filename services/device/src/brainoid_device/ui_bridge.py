@@ -494,6 +494,14 @@ class UIBridge:
                         raise CloudError("snapshot_unavailable", 503)
                     recovery = self.client.recovery
                     value, check_publication = await self.client.owned(recovery.publication())
+                elif request.url.path.startswith("/local/cloud/private-sessions/"):
+                    if self.client.recovery is None:
+                        raise CloudError("snapshot_unavailable", 503)
+                    identity = TypeAdapter(ResourceId).validate_python(
+                        request.path_params["private_session_id"]
+                    )
+                    self.client.recovery.stop_output(identity)
+                    value = {"status": "stopped", "cloud_session_ended": False}
                 elif request.url.path.startswith("/local/cloud/notifications/"):
                     if self.client.recovery is None:
                         raise CloudError("snapshot_unavailable", 503)
@@ -582,6 +590,11 @@ class UIBridge:
         return [
             Route("/local/cloud/status", dispatch, methods=["GET"]),
             Route("/local/cloud/snapshot", dispatch, methods=["GET"]),
+            Route(
+                "/local/cloud/private-sessions/{private_session_id}/stop",
+                dispatch,
+                methods=["POST"],
+            ),
             Route(
                 "/local/cloud/notifications/{notification_id}/displayed", dispatch, methods=["POST"]
             ),

@@ -1,4 +1,5 @@
 /** Device-only HTTP: no cloud credentials, persistent browser state or remote fallback. */
+import { bootstrapLocalSession } from "./local-session.ts";
 export interface Diagnostics {
   service: string;
   storage: string;
@@ -28,7 +29,7 @@ export class LocalDevice {
   }
 
   async status(): Promise<Diagnostics> {
-    const session = await this.request("/local/session", "POST", { "X-Brainoid-Local": "1" });
+    const session = await bootstrapLocalSession(AbortSignal.timeout(15_000));
     this.csrf = session.csrf_token;
     return this.request("/local/diagnostics", "GET");
   }

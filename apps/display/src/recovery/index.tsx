@@ -10,7 +10,7 @@ const storageLabels: Record<string, string> = {
   recovery_required: "保存領域の復旧が必要です。操作は停止しています",
 };
 
-export function Recovery() {
+export function Recovery({ children }: { children?: React.ReactNode }) {
   const [device] = useState(() => new LocalDevice());
   const [status, setStatus] = useState<Diagnostics | null>(null);
   const [busy, setBusy] = useState(false);
@@ -119,12 +119,13 @@ export function Recovery() {
 
   return (
     <Frame surface="display">
+      {children}
       <div className="recovery-grid">
         <section className="card recovery-status" aria-busy={busy}>
           <p className="eyebrow">端末の設定と復旧</p>
           <h2>ネットにつながらないときも</h2>
           <p>
-            この画面は端末内で開きます。会話・オフラインAI・クラウド再接続はまだ利用できません。
+            この画面は端末内で開きます。会話は上の出力画面で接続状態を確認できます。オフラインAIは利用できません。
           </p>
           {complete && <p role="status">端末内の消去が完了しました。再ペアリングが必要です。</p>}
           {error && <p role="alert">{error}</p>}
@@ -206,7 +207,7 @@ export function Recovery() {
               Assistant資格情報の失効を確認できません。端末を渡す前に、クラウド管理画面で端末登録を解除し、Home
               Assistantで資格情報を失効させてください。
             </p>
-            <p>この版ではペアリング接続は未提供です。対応版を導入して再登録してください。</p>
+            <p>再登録には端末サービスのペアリングと、スマホでの管理者承認が必要です。</p>
           </section>
         </aside>
         {confirm && (

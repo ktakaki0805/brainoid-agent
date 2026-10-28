@@ -309,6 +309,22 @@ export type TurnCreate = {
     audio_input_id: ResourceId;
     output_mode: 'text' | 'speech';
     output_device_id?: ResourceId;
+} | {
+    text: string;
+    output_mode: 'text' | 'speech';
+    output_device_id: ResourceId;
+    /**
+     * 本人スマホの明示Pi出力に対する一致条件。現在activeの本人sessionが一致しない場合は拒否。委任を付与せずdevice bearerでは使用不可。
+     */
+    expected_output_private_session_id: ResourceId;
+} | {
+    audio_input_id: ResourceId;
+    output_mode: 'text' | 'speech';
+    output_device_id: ResourceId;
+    /**
+     * 本人スマホの明示Pi出力に対する一致条件。現在activeの本人sessionが一致しない場合は拒否。委任を付与せずdevice bearerでは使用不可。
+     */
+    expected_output_private_session_id: ResourceId;
 };
 export type RunAccepted = {
     run_id: ResourceId;

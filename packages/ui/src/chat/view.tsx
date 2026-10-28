@@ -3,6 +3,7 @@ import type { SessionContext } from "../session.ts";
 import { WaitingProposal } from "../calendar/view.tsx";
 import { ChatController } from "./controller.ts";
 import type { CharacterState, ToolStatus } from "./events.ts";
+import { OutputTarget } from "../output-target/view.tsx";
 
 const states: Record<CharacterState, { label: string; face: string }> = {
   idle: { label: "待機中", face: "◡" },
@@ -56,6 +57,7 @@ export function Chat({
   const selectedAgent = state.agents.find((agent) => agent.id === state.conversation?.agent_id);
   return (
     <section className="chat-workspace" aria-label="会話">
+      {surface === "mobile" && <OutputTarget controller={controller.outputTarget} />}
       <aside className="card chat-navigation" aria-label="会話を選択">
         <details open={!state.conversation}>
           <summary>
@@ -142,6 +144,24 @@ export function Chat({
         <Character state={state.events?.character ?? "idle"} />
         {state.notice && <p role="alert">{state.notice}</p>}
         {state.busy && <p role="status">状態を確認しています。</p>}
+        {controller.pendingDisplayPolicy && (
+          <section aria-label="表示設定の再確認">
+            <p>
+              会話「
+              {state.conversations.find((item) => item.id === controller.pendingDisplayPolicy)
+                ?.title ?? controller.pendingDisplayPolicy}
+              」の表示設定の結果が未確認です。送信前に、元の変更を同じ操作で再確認してください。
+            </p>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={state.busy}
+              onClick={() => void controller.allowPrivateDisplay()}
+            >
+              元の会話の表示設定を同じ操作で再確認
+            </button>
+          </section>
+        )}
         {state.conversation ? (
           <>
             <header className="chat-heading">
@@ -165,9 +185,30 @@ export function Chat({
               <p className="output-label">
                 応答先:{" "}
                 {state.output === "current"
-                  ? "この画面で文字表示（他端末への出力指定なし）"
+                  ? state.outputDevice
+                    ? `確認したPi ${state.outputDevice} にも文字表示`
+                    : "この画面で文字表示（他端末への出力指定なし）"
                   : "履歴の応答先は不明"}
               </p>
+              {surface === "mobile" &&
+                state.conversation.visibility === "private" &&
+                !controller.pendingDisplayPolicy &&
+                state.conversation.display_policy === "never" && (
+                  <details>
+                    <summary>この会話を個人セッション中のPiに表示できるようにする</summary>
+                    <p>
+                      この会話の表示設定を変更します。今後、本人が開始したPi個人セッションと明示した出力先で表示できます。開始・出力先の選択は別操作です。
+                    </p>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      disabled={state.busy}
+                      onClick={() => void controller.allowPrivateDisplay()}
+                    >
+                      確認してPiへの表示を許可・同じ操作を再確認
+                    </button>
+                  </details>
+                )}
             </header>
             <ol className="message-list" aria-label="保存済みメッセージ">
               {state.messages.map((message) => (
@@ -311,7 +352,13 @@ export function Chat({
                   disabled={state.busy || Boolean(active)}
                 />
               </label>
-              <p className="hint">送信時の応答先: この画面で文字表示。音声は再生しません。</p>
+              <p className="hint">
+                送信時の応答先:{" "}
+                {controller.outputTarget.snapshot().destination === "pi"
+                  ? `確認したPi ${controller.outputTarget.snapshot().session?.device_id} にも文字表示`
+                  : "この画面で文字表示"}
+                。音声は再生しません。
+              </p>
               <button
                 className="button primary"
                 disabled={

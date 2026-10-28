@@ -4274,6 +4274,47 @@ components:
         - audio_input_id
         - output_mode
         additionalProperties: false
+      - type: object
+        properties:
+          text:
+            type: string
+            minLength: 1
+            maxLength: 8000
+          output_mode:
+            type: string
+            enum:
+            - text
+            - speech
+          output_device_id: *id001
+          expected_output_private_session_id:
+            allOf:
+            - *id001
+            description: 本人スマホの明示Pi出力に対する一致条件。現在activeの本人sessionが一致しない場合は拒否。委任を付与せずdevice bearerでは使用不可。
+        required:
+        - text
+        - output_mode
+        - output_device_id
+        - expected_output_private_session_id
+        additionalProperties: false
+      - type: object
+        properties:
+          audio_input_id: *id001
+          output_mode:
+            type: string
+            enum:
+            - text
+            - speech
+          output_device_id: *id001
+          expected_output_private_session_id:
+            allOf:
+            - *id001
+            description: 本人スマホの明示Pi出力に対する一致条件。現在activeの本人sessionが一致しない場合は拒否。委任を付与せずdevice bearerでは使用不可。
+        required:
+        - audio_input_id
+        - output_mode
+        - output_device_id
+        - expected_output_private_session_id
+        additionalProperties: false
     RunAccepted:
       type: object
       properties:

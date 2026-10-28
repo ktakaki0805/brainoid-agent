@@ -42,6 +42,15 @@ class Receipt(Record):
     expires: float = 0.0
 
 
+class OutputStops(Record):
+    api: str
+    epoch: str
+    device_id: ResourceId
+    tenant_id: ResourceId
+    observed_at: float
+    sessions: Annotated[list[Receipt], Field(max_length=MAX_ITEMS)] = Field(default_factory=list)
+
+
 class Recovery(Record):
     version: Literal[1] = 1
     api: str
@@ -72,6 +81,7 @@ class SnapshotSync:
         self.notification_read: NotificationRead | None = None
         self.display_generation = 0
         self.ready = False
+        self.output_stops: OutputStops | None = None
         client.recovery = self
         client.runtime.register_private_cleanup(self.clear)
 
@@ -110,7 +120,76 @@ class SnapshotSync:
             self.clear()
             self.changed.set()
             return None
+        if value and self.stopped(value.id):
+            return None
         return value
+
+    def stops(self) -> OutputStops:
+        recovery = self.load()
+        if self.output_stops is None:
+            try:
+                stops = OutputStops.model_validate(
+                    decode(self.client.store.read("private-output-stops-v1"))
+                )
+                if (stops.api, stops.epoch, stops.device_id, stops.tenant_id) != (
+                    recovery.api,
+                    recovery.epoch,
+                    recovery.device_id,
+                    recovery.tenant_id,
+                ):
+                    raise ValueError("wrong_binding")
+                self.output_stops = stops
+            except FileNotFoundError:
+                self.output_stops = OutputStops(
+                    api=recovery.api,
+                    epoch=recovery.epoch,
+                    device_id=recovery.device_id,
+                    tenant_id=recovery.tenant_id,
+                    observed_at=self.client.now(),
+                )
+            except (OSError, ValueError, RuntimeError):
+                raise CloudError("cloud_storage_unavailable", 503) from None
+        if self.client.now() < self.output_stops.observed_at:
+            raise CloudError("clock_rollback", 409)
+        return self.output_stops
+
+    def stopped(self, identity: ResourceId) -> bool:
+        stops = self.stops()
+        now = self.client.now()
+        expired = [item for item in stops.sessions if now >= item.expires]
+        if expired:
+            stops.sessions = [item for item in stops.sessions if now < item.expires]
+            self.save_stops()
+        return any(item.id == identity for item in stops.sessions)
+
+    def save_stops(self) -> None:
+        assert self.output_stops is not None
+        self.output_stops.observed_at = self.client.now()
+        try:
+            self.client.store.write(
+                "private-output-stops-v1", encode(self.output_stops.model_dump(mode="json"))
+            )
+        except (OSError, RuntimeError, ValueError):
+            self.clear(persist=False)
+            raise CloudError("cloud_storage_unavailable", 503) from None
+
+    def stop_output(self, identity: ResourceId) -> None:
+        # Device-local stop is not cloud delegation revocation. Persist metadata
+        # before acknowledging, so a second tab or browser/service restart cannot
+        # restore this session. Never perform a network read before stopping.
+        stops = self.stops()
+        if self.stopped(identity):
+            self.save_stops()
+            return
+        current = self.state.active_private_session if self.state else None
+        if current is None or current.id != identity:
+            raise CloudError("private_session_unavailable", 409)
+        if len(stops.sessions) >= MAX_ITEMS:
+            self.clear()
+            raise CloudError("cloud_storage_unavailable", 503)
+        stops.sessions.append(Receipt(id=identity, expires=current.expires_at.timestamp()))
+        self.clear(persist=False)
+        self.save_stops()
 
     def check(self, session: ResourceId | None, generation: int | None = None) -> None:
         current = self.session()
@@ -461,9 +540,19 @@ class SnapshotSync:
         # the local publication boundary, even if periodic sync just succeeded.
         await self.sync()
         self.session()
+        state = self.state
+        if state and state.active_private_session and self.stopped(state.active_private_session.id):
+            state = state.model_copy(
+                update={
+                    "active_private_session": None,
+                    "assigned_runs": [
+                        run for run in state.assigned_runs if run.private_session_id is None
+                    ],
+                }
+            )
         return {
             "ready": self.ready,
-            "snapshot": self.state.model_dump(mode="json") if self.state else None,
+            "snapshot": state.model_dump(mode="json") if state else None,
             "notifications": [
                 v.model_dump(mode="json") for v in self.notifications.values() if self.ready
             ],

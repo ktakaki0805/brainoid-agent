@@ -40,6 +40,8 @@ heartbeat、認証確認、snapshot、状態GET、リクエスト再送、worker
 
 ## 検証と復旧
 
+BA-UI-10の[本人確認・会話引継ぎUI](ui-private-sessions.md)は、開始と各runのPi出力指定を別操作にする。TurnCreateの`expected_output_private_session_id`は本人userの明示`output_device_id`に対する一致条件で、委任を付与しない。旧要求が新sessionへ遅延到達する場合も現在slot不一致を拒否する。省略clientの既存挙動は維持し、新UIは必ず指定する。Piのlocal表示停止は本人用DELETEによるcloud session終了とは区別する。
+
 fake clockで60秒・5分の直前/一致境界、scope不足・禁止scope、別Pi/別user、header単独、再送・活動dedupe・新sessionへの旧grant転用・終了後出力・権限変更を検証する。Firestore emulatorでは同時開始、異なる利用者の競合、終了と活動の競合、commit応答喪失、期限cleanupと新規開始の競合を検証する。実行は[開発・テスト手順](05-development-and-testing.md)と[emulator設定](../.env.emulator.example)に従う。
 
 応答喪失時は同じキーで再送し、取得した現在状態を表示する。DB backup復元は通常のAPI公開前gateと端末credential epoch更新を必須とする。sessionの5分期限を巻き戻してはならない。旧APIへ戻す場合は新session受付を止め、全sessionが失効するまで最大5分待つ。旧bindingを許す互換コードは追加しない。

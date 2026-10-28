@@ -6,6 +6,7 @@ export const fixturePrivate = "30000000-0000-4000-8000-000000000002";
 const timestamp = "2026-10-28T00:00:00Z";
 export type ChatScenario =
   | "normal"
+  | "policy_lost"
   | "reconnect"
   | "expired"
   | "gap"
@@ -134,6 +135,19 @@ export function createChatFixture(
     if (resource === "conversations" && id) {
       const conversation = values.find((item) => item.id === id);
       if (!conversation) return Response.json({}, { status: 404 });
+      if (!parts[6] && request.method === "PATCH") {
+        if (!receipts.has(receiptKey)) {
+          if (request.headers.get("If-Match") !== `"${conversation.version}"`)
+            return Response.json({}, { status: 412 });
+          const body = await request.json();
+          conversation.display_policy = body.display_policy;
+          conversation.version++;
+          receipts.set(receiptKey, true);
+          if (controls.scenario === "policy_lost")
+            throw new Error("Committed policy response lost");
+        }
+        return Response.json(conversation, { headers: { ETag: `"${conversation.version}"` } });
+      }
       if (!parts[6]) return Response.json(conversation);
       if (parts[6] === "messages") {
         const record = [...runs.values()].find(
