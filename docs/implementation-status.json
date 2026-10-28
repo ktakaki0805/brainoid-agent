@@ -551,7 +551,13 @@
       "implementation_commit": "3ab2e55d0128aca13dc4780c4c09cdbd1ca75ab3"
     },
     "BA-UI-06": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "0335e057a09beac9b81ed5612bafeaf987a900f2",
+      "log_anchor": "ba-ui-06-20261028t091634z",
+      "review_rounds": 2,
+      "updated_at": "2026-10-28T09:58:50.921929+00:00",
+      "implementation_commit": "75195a647a83431682e04f2f13999ce15b396798"
     },
     "BA-UI-07": {
       "status": "todo"

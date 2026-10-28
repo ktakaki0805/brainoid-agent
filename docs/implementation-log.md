@@ -12951,3 +12951,120 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - `parent-postdone-check`: `mise run check`、2026-10-28T09:09:25.947268+00:00→2026-10-28T09:09:30.214138+00:00、exit 0、4.26687s、unittest/counts []、Node []。metadata SHA-256 `abae2638a073be4a2e784967428e9ce566b0bf19565ca114f8a55d4e417f0e6a`、raw SHA-256 `2c98ab2f40cc02c1ec04f7178cc50680e0039591e88a528601ad651c9d762fa1`。
 
 - done後checkは最初のchild終了0/raw保存を確認したが、圧縮時の応答切捨てによりtool session番号を回収できなかった。同hostで記録済みプロセス終了を確認後、checkのみ別名recoveryで実行し親session47956の実tool終了0を回収した。両phaseの証跡を保持し、最初のtool終了を推測しない。recoveryは全697製品とindexが不変、両buildを含み成功。postdone監査SHA-256 `ec938db1f42309ae4be0477c8dcbb24cf4961c0b80bfe78a4c6e298cda1a0439`。ownerの同hostプロセス閉鎖を確認。
+
+## ba-ui-06-20261028t091634z
+
+- チケット: BA-UI-06 タスク一覧・期限・完了画面
+- 状態: in_progress。開始 2026-10-28T09:16:34.618381+00:00、main/base `0335e057a09beac9b81ed5612bafeaf987a900f2`。開始時clean。
+- ID指定なしplanner nextで依存順先頭を選択。依存 {'BA-UI-02': 'cafdaa7aa668248518ff14cf1a93748d50455078', 'BA-APP-02': '80ee252f9656b69c3f238fdbab06684ce865688e'} はdoneかつ実装commitが現履歴の祖先。前UI05のseal 235証跡が一致。
+- 親 `/root`、実装 `/root/ui06_implementation`、レビューは各回新規独立context。親は台帳/log/commit、製品は単独writer。
+- 範囲: 一覧・期限・担当・open/done/cancelled、作成/編集/完了/取消をAPP02 APIへ送り現在正本で表示。AI文章だけの完了を禁止し、412/拒否/失敗で未保存doneを残さない。共有Piは未確認時readonly案内。日時は表示timezoneを明記。FR008/AC008/T012。
+- 検証計画: fake状態と非同期/認可/ETag/再送のNodeテスト、mobile/display実Chromiumと既存UI回帰、影響する実HTTP/公式Emulator結合、最終通常suiteとcheck両build。追加外部前提なし、fake/emulator許可。リマインダーUI07、実cloud/provider/Pi/host導入/push/PRは対象外。
+- `writer-types-v1`: `mise run check:types`、2026-10-28T09:21:18.529554+00:00→2026-10-28T09:21:41.278390+00:00、exit 0、22.748836s、unittest/counts []、Node []。metadata SHA-256 `789eea4afdf7c27fdf45dfbe2fb1fc59030c64aee7035bbb7ee1604176d725a1`、raw SHA-256 `95399d86d607d7c01f88b5ba1a9d3013b4251ac4e4315684c20167e697c9a16c`。
+- `writer-unit-v1`: `mise exec -- node --test tests/test_ui_tasks.mjs`、2026-10-28T09:24:19.833997+00:00→2026-10-28T09:24:20.981566+00:00、exit 1、1.147569s、unittest/counts []、Node ['ℹ tests 54']。metadata SHA-256 `8d9602328f209a2ef0ac01b5543bfd0b9867d1d4675eb9e5a838a2feb8ad55b2`、raw SHA-256 `c59525cd941a83f5453621d2a40f20c3837b2e71e59829f90484ddf1f224ec3e`。
+- `writer-unit-v2`: `mise exec -- node --test tests/test_ui_tasks.mjs`、2026-10-28T09:25:14.156237+00:00→2026-10-28T09:25:15.404191+00:00、exit 0、1.247954s、unittest/counts []、Node ['ℹ tests 61']。metadata SHA-256 `a031a53a0d1028d33246ad332077d67fe9654f39e2e1c27deaf47f71061348d0`、raw SHA-256 `a9fbdeea701bcc2de95314e33498662a88e230fca3b0b2f9f94563c123c726b1`。
+
+- 初回unit-v1はAI成功文を確認するfixtureに必要なrun_idがなく53/54。fixtureを修正し、実ChatControllerの会話送信・最終assistant本文のみ差替えでタスクopen/書込0を検証、追加負例込みunit-v2は61/61。最終source固定前の予備検証として記録する。
+- 日時表示は画面内の利用者選択IANA名、初期値はブラウザー設定と明記。保存済みUser profileを取得したとは扱わず、任意のTask.timezoneとは独立。親はこの実装範囲を確認し、表示zone変更による時点不変とDST境界を独立レビューへ渡す。
+- 親pre-freeze観察への対応: -00:00/UTC年範囲外を拒否、一覧status条件の外に移った対象も認可済みdetailとして競合比較、保存確認はPOST201/PATCH200のみ。正式レビュー前の修正であり、レビュー回数には算入しない。
+- `writer-browser-v1`: `mise exec -- env UI_ARTIFACTS=/tmp/ba-ui-06-writer-browser-v1-images UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome node tests/ui/tasks_browser.mjs`、2026-10-28T09:29:16.958500+00:00→2026-10-28T09:29:49.897434+00:00、exit 1、32.938934s、unittest/counts []、Node []。metadata SHA-256 `d7b3a688af49a38ed4941d8cb37fe18b7243c26b120929b581dede8f584c6217`、raw SHA-256 `59cfaa186ee666099b0171b1b6f12fedf1463c8dc58c1e9fd538a42374966266`。
+- `writer-browser-v2`: `mise exec -- env UI_ARTIFACTS=/tmp/ba-ui-06-writer-browser-v2-images UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome node tests/ui/tasks_browser.mjs`、2026-10-28T09:30:20.717784+00:00→2026-10-28T09:30:26.458596+00:00、exit 0、5.740812s、unittest/counts []、Node []。metadata SHA-256 `1173a4a0f0630129584ee99790c57365b78f624d6193a78332a32dc49251a148`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+- `writer-emulator-v1`: `mise exec -- bash /tmp/ba-ui-06-writer-emulator-v1.sh`、2026-10-28T09:30:47.426337+00:00→2026-10-28T09:31:48.656067+00:00、exit 0、61.22973s、unittest/counts ['Ran 14 tests in 54.195s']、Node []。metadata SHA-256 `5a116a809c93d181291228ed64092ec4c3c7e7361e6a4702d5a135899d8432fc`、raw SHA-256 `8536095ba14254bcb2f1fc6b8f005c78b43b8d51b22b15c5bba521d1c0e99ee2`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui06_review_r1`（新規独立context）。base commit: `0335e057a09beac9b81ed5612bafeaf987a900f2`。
+- 未追跡を含む最新全14files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/tasks.md` | `d060b8436f6f996b52754c9f59efdce4b9662cbb3b2a7ee3d386845e4e127e92` |
+| `docs/ui-tasks.md` | `cfcf8522c735ba8bb6fe5b63e43a0aa102f411ae8b72ea465129571775385ff1` |
+| `mise.toml` | `512a619896da48561a244dd36d280d187ef05c818ee3398dcd1113e979d26ab5` |
+| `packages/ui/src/session-fake.tsx` | `599e1314c46e993554dd66d223d7bc56ab42523ff8710e6a29b562e123a04538` |
+| `packages/ui/src/session-fixture.ts` | `1ff04cb706a8b74cf878936ae615094789079c3e791a4c1eb58b44103bd2fb7a` |
+| `packages/ui/src/session-view.tsx` | `f19463da14a28200f573e9df5249efd70586f6eba918c8e876f4d6dafbf66208` |
+| `packages/ui/src/styles.css` | `ae78d74909a3cf301425433addeba3ae9ea56b4bfccc9e0411f07632ddceb784` |
+| `packages/ui/src/tasks/controller.ts` | `fb3d49a72b84bb1c9ef75d5eb258fd8456b52207f9b48a40bea810ae637ec5e6` |
+| `packages/ui/src/tasks/fixture.ts` | `daef09bad79313b4eddcf3cbfa12efe4086b20d901d3ac2f54ee9bb455641008` |
+| `packages/ui/src/tasks/view.tsx` | `1e1fac018d5285a6be66bbe99f961ba8da1049477f775831a4a5826db6679e4f` |
+| `tests/emulator/test_ui_tasks_integration.py` | `729399072c3bb0fdd3a0922d484022afb072efce8030f6c8c8cce5ab653817ac` |
+| `tests/test_ui_tasks.mjs` | `bd813c367ed853b5f7ff6eebcadf4f5df91707f0d7023046a914fb182ae99064` |
+| `tests/ui/tasks_browser.mjs` | `20ed8f1f3c11bc6a27b3995eeabcbaccff149edf1561c03576c3e4b41551f807` |
+| `tests/ui/tasks_emulator.mjs` | `c99c3dbf21737a3e14e6ed49032d9bd9762b19f1125853f2f1232f92413a30dd` |
+- `writer-browser-v3`: `mise exec -- env UI_ARTIFACTS=/tmp/ba-ui-06-writer-browser-v3-images UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome node tests/ui/tasks_browser.mjs`、2026-10-28T09:32:40.245989+00:00→2026-10-28T09:32:46.096479+00:00、exit 0、5.85049s、unittest/counts []、Node []。metadata SHA-256 `b5f66bf8ffd708d7f66c6206b87670b8dbbbb8e4fa13229e588978a7c8cd62f7`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+
+- freeze-v1は全705製品・14変更（新規8/削除0）。writer SHA-256 `e65c84095be863895709ab2c5ffb6ce773c05b1017178af33a4b5e87bad26dbc`、親正規化freeze `7d1ac237729552f329b587fcd20077f23d09ced2323a684b024b83434f86d2f4`、集約 `5bfa0adda8a06712665949f9ed84abc54e46661328550ea682890e378ff9b339`。R1担当 `/root/ui06_review_r1` に全変更を引継ぎ、製品編集を固定。最終normal/check/既存画面回帰は未完了でありapprove前に回収する。
+- Emulator-v1は14件/actual0、全before/after製品・index不変。後続差分はタスクフォーム間隔を整える `styles.css` だけで、全controller/API/契約/試験/docs blobは最終freezeと一致。CSS後のbrowser-v3は全705一致/actual0。関係のないEmulator再実行をせず、このscope差を明記する。親scope監査 `3c0389bb8a816f71c37c4a00777582c81d35973558f93fbe6d0e7cebd5e1acbf`。
+- 初回browser-v1は不明な保存の間に意図して無効化した更新buttonを待つ試験のtimeout。待機条件を修正しv2成功。目視で見つけた項目間隔をCSS修正後、v3も成功/13画像。親はv3競合/共有readonlyの2枚を目視、画像監査 `68b8e43a99bf29ff8384e7566877a1661c6f6a3fd1be60b0bb4f503be91603cf`。全画像の目視と区別する。
+- `review-r1-controller-tests`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache pnpm_config_store_dir=/tmp/ba-fnd-01-pnpm-store mise exec -- node tests/test_ui_tasks.mjs`、2026-10-28T09:36:13.340377+00:00→2026-10-28T09:36:14.445820+00:00、exit 0、1.105443s、unittest/counts []、Node ['ℹ tests 61']。metadata SHA-256 `d4f0f9664d698620d56e8afad14ca0dcf91a5a7bcbf9f087d605920732d58746`、raw SHA-256 `00cf5efeb41273d91eb1ef025b6370d3063e60877165c21871907a2c118143c8`。
+- `writer-check-v1`: `mise run check`、2026-10-28T09:36:30.854573+00:00→2026-10-28T09:36:36.409548+00:00、exit 0、5.554975s、unittest/counts []、Node []。metadata SHA-256 `8d6555f69e778ccb0f7a32940650cea2506f6f8f47d6bc1335125364e3a44dcf`、raw SHA-256 `49cabd3f1ba8a0d6b7f09005c9fd7658810cfb2badef86223014597dc8916319`。
+- `review-r1-selection-probe`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache pnpm_config_store_dir=/tmp/ba-fnd-01-pnpm-store mise exec -- node /tmp/ba-ui-06-review-r1-selection-probe.mjs`、2026-10-28T09:37:53.886858+00:00→2026-10-28T09:37:54.113780+00:00、exit 1、0.226922s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `017b08b2becafff64ce1e324803451f105978a651f43c1a67f85de30b41cf6f3`、raw SHA-256 `02337fe802ec6577cec48f0d84df515ba8a2a1253ae0cf08110190aafa7bd4b0`。
+- `review-r1-race-probe`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent UV_CACHE_DIR=/tmp/ba-fnd-01-uv-cache pnpm_config_store_dir=/tmp/ba-fnd-01-pnpm-store mise exec -- node /tmp/ba-ui-06-review-r1-race-probe.mjs`、2026-10-28T09:38:47.977858+00:00→2026-10-28T09:38:48.223810+00:00、exit 0、0.245952s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `6c732092e3a0accc9178f3c6c8c37312a59e6172b7bc656674a4d28b5c853ff9`、raw SHA-256 `ba1f3d9d349441fe7f9d7ee25d11671e4c37df682a41c2287c7a48c961eb9378`。
+- `writer-browser-regression-v1`: `mise exec -- /usr/bin/python3 /tmp/ba-ui-06-writer-browser-regression-v1.py`、2026-10-28T09:36:28.552290+00:00→2026-10-28T09:38:45.552166+00:00、exit 0、136.999876s、unittest/counts []、Node []。metadata SHA-256 `3b8f51118d07d5c3bad94b5385a5f7b41c160990f367bf7bdb19bd9574eec0d8`、raw SHA-256 `04b5aa0430902ebffb5555e42fa81d548892dce4f5500ef8ce246b081aeb2df6`。
+- `writer-normal-v1`: `mise run test`、2026-10-28T09:33:29.541891+00:00→2026-10-28T09:41:03.126863+00:00、exit 0、453.584972s、unittest/counts ['Ran 1306 tests in 421.914s', 'Ran 18 tests in 0.059s']、Node ['ℹ tests 233']。metadata SHA-256 `69eca44adf308bee00b81c92f2191cca80c03b6cfbadf52f5aa758bac117ceb7`、raw SHA-256 `f8ba09aa4be9edcd0ffcbd03195b6897f5b149cb752ba7805d8c6c4de2bb7fb3`。
+
+### 独立レビュー ラウンド1 終了
+
+- `/root/ui06_review_r1` は全14変更/705製品を確認しrequest_changes、必須1(P2 `UI06-R1-001`)・任意0。`tasks/controller.ts:404` のselectは最新detailをeditorへ入れるが旧一覧を更新せず、最新open取得後も古いdoneが残る/最新cancelledがopen条件の一覧に残る。閉じても残ることを独立2ケースで再現(exit1)。修正は現在正本をitemsへ反映して条件を再適用し、詳細編集は維持する。
+- 独立61ケースと追加late-error2成功、13/13最終画像目視。提供normal1306+18+233/check/両build/browser全5UI、Emulator14を監査し必須検証pendingなし。全検証owner終了、親host閉鎖監査は9hostphase/466記録済みidentityと固定ポートを確認、別namespace1phaseと区別。
+- report SHA-256 `74aa4c064ed928879a00a8cdc70e7b8d2d80471418d08277e2660baddca3e0dc`、result `d68e775e5ffee4ff0501f0d4db4d98d65fc17e701274ebaee2ad4f71d95aae63`、closure `05b1f7fc914117d0d6e3e94171f3b6ad279918d03c3ad922b792efacd841f4ba`、親正式閉鎖 `f1a3c971052599beff8bbe45f35a38b2853fb16dfbaafbd50d0c0f7786d6e9cf`。未修正の必須1件があるためdone/commitに進まず、元writerへ返す。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui06_review_r2`（新規独立context）。base commit: `0335e057a09beac9b81ed5612bafeaf987a900f2`。
+- 未追跡を含む最新全14files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/tasks.md` | `d060b8436f6f996b52754c9f59efdce4b9662cbb3b2a7ee3d386845e4e127e92` |
+| `docs/ui-tasks.md` | `922651db66e78676397bf53c1503e00a7f8ef1f4f314d2b9f2773edfd7b1402e` |
+| `mise.toml` | `512a619896da48561a244dd36d280d187ef05c818ee3398dcd1113e979d26ab5` |
+| `packages/ui/src/session-fake.tsx` | `47d4a31c351e7ffba24704d62ae70b3b5ef2e0ef780e4ae8ebde70890e73f234` |
+| `packages/ui/src/session-fixture.ts` | `1ff04cb706a8b74cf878936ae615094789079c3e791a4c1eb58b44103bd2fb7a` |
+| `packages/ui/src/session-view.tsx` | `f19463da14a28200f573e9df5249efd70586f6eba918c8e876f4d6dafbf66208` |
+| `packages/ui/src/styles.css` | `ae78d74909a3cf301425433addeba3ae9ea56b4bfccc9e0411f07632ddceb784` |
+| `packages/ui/src/tasks/controller.ts` | `decb990f652e8fe315c165f4fc43d17e31ed3444c8a0572e998f84bc60ad3ef5` |
+| `packages/ui/src/tasks/fixture.ts` | `88a2d91884cf05e33c54379683600ff26648649e3d37d0fdbf46d5308ca615f9` |
+| `packages/ui/src/tasks/view.tsx` | `1e1fac018d5285a6be66bbe99f961ba8da1049477f775831a4a5826db6679e4f` |
+| `tests/emulator/test_ui_tasks_integration.py` | `729399072c3bb0fdd3a0922d484022afb072efce8030f6c8c8cce5ab653817ac` |
+| `tests/test_ui_tasks.mjs` | `117cc08f448e48acddf8a3ed47baef809debfef70be80f7df527c9a6e4947a0a` |
+| `tests/ui/tasks_browser.mjs` | `90bc260cd31c985705a2b9e5d991c8dd719d9559f52e984f8212d8f028300ac7` |
+| `tests/ui/tasks_emulator.mjs` | `7134f80da61bcecb04e8c03874201269832fd7884fc64fec6fdcb52a991d5895` |
+- `writer-browser-r2-v1`: `mise exec -- env UI_ARTIFACTS=/tmp/ba-ui-06-writer-browser-r2-v1-images UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome node tests/ui/tasks_browser.mjs`、2026-10-28T09:47:07.459348+00:00→2026-10-28T09:47:14.030575+00:00、exit 0、6.571227s、unittest/counts []、Node []。metadata SHA-256 `16f73a609509a2b3d8f5d8a997246825ad66bb3b88f6a369317181a178072f9d`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+- `writer-check-r2-v1`: `mise run check`、2026-10-28T09:48:11.630532+00:00→2026-10-28T09:48:16.635656+00:00、exit 0、5.005124s、unittest/counts []、Node []。metadata SHA-256 `b95b920ab267a7a0347dadb1b642e958785c2a988c3437bd47d988242a3bd9c6`、raw SHA-256 `9738318a119ed723ce6bdc8478e418dd23cd55db7f42b16a86de9fc4d526c648`。
+- `writer-emulator-r2-v1`: `mise exec -- bash /tmp/ba-ui-06-writer-emulator-v2.sh`、2026-10-28T09:48:09.706374+00:00→2026-10-28T09:48:23.456272+00:00、exit 0、13.749898s、unittest/counts ['Ran 1 test in 3.773s']、Node []。metadata SHA-256 `ac957a5f73514989c2904b74079474a3082640be46ef14b227a9be053fa68218`、raw SHA-256 `bd68207fbbfe86bcb39a8ffb5abe1c030151ee70cd647e953eb81eb88afb4509`。
+- `writer-node-r2-v1`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs`、2026-10-28T09:46:53.748891+00:00→2026-10-28T09:47:07.074741+00:00、exit 0、13.32585s、unittest/counts []、Node ['ℹ tests 235']。metadata SHA-256 `163fe853dd08681490ea1d591aed09af469ef1981af88426347134bdc268737e`、raw SHA-256 `2e6d84321ef2a8486567085ac25cb773b20451bcd5ad3f8940efa1397539dff2`。
+
+- R1必須 `UI06-R1-001` 対応: selectで検証済み正本を一覧へ置換し現filterを適用、条件外でもdetailの編集は維持。done→open、open→cancelled条件外、title/due/versionと閉じた後/未保存draftの分離をunit・browser・実HTTPの別observerで追加確認する。
+- freeze-v2は全705/変更14、新規8。R1からの7差分はtaskcontroller/taskfixture/sessionfake/Taskunit/browser/emulatorJS/docsだけ。全Python/backend/契約/lock/設定は不変。R1normalのPython1306+skill18は未変更範囲の検証として維持し、最終全8Node235/check両build/UI06browser15画像/実HTTP・公式Emu1を実施した。前4UIbrowserと広いEmu14を最終全mapで実行したとは扱わない。scope監査SHA-256 `aceea5ccb73ea30e35f772475f991f86699ef537ccd255c5ef37a236b014b8c0`。
+- 全4 R2phaseはactual child/tool0かつ全705とindex不変、親start監査 `98b78a742bc79cd374fe476ea475a3894f117807a163e17742ba3872d6546a8c`。新規 `/root/ui06_review_r2` が全14変更を独立再レビュー中。最終画像15枚中writer5、親は選択回帰2枚を目視（親画像監査 `cdd22a2e2b9c059312203423a9bd284999bc90a9469e269b9d411aeeb2de8a7b`）。
+- `review-r2-race-probe`: `mise exec -- node /tmp/ba-ui-06-review-r2-race-probe.mjs`、2026-10-28T09:52:42.460737+00:00→2026-10-28T09:52:42.666423+00:00、exit 0、0.205686s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `c49a825a675e96b8189467c2d114dbf3ec1d025dde32b3435cd66f21ea941cca`、raw SHA-256 `a8f003f896fb770573aed245593e9cc4a9e79250b1ac51c66621d03f4cb1ca88`。
+- `review-r2-selection-probe`: `mise exec -- node /tmp/ba-ui-06-review-r2-selection-probe.mjs`、2026-10-28T09:52:27.214752+00:00→2026-10-28T09:52:27.379650+00:00、exit 0、0.164898s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `675c0c8480e0f69a0c4e8b7dfa5cbcf23f22bd1bbc767585358bcf8c8ce69344`、raw SHA-256 `275937f6ed165a27a467fc563ecfc485f465d7a43ba53e0717cb5a5fd2f19514`。
+- `review-r2-unit`: `mise exec -- node tests/test_ui_tasks.mjs`、2026-10-28T09:51:12.575720+00:00→2026-10-28T09:51:13.706654+00:00、exit 0、1.130934s、unittest/counts []、Node ['ℹ tests 63']。metadata SHA-256 `147b69ca10f2983111fde33dea7dc9c495adaefc758f0d56c31b090116e762a8`、raw SHA-256 `575fb57c5de8cbd5583d943b8e52847bd45db6be2b41ec8a774d52c54b345e49`。
+
+### 受入条件と最終検証範囲
+
+| 受入条件 | 根拠 | 結果 |
+| --- | --- | --- |
+| AIの成功文だけではdoneに変わらない | 実ChatControllerを通る成功文の負例、正本Taskだけの表示経路 | 会話表示でもtask open/書込0。状態変更は利用者の明示保存のみ |
+| 本人未確認Piで更新できず案内が出る | controller全mutation拒否、shared/shared_display限定、Chromium最終画像 | 共有画面readonly、スマホ/個人session案内。実Pi書込は対象外 |
+| 失敗・競合で未保存doneを残さない | pending/422/503/412/応答喪失、強いETag/同body同key再送、現在正本receipt | 保存済みと未保存draftを分離。競合の現状態がfilter外でも比較可 |
+| 最新期限・担当・状態が正本に従う | UTC offset/DST/期限解除/opaque担当、作成/完了/取消/再開、R1選択回帰2ケース | 最新GETを一覧にも反映しfilter再適用、閉じた後も旧doneを残さない |
+
+- 最終R2はNode235（Task63を含む）/check両build/UI06browser15画像/実HTTP・公式Firestore1成功。R2独立担当はTask63・R1選択再現2・late-error2を実行し全成功、最終15画像を全目視した。R1の正常系Python1306+skill18、広いEmulator14、既存4UIbrowserは明記した未変更範囲として保持する。
+- 親最終R2監査SHA-256 `5d47d9525f48a63f74d795a9e12d8f1eb0bd2d6537ce108291d3ede201fd2ed0`。同host閉鎖監査は13hostphase/645記録済みPIDbirthとポートを確認し、別namespace1phaseを区別（SHA-256 `c4886230acd113c02e9a1e80ab40a9608dc607c2502a0dfdafb7be547a6505b4`）。瞬間的processの全数網羅は主張せず、所有一時証跡/cacheは保持する。
+- 新規依存・lock/toolchain・schema・データ移行なし。既存setup環境を利用し再setupを省略。実HTTP結合のidentityは架空reader overrideでありFirebase本人認証の実証と区別。実cloud/provider/native実機/Piは本チケットの許可されたfake/emulator範囲外として未実施。切戻しは以前UIへ戻し、保存済みtask/event/冪等receiptを消去しない。
+
+### 独立レビュー ラウンド2 終了
+
+- `/root/ui06_review_r2` は最新14変更全体/705製品を確認しapprove、必須0・任意0・必須検証pendingなし。前回必須 `UI06-R1-001` は元の独立再現2件をそのまま実行して2/2成功し解消を確認。独立Task63/race2も成功、15/15画像を目視。変更のないPython等と最終変更経路の検証を区別して承認した。
+- report SHA-256 `b97380e9aff80ad3a54ba72f5ff618fe1f9f1333f16a453c15623cd6b26e29c4`、result `de76659d2acde4ac010a3926292ba1e4a3f62bf5293ecfda0190d9bf8f5d0211`、closure `027b3111986afb4ed6ecdba0e84d1705f2941adce59f430748a925b9ff74ca15`、親正式閉鎖 `058c2183923ab8dff2ae68e2965509d83621ad85dc2d4d2d353d9e3b110471e8`。製品/indexが承認対象と一致、全owner検証終了のまま明示14パスをstageする。
+
+### 完了記録
+
+- BA-UI-06 done。実装コミット `75195a647a83431682e04f2f13999ce15b396798`。第2回approve・必須0/任意0、R1必須1件解消。commit内14パス/blobが承認対象に一致した。
+- タスク一覧/期限/担当/作成/編集/完了/取消を正本に従って表示し、AI文章や未保存draftを完了にしない。明示timezone表示、共有画面readonly、412比較と正確な再送、最新detailの一覧反映を実装した。done台帳で最後のcheckを行い、台帳/logのみ別コミットへ保存する。
+- `parent-postdone-check`: `mise run check`、2026-10-28T09:58:53.456555+00:00→2026-10-28T09:58:57.769267+00:00、exit 0、4.312712s、unittest/counts []、Node []。metadata SHA-256 `36a5521937cb7b6e7feeaf7fa40153ed731591490f5e3807db7092307aa4731d`、raw SHA-256 `b579df63d34d19fc9768c9eb3ef6934f752102e768146e1ea7addca019b810ac`。
+
+- done後の親mise checkはsession3423でactual tool/child0を回収、全705製品とindexが承認対象のまま不変。postdone監査SHA-256 `b57a808a767d44620d085e4e79d5f5e1488853504f91ac0aac893bf0cea4d839`。同hostで記録済み親wrapper/子孫の終了と待受なしを確認した。残り差分は台帳と作業logのみ。
