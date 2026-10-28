@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CalendarOAuth } from "./calendar/contracts.ts";
+import type { DeviceScenario } from "./devices/fixture.ts";
 import type { CalendarScenario } from "./calendar/fixture.ts";
 import type { ChatScenario } from "./chat/fixture.ts";
 import type { MemoryScenario } from "./memories/fixture.ts";
@@ -41,6 +42,40 @@ export function SessionPreview({
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            Pi管理の動作
+            <select
+              aria-label="Pi管理の動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.devices.controls.scenario = event.target.value as DeviceScenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="empty">空の一覧</option>
+              <option value="failed">通信失敗</option>
+              <option value="lost">応答喪失</option>
+              <option value="expired">コード期限切れ</option>
+              <option value="reused">コード再使用</option>
+              <option value="cross_tenant">別テナント</option>
+              <option value="denied">権限拒否</option>
+              <option value="conflict">設定の競合</option>
+            </select>
+          </label>
+          <label>
+            Pi管理の役割
+            <select
+              aria-label="Pi管理の役割"
+              defaultValue="owner"
+              onChange={(event) => {
+                fixture.devices.controls.role = event.target.value as "owner" | "admin" | "member";
+              }}
+            >
+              <option value="owner">owner</option>
+              <option value="admin">admin</option>
+              <option value="member">member</option>
+            </select>
+          </label>
           <label>
             Calendarの動作
             <select

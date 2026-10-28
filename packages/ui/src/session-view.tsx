@@ -8,6 +8,7 @@ import { Memories } from "./memories/view.tsx";
 import { Notes } from "./notes/view.tsx";
 import { Reminders } from "./reminders/view.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
+import { Devices } from "./devices/view.tsx";
 import { Tasks } from "./tasks/view.tsx";
 
 export function browserNavigation() {
@@ -106,6 +107,13 @@ export function SessionApp({
           context={state.context}
           surface={surface}
           hint={state.notificationHint}
+        />
+      )}
+      {state.context && (
+        <Devices
+          key={`devices:${state.context.generation}`}
+          context={state.context}
+          surface={surface}
         />
       )}
       {state.phase === "starting" ? (

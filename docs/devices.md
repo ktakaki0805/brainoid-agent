@@ -48,3 +48,5 @@ Piは旧credentialを使わず、新しいpoll secret/codeを持つpairingを開
 [fake/HTTP検証](../tests/test_devices.py)と[Firestore emulator検証](../tests/emulator/test_devices_integration.py)でT-004のAPI失効、縮小中の再送、tenant境界、台帳write/DB応答喪失、現在actor、同時mutation/再登録、旧credential・未交換pairing・個人session・保存output grantの拒否を確認する。`mise run setup`、`mise run check`、`mise run test`、`.env.emulator.example`を明示loadした `mise run test-emulator`を使う。
 
 新依存・外部resourceの追加はない。既存IAM-07 deviceのscope/room/認可版/generationを使用する。切戻しで台帳や予約を消さず、同じoperationを扱える互換版でroll-forwardする。失効deviceをDBだけでactiveに戻す運用は禁止する。実socket切断時間、実機秘密消去、実backup復元、staging IAMはこの検証の対象外である。
+
+スマホからの登録・許可設定・失効、応答不明と現在認可の扱いは [UI-09の画面と検証](device-ui.md)を参照する。

@@ -1,6 +1,7 @@
 import type { Tenant } from "@brainoid-internal/api-client";
 import type { AuthenticationAdapter, AuthIdentity } from "../platform/auth.ts";
 import { createChatFixture } from "./chat/fixture.ts";
+import { createDevicesFixture } from "./devices/fixture.ts";
 import { createCalendarFixture } from "./calendar/fixture.ts";
 import { createMemoryFixture } from "./memories/fixture.ts";
 import { createNoteFixture } from "./notes/fixture.ts";
@@ -25,6 +26,7 @@ export function fixtureTenant(id: string, name: string): Tenant {
 }
 export function createSessionFixture() {
   const calendar = createCalendarFixture();
+  const devices = createDevicesFixture();
   const chat = createChatFixture((tenant, uid, proposal, run) =>
     calendar.seedProposal(tenant, uid, proposal, run),
   );
@@ -71,6 +73,8 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const deviceResponse = await devices.handle(request);
+    if (deviceResponse) return deviceResponse;
     const calendarResponse = await calendar.handle(request, user.uid);
     if (calendarResponse) return calendarResponse;
     const pushResponse = await push(request, user.uid);
@@ -106,7 +110,9 @@ export function createSessionFixture() {
     // Deliberately ignore abort: the session boundary must reject stale responses itself.
     if (status !== 200) return Response.json({}, { status });
     const tenant = tenants.find((value) => value.id === id);
-    return tenant ? Response.json(tenant) : Response.json({}, { status: 404 });
+    return tenant
+      ? Response.json({ ...tenant, my_role: devices.controls.role })
+      : Response.json({}, { status: 404 });
   };
   return {
     auth,
@@ -120,5 +126,6 @@ export function createSessionFixture() {
     reminders,
     push,
     calendar,
+    devices,
   };
 }

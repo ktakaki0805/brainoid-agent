@@ -892,3 +892,26 @@ textarea:focus-visible {
 .calendar-proposal {
   margin-block: 1rem;
 }
+
+.device-workspace {
+  margin-block: 1rem;
+  overflow-wrap: anywhere;
+}
+.device-workspace form,
+.device-card,
+.device-workspace section {
+  margin-block: 1rem;
+}
+.device-workspace dd {
+  margin-inline-start: 0;
+  overflow-wrap: anywhere;
+}
+.device-workspace dt {
+  font-weight: 700;
+  margin-top: 0.6rem;
+}
+.device-workspace fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
