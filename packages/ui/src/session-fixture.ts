@@ -10,6 +10,7 @@ import { createReminderFixture } from "./reminders/fixture.ts";
 import { createPushFixture } from "./reminders/push-fixture.ts";
 import { createTaskFixture } from "./tasks/fixture.ts";
 import { createPrivateSessionFixture } from "./output-target/fixture.ts";
+import { createDataControlsFixture } from "./data-controls/fixture.ts";
 
 export const tenantA = "10000000-0000-4000-8000-000000000001";
 export const tenantB = "10000000-0000-4000-8000-000000000002";
@@ -27,6 +28,7 @@ export function fixtureTenant(id: string, name: string): Tenant {
   };
 }
 export function createSessionFixture() {
+  const dataControls = createDataControlsFixture();
   const privateSessions = createPrivateSessionFixture();
   const calendar = createCalendarFixture();
   const devices = createDevicesFixture();
@@ -60,6 +62,7 @@ export function createSessionFixture() {
     reauthenticate: async (uid, email) => {
       if (user?.uid !== uid || email !== uid) throw new Error("Identity changed");
       settings.controls.scenario = "normal";
+      dataControls.controls.scenario = "normal";
     },
     token: async (uid) => {
       if (user?.uid !== uid) throw new Error("Identity changed");
@@ -81,6 +84,8 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const dataResponse = await dataControls.handle(request, user.uid);
+    if (dataResponse) return dataResponse;
     const settingsResponse = await settings.handle(request, user.uid);
     if (settingsResponse) return settingsResponse;
     const privateResponse = await privateSessions.handle(request, user.uid);
@@ -141,5 +146,6 @@ export function createSessionFixture() {
     devices,
     privateSessions,
     settings,
+    dataControls,
   };
 }

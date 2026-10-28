@@ -14,7 +14,7 @@ from brainoid_memory.models import MemoryValue
 
 
 class DeletionTarget(MemoryValue):
-    kind: Literal["fact", "message", "note", "task"]
+    kind: Literal["fact", "message", "note", "task", "conversation"]
     resource_id: ResourceId
     parent_id: ResourceId | None = None
     version: Version
@@ -103,10 +103,12 @@ class DeletionIntent(MemoryValue):
             if (
                 self.scopes
                 or len(self.targets) != 1
-                or self.targets[0].kind not in {"note", "task"}
+                or self.targets[0].kind not in {"note", "task", "conversation"}
                 or self.source_policy != "delete_source"
             ):
-                raise ValueError("Resource deletion requires one exact note/task target")
+                raise ValueError(
+                    "Resource deletion requires one exact note/task/conversation target"
+                )
             return self
         if not self.include_derived_memories:
             raise ValueError("Derived option only applies to resource deletion")

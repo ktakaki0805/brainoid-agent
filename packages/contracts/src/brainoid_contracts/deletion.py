@@ -132,3 +132,8 @@ def membership_deletion_pending(
         > fence.get("scope", {}).get("version", 0) + 1
         and members[0].get("status") == "active"
     )
+
+
+def source_write_reserved(tx: Transaction, tenant: ResourceId, path: str) -> bool:
+    """Same-transaction fence for every writer between reservation and acceptance."""
+    return tx.get(f"tenants/{tenant}/source_forget_reservations/{fingerprint(path)}") is not None

@@ -1,6 +1,7 @@
 """DB-only cancellation; it fences future work and never rolls back tool effects."""
 
 from brainoid_contracts import ResourceId
+from brainoid_contracts.deletion import fenced_document, source_write_reserved
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import Job, Jobs
 from brainoid_jobs.models import job_id
@@ -14,9 +15,16 @@ from brainoid_runs.state import KIND, conversation_path, run_path
 
 def cancellation(tx: Transaction, jobs: Jobs, run: Document) -> Document:
     tenant, identity = ResourceId(run["tenant_id"]), ResourceId(run["run_id"])
+    if source_write_reserved(tx, tenant, conversation_path(tenant, run["conversation_id"])):
+        raise PolicyDenied()
     doc = tx.get(job_path(tenant, job_id(tenant, KIND, identity)))
     parent = tx.get(conversation_path(tenant, run["conversation_id"]))
     if doc is None or parent is None:
+        raise PolicyDenied()
+    parent = fenced_document(
+        tx, tenant, "conversations", ResourceId(run["conversation_id"]), parent
+    )
+    if parent.get("deleted") is not False or parent.get("deletion_epoch") != 0:
         raise PolicyDenied()
     job = Job.model_validate(doc)
     proposal_path = None

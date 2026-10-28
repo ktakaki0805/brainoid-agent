@@ -4,6 +4,7 @@ import { SessionController } from "@brainoid-internal/ui/session";
 import { browserNavigation, SessionApp } from "@brainoid-internal/ui/session-view";
 import { Capacitor } from "@capacitor/core";
 import { createRoot } from "react-dom/client";
+import { browserExportDelivery, unavailableDelivery } from "@brainoid-internal/ui/data-controls";
 import { authenticationConfiguration } from "./auth-config.ts";
 import "@brainoid-internal/ui/styles.css";
 
@@ -36,6 +37,23 @@ if (import.meta.env.MODE === "fake") {
         ...browserNavigation(),
       });
       let push: React.ReactNode;
+      let exportDelivery = browserExportDelivery;
+      let exportNotice: React.ReactNode;
+      if (Capacitor.isNativePlatform()) {
+        exportDelivery = unavailableDelivery;
+        try {
+          const { Filesystem } = await import("@capacitor/filesystem");
+          const { Share } = await import("@capacitor/share");
+          const { nativeExportDelivery } = await import("../data-controls/native.ts");
+          const { ExportCleanupNotice } = await import("../data-controls/notice.tsx");
+          const adapter = nativeExportDelivery(Filesystem, Share);
+          await adapter.initialize();
+          exportDelivery = adapter;
+          exportNotice = <ExportCleanupNotice adapter={adapter} />;
+        } catch {
+          exportNotice = <p role="alert">ファイル保存を準備できませんでした。</p>;
+        }
+      }
       let calendarOAuth: CalendarOAuth | undefined;
       if (Capacitor.isNativePlatform()) {
         try {
@@ -69,7 +87,13 @@ if (import.meta.env.MODE === "fake") {
       }
       root.render(
         <>
-          <SessionApp controller={controller} surface="mobile" calendarOAuth={calendarOAuth} />
+          <SessionApp
+            controller={controller}
+            surface="mobile"
+            calendarOAuth={calendarOAuth}
+            exportDelivery={exportDelivery}
+          />
+          {exportNotice}
           {push}
         </>,
       );

@@ -17,6 +17,7 @@ from brainoid_memory.push_installations import ACCOUNT_GLOBALS
 from brainoid_policy.control_ledger import LedgerError
 from pydantic import JsonValue
 
+from brainoid_worker.conversation_erasure import SourceProvenanceMissing
 from brainoid_worker.dispatcher import Dispatcher, JobPages, Queue, RecoveryPage
 from brainoid_worker.entry import Execution
 from brainoid_worker.lifecycle_handlers import (
@@ -24,7 +25,6 @@ from brainoid_worker.lifecycle_handlers import (
     LifecycleHandlers,
     ProfileParentUnknown,
 )
-from brainoid_worker.note_erasure import fact_selected
 from brainoid_worker.purge_authority import KIND, PurgeJobs
 from brainoid_worker.purge_handlers import VECTOR, Decision, ForgetHandlers, LegacyProvenanceMissing
 
@@ -109,9 +109,10 @@ class PurgeResource:
         self.account_finalizer = account_finalizer
         self.handlers = handlers or ForgetHandlers()
         self.handlers.verified_operation = self._verified_operation
+        self.handlers.accepted_operation = self._accepted_operation
         self.page_size, self.step_budget = page_size, step_budget
 
-    def _verified_operation(self, tx: Transaction, identity: str) -> DeletionIntent | None:
+    def _accepted_operation(self, tx: Transaction, identity: str) -> DeletionIntent | None:
         # Cross-operation evidence requires the same independently readable ledger,
         # accepted envelope and exact tombstones; a bare DB flag is not authority.
         try:
@@ -129,6 +130,14 @@ class PurgeResource:
             _, saved = self.jobs.accepted(tx, Job.model_validate(raw))
         except ValueError:
             return None
+        return intent
+
+    def _verified_operation(self, tx: Transaction, identity: str) -> DeletionIntent | None:
+        intent = self._accepted_operation(tx, identity)
+        if intent is None:
+            return None
+        saved = tx.get(operation_path(intent.tenant_id, intent.operation_id))
+        assert saved is not None
         state = saved.get("purge", {})
         if (
             state.get("schema_version") != 1
@@ -238,9 +247,16 @@ class PurgeResource:
                 self.handlers.original(tx, target, intent, job, saved)
                 return True
         parts = path.split("/")
+
+        def selected_fact() -> bool:
+            try:
+                return self.handlers.fact_selected(tx, parts[3], intent)
+            except SourceProvenanceMissing:
+                return False
+
         if not self.handlers.root(parts[2], intent):
             raise ValueError("Cursor escapes registered derived inventory")
-        if VECTOR.fullmatch(parts[2]) and len(parts) >= 4 and fact_selected(tx, parts[3], intent):
+        if VECTOR.fullmatch(parts[2]) and len(parts) >= 4 and selected_fact():
             ancestor = "/".join(parts[:4])
             self.handlers.decide(tx, ancestor, tx.get(ancestor), intent, cutoffs)
             return True
@@ -249,7 +265,7 @@ class PurgeResource:
             and intent.include_derived_memories
             and parts[2] == "facts"
             and len(parts) >= 4
-            and fact_selected(tx, parts[3], intent)
+            and selected_fact()
         ):
             return True
         depth = 6 if parts[2] == "conversations" else 4
@@ -257,6 +273,8 @@ class PurgeResource:
             ancestor = "/".join(parts[:depth])
             doc = tx.get(ancestor)
             if doc is None:
+                if self.handlers.decide(tx, ancestor, None, intent, cutoffs).selected:
+                    return True
                 # A peer may have removed this selected ancestor during a pause.
                 # Return no deletion authority. Read-only traversal proves emptiness
                 # of the remaining branch; a live child must stop, not be skipped.
@@ -310,7 +328,7 @@ class PurgeResource:
                 if "calendar" not in self.hooks:
                     raise LegacyProvenanceMissing()
             return self.handlers.decide(tx, path, doc, intent, state["cutoffs"])
-        except LegacyProvenanceMissing as error:
+        except SourceProvenanceMissing as error:
             # Continue bounded discovery so another unknown run cannot prevent
             # this operation's own accepted cleanup. Unknown scopes are untouched.
             state["legacy_pending"] = True
@@ -325,7 +343,7 @@ class PurgeResource:
         """One durable step. Discovery is untrusted until lease/cursor revalidation."""
         try:
             return self._step(execution)
-        except LegacyProvenanceMissing:
+        except SourceProvenanceMissing:
             self._reason(execution, "legacy_provenance_missing")
             raise RetryableError() from None
         except UnprovenDerivedChild:
@@ -551,7 +569,11 @@ class PurgeResource:
                 if marker is None or related["sequence"] < marker["sequence"]:
                     marker_path = location
                     state["pass_changes"] += 1
-            for deletion_marker in deletion_markers:
+            changed_markers = [
+                marker for marker in deletion_markers if tx.get(marker[0]) != marker[1]
+            ]
+            state["pass_changes"] += len(changed_markers)
+            for deletion_marker in changed_markers:
                 tx.set(*deletion_marker)
             if marker_path is not None:
                 assert related is not None

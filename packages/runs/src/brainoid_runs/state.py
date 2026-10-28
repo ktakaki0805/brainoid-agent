@@ -26,7 +26,7 @@ from brainoid_contracts import (
     Visibility,
     normalize_utc,
 )
-from brainoid_contracts.deletion import fenced_document
+from brainoid_contracts.deletion import fenced_document, source_write_reserved
 from brainoid_contracts.guards import protect
 from brainoid_contracts.reuse import direct_user, reusable_text
 from brainoid_contracts.transactions import Document, Transaction
@@ -270,6 +270,10 @@ class RunState:
                 raise PolicyDenied()
         except AccountUnavailable:
             raise PolicyDenied() from None
+        if source_write_reserved(
+            tx, job.tenant_id, conversation_path(job.tenant_id, job.grant.ref.id)
+        ):
+            raise PolicyDenied()
         run = tx.get(run_path(job.tenant_id, job.operation_id))
         parent = tx.get(conversation_path(job.tenant_id, job.grant.ref.id))
         if (

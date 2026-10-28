@@ -11,6 +11,8 @@ import type { SessionContext, SessionController } from "./session.ts";
 import { Devices } from "./devices/view.tsx";
 import { InvitationAcceptance, TenantSettings } from "./tenant-settings/view.tsx";
 import { Tasks } from "./tasks/view.tsx";
+import { DataControls } from "./data-controls/view.tsx";
+import type { ExportDelivery } from "./data-controls/controller.ts";
 
 export function browserNavigation() {
   return {
@@ -31,12 +33,14 @@ export function SessionApp({
   preview = false,
   children,
   calendarOAuth,
+  exportDelivery,
 }: {
   controller: SessionController;
   surface: "mobile" | "display";
   preview?: boolean;
   children?: (context: SessionContext) => React.ReactNode;
   calendarOAuth?: CalendarOAuth | undefined;
+  exportDelivery?: ExportDelivery | undefined;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   useEffect(() => {
@@ -74,6 +78,14 @@ export function SessionApp({
         <InvitationAcceptance
           key={`invite:${controller.globalContext()?.generation}`}
           session={controller}
+        />
+      )}
+      {controller.globalContext() && (
+        <DataControls
+          key={`data:${controller.globalContext()?.generation}`}
+          session={controller}
+          surface={surface}
+          delivery={exportDelivery}
         />
       )}
       {controller.globalContext() && (

@@ -12,12 +12,15 @@ from typing import Protocol
 
 from brainoid_agent_core.types import MemoryRecord
 from brainoid_contracts import UtcTimestamp
+from brainoid_contracts.access import fingerprint
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_jobs import Job
 from brainoid_memory.deletion_ledger import DeletionIntent, DeletionTarget
 from brainoid_memory.forget import operation_path, target_path
-from pydantic import TypeAdapter
+from brainoid_memory.models import Fact
+from pydantic import TypeAdapter, ValidationError
 
+from brainoid_worker.conversation_erasure import ConversationSources, SourceProvenanceMissing
 from brainoid_worker.memory_erasure import (
     ErasureDependencies,
     NoteDependency,
@@ -64,7 +67,7 @@ class Decision:
     deletion_markers: tuple[tuple[str, Document], ...] = ()
 
 
-class LegacyProvenanceMissing(Exception):
+class LegacyProvenanceMissing(SourceProvenanceMissing):
     """Old self-forget cleared inputs; only its own accepted purge can resolve it."""
 
 
@@ -100,6 +103,12 @@ class ForgetHandlers:
         self.registered = dict(registered or {})
         if not set(self.registered) <= {"notifications", "caches", "exports"}:
             raise ValueError("Only derived copy collections can be registered")
+        self.accepted_operation: Callable[[Transaction, str], DeletionIntent | None] = (
+            lambda tx, identity: None
+        )
+        self.messages = ConversationSources(
+            lambda tx, identity: self.accepted_operation(tx, identity)
+        )
         self.verified_operation: Callable[[Transaction, str], DeletionIntent | None] = (
             lambda tx, identity: None
         )
@@ -107,6 +116,11 @@ class ForgetHandlers:
     def root(self, name: str, intent: DeletionIntent | None = None) -> bool:
         return (
             name in ROOTS
+            or (
+                intent is not None
+                and self.messages.enabled(intent)
+                and name == "deletion_tombstones"
+            )
             or (
                 intent is not None
                 and (
@@ -117,7 +131,7 @@ class ForgetHandlers:
                     )
                     or (
                         intent.kind == "delete_resource"
-                        and intent.targets[0].kind == "note"
+                        and intent.targets[0].kind in {"note", "conversation"}
                         and name == "facts"
                     )
                     or (
@@ -131,8 +145,12 @@ class ForgetHandlers:
             or VECTOR.fullmatch(name) is not None
         )
 
-    @staticmethod
-    def _records(document: Document, intent: DeletionIntent, tx: Transaction | None = None) -> bool:
+    def fact_selected(self, tx: Transaction, identity: str, intent: DeletionIntent) -> bool:
+        return fact_selected(tx, identity, intent, self.messages)
+
+    def _records(
+        self, document: Document, intent: DeletionIntent, tx: Transaction | None = None
+    ) -> bool:
         records = document.get("memory_records", [])
         if not isinstance(records, list):
             return False
@@ -146,11 +164,13 @@ class ForgetHandlers:
                         "source_refs": r.get("content", {}).get("source_refs", []),
                     },
                     intent,
+                    tx,
+                    self.messages,
                 )
                 or (
                     tx is not None
                     and isinstance(r.get("memory_id"), str)
-                    and fact_selected(tx, r["memory_id"], intent)
+                    and self.fact_selected(tx, r["memory_id"], intent)
                 )
             )
             for r in records
@@ -218,6 +238,11 @@ class ForgetHandlers:
     ) -> bool:
         if run.get("tenant_id") != intent.tenant_id:
             raise ValueError("Invalid erasure run tenant")
+        if any(
+            t.kind == "conversation" and run.get("conversation_id") == t.resource_id
+            for t in intent.targets
+        ):
+            return True
         evidence = retained(run)
         if (
             run.get("purged_by") == intent.operation_id
@@ -227,7 +252,7 @@ class ForgetHandlers:
                     evidence.matches(intent)
                     or (
                         intent.kind == "delete_resource"
-                        and any(fact_selected(tx, f.memory_id, intent) for f in evidence.facts)
+                        and any(self.fact_selected(tx, f.memory_id, intent) for f in evidence.facts)
                     )
                 )
             )
@@ -356,7 +381,7 @@ class ForgetHandlers:
         parts = path.split("/")
         root = parts[2]
         if VECTOR.fullmatch(root) and len(parts) == 4:
-            selected = fact_selected(tx, parts[3], intent) and (
+            selected = self.fact_selected(tx, parts[3], intent) and (
                 intent.kind != "delete_resource" or intent.include_derived_memories
             )
             if (
@@ -373,9 +398,11 @@ class ForgetHandlers:
             and len(parts) == 4
             and intent.kind == "delete_resource"
             and intent.include_derived_memories
-            and fact_selected(tx, parts[3], intent)
+            and self.fact_selected(tx, parts[3], intent)
         ):
             return Decision(children=True, selected=True)
+        if doc is None and root == "memory_effects" and len(parts) == 4:
+            return self._effect(tx, path, doc, intent)
         if doc is None:
             # Ghost ancestors can contain unproven children. The walker traverses
             # these without erasure authority and refuses completion on a live child.
@@ -386,16 +413,20 @@ class ForgetHandlers:
             )
         if doc.get("tenant_id", intent.tenant_id) != intent.tenant_id:
             raise ValueError("Invalid canonical tenant")
+        if root == "deletion_tombstones" and len(parts) == 4:
+            return Decision(deletion_markers=self.messages.inventory(tx, path, doc, intent))
         if root == "facts" and len(parts) == 4:
             selected = (
                 intent.kind == "delete_resource"
                 and intent.include_derived_memories
-                and sourced(doc, intent)
+                and sourced(doc, intent, tx, self.messages)
             )
             return Decision(
                 erase=selected,
                 children=selected,
-                deletion_markers=fact_markers(tx, parts[3], doc, intent) if selected else (),
+                deletion_markers=fact_markers(tx, parts[3], doc, intent, self.messages)
+                if selected
+                else (),
             )
         if root in {"task_effects", "task_events"} and len(parts) == 4:
             selected = task_copy(doc.get("record", {}) if root == "task_effects" else doc, intent)
@@ -417,12 +448,13 @@ class ForgetHandlers:
             if len(parts) == 6 and parts[4] == "messages":
                 # Direct user history survives suppress_reuse and unrelated shared
                 # contributors are preserved even when their conversation is tainted.
+                markers = self.messages.inventory(tx, path, doc, intent)
                 if doc.get("role") == "user":
-                    return Decision()
+                    return Decision(deletion_markers=markers)
                 run = tx.get(f"tenants/{intent.tenant_id}/runs/{doc.get('run_id')}")
                 selected = self._records(doc, intent, tx) or self._bindings(doc, intent, tx)
                 selected |= run is not None and self._run(tx, run, intent, cutoffs)
-                return Decision(erase=selected, children=selected)
+                return Decision(erase=selected, children=selected, deletion_markers=markers)
         if root == "runs" and len(parts) == 4:
             selected = self._run(tx, doc, intent, cutoffs)
             if not selected:
@@ -489,7 +521,13 @@ class ForgetHandlers:
             selected = (
                 grant.get("kind") == "facts"
                 and isinstance(grant.get("id"), str)
-                and fact_selected(tx, grant["id"], intent)
+                and self.fact_selected(tx, grant["id"], intent)
+            )
+            selected |= any(
+                t.kind == "conversation"
+                and grant.get("kind") == "conversations"
+                and grant.get("id") == t.resource_id
+                for t in intent.targets
             )
             selected |= self._sources(doc.get("attributes", {}).get("sources", {}), intent)
             if doc.get("kind") == "run_turn":
@@ -509,14 +547,7 @@ class ForgetHandlers:
                     replacement=clean if clean != doc else None, children=True, selected=True
                 )
         if root == "memory_effects" and len(parts) == 4:
-            selected = any(
-                isinstance(record, dict)
-                and record.get("tenant_id") == intent.tenant_id
-                and isinstance(record.get("id"), str)
-                and fact_selected(tx, record["id"], intent)
-                for record in (doc.get("record"), doc.get("previous"))
-            )
-            return Decision(erase=selected, children=selected)
+            return self._effect(tx, path, doc, intent)
         if root in {"run_proposals", "calendar_proposals"} and len(parts) == 4:
             run = tx.get(f"tenants/{intent.tenant_id}/runs/{doc.get('run_id')}")
             selected = run is not None and self._run(tx, run, intent, cutoffs)
@@ -541,6 +572,87 @@ class ForgetHandlers:
                 return Decision(erase=True, children=True, dependency_run=updated)
         return Decision()
 
+    def _effect(
+        self, tx: Transaction, path: str, doc: Document | None, intent: DeletionIntent
+    ) -> Decision:
+        identity = path.rsplit("/", 1)[-1]
+        proof_path = (
+            operation_path(intent.tenant_id, intent.operation_id) + "/purge_effects/" + identity
+        )
+        proof = tx.get(proof_path)
+        if proof is not None:
+            expected = {
+                "tenant_id": intent.tenant_id,
+                "effect_id": identity,
+                "request_hash": intent.request_hash,
+                "receipt_hash": proof.get("receipt_hash"),
+            }
+            if proof != expected or not isinstance(proof.get("receipt_hash"), str):
+                raise SourceProvenanceMissing()
+            if doc is not None and fingerprint(doc) != proof["receipt_hash"]:
+                raise SourceProvenanceMissing()
+            return Decision(erase=doc is not None, children=True, selected=True)
+        if doc is None:
+            return Decision(children=True)
+        if self.messages.enabled(intent):
+            # Validate the exact canonical producer binding, including the old
+            # revision side. A receipt can select only its own copy subtree.
+            try:
+                record = Fact.model_validate(doc.get("record"))
+                previous = (
+                    None if doc.get("previous") is None else Fact.model_validate(doc["previous"])
+                )
+            except ValidationError:
+                raise SourceProvenanceMissing() from None
+            if (
+                doc.get("effect_id") != identity
+                or record.id != identity
+                or record.tenant_id != intent.tenant_id
+                or record.supersedes_fact_id != doc.get("predecessor")
+                or (
+                    previous is not None
+                    and (
+                        previous.tenant_id != intent.tenant_id
+                        or previous.id != doc.get("predecessor")
+                        or type(doc.get("expected_version")) is not int
+                        or previous.version != doc["expected_version"] + 1
+                        or previous.status != "superseded"
+                    )
+                )
+                or (previous is None and doc.get("predecessor") is not None)
+            ):
+                raise SourceProvenanceMissing()
+            selected, unknown = False, False
+            for value in (doc.get("record"), doc.get("previous")):
+                if isinstance(value, dict):
+                    try:
+                        selected |= sourced(value, intent, tx, self.messages)
+                    except SourceProvenanceMissing:
+                        unknown = True
+            if not selected and unknown:
+                raise SourceProvenanceMissing()
+        else:
+            selected = any(
+                isinstance(record, dict)
+                and record.get("tenant_id") == intent.tenant_id
+                and isinstance(record.get("id"), str)
+                and self.fact_selected(tx, record["id"], intent)
+                for record in (doc.get("record"), doc.get("previous"))
+            )
+        if not self.messages.enabled(intent):
+            return Decision(erase=selected, children=selected)
+        marker = {
+            "tenant_id": intent.tenant_id,
+            "effect_id": identity,
+            "request_hash": intent.request_hash,
+            "receipt_hash": fingerprint(doc),
+        }
+        return Decision(
+            erase=selected,
+            children=selected,
+            deletion_markers=((proof_path, marker),) if selected else (),
+        )
+
     def original(
         self,
         tx: Transaction,
@@ -562,7 +674,7 @@ class ForgetHandlers:
         if target.kind == "fact":
             if doc.get("owner_user_id") != job.grant.owner_user_id:
                 raise ValueError("Original owner changed")
-        elif intent.kind == "delete_resource" and target.kind in {"note", "task"}:
+        elif intent.kind == "delete_resource" and target.kind in {"note", "task", "conversation"}:
             if (
                 doc.get("created_by") != job.grant.resource.created_by
                 or doc.get("owner_user_id") != job.grant.owner_user_id

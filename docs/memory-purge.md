@@ -2,7 +2,7 @@
 
 Calendar単体の解除は[BA-CAL-05](calendar-disconnect.md)が同じwalkerと必須calendar hookを使う。integration scopeは本人のtenant/integration/authorization/exact secret slotsに限定し、停止と物理消去の完了を別々に記録する。
 
-BA-MEM-08 / FR-013 / T-011・T-022。受付契約は[忘却受付と削除台帳](memory-forgetting.md)、認可と保持は[データ設計](03-data-and-authorization.md#8-削除忘却保持)を参照する。忘却の入口は `forget_memory`。退出・アカウント・テナント削除は[BA-IAM-10の受付と専用scope handler](account-deletion.md)が同じwalkerを再利用する。会話削除の受付、Calendar credential、通知配送、export生成、端末cache同期、backup復元訓練は旧BA-MEM-08単体の提供範囲外であり、後続ticketのcompositionで接続する。
+BA-MEM-08 / FR-013 / T-011・T-022。受付契約は[忘却受付と削除台帳](memory-forgetting.md)、認可と保持は[データ設計](03-data-and-authorization.md#8-削除忘却保持)を参照する。忘却の入口は `forget_memory`。退出・アカウント・テナント削除は[BA-IAM-10の受付と専用scope handler](account-deletion.md)が同じwalkerを再利用する。会話削除は[BA-UI-12の受付統合](ui-data-controls.md)が会話子階層・run子階層・派生Factを同じwalkerへ接続する。Calendar credential、通知配送、export生成、端末cache同期、backup復元訓練は旧BA-MEM-08単体の提供範囲外であり、後続ticketのcompositionで接続する。
 
 ## 実行と権限
 
@@ -92,7 +92,7 @@ workerにはHTTP向け例外へ変換するAPI adapterでなく共通persistence
 
 `tests/test_purge_overlap.py` は正規HTTP/RunTurnのreceiptを持つA/Bについて、Aの子階層cursor停止→B完了→Aの通常recoveryを検証する。document/collection、ページ順、未知child・tenant/原本cursor負例を含む。receipt下のcopyだけは子階層契約を試す合成fixtureであり、現検索producerが作成するという主張ではない。実Firestoreの境界testは型付きcanonical metadata fixtureを使い、祖先消失後の `show_missing` と空枝再開・残存child拒否を確認する。
 
-受付recordの追加metadataとturnのpurge_epoch/history_run_idsは内部の後方互換fieldで、公開Operation/Run DTOは変更しない。standalone note/conversation削除の共通authorizerは未提供で、APP-01等は独立typed intentと受付束縛を追加して共通walkerへ委譲する。架空Factを追加して既存forget型を流用してはならない。既存waiting envelopeはactivation時に独立intentとtombstoneを照合する。展開ではhandler/hookと専用queueを構成後にrecoveryを起動する。停止は専用queue/dispatcherを止め、既存tombstone・ledger・operation進捗を保持する。物理消去した本文はrollbackできない。旧binaryへ戻してもtombstoneを外してはならず、旧binaryには削除完了権限を委譲しない。進捗schemaを理解するworkerを再投入し、同じoperationを継続する。
+受付recordの追加metadataとturnのpurge_epoch/history_run_idsは内部の後方互換fieldで、公開Operation/Run DTOは変更しない。standalone note/task削除は[APP-01](notes.md)・[APP-02](tasks.md)、conversation削除は[UI-12](ui-data-controls.md)のtyped intentと受付束縛から共通walkerへ委譲する。架空Factを追加して既存forget型を流用してはならない。既存waiting envelopeはactivation時に独立intentとtombstoneを照合する。展開ではhandler/hookと専用queueを構成後にrecoveryを起動する。停止は専用queue/dispatcherを止め、既存tombstone・ledger・operation進捗を保持する。物理消去した本文はrollbackできない。旧binaryへ戻してもtombstoneを外してはならず、旧binaryには削除完了権限を委譲しない。進捗schemaを理解するworkerを再投入し、同じoperationを継続する。
 
 BA-MEM-09の[一時export物理消去](data-export.md)を有効にする構成では、forget用・lifecycle用の両PurgeResourceのexport hookに `Exports` を注入する。tenant配下のexports metadataが先に消えるため、global registryからobjectを追跡する。`NoExternalCopies` はexport backendなしの場合だけに用いる。
 

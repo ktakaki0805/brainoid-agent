@@ -123,7 +123,9 @@ class PurgeJobs(Jobs):
             or saved.get("operation", {}).get("kind") != intent.kind
             or job.grant.ref.kind
             != (
-                {"note": "notes", "task": "tasks"}[intent.targets[0].kind]
+                {"note": "notes", "task": "tasks", "conversation": "conversations"}[
+                    intent.targets[0].kind
+                ]
                 if intent.kind == "delete_resource"
                 else "facts"
             )
@@ -134,9 +136,13 @@ class PurgeJobs(Jobs):
             marker = tx.get(
                 tombstone_path(
                     intent.tenant_id,
-                    {"fact": "facts", "message": "messages", "note": "notes", "task": "tasks"}[
-                        target.kind
-                    ],
+                    {
+                        "fact": "facts",
+                        "message": "messages",
+                        "note": "notes",
+                        "task": "tasks",
+                        "conversation": "conversations",
+                    }[target.kind],
                     target.resource_id,
                     target.parent_id,
                 )

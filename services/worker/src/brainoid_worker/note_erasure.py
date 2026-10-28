@@ -6,6 +6,8 @@ from brainoid_contracts.transactions import Document, Transaction
 from brainoid_memory.deletion_ledger import DeletionIntent, DeletionTarget
 from brainoid_memory.forget import operation_path
 
+from brainoid_worker.conversation_erasure import ConversationSources, SourceProvenanceMissing
+
 
 def note_targets(intent: DeletionIntent) -> tuple[DeletionTarget, ...]:
     """Only sources in the accepted intent; never infer additional Fact authority."""
@@ -23,28 +25,54 @@ def note_copy(document: Document, intent: DeletionIntent) -> bool:
     )
 
 
-def sourced(document: Document, intent: DeletionIntent) -> bool:
+def sourced(
+    document: Document,
+    intent: DeletionIntent,
+    tx: Transaction | None = None,
+    messages: ConversationSources | None = None,
+) -> bool:
     if document.get("tenant_id") != intent.tenant_id:
         return False
     refs = document.get("source_refs", [])
-    return isinstance(refs, list) and any(
-        isinstance(ref, dict)
-        and ref.get("kind") == "note"
-        and ref.get("resource_id") == target.resource_id
-        and type(ref.get("version")) is int
-        and 1 <= ref["version"] <= target.version
-        for ref in refs
-        for target in note_targets(intent)
-    )
+    if not isinstance(refs, list):
+        raise SourceProvenanceMissing()
+    unknown = False
+    for ref in refs:
+        if not isinstance(ref, dict):
+            raise SourceProvenanceMissing()
+        if ref.get("kind") == "message" and ConversationSources.enabled(intent):
+            if tx is None or messages is None:
+                raise SourceProvenanceMissing()
+            try:
+                if messages.matches(tx, ref, intent):
+                    return True
+            except SourceProvenanceMissing:
+                unknown = True
+        if any(
+            ref.get("kind") == "note"
+            and ref.get("resource_id") == target.resource_id
+            and type(ref.get("version")) is int
+            and 1 <= ref["version"] <= target.version
+            for target in note_targets(intent)
+        ):
+            return True
+    if unknown:
+        raise SourceProvenanceMissing()
+    return False
 
 
-def fact_selected(tx: Transaction, identity: str, intent: DeletionIntent) -> bool:
+def fact_selected(
+    tx: Transaction,
+    identity: str,
+    intent: DeletionIntent,
+    messages: ConversationSources | None = None,
+) -> bool:
     if intent.kind == "forget_memory":
         return identity == intent.targets[0].resource_id
     if intent.kind != "delete_resource":
         return False
     doc = tx.get(f"tenants/{intent.tenant_id}/facts/{identity}")
-    if doc is not None and doc.get("id") == identity and sourced(doc, intent):
+    if doc is not None and doc.get("id") == identity and sourced(doc, intent, tx, messages):
         return True
     return tx.get(selection_path(intent, identity)) == selection(intent, identity)
 
@@ -62,9 +90,13 @@ def selection(intent: DeletionIntent, identity: str) -> Document:
 
 
 def fact_markers(
-    tx: Transaction, identity: str, document: Document, intent: DeletionIntent
+    tx: Transaction,
+    identity: str,
+    document: Document,
+    intent: DeletionIntent,
+    messages: ConversationSources | None = None,
 ) -> tuple[tuple[str, Document], ...]:
-    if document.get("id") != identity or not sourced(document, intent):
+    if document.get("id") != identity or not sourced(document, intent, tx, messages):
         raise ValueError("Unproved derived fact")
     version, epoch = document.get("version"), document.get("deletion_epoch")
     if type(version) is not int or version < 1 or type(epoch) is not int or epoch < 0:

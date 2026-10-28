@@ -17,6 +17,7 @@ CONTROL = frozenset(
         "membership_deletion_fences",
         "memory_forget_reservations",
         "note_delete_reservations",
+        "conversation_delete_reservations",
         "task_delete_reservations",
         "source_forget_reservations",
         "memory_forget_effects",

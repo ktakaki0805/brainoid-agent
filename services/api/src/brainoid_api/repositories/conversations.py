@@ -178,6 +178,14 @@ class Conversations:
                 output=output,
             )
         )
+        if (
+            action in (Action.WRITE, Action.POST)
+            and tx.get(
+                f"tenants/{tenant}/source_forget_reservations/{fingerprint(conversation_path(tenant, conversation))}"
+            )
+            is not None
+        ):
+            raise APIError(ErrorCode.CONFLICT)
         current = self.scope(
             principal, account, grant.scope, grant.owner_user_id, grant.output_stamp
         )

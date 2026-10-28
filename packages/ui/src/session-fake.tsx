@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { browserExportDelivery } from "./data-controls/view.tsx";
 import type { CalendarOAuth } from "./calendar/contracts.ts";
 import type { DeviceScenario } from "./devices/fixture.ts";
 import type { CalendarScenario } from "./calendar/fixture.ts";
@@ -35,13 +36,42 @@ export function SessionPreview({
   );
   return (
     <>
-      <SessionApp controller={controller} surface={surface} preview calendarOAuth={calendarOAuth}>
+      <SessionApp
+        controller={controller}
+        surface={surface}
+        preview
+        calendarOAuth={calendarOAuth}
+        exportDelivery={browserExportDelivery}
+      >
         {(context) => <ContextProbe context={context} />}
       </SessionApp>
       {extra?.(controller, fixture)}
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            データ管理の動作
+            <select
+              aria-label="データ管理の動作"
+              defaultValue="normal"
+              onChange={(e) => {
+                fixture.dataControls.controls.scenario = e.target
+                  .value as typeof fixture.dataControls.controls.scenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="recent">再認証</option>
+              <option value="last_owner">最後のowner</option>
+              <option value="lost">応答喪失</option>
+              <option value="unavailable">受付停止</option>
+              <option value="denied">権限失効</option>
+              <option value="expired">期限・忘却失効</option>
+              <option value="failed">消去失敗</option>
+              <option value="unknown">結果不明</option>
+              <option value="account_finalized">account最終状態取得不可</option>
+              <option value="broken_stream">途中切断</option>
+            </select>
+          </label>
           <label>
             会員管理の動作
             <select

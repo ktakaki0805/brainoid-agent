@@ -556,7 +556,7 @@ export declare const cancelDeviceCommand: <ThrowOnError extends boolean = false>
 /**
  * forget/delete/export/退出を受け付ける
  *
- * forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。exportは明示local構成で提供。現在読める会話・メッセージ・Entity・記憶・ノートをJSON入りZIPにまとめる。my_dataは本人privateと本人の共有寄稿（共有会話の親metadataを含む）、visible_tenant_dataは現在読める共有範囲も含む。delete_resourceはtarget_type=noteを提供。現在の作成者/admin編集権と期待版を検査し、独立削除台帳・tombstone・purge job保存後に202を返す。include_derived_memories=falseでは派生Factの物理消去を省くが、削除sourceのモデル再利用は禁止する。他のtarget_typeは未提供。
+ * forget_memoryを実装。認可・expected_version確認、独立削除台帳の先行記録、DB tombstoneとoperation保存後に202 pending。source_policy既定はsuppress_reuse。leave_tenantとdelete_tenantはlocal-emulatorと明示fake構成で提供し、本人の直近5分再認証を要求する。tenant削除は現在のownerとconfirmation_name一致が必要。exportは明示local構成で提供。現在読める会話・メッセージ・Entity・記憶・ノートをJSON入りZIPにまとめる。my_dataは本人privateと本人の共有寄稿（共有会話の親metadataを含む）、visible_tenant_dataは現在読める共有範囲も含む。delete_resourceはtarget_type=note/task/conversationを提供。現在の作成者/admin編集権と期待版を検査し、独立削除台帳・tombstone・purge job保存後に202を返す。include_derived_memories=falseでは派生Factの物理消去を省くが、削除sourceのモデル再利用は禁止する。conversationは選択した会話と全messages・run events・音声参照を削除し、共有会話では他の参加者の発言も対象となる。派生記憶の同時削除は既定true。reminder/entityは未提供。
  */
 export declare const createTenantOperation: <ThrowOnError extends boolean = false>(options: Options<CreateTenantOperationData, ThrowOnError>) => RequestResult<CreateTenantOperationResponses, CreateTenantOperationErrors, ThrowOnError>;
 /**
