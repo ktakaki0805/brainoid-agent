@@ -2,10 +2,12 @@
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Literal, Self
+from typing import Annotated, Self
 from uuid import uuid4
 
 from brainoid_contracts import FirebaseUid, ResourceId, UtcTimestamp, Version, normalize_utc
+from brainoid_contracts.device_snapshot import PrivateSession as PrivateSession
+from brainoid_contracts.device_snapshot import SessionScope as SessionScope
 from brainoid_policy.control_ledger import ControlLedger
 from brainoid_policy.evaluator import Evaluator
 from brainoid_policy.models import Action, DeviceSubject, Subject, UserSubject
@@ -22,17 +24,6 @@ from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.device_credentials import DeviceCredentialRepository, Input, _key
 from brainoid_api.repositories.tenants import Tenants
 
-SessionScope = Literal[
-    "conversation",
-    "memory.read",
-    "memory.write",
-    "notes",
-    "tasks",
-    "reminders",
-    "calendar.read",
-    "calendar.propose",
-    "home.control",
-]
 LIFETIME = timedelta(minutes=5)
 IDLE = timedelta(seconds=60)
 
@@ -48,20 +39,6 @@ class PrivateSessionCreate(Input):
         ):
             raise ValueError("Explicit shared-space consent and unique scopes are required")
         return self
-
-
-class PrivateSession(Input):
-    id: ResourceId
-    tenant_id: ResourceId
-    version: Version
-    created_at: UtcTimestamp
-    updated_at: UtcTimestamp
-    user_id: FirebaseUid
-    device_id: ResourceId
-    allowed_scopes: list[SessionScope]
-    expires_at: UtcTimestamp
-    idle_expires_at: UtcTimestamp
-    status: Literal["active", "ended", "expired"]
 
 
 class SessionRecord(PrivateSession):
@@ -331,7 +308,9 @@ class PrivateSessions:
     def context(self, identity: DeviceIdentity, session: ResourceId) -> Principal:
         return self._store.run(lambda tx: self.current(tx, identity, session))
 
-    def snapshot(self, tx: Transaction, identity: DeviceIdentity) -> PrivateSession | None:
+    def snapshot(
+        self, tx: Transaction, identity: DeviceIdentity, *, persist: bool = True
+    ) -> PrivateSession | None:
         """DEV-04 adapter: read after other snapshot reads, before writes; never activity.
 
         Returns only the current active session; persists derived terminal state, without
@@ -345,7 +324,7 @@ class PrivateSessions:
         if record.device_id != identity.sub:
             raise APIError(ErrorCode.OPERATION_FORBIDDEN)
         current = self._effective(tx, record)
-        if current != record:
+        if persist and current != record:
             self._persist(tx, current)
         return self._view(current) if current.status == "active" else None
 

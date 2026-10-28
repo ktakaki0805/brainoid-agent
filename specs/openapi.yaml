@@ -995,12 +995,12 @@ paths:
     get:
       operationId: getDeviceSnapshot
       summary: Piが現在のsession・出力run・未完了配送を同期
-      description: Piが現在のsession・出力run・未完了配送を同期
+      description: 現在のdevice credentialで認可し最大20候補ずつ走査するsnapshot。全頁取得後snapshot:validateで現在権限を再検証する。cursorは5分期限で同じdevice・認可・sessionだけに有効。
       security:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 成功
           content:
             application/json:
               schema:
@@ -1022,6 +1022,37 @@ paths:
         schema:
           type: string
           maxLength: 2048
+  /devices/{device_id}/snapshot:validate:
+    post:
+      operationId: validateDeviceSnapshot
+      summary: 全頁の候補IDを現在権限で再検証
+      description: 合計128件以内の一意なIDのみを現在のdevice・family・sessionと各出典で再認可する読み取り。任意のID指定はアクセス権を与えない。scope変更時は400で全頁を再取得する。
+      security:
+      - deviceBearer: []
+      parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SnapshotSelection'
+      responses:
+        '200':
+          description: 現在認可された候補のみ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceSnapshotState'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /devices/{device_id}/connect:
     get:
       operationId: connectDevice
@@ -3854,6 +3885,9 @@ components:
         connection_generation:
           type: integer
           minimum: 1
+        snapshot_id:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
         active_private_session:
           oneOf:
           - $ref: '#/components/schemas/PrivateSession'
@@ -3862,15 +3896,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RunAssignment'
-          maxItems: 100
+          maxItems: 20
         pending_command_ids:
           type: array
           items: *id001
-          maxItems: 100
+          maxItems: 20
         pending_notification_ids:
           type: array
           items: *id001
-          maxItems: 100
+          maxItems: 20
         delivery_cursor:
           type: integer
           minimum: 0
@@ -3882,6 +3916,7 @@ components:
       - device_id
       - tenant_id
       - connection_generation
+      - snapshot_id
       - active_private_session
       - assigned_runs
       - pending_command_ids
@@ -3889,7 +3924,81 @@ components:
       - delivery_cursor
       - next_cursor
       additionalProperties: false
-      description: 現在の権限で再計算。失効したprivate session/runは返さない。next_cursorがある間は続頁取得。
+      description: 現在の権限で最大20候補/頁を走査。connection_generationはcredential認可世代でWSS世代とは別。delivery_cursorはcommand受領ACKではない。新規追加は次の走査で回復し、全頁の候補は最終検証まで公開しない。
+    DeviceSnapshotState:
+      type: object
+      properties:
+        device_id: *id001
+        tenant_id: *id001
+        connection_generation:
+          type: integer
+          minimum: 1
+        snapshot_id:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        active_private_session:
+          oneOf:
+          - $ref: '#/components/schemas/PrivateSession'
+          - type: 'null'
+        assigned_runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunAssignment'
+          maxItems: 128
+        pending_command_ids:
+          type: array
+          items: *id001
+          maxItems: 128
+        pending_notification_ids:
+          type: array
+          items: *id001
+          maxItems: 128
+        delivery_cursor:
+          type: integer
+          minimum: 0
+        next_cursor:
+          type: 'null'
+      required:
+      - device_id
+      - tenant_id
+      - connection_generation
+      - snapshot_id
+      - active_private_session
+      - assigned_runs
+      - pending_command_ids
+      - pending_notification_ids
+      - delivery_cursor
+      - next_cursor
+      additionalProperties: false
+      description: 全頁の候補を現在権限で再検証した状態。全種類合計128件以内。
+    SnapshotSelection:
+      type: object
+      additionalProperties: false
+      description: 全種類合計128件以内。各配列内のIDは一意。
+      properties:
+        snapshot_id:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        run_ids:
+          type: array
+          items: *id001
+          maxItems: 128
+          uniqueItems: true
+        command_ids:
+          type: array
+          items: *id001
+          maxItems: 128
+          uniqueItems: true
+        notification_ids:
+          type: array
+          items: *id001
+          maxItems: 128
+          uniqueItems: true
+      required:
+      - snapshot_id
+      - run_ids
+      - command_ids
+      - notification_ids
     ConversationCreate:
       type: object
       properties:

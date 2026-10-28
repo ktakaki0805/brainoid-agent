@@ -11,6 +11,7 @@ from uuid import UUID, uuid5
 from brainoid_contracts import FirebaseUid, ResourceId, Scope, UtcTimestamp, Version, Visibility
 from brainoid_contracts.access import fingerprint
 from brainoid_contracts.deletion import fenced_document
+from brainoid_contracts.device_snapshot import NotificationView as NotificationView
 from brainoid_contracts.transactions import Document, Transaction
 from brainoid_policy.accounts import AccountUnavailable, account_stamp
 from brainoid_policy.evaluator import Evaluator
@@ -69,6 +70,7 @@ class Notification(Scope, StoredMetadata):
 
 class DeliveryState(MemoryValue):
     notification_id: ResourceId
+    device_sequence: Version | None = None
     target: DeliveryTarget
     provider: Literal["pending", "accepted", "offline"] = "pending"
     accepted_at: UtcTimestamp | None = None
@@ -94,20 +96,6 @@ def public_version(delivery: DeliveryState, reminder: Reminder) -> Version:
     ):
         raise PolicyDenied()
     return delivery.projection_version + reminder.version - delivery.reminder_version
-
-
-class NotificationView(Scope, MemoryValue):
-    id: ResourceId
-    tenant_id: ResourceId
-    version: Version
-    created_at: UtcTimestamp
-    updated_at: UtcTimestamp
-    reminder_id: ResourceId
-    title: Annotated[str, Field(min_length=1, max_length=200)]
-    status: Literal["pending", "sent", "displayed", "acknowledged", "expired"]
-    target_kind: Literal["user", "device"]
-    target_id: FirebaseUid
-    expires_at: UtcTimestamp
 
 
 class NotificationPage(MemoryValue):

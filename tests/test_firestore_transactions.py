@@ -4,6 +4,7 @@ import unittest
 from typing import Any
 from unittest.mock import Mock
 
+from brainoid_contracts.transactions import Transaction as TransactionPort
 from brainoid_persistence.firestore import FirestoreTransactions, PersistenceUnavailable
 from google.api_core.exceptions import Aborted, ServiceUnavailable
 from google.cloud.firestore_v1 import Client
@@ -141,3 +142,30 @@ class FirestoreTransactionTests(unittest.TestCase):
             self.store.run(self.read_write)
         self.assertEqual(self.read.call_count, 1)
         self.commit.assert_not_called()
+
+    def test_bounded_query_applies_keyset_and_limit_before_transactional_stream(self) -> None:
+        query = Mock()
+        query.order_by.return_value = query
+        query.where.return_value = query
+        query.limit.return_value = query
+        query.start_after.return_value = query
+        self.client.collection.return_value = query
+        self.snapshot.reference.path = "resources/b"
+        query.stream.side_effect = [aborted("bounded query conflict"), iter((self.snapshot,))]
+        result = self.store.run(
+            lambda tx: tx.query_page("resources", {"target.id": "device"}, after="a", limit=21)
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(query.stream.call_count, 2)
+        query.order_by.assert_called_with("__name__")
+        query.limit.assert_called_with(21)
+        query.start_after.assert_called_with({"__name__": query.document.return_value})
+        query.document.assert_called_with("a")
+        self.assertEqual([t._max_attempts for t in self.transactions], [5, 4])
+        for limit, after in ((101, None), (0, None), (20, "../other")):
+
+            def invalid(tx: TransactionPort, limit: int = limit, after: str | None = after) -> Any:
+                return tx.query_page("resources", {"target.id": "device"}, after=after, limit=limit)
+
+            with self.assertRaises(ValueError):
+                self.store.run(invalid)

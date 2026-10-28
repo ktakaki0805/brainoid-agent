@@ -49,6 +49,11 @@ class GuardedTransaction:
     def query(self, path: str, filters: dict[str, str]) -> list[tuple[str, Document]]:
         return self.transaction.query(path, filters)
 
+    def query_page(
+        self, path: str, filters: dict[str, str], *, after: str | None, limit: int
+    ) -> list[tuple[str, Document]]:
+        return self.transaction.query_page(path, filters, after=after, limit=limit)
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         return self.transaction.find(collection, field, value)
 

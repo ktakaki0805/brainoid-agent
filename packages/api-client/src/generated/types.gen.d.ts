@@ -217,18 +217,43 @@ export type RunAssignment = {
     private_session_id?: ResourceId;
 };
 /**
- * 現在の権限で再計算。失効したprivate session/runは返さない。next_cursorがある間は続頁取得。
+ * 現在の権限で最大20候補/頁を走査。connection_generationはcredential認可世代でWSS世代とは別。delivery_cursorはcommand受領ACKではない。新規追加は次の走査で回復し、全頁の候補は最終検証まで公開しない。
  */
 export type DeviceSnapshot = {
     device_id: ResourceId;
     tenant_id: ResourceId;
     connection_generation: number;
+    snapshot_id: string;
     active_private_session: PrivateSession | null;
     assigned_runs: Array<RunAssignment>;
     pending_command_ids: Array<ResourceId>;
     pending_notification_ids: Array<ResourceId>;
     delivery_cursor: number;
     next_cursor: string | null;
+};
+/**
+ * 全頁の候補を現在権限で再検証した状態。全種類合計128件以内。
+ */
+export type DeviceSnapshotState = {
+    device_id: ResourceId;
+    tenant_id: ResourceId;
+    connection_generation: number;
+    snapshot_id: string;
+    active_private_session: PrivateSession | null;
+    assigned_runs: Array<RunAssignment>;
+    pending_command_ids: Array<ResourceId>;
+    pending_notification_ids: Array<ResourceId>;
+    delivery_cursor: number;
+    next_cursor: null;
+};
+/**
+ * 全種類合計128件以内。各配列内のIDは一意。
+ */
+export type SnapshotSelection = {
+    snapshot_id: string;
+    run_ids: Array<ResourceId>;
+    command_ids: Array<ResourceId>;
+    notification_ids: Array<ResourceId>;
 };
 export type ConversationCreate = unknown & {
     agent_id: ResourceId;
@@ -1595,11 +1620,33 @@ export type GetDeviceSnapshotErrors = {
 export type GetDeviceSnapshotError = GetDeviceSnapshotErrors[keyof GetDeviceSnapshotErrors];
 export type GetDeviceSnapshotResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 成功
      */
     200: DeviceSnapshot;
 };
 export type GetDeviceSnapshotResponse = GetDeviceSnapshotResponses[keyof GetDeviceSnapshotResponses];
+export type ValidateDeviceSnapshotData = {
+    body: SnapshotSelection;
+    path: {
+        device_id: ResourceId;
+    };
+    query?: never;
+    url: '/devices/{device_id}/snapshot:validate';
+};
+export type ValidateDeviceSnapshotErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type ValidateDeviceSnapshotError = ValidateDeviceSnapshotErrors[keyof ValidateDeviceSnapshotErrors];
+export type ValidateDeviceSnapshotResponses = {
+    /**
+     * 現在認可された候補のみ
+     */
+    200: DeviceSnapshotState;
+};
+export type ValidateDeviceSnapshotResponse = ValidateDeviceSnapshotResponses[keyof ValidateDeviceSnapshotResponses];
 export type ConnectDeviceData = {
     body?: never;
     path: {

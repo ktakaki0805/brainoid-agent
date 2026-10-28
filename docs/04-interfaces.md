@@ -191,6 +191,8 @@ TTSは最初の確定文から順次生成する。`GET speech-outputs/{id}/audi
 
 ## 5. Pi WebSocketと端末コマンド
 
+詳細な現在の実装契約は[端末の状態復旧](device-snapshot.md)を参照する。
+
 ### 5.1 接続とフレーム
 
 Piサービスが `WSS /v1/devices/{device_id}/connect` に接続し、subprotocolは `brainoid-agent.device.v1` を提案する。bearerはAuthorization headerへ入れ、queryには置かない。UIのブラウザが直接cloud device credentialを持つ構成にはしない。

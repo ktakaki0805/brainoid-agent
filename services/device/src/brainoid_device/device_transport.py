@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from brainoid_contracts import ResourceId
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus, WebSocketException
 from websockets.typing import Subprotocol
@@ -90,6 +91,7 @@ class DeviceTransport:
             logger=QUIET,
         ) as socket:
             self.socket = socket
+            synchronization: asyncio.Task[None] | None = None
             try:
                 client.check(generation)
                 if socket.subprotocol != SUBPROTOCOL:
@@ -119,18 +121,28 @@ class DeviceTransport:
                 client.storage.set_generation(binding.epoch, self.generation)
                 client.status = "connected"
                 self.accepted = True
+                if client.recovery is not None:
+                    synchronization = client.start(client.recovery.run())
                 heartbeat = self.monotonic() + 15
                 last_ack = self.monotonic()
                 while self.monotonic() < deadline:
                     client.check(generation)
+                    if synchronization is not None and synchronization.done():
+                        synchronization.result()
                     now = self.monotonic()
                     if now - last_ack >= 45:
                         raise CloudError()
                     if now >= heartbeat:
+                        registration = client.storage.snapshot().registration
                         async with asyncio.timeout(5):
                             await socket.send(
                                 self._frame(
-                                    "heartbeat", {"last_received_seq": binding.delivery_cursor}
+                                    "heartbeat",
+                                    {
+                                        "last_received_seq": registration.delivery_cursor
+                                        if registration
+                                        else 0
+                                    },
                                 )
                             )
                         heartbeat = now + 15
@@ -153,14 +165,24 @@ class DeviceTransport:
                         raise CloudError("invalid_cloud_response", 502)
                     if value["type"] == "heartbeat_ack":
                         last_ack = self.monotonic()
-                    elif value["type"] in {"session_revoked", "error"}:
-                        # Until DEV04 owns per-session semantics, fail closed and
-                        # discard all private output rather than interpreting a snapshot.
+                    elif value["type"] == "error":
                         client.stop()
                         raise CloudError("authorization_refused", 403)
-                    # Valid command/session/run/notification frames have no consumer
-                    # yet. Never ACK, advance a cursor or execute an appliance here.
+                    elif client.recovery is not None:
+                        if value["type"] in {"session_started", "session_revoked"}:
+                            client.recovery.session_hint(
+                                value["type"], ResourceId(value["payload"]["private_session_id"])
+                            )
+                        client.recovery.changed.set()
+                    elif value["type"] == "session_revoked":
+                        client.stop()
+                        raise CloudError("authorization_refused", 403)
+                    # Frame payloads are hints. Only a fully authorized page set
+                    # replaces state; old speech is never auto-played.
             finally:
+                if synchronization is not None:
+                    synchronization.cancel()
+                    await asyncio.gather(synchronization, return_exceptions=True)
                 self.socket = None
                 if client.active:
                     client.status = "connecting"

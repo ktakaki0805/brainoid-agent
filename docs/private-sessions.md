@@ -1,6 +1,6 @@
 # Pi個人セッション
 
-BA-IAM-09 / FR-012 / T-020・T-021 のAPI側契約。本人のFirebase認証、現在のmembership、対象Piの現在の許可範囲を確認して短命な委任を作る。画面・音声消去はBA-UI-10・BA-VOICE-05、session_startedとsnapshotの配送はBA-DEV-04で接続する。
+BA-IAM-09 / FR-012 / T-020・T-021 のAPI側契約。本人のFirebase認証、現在のmembership、対象Piの現在の許可範囲を確認して短命な委任を作る。画面・音声消去はBA-UI-10・BA-VOICE-05、session_startedとsnapshotの配送は[端末の状態復旧](device-snapshot.md)で接続する。
 
 ## HTTP契約
 

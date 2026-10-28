@@ -32,8 +32,10 @@ from brainoid_api.common.firestore import FirestoreTransactions
 from brainoid_api.common.pagination import Cursors
 from brainoid_api.device_command_watch import command_gateway
 from brainoid_api.device_commands import DeviceCommands
-from brainoid_api.device_gateway import DeviceGateway
+from brainoid_api.device_gateway import Delivery, DeviceGateway
 from brainoid_api.device_leases import DeviceLeases
+from brainoid_api.device_notifications import DeviceNotifications
+from brainoid_api.device_snapshot import DeviceSnapshots
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.agents import Agents
 from brainoid_api.repositories.conversations import Conversations
@@ -74,6 +76,7 @@ class AuthServices:
     calendar_write_enabled: bool = False
     calendar_disconnect: CalendarDisconnect | None = None
     device_gateway: DeviceGateway | None = None
+    device_snapshots: DeviceSnapshots | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]
@@ -142,6 +145,21 @@ async def authentication_lifespan(
             vector_search=(vector_search_factory(client) if vector_search_factory else None),
             deletion_ledger=DeletionLedger(objects),
         )
+        conversations = Conversations(
+            store,
+            tenants,
+            cursors,
+            Jobs(store, ledger, allow_untracked_bootstrap=settings.app_env == "local-emulator"),
+            credentials=devices,
+            sessions=sessions,
+        )
+        snapshots = DeviceSnapshots(conversations, memories, sessions)
+        notifications = DeviceNotifications(snapshots)
+        gateway = command_gateway(DeviceLeases(store, devices), client, DeviceCommands(memories))
+        gateway.hooks += (notifications,)
+        gateway.handlers["notification_ack"] = lambda payload: Delivery(
+            "notification", lambda tx, binding: notifications.ack(tx, binding, payload)
+        )
         yield AuthServices(
             FirebaseIdentityVerifier(app, settings),
             FirestoreProfiles(client),
@@ -157,14 +175,7 @@ async def authentication_lifespan(
             Devices(store, tenants, ledger, cursors),
             sessions,
             Agents(store, tenants, cursors, ledger=ledger, credentials=devices),
-            Conversations(
-                store,
-                tenants,
-                cursors,
-                Jobs(store, ledger, allow_untracked_bootstrap=settings.app_env == "local-emulator"),
-                credentials=devices,
-                sessions=sessions,
-            ),
+            conversations,
             Entities(
                 store,
                 tenants,
@@ -182,9 +193,8 @@ async def authentication_lifespan(
             DeletionRequests(store, DeletionLedger(objects), ledger)
             if settings.app_env == "local-emulator"
             else None,
-            device_gateway=command_gateway(
-                DeviceLeases(store, devices), client, DeviceCommands(memories)
-            ),
+            device_gateway=gateway,
+            device_snapshots=snapshots,
         )
     finally:
         try:

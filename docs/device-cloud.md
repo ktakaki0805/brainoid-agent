@@ -71,3 +71,5 @@ SQLite schema 変更はない。旧版への rollback は service を停止し�
 実 Pi、Cloud Run、公開 ingress log、実回線の遅延・実機電源断・実 owner スマホ画面は未実施。frontend source を変更せず、画面の完成・音声/家電実行・snapshot割当をこのチケットの検証結果としない。
 
 一次資料（2026-10-28確認）: [HTTPX AsyncClient と streaming cleanup](https://www.python-httpx.org/async/)、[HTTPX trust_env](https://www.python-httpx.org/environment_variables/)、[websockets asyncio client の header/proxy/limits](https://websockets.readthedocs.io/en/stable/reference/asyncio/client.html)。インストール済み17.3のAPIとも照合した。
+
+BA-DEV-04の[状態復旧](device-snapshot.md)はhello_ack後の全頁同期、session失効時の出力fenceと通知のdisplayed receiptを接続する。

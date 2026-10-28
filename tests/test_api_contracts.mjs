@@ -37,11 +37,15 @@ function expectExit(result, code) {
   assert.equal(result.status, code, `${result.stdout}\n${result.stderr}`);
 }
 
-test("all 90 business operations and two health operations have generated methods", () => {
+test("all 91 business operations and two health operations have generated methods", () => {
   const operations = Object.values(spec.paths)
     .flatMap((path) => Object.values(path))
     .filter((operation) => operation.operationId);
-  assert.equal(operations.length, 92);
+  assert.equal(operations.length, 93);
+  assert.equal(
+    spec.paths["/devices/{device_id}/snapshot:validate"].post.operationId,
+    "validateDeviceSnapshot",
+  );
   for (const operation of operations) {
     // biome-ignore lint/performance/noDynamicNamespaceImportAccess: contract-wide export coverage.
     assert.equal(typeof sdk[operation.operationId], "function", operation.operationId);

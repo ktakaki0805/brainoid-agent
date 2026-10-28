@@ -5,7 +5,7 @@ import logging
 import secrets
 import time
 from collections.abc import Awaitable, Callable, Coroutine
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
 import httpx
@@ -18,6 +18,9 @@ from brainoid_device.config import CloudSettings
 from brainoid_device.ledger import DeviceStorage
 from brainoid_device.runtime import Runtime
 from brainoid_device.storage import CredentialStore
+
+if TYPE_CHECKING:
+    from brainoid_device.snapshot_sync import SnapshotSync
 
 T = TypeVar("T")
 JOURNAL_NAME = "cloud-connection-v1"
@@ -45,6 +48,8 @@ class CloudClient:
         self.now, self.sleep = now, sleep
         self._runtime_generation = runtime.generation
         self.generation = 0
+        self.output_generation = 0
+        self.recovery: SnapshotSync | None = None
         self.status = "unregistered"
         self.active = True
         self._tasks: set[asyncio.Task[None]] = set()
@@ -96,6 +101,13 @@ class CloudClient:
             or self.now() < self.journal.observed_at
         ):
             raise CloudError("cloud_stopped", 409)
+
+    def check_output(
+        self, session: ResourceId | None = None, generation: int | None = None
+    ) -> None:
+        self.check()
+        if self.recovery is not None:
+            self.recovery.check(session, generation)
 
     def save(self) -> None:
         self.check()

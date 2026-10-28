@@ -2,7 +2,7 @@
 
 import asyncio
 import hashlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Annotated, Any, Literal
 from urllib.parse import urlencode
 
@@ -90,7 +90,12 @@ def local_body(raw: bytes) -> dict[str, Any]:
 
 class GuardedResponse(Response):
     def __init__(
-        self, response: Response, client: CloudClient, sessions: Sessions, request: Request
+        self,
+        response: Response,
+        client: CloudClient,
+        sessions: Sessions,
+        request: Request,
+        check_publication: Callable[[], None] | None = None,
     ) -> None:
         self.response, self.client, self.sessions, self.request = (
             response,
@@ -99,19 +104,31 @@ class GuardedResponse(Response):
             request,
         )
         self.generation = client.generation
+        self.output_generation = client.output_generation
+        self.check_publication = check_publication
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if self.check_publication:
+            try:
+                self.check_publication()
+            except CloudError as exc:
+                await error(exc.code, exc.status)(scope, receive, send)
+                return
         started = False
 
         async def guarded(message: Message) -> None:
             nonlocal started
             try:
                 self.client.check(self.generation)
+                self.client.check_output(generation=self.output_generation)
+                if self.check_publication:
+                    self.check_publication()
                 if self.sessions.find(self.request) is None:
                     raise CloudError("session_required", 401)
-            except CloudError:
+            except CloudError as exc:
                 if not started:
-                    await error("cloud_stopped", 409)(scope, receive, send)
+                    code = "snapshot_changed" if exc.code == "snapshot_changed" else "cloud_stopped"
+                    await error(code, 409)(scope, receive, send)
                     started = True
                 elif message["type"] == "http.response.body":
                     await send({"type": "http.response.body", "body": b"", "more_body": False})
@@ -128,8 +145,23 @@ class UIBridge:
         self.client, self.sessions = client, sessions
         self._streams: set[tuple[str, str | None]] = set()
 
+    def operation_publication(self, session: ResourceId | None) -> Callable[[], None]:
+        # The completed owned task may yield to revoke/expiry/reset callbacks
+        # before its awaiting route resumes. Preserve its originating authority;
+        # a later Response constructor must not adopt a new epoch for old data.
+        generation = self.client.generation
+        output_generation = self.client.output_generation
+
+        def check() -> None:
+            self.client.check(generation)
+            self.client.check_output(session, output_generation)
+
+        return check
+
     async def operation(self, operation: Any) -> dict[str, Any]:
         client = self.client
+        client.check_output(operation.private_session_id)
+        output_generation = client.output_generation
         await client.token()
         credentials = client.journal.credentials
         assert credentials is not None
@@ -221,6 +253,7 @@ class UIBridge:
                 "cloud_operation_refused",
                 status if status in {400, 403, 404, 409, 410, 429} else 502,
             )
+        client.check_output(operation.private_session_id, output_generation)
         result = self._validate(model, value)
         if isinstance(operation, GetRun | CancelRun) and result["run_id"] != operation.run_id:
             raise CloudError("invalid_cloud_response", 502)
@@ -286,6 +319,8 @@ class UIBridge:
     ) -> None:
         client = self.client
         generation = client.generation
+        client.check_output(session)
+        output_generation = client.output_generation
         key = (str(run_id), str(session) if session else None)
         if key in self._streams:
             raise CloudError("stream_already_open", 409)
@@ -317,6 +352,7 @@ class UIBridge:
 
         async def publish(kind: str, value: dict[str, Any]) -> None:
             client.check(generation)
+            client.check_output(session, output_generation)
             async with asyncio.timeout(5):
                 await queue.put(b"event: " + kind.encode() + b"\ndata: " + encode(value) + b"\n\n")
             client.check(generation)
@@ -391,6 +427,7 @@ class UIBridge:
                         decoder = SSEDecoder()
                         async for chunk in response.aiter_bytes(chunk_size=None):
                             client.check(generation)
+                            client.check_output(session, output_generation)
                             for event in decoder.feed(chunk):
                                 if event["run_id"] != run_id:
                                     raise CloudError("invalid_cloud_response", 502)
@@ -442,6 +479,7 @@ class UIBridge:
                 return current
             if current is None:
                 return error("session_required", 401)
+            check_publication: Callable[[], None] | None = None
             try:
                 if request.url.path == "/local/cloud/pairing":
                     if request.method == "GET":
@@ -451,8 +489,22 @@ class UIBridge:
                         value = await self.client.owned(self.client.begin_pairing(body.device_name))
                 elif request.url.path == "/local/cloud/status":
                     return JSONResponse({"status": self.client.status})
+                elif request.url.path == "/local/cloud/snapshot":
+                    if self.client.recovery is None:
+                        raise CloudError("snapshot_unavailable", 503)
+                    recovery = self.client.recovery
+                    value, check_publication = await self.client.owned(recovery.publication())
+                elif request.url.path.startswith("/local/cloud/notifications/"):
+                    if self.client.recovery is None:
+                        raise CloudError("snapshot_unavailable", 503)
+                    identity = TypeAdapter(ResourceId).validate_python(
+                        request.path_params["notification_id"]
+                    )
+                    await self.client.owned(self.client.recovery.displayed(identity))
+                    value = {"status": "displayed"}
                 elif request.url.path == "/local/cloud/operations":
                     operation = Operation.validate_python(local_body(await request.body()))
+                    check_publication = self.operation_publication(operation.private_session_id)
                     value = await self.client.owned(self.operation(operation))
                 else:
                     run_id = TypeAdapter(ResourceId).validate_python(request.path_params["run_id"])
@@ -469,8 +521,13 @@ class UIBridge:
                         owner = asyncio.current_task()
                         assert owner is not None
 
+                        output_generation = self.client.output_generation
+
                         async def watch_session() -> None:
-                            while self.sessions.find(request) == current:
+                            while (
+                                self.sessions.find(request) == current
+                                and self.client.output_generation == output_generation
+                            ):
                                 await asyncio.sleep(0.1)
                             owner.cancel()
 
@@ -484,7 +541,10 @@ class UIBridge:
                         finally:
                             watcher.cancel()
                             await asyncio.gather(watcher, return_exceptions=True)
-                            if self.sessions.find(request) != current:
+                            if (
+                                self.sessions.find(request) != current
+                                or self.client.output_generation != output_generation
+                            ):
                                 while not queue.empty():
                                     queue.get_nowait()
                             # Do not block shutdown behind an abandoned consumer.
@@ -509,7 +569,9 @@ class UIBridge:
 
                     response = StreamingResponse(stream(), media_type="text/event-stream")
                     return GuardedResponse(response, self.client, self.sessions, request)
-                return GuardedResponse(JSONResponse(value), self.client, self.sessions, request)
+                return GuardedResponse(
+                    JSONResponse(value), self.client, self.sessions, request, check_publication
+                )
             except (ValidationError, ValueError):
                 return error("invalid_operation", 400)
             except CloudError as exc:
@@ -519,6 +581,10 @@ class UIBridge:
 
         return [
             Route("/local/cloud/status", dispatch, methods=["GET"]),
+            Route("/local/cloud/snapshot", dispatch, methods=["GET"]),
+            Route(
+                "/local/cloud/notifications/{notification_id}/displayed", dispatch, methods=["POST"]
+            ),
             Route("/local/cloud/pairing", dispatch, methods=["POST", "GET"]),
             Route("/local/cloud/operations", dispatch, methods=["POST"]),
             Route("/local/cloud/runs/{run_id}/events", dispatch, methods=["GET"]),

@@ -22,6 +22,7 @@ from brainoid_device.ledger import DeviceStorage
 from brainoid_device.local_api import LocalBoundary, Sessions, error
 from brainoid_device.reset_command import ResetCommand
 from brainoid_device.runtime import Runtime
+from brainoid_device.snapshot_sync import SnapshotSync
 from brainoid_device.storage import CredentialStore
 from brainoid_device.ui_bridge import UIBridge
 
@@ -58,6 +59,7 @@ class DeviceApplication:
             if settings.cloud is not None and not resumed_reset
             else None
         )
+        self.snapshot_sync = SnapshotSync(self.cloud) if self.cloud else None
         self.transport = DeviceTransport(self.cloud) if self.cloud else None
         self.bridge = UIBridge(self.cloud, sessions) if self.cloud else None
 
@@ -67,6 +69,8 @@ class DeviceApplication:
             try:
                 if self.cloud is not None and self.cloud.active:
                     self.cloud.start(self.cloud.maintain())
+                    assert self.snapshot_sync is not None
+                    self.cloud.start(self.snapshot_sync.expire())
                     assert self.transport is not None
                     self.cloud.start(self.transport.run())
                 if startup is not None and not resumed_reset:

@@ -66,11 +66,18 @@ class MemoryTransaction:
             if key.rsplit("/", 1)[0] == path
         ]
 
+    @staticmethod
+    def _field(document: Document, name: str) -> Any:
+        value: Any = document
+        for part in name.split("."):
+            value = value.get(part) if isinstance(value, dict) else None
+        return value
+
     def query(self, path: str, filters: dict[str, str]) -> list[tuple[str, Document]]:
         return [
             (p, d)
             for p, d in self.collection(path)
-            if all(d.get(k) == v for k, v in filters.items())
+            if all(self._field(d, k) == v for k, v in filters.items())
         ]
 
     def find(self, collection: str, field: str, value: str) -> list[Document]:
@@ -79,6 +86,20 @@ class MemoryTransaction:
             for path, document in self.data.items()
             if path.rsplit("/", 1)[0] == collection and document.get(field) == value
         ][:2]
+
+    def query_page(
+        self, path: str, filters: dict[str, str], *, after: str | None, limit: int
+    ) -> list[tuple[str, Document]]:
+        result = []
+        for key in sorted(self.data):
+            if key.rsplit("/", 1)[0] != path or (after and key.rsplit("/", 1)[1] <= after):
+                continue
+            document = self.data[key]
+            if all(self._field(document, k) == v for k, v in filters.items()):
+                result.append((key, copy.deepcopy(document)))
+                if len(result) == limit:
+                    break
+        return result
 
     def create(self, path: str, document: Document) -> None:
         if path in self.data:

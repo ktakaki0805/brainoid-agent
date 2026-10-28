@@ -442,7 +442,7 @@ export const getPrivateSession = (options) => (options.client ?? client).get({
 /**
  * Piが現在のsession・出力run・未完了配送を同期
  *
- * Piが現在のsession・出力run・未完了配送を同期
+ * 現在のdevice credentialで認可し最大20候補ずつ走査するsnapshot。全頁取得後snapshot:validateで現在権限を再検証する。cursorは5分期限で同じdevice・認可・sessionだけに有効。
  */
 export const getDeviceSnapshot = (options) => (options.client ?? client).get({
     security: [{
@@ -452,6 +452,24 @@ export const getDeviceSnapshot = (options) => (options.client ?? client).get({
         }],
     url: '/devices/{device_id}/snapshot',
     ...options
+});
+/**
+ * 全頁の候補IDを現在権限で再検証
+ *
+ * 合計128件以内の一意なIDのみを現在のdevice・family・sessionと各出典で再認可する読み取り。任意のID指定はアクセス権を与えない。scope変更時は400で全頁を再取得する。
+ */
+export const validateDeviceSnapshot = (options) => (options.client ?? client).post({
+    security: [{
+            key: 'deviceBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/devices/{device_id}/snapshot:validate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 /**
  * Pi WebSocket upgrade

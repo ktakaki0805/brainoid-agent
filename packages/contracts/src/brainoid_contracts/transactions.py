@@ -22,6 +22,16 @@ class Transaction(Protocol):
         """Equality-filter a canonical collection before returning candidate content."""
         ...
 
+    def query_page(
+        self, path: str, filters: dict[str, str], *, after: str | None, limit: int
+    ) -> list[tuple[str, Document]]:
+        """Equality-filtered document-ID keyset page, limited before materialization.
+
+        ``after`` is a document ID, never a path. Reads share this transaction's
+        current authority; continuation itself is not authorization.
+        """
+        ...
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         """Equality read, capped at two matches, in this same transaction.
 

@@ -49,6 +49,12 @@ class StrictTransaction(MemoryTransaction):
         assert not self.wrote, "read after write"
         return super().collection(path)
 
+    def query_page(
+        self, path: str, filters: dict[str, str], *, after: str | None, limit: int
+    ) -> list[tuple[str, Document]]:
+        assert not self.wrote, "read after write"
+        return super().query_page(path, filters, after=after, limit=limit)
+
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         assert not self.wrote, "read after write"
         return super().find(collection, field, value)

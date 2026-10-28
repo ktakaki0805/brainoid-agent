@@ -3,10 +3,16 @@
 from typing import Annotated
 
 from brainoid_contracts import ResourceId
+from brainoid_contracts.device_snapshot import (
+    DeviceSnapshot,
+    DeviceSnapshotState,
+    SnapshotSelection,
+)
 from fastapi import APIRouter, Depends, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 
-from brainoid_api.auth.runtime import AuthServices, get_auth_services
+from brainoid_api.auth.device_tokens import DeviceIdentity
+from brainoid_api.auth.runtime import AuthServices, authenticated_device, get_auth_services
 from brainoid_api.common.versioning import etag
 from brainoid_api.errors import APIError, ErrorCode, ErrorResponse
 from brainoid_api.repositories.device_credentials import Device
@@ -111,3 +117,44 @@ async def revoke_device(
         request.state.request_id,
     )
     return Response(status_code=204)
+
+
+@router.get(
+    "/devices/{device_id}/snapshot",
+    response_model=DeviceSnapshot,
+    response_model_exclude_none=False,
+    operation_id="getDeviceSnapshot",
+    responses={"default": {"model": ErrorResponse}},
+)
+async def device_snapshot(
+    device_id: ResourceId,
+    identity: Annotated[DeviceIdentity, Depends(authenticated_device)],
+    services: Annotated[AuthServices, Depends(get_auth_services)],
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> DeviceSnapshot:
+    if device_id != identity.sub:
+        raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
+    if services.device_snapshots is None:
+        raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+    result = await run_in_threadpool(services.device_snapshots.page, identity, cursor)
+    return result.release()
+
+
+@router.post(
+    "/devices/{device_id}/snapshot:validate",
+    response_model=DeviceSnapshotState,
+    operation_id="validateDeviceSnapshot",
+    responses={"default": {"model": ErrorResponse}},
+)
+async def validate_device_snapshot(
+    device_id: ResourceId,
+    body: SnapshotSelection,
+    identity: Annotated[DeviceIdentity, Depends(authenticated_device)],
+    services: Annotated[AuthServices, Depends(get_auth_services)],
+) -> DeviceSnapshotState:
+    if device_id != identity.sub:
+        raise APIError(ErrorCode.RESOURCE_NOT_FOUND)
+    if services.device_snapshots is None:
+        raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+    result = await run_in_threadpool(services.device_snapshots.validate, identity, body)
+    return result.release()

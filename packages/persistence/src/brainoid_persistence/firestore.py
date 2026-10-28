@@ -74,6 +74,24 @@ class _Transaction:
             ]
         )
 
+    def query_page(
+        self, path: str, filters: dict[str, str], *, after: str | None, limit: int
+    ) -> list[tuple[str, Document]]:
+        if not filters or not 1 <= limit <= 100 or (after is not None and "/" in after):
+            raise ValueError("Invalid query page")
+        collection = self._client.collection(path)
+        query = collection.order_by("__name__").limit(limit)
+        for field, value in filters.items():
+            query = query.where(filter=FieldFilter(field, "==", value))
+        if after is not None:
+            query = query.start_after({"__name__": collection.document(after)})
+        return _read(
+            lambda: [
+                (item.reference.path, item.to_dict() or {})
+                for item in query.stream(transaction=self._transaction)
+            ]
+        )
+
     def create(self, path: str, document: Document) -> None:
         self._transaction.create(self._client.document(path), document)
 
