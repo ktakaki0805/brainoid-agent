@@ -13068,3 +13068,205 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - `parent-postdone-check`: `mise run check`、2026-10-28T09:58:53.456555+00:00→2026-10-28T09:58:57.769267+00:00、exit 0、4.312712s、unittest/counts []、Node []。metadata SHA-256 `36a5521937cb7b6e7feeaf7fa40153ed731591490f5e3807db7092307aa4731d`、raw SHA-256 `b579df63d34d19fc9768c9eb3ef6934f752102e768146e1ea7addca019b810ac`。
 
 - done後の親mise checkはsession3423でactual tool/child0を回収、全705製品とindexが承認対象のまま不変。postdone監査SHA-256 `b57a808a767d44620d085e4e79d5f5e1488853504f91ac0aac893bf0cea4d839`。同hostで記録済み親wrapper/子孫の終了と待受なしを確認した。残り差分は台帳と作業logのみ。
+
+## ba-ui-07-20261028t100051z
+
+- チケット: BA-UI-07 リマインダー・通知・スヌーズ画面
+- 状態: in_progress。開始 2026-10-28T10:00:51.634528+00:00、main/base `8297071705bff7feb8b5645912a56811406ee985`。開始時clean。
+- ID指定なしplanner nextで依存順先頭を選択。依存 {'BA-UI-02': 'cafdaa7aa668248518ff14cf1a93748d50455078', 'BA-APP-03': '3f5a703ff5a4e9a68303d45a65c35d5c36458c11', 'BA-APP-05': '0c38c456504a7710915c43e294716332ecac30a4'} はdoneかつ実装commitが現履歴の祖先。前UI06のseal 332証跡が一致。
+- 親 `/root`、実装 `/root/ui07_implementation`、各回のレビュー担当は新規独立context。製品は単独writer、親は台帳/log/commit。
+- 範囲: 明示日時/timezone/配信先の作成・取消・スヌーズ、native通知許可とinstallation登録、拒否時のアプリ内未確認一覧、push起動の現在認証/tenant/予定版検査、受付・表示・本人確認の区別。FR009/AC009/T013/T014/T030/T038。FCMサーバー/繰返し/OS厳密時刻保証は対象外。
+- 検証計画: meaningful Node状態/native adapter/fake、実Chromium両画面と旧UI回帰、影響するHTTP/公式Emulator、normal/check/両build。依存追加時は固定lock/license/setupを確認。
+- 必須外部前提: docs08は「fakeとOS通知許可の実機確認」とAndroid/iOSテスト端末・FCM/APNs開発設定を要求。現環境にadb/xcrun/SDK環境変数/native projectなし。利用可能な環境/検証記録の場所をユーザーへasync質問済み、未回答。実装可能なローカル部分を進め、未実施実機試験を成功やdoneと扱わない。実環境構築/実push送信/host導入/push/PRは行わない。
+- `writer-dependency-install`: `mise exec -- pnpm --filter @brainoid-internal/mobile add --save-exact @capacitor-firebase/messaging@8.5.2`、2026-10-28T10:04:53.302132+00:00→2026-10-28T10:04:56.715704+00:00、exit 0、3.413572s、unittest/counts []、Node []。metadata SHA-256 `30c9e2ea32ab5702e3f2a3495732991c533aba3ae200b698ee2bbd07d7bcc90b`、raw SHA-256 `9a2bf406acafbd1531014a2b053c99a82062f1f67b0e0d66a0f53f4acaf81434`。
+- `writer-focused-second`: `mise exec -- node --test tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_session.mjs`、2026-10-28T10:15:35.010625+00:00→2026-10-28T10:15:41.548964+00:00、exit 0、6.538339s、unittest/counts []、Node ['ℹ tests 3']。metadata SHA-256 `3f12f3fb14772e0cb96b1c3b3abff870830ce7aa1b505184429083798a111e7d`、raw SHA-256 `57e246479f006b7925b0ccfc85eea6fd743633631902eda6718596690546e9c8`。
+- `writer-push-unit-initial`: `mise exec -- node tests/test_ui_push.mjs`、2026-10-28T10:13:46.787513+00:00→2026-10-28T10:13:47.210020+00:00、exit 0、0.422507s、unittest/counts []、Node ['ℹ tests 9']。metadata SHA-256 `4952ab64b852a8d3a805f82bf1d41930b4b88c8c5abe4338197f132855165e02`、raw SHA-256 `59b0f1b82200bc53ee85a5df18188a01f88c5e3e3f0f296452b7c1f6603e2f7d`。
+- `writer-reminders-unit-initial`: `mise exec -- node tests/test_ui_reminders.mjs`、2026-10-28T10:12:27.834174+00:00→2026-10-28T10:12:28.155513+00:00、exit 0、0.321339s、unittest/counts []、Node ['ℹ tests 13']。metadata SHA-256 `b2b4a029fa7c93958e42d32b145bf2ee9f1e082a324b75d3508c73854c26027f`、raw SHA-256 `c9324351222b9f6781cbb75b742c55fbc1bd3f99a2abd7665646eb534b496188`。
+- `writer-types-initial`: `mise exec -- pnpm run typecheck`、2026-10-28T10:09:07.196315+00:00→2026-10-28T10:09:09.791704+00:00、exit 1、2.595389s、unittest/counts []、Node []。metadata SHA-256 `dc23e89f96562fc9ae4467e24c6f1575ca847a783239f60ea10d2a54fafba5c2`、raw SHA-256 `4d422a873e542faec92857c432afdd8e461776ca8244cf2c2c6d6453da8b33d6`。
+- `writer-types-second`: `mise exec -- pnpm run typecheck`、2026-10-28T10:10:53.265949+00:00→2026-10-28T10:10:55.847521+00:00、exit 0、2.581572s、unittest/counts []、Node []。metadata SHA-256 `4dfdbd1e35a1a7d30c935f4a06c5382235875b7f670e1c1249a6d804e2f9eef6`、raw SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+
+- dependency-installはmobile manifest/lockを変更する意図した導入でありsource_unchanged=falseが正常。追加SDK8.5.2のApache-2.0、core>=8/Firebase^12.6 peerをinstalled metadataで確認。SDK getTokenのauto-initとAndroid/iOS native設定は未作成の実機構成・試験gateとして文書化する。
+- focused-secondのNode「3件」はsandboxのファイル単位であり、内部ケース全数の合格とは扱わない。初回の直接node実行reminders13/push9は個別ケース。最終候補でdirect実行またはhost実行の実ケースを回収する。
+- 親pre-freeze観察: signout hooks待ちに通常global contextを残すと旧read/authcallbackが復活し得るため、同期blockとprivateなclosing contextで元UID限定の後片付けへ変更依頼。pending登録A中のtokenB保持、通知のmultiGET全体の世代とtimeout/古い本文復活の負例も実装担当へ渡した。現時点は正式レビュー前・製品編集中。
+- `writer-browser-initial`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-browser-initial-images mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T10:18:25.297513+00:00→2026-10-28T10:18:30.198467+00:00、exit 0、4.900954s、unittest/counts []、Node []。metadata SHA-256 `6ace13670cc33057c845cdeabac82e71d4bc9cb2b2819f1afeabc186c6f2f3c4`、raw SHA-256 `371caadbe2915feaf101242192c4803eab892ad02c031680203a120a07dbbfaa`。
+- `writer-emulator-initial`: `mise exec -- bash /tmp/ba-ui-07-writer-emulator-v1.sh`、2026-10-28T10:19:13.479202+00:00→2026-10-28T10:19:27.119661+00:00、exit 0、13.640459s、unittest/counts ['Ran 2 tests in 6.667s']、Node []。metadata SHA-256 `d3301040ba53c2102c8d3610743ce96614878bbfc3fb22e2594b04695779884f`、raw SHA-256 `39987a80f5b404adf873fefbafd5df9ee3f5dbd79c4d02d7e18b7dc1a25cda7c`。
+- `writer-formatting`: `mise exec -- pnpm exec biome check --write packages/ui/src/reminders apps/mobile/platform/push.ts apps/mobile/notifications apps/mobile/src/main.tsx packages/ui/src/session.ts packages/ui/src/session-view.tsx packages/ui/src/session-fixture.ts packages/ui/src/session-fake.tsx tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/ui/reminders_emulator.mjs tests/ui/reminders_browser.mjs packages/ui/src/styles.css`、2026-10-28T10:17:58.145739+00:00→2026-10-28T10:17:58.772542+00:00、exit 1、0.626803s、unittest/counts []、Node []。metadata SHA-256 `f0031d5bf494e5841817dab2be7cf7e48d3f6aab60e89ccefbab70c0eb0bdc9c`、raw SHA-256 `cd77c5b33986ea8d2dfc769d944fe619b0337d6882f5814e7da4d6ad2d1b2c56`。
+- `writer-types-third`: `mise exec -- pnpm run typecheck`、2026-10-28T10:18:09.632073+00:00→2026-10-28T10:18:12.107129+00:00、exit 0、2.475056s、unittest/counts []、Node []。metadata SHA-256 `8262f3837b5266801ebfbe62a7d9357de7b59ac9b19997f14ccde5255c2d79c5`、raw SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+- `writer-formatting-second`: `mise exec -- pnpm exec biome check --write packages/ui/src/reminders apps/mobile/platform/push.ts apps/mobile/notifications apps/mobile/src/main.tsx packages/ui/src/session.ts packages/ui/src/session-fake.tsx packages/ui/src/session-fixture.ts tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/ui/reminders_browser.mjs tests/ui/reminders_emulator.mjs`、2026-10-28T10:23:33.992375+00:00→2026-10-28T10:23:34.619613+00:00、exit 0、0.627238s、unittest/counts []、Node []。metadata SHA-256 `e631a01c12b91cd6f742d548577ed00f9f87205e03e59b750766b3d9908c75b1`、raw SHA-256 `2cff3e154b2f40d11534f5f183f942bbade22a06bcc9e5f8d49a6a863b3f41a5`。
+- `writer-types-fourth`: `mise exec -- pnpm run typecheck`、2026-10-28T10:23:45.476853+00:00→2026-10-28T10:23:48.065439+00:00、exit 0、2.588586s、unittest/counts []、Node []。metadata SHA-256 `d3578c3d990c503c7181b480b7e3c818cf59c8a82152b5bdcae650b17cb2f3db`、raw SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+- `writer-browser-second`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-browser-second-images mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T10:24:40.328793+00:00→2026-10-28T10:24:43.666732+00:00、exit 1、3.337939s、unittest/counts []、Node []。metadata SHA-256 `34c685837b53fc3cd4f1287c8f2ed654d55ae3dee34b94a420fc0640552e4aaa`、raw SHA-256 `ba6719bb80f351f9cb112b6e80351c68c1967a424fc293dde307c9f49a71d775`。
+- `writer-dependency-frozen`: `mise exec -- pnpm install --frozen-lockfile --offline`、2026-10-28T10:24:35.176740+00:00→2026-10-28T10:24:36.006251+00:00、exit 0、0.829511s、unittest/counts []、Node []。metadata SHA-256 `f36ccc0e9ed58867d0e39ea38395af6e2df62775c6dacaecc4901e31e6298c2b`、raw SHA-256 `d93ac79c0ffb2473f9903da47baf21661404604ace885ef531d2d39ab27935ef`。
+- `writer-normal-check-initial`: `mise run check`、2026-10-28T10:25:16.423407+00:00→2026-10-28T10:25:20.810810+00:00、exit 0、4.387403s、unittest/counts []、Node []。metadata SHA-256 `1df5cc6ea3eb61cf432a4f141e256d0b2fc19b7bd794abb2946ac5f186bc2ae5`、raw SHA-256 `5fa332813882ceaab6e3959d9bce262adf3d5ac86ca8660dc35f72ae27ea2e1c`。
+
+### 外部前提のユーザー回答と確認待ち
+
+- 利用可能なのはiPhoneで、macOS環境はないとの回答。現行Capacitor8のiOSローカルbuildにはmacOS/Xcode26以上が必要（https://capacitorjs.com/docs/getting-started/environment-setup、2026-10-28確認）。クラウドMacは可能だが未設定・未実行。
+- Android/iOSのOS許可と開発用FCM/APNsの実機検証をrelease前必須項目へ移す完了条件変更について別途質問中。回答までは現行必須条件を維持し、fake/emulator成功を実機検証と扱わない。独立したローカル検証・レビューを継続する。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui07_review_r1`（新規独立context）。base commit: `8297071705bff7feb8b5645912a56811406ee985`。
+- 未追跡を含む最新全28files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/capacitor.config.json` | `6ed4a1f2dde9728ce001957f9b0bfb9cfdd769cd76d77a9fd78502364e6957b6` |
+| `apps/mobile/notifications/controller.ts` | `93f8f61a58600c149bcaf16fca7c862059eb266237600c7b9fb70fbb8ed1479d` |
+| `apps/mobile/notifications/preview.tsx` | `c71668feecfa280d5bf497b6c2132c7eff23610a327225265d9f29363d4220b8` |
+| `apps/mobile/notifications/view.tsx` | `0538974e058932ff18f0b277a561803b0bde27ad4e2bfb8ef29b91ff4ae14c00` |
+| `apps/mobile/package.json` | `6d436840d51e8747d10f4c6ab0e122bfa5f881048055793f337b4791d56abcab` |
+| `apps/mobile/platform/push.ts` | `64e5fc8c967ce6a56f55036451a0c7921baec89578a59045eab2d63539110d08` |
+| `apps/mobile/src/main.tsx` | `5f079495f0ec4ff4b7e29a6b4fd883ed146f347d000c94a00723f2ac12374ab9` |
+| `docs/notifications.md` | `4d36b8aa1a7a370490bef37a8d608ea55c938a62acd8509326baaed2385fc86a` |
+| `docs/reminders.md` | `d76ad015c242e907cc2670f6127ddc0dfd74407263275461e1c742c404761a63` |
+| `docs/toolchain.md` | `b59dc1b3039cd0930b892d8efc088426e938129bfe208e363362fb7dcde4b102` |
+| `docs/ui-reminders.md` | `61ebfa23fd60fffff659b14dc1368fd15073646e5c582f1a04fed0d05b7c19b4` |
+| `mise.toml` | `9d26bbeed4de50ca4161115f7ac211b8597d813e014d643a3dec3ecf307755ef` |
+| `packages/ui/src/reminders/controller.ts` | `be9dfa470e3c9f2da45aa0e664ec276829f45740231f9e3d935123dd4a35569b` |
+| `packages/ui/src/reminders/fixture.ts` | `3cfcb7bf0141c98d78ffce78a5831d710e7d5903940629347467fd0f87f42600` |
+| `packages/ui/src/reminders/notifications.ts` | `a9e396af8ffa4c0cc7184c3dff326d49067a1893ffc7374f3196d9c07a422dce` |
+| `packages/ui/src/reminders/push-fixture.ts` | `2d86eb711b0f6a061204318b732baab5d784c40f4deb717a4f2d1d0e61144f7f` |
+| `packages/ui/src/reminders/view.tsx` | `d9acb8ceed2e4df0aa74142e7f1cda4d94ae49b0eb5da0359905f9e5cc0193e8` |
+| `packages/ui/src/session-fake.tsx` | `c352c1ccc5d5932b216977036be9758ea0b2fd74737f814aa1204cdaf07fe55c` |
+| `packages/ui/src/session-fixture.ts` | `d8239c5e9de2255d2d370af0c02d7281a26a8bbb750970e5c619e5157965af28` |
+| `packages/ui/src/session-view.tsx` | `2874c2044572b56e8ca51d5b1393d89ce41d380d4778bb43b19dd3c70cc1fa76` |
+| `packages/ui/src/session.ts` | `a98edf4df9b42b9103e50024f1a96d9351f441b44a039d6889b6d50d82389ec8` |
+| `packages/ui/src/styles.css` | `a0f9039c8df2c42fb5fde20f91e60d3c2098a33b7ceb7b52a9d5779571e98daa` |
+| `pnpm-lock.yaml` | `5efeb20d8c007594eb806364df4cbc378dbc96bc45679da2d1e830460e76ded7` |
+| `tests/emulator/test_ui_reminders_integration.py` | `ba0daa6cdf8d0a0f7b81ce00c0301b1d4f664f879c69094d29b05664175aab2b` |
+| `tests/test_ui_push.mjs` | `92aca399a3acc07587be20267bfd17de373d46a727dd4f0928cc009c296a4028` |
+| `tests/test_ui_reminders.mjs` | `420e61599165846192f32db1d197350c95d5d754bb61724b69db228c2ff8c74a` |
+| `tests/ui/reminders_browser.mjs` | `1486135d3a53a90a40e67aa314382e1b816c77612557b5582f9e8b87d965eb5f` |
+| `tests/ui/reminders_emulator.mjs` | `5c62cb54363b4876700954fb01b5dc5a5e2e5127769c0eed3e00bdbddc6277c0` |
+- `writer-browser-third`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-browser-third-images mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T10:28:51.291744+00:00→2026-10-28T10:28:57.417459+00:00、exit 0、6.125715s、unittest/counts []、Node []。metadata SHA-256 `c7ad4d889894d246f5ed0a2cd1ccdaff45672b2092a8cee2c9309954b2616f3f`、raw SHA-256 `7a897d3b56b4176a32217a0626c30d9bec4fa43e7af0b6fa87b0dff2d92234dc`。
+- `writer-formatting-final-candidate`: `mise exec -- pnpm exec biome check --write apps/mobile/notifications packages/ui/src/reminders tests/test_ui_push.mjs tests/test_ui_reminders.mjs`、2026-10-28T10:28:47.735294+00:00→2026-10-28T10:28:48.362550+00:00、exit 0、0.627256s、unittest/counts []、Node []。metadata SHA-256 `a71cdf53878d4e88053be8cdc95cf6b008f341a876a05e86193f38ad4237250d`、raw SHA-256 `aff1f8f8473c8d3419efec51cdc22383e54944949af3c2634f033d31b9ff107c`。
+- `writer-frozen-chat-browser-r1`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-chat-browser-r1-images mise exec -- node tests/ui/chat_browser.mjs`、2026-10-28T10:30:33.874125+00:00→2026-10-28T10:32:31.412408+00:00、exit 0、117.538283s、unittest/counts []、Node []。metadata SHA-256 `d1793a110f04959f6ad8a0cb21311067b679461954b0d29f5cb9b8e00ab416b8`、raw SHA-256 `8a7254241b04042b650e97cf37a867854d87f85d5fee194131d5c69f82791b90`。
+- `writer-frozen-check-r1`: `mise run check`、2026-10-28T10:30:04.434828+00:00→2026-10-28T10:30:12.368106+00:00、exit 0、7.933278s、unittest/counts []、Node []。metadata SHA-256 `d2a37c8209da1aa7094a0598cd7afde60390552da178be34749c6933ff1ffa4a`、raw SHA-256 `8d259df725df6fdfcc967092eeb175a369217c76ec8334c0cedb2a780461a304`。
+- `writer-frozen-emulator-r1`: `mise exec -- bash /tmp/ba-ui-07-writer-emulator-v1.sh`、2026-10-28T10:30:05.669752+00:00→2026-10-28T10:30:30.430083+00:00、exit 0、24.760331s、unittest/counts ['Ran 2 tests in 10.376s']、Node []。metadata SHA-256 `fa250c0774daebfb78f2baa8e5876f12217182214de321c149f379d974f14cce`、raw SHA-256 `c3e581c3d0bd4187854a998b89604166edb992ac81e63b337a426dd2c5f8cd64`。
+- `writer-frozen-memories-browser-r1`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-memories-browser-r1-images mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T10:31:42.135400+00:00→2026-10-28T10:31:49.053353+00:00、exit 0、6.917953s、unittest/counts []、Node []。metadata SHA-256 `483d56c9a0a990657eaa9f704b589bc3d1492ab0ec009f433e5c8d50cc9943c6`、raw SHA-256 `d0caba658b9472ab1d87c0efc5e01e949737c9a3157f2d827587de5a8b7b8ad4`。
+- `writer-frozen-node-r1`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs`、2026-10-28T10:30:05.219440+00:00→2026-10-28T10:30:29.023750+00:00、exit 0、23.80431s、unittest/counts []、Node ['ℹ tests 267']。metadata SHA-256 `e6961159947e14cc8377bb4cae5f7b9e898f2c434a02f3c87477ed9cbf10f73a`、raw SHA-256 `f4fd5a7fe255e3f5f009cd2eea0845b2897f2d729f2ea4358dfabba134a524b0`。
+- `writer-frozen-notes-browser-r1`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-notes-browser-r1-images mise exec -- node tests/ui/notes_browser.mjs`、2026-10-28T10:31:43.138346+00:00→2026-10-28T10:31:50.670824+00:00、exit 0、7.532478s、unittest/counts []、Node []。metadata SHA-256 `b1a3ad69775ccacc4a12c8f1517c40ea28382fc80bcaffad7b6e280c2d4735b1`、raw SHA-256 `ef7aebf2d4730003b9cec47ac5eb21a998374933ad501afc938b8e9223c5a214`。
+- `writer-frozen-session-browser-r1`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-session-browser-r1-images mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T10:30:32.227573+00:00→2026-10-28T10:30:42.123332+00:00、exit 0、9.895759s、unittest/counts []、Node []。metadata SHA-256 `0dfa2c7ba260212461efa26435e4285867d0505d7dcd65f361d1d9faf35393d6`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+
+### 完了条件変更の明示承認
+
+- 2026-10-28T10:33:54.971457+00:00 ユーザーが「実機検証はリリース前の必須項目として残し、ローカル実装・テスト・独立レビューの完了後は残りのチケットへ進む」と明示回答。BA-UI-07のチケット完了条件はローカル実装/検証/独立レビューへ変更する。Android/iOS通知許可、FCM/APNs実機試験はリリース前必須で未実施。ほかのチケット条件を一括免除しない。R1を凍結状態で完結し、正式close後に元の実装担当がdocs08/UI07とui-remindersを整合させ、最新版全体を新規R2で再レビューする。
+- 親はbrowser-thirdの16画像中2画像（mobile-push-permission-denied / display-shared-readonly）を実際に確認。拒否後のアプリ内一覧案内・共有画面の閲覧専用表示を確認。OS実機試験ではない。
+- `review-r1-baseline`: `/usr/bin/git diff --check`、2026-10-28T10:33:52.353451+00:00→2026-10-28T10:33:52.472496+00:00、exit 0、0.119045s、unittest/counts []、Node []。metadata SHA-256 `074621f541f88fef8ad12ec58b54062b1f8ab123fa33f6256c2c1682e33b1994`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `writer-frozen-tasks-browser-r1`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-tasks-browser-r1-images mise exec -- node tests/ui/tasks_browser.mjs`、2026-10-28T10:33:10.965169+00:00→2026-10-28T10:33:18.715591+00:00、exit 0、7.750422s、unittest/counts []、Node []。metadata SHA-256 `98a35fbc016ec310e73a4ed3c349615a68cdb8f3448fcba8eb60e27b1e41a230`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+- `writer-normal-test-initial`: `mise run test`、2026-10-28T10:25:27.022477+00:00→2026-10-28T10:33:24.674289+00:00、exit 0、477.651812s、unittest/counts ['Ran 1306 tests in 442.324s', 'Ran 18 tests in 0.061s']、Node ['ℹ tests 267']。metadata SHA-256 `7653ee7fff77fc27d5072463c8ecf1092c44777eb5c580b3f2d22ce620456891`、raw SHA-256 `7493a8de880ecfb0644dde539e92a4fd2bb962df47bd8c8b1bb8f7af5b39d895`。
+
+- R1検証集約: `/tmp/ba-ui-07-writer-validation-audit-r1.json` SHA-256 `1f8f7fb718535012e703e7e4f872e5df897bf98b556a319bae52de0588e147f8`。親が全27phaseのmetadata/raw hash・実exit対応、最終8phaseの720source同一を再照合。親audit `20db5362ec6eab3cc49383121c96c2e880d219ac150473a037d129f6a29887d5`。通常test中の変更はUI/test/docsの正確に7path（Python/backend不変）。frozen-emulatorの差分2pathは並行PR link試験の一時probe生成/削除だけで、凍結source720件はすべて一致。失敗したtypes/format/browser工程も原ログを保持し、後続成功で解消。
+- `review-r1-backend-audio-boundary`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest tests.test_notifications.NotificationTests.test_five_minute_boundary_offline_retains_unconfirmed_inbox`、2026-10-28T10:36:59.788355+00:00→2026-10-28T10:37:00.313673+00:00、exit 0、0.525318s、unittest/counts ['Ran 1 test in 0.051s']、Node []。metadata SHA-256 `55b8d387191dfde32a7e15ce25b7efb65b76ca30e4514d431fe4374e0db193d1`、raw SHA-256 `9152bd257679336b40c628719f593ad31d6a57b4b0f6b839cb7ee8dbb189fcb2`。
+- `review-r1-push-suite`: `mise exec -- node tests/test_ui_push.mjs`、2026-10-28T10:34:18.390358+00:00→2026-10-28T10:34:24.912753+00:00、exit 0、6.522395s、unittest/counts []、Node ['ℹ tests 13']。metadata SHA-256 `0f6f0106f332e690c2983b6a2e491beaf762025d6c2a5c086e9cbe937e43a37e`、raw SHA-256 `2c0b9c6b9ba30322b756f9844782c30ab7b4b1f0b3d8d41f19b583e533475976`。
+- `review-r1-reminder-suite`: `mise exec -- node tests/test_ui_reminders.mjs`、2026-10-28T10:34:18.379430+00:00→2026-10-28T10:34:33.979568+00:00、exit 0、15.600138s、unittest/counts []、Node ['ℹ tests 19']。metadata SHA-256 `857b3fb9da1ed4d97887d304789763e2663e85ee99f84192df717e221d4a290c`、raw SHA-256 `cb9cd0aebd50ec00f01432b8c84895b40e2deb8d1550a9b40261f5aca3916e3e`。
+- `review-r1-repros-v2`: `mise exec -- node --test-reporter=tap /tmp/ba-ui-07-review-r1-repros-v2.mjs`、2026-10-28T10:36:34.939994+00:00→2026-10-28T10:36:35.261719+00:00、exit 1、0.321725s、unittest/counts []、Node ['# tests 4']。metadata SHA-256 `d24b9693794671512ac40650e222a185c81da4321fdf8ccae27ce7ee62d67eed`、raw SHA-256 `2401abb117dc928bfe5a243913f5d0d0215c5d649d8f9f7f58b986f917b5d53f`。
+- `review-r1-repros`: `mise exec -- node --test-reporter=tap /tmp/ba-ui-07-review-r1-repros.mjs`、2026-10-28T10:36:11.989270+00:00→2026-10-28T10:36:12.414872+00:00、exit 1、0.425602s、unittest/counts []、Node ['# tests 4']。metadata SHA-256 `84cfe9200db9ca2dc47a45be9338b850ee8cfdcaa8f64193f7317719b018bd53`、raw SHA-256 `f497e80fa5058504af2acad0bb659c0b1c491e6716ad09f781ac974ed01a903c`。
+- `review-r1-session-suite`: `mise exec -- node --test-reporter=tap tests/test_ui_session.mjs`、2026-10-28T10:38:12.475941+00:00→2026-10-28T10:38:12.696090+00:00、exit 0、0.220149s、unittest/counts []、Node ['# tests 23']。metadata SHA-256 `a54f970071d39be0472b7998d4cf18ad061f8083b78578fbc15341c753ef5bec`、raw SHA-256 `e12314c1a2fd41ce0a111a859536c5848073223a6e927a9ba3316e8d61975458`。
+- `writer-dependency-metadata-final`: `mise exec -- pnpm view @capacitor-firebase/messaging@8.5.2 version license peerDependencies dist.integrity --json`、2026-10-28T10:34:39.399750+00:00→2026-10-28T10:34:40.443857+00:00、exit 0、1.044107s、unittest/counts []、Node []。metadata SHA-256 `93e12facc5829dd398b479fae289d8d5219de834cf9a6965bff8a5b01f7ce88b`、raw SHA-256 `6d1b15a6f37f2b4fa9d574c15aa21da51deb90e1a7fe449fbdeaad4ab84635bd`。
+
+### 独立レビューR1終了・修正へ
+
+- 2026-10-28T10:45:10.754817+00:00 `/root/ui07_review_r1` を正式close。判定`request_changes`、必須5件、任意0件。最新全28path/720sourceを確認し、source/index不変、全所有実行終了。
+- `/tmp/ba-ui-07-review-r1-report.md` SHA-256 `97db7d2dc5eefd871f8d61bda8c71642a6eb12dac70f99bf71a250e0bc542d11`。
+- `/tmp/ba-ui-07-review-r1-result.json` SHA-256 `c22880463b9d51228ee4e3c8ff1c39ded1a46c35a8f7529c2a9d23f54398f23d`。
+- `/tmp/ba-ui-07-review-r1-closure.json` SHA-256 `79b0ccbb8a0245c639fb0a1c61a796568b1fbaf5e263d78023bbab6e62d18e8f`。
+- R1-01/P1: expires_atは音声期限であり未確認一覧削除期限ではない。5分超過後の一覧/開く/明示ackを保持し、実際の認可失効・旧予定拒否は保つ。
+- R1-02/P2: installationの確定403/404を未確定扱いせず、現在tenantを保ったまま再登録可能にする。
+- R1-03/P2: 未確定rotation中の解除失敗後も、UIと内部状態が一致した有効な復旧操作を提供する。
+- R1-04/P2: 通知本人確認/再試行等で得たcanonical Reminderを一覧へ反映し、後のsnoozeやfilter/draftを巻き戻さない。
+- R1-05/P2: ユーザー承認済みの実機release gate移管をdocs08/UI07とui-remindersへ反映し、OPS09/10・QA06の必須実機項目へ結び付ける。
+- 独立検証: Node既存55件+backend音声境界1件成功。期待動作の独立再現6件は失敗し、上記コード指摘を確認。初版再現の修正も別artifactに保存。最終画像16/16確認済み。修正は元担当のみが行い、新規R2で最新全体を再レビューする。
+- `review-r1-canonical-repros`: `mise exec -- node --test-reporter=tap /tmp/ba-ui-07-review-r1-canonical-repros.mjs`、2026-10-28T10:39:08.607675+00:00→2026-10-28T10:39:08.929200+00:00、exit 1、0.321525s、unittest/counts []、Node ['# tests 2']。metadata SHA-256 `a576d125b5b7f9057bfb19234a93c4fd8c08b5c8701abd436cd600e6ef842952`、raw SHA-256 `a2b2620ad7b49b49e4b8a11a91cecc8d04627d34f3247f936b878703302e8de9`。
+- `writer-r2-browser-initial`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-r2-browser-initial-images mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T10:55:31.553638+00:00→2026-10-28T10:55:37.608477+00:00、exit 0、6.054839s、unittest/counts []、Node []。metadata SHA-256 `db98cd5585ed0d697d7bb5d75801505eca3dbbeee9ebd3fe35032e717dbad699`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-r2-canonical-repros`: `mise exec -- node /tmp/ba-ui-07-review-r1-canonical-repros.mjs`、2026-10-28T10:54:44.102619+00:00→2026-10-28T10:54:44.438022+00:00、exit 0、0.335403s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `7d059a223cab8f74f0147c193becb553877dce66a678b2277349329f06d7d855`、raw SHA-256 `b7e1295b1a98364eccc9a92c8978f80f44ab2e0f965a6d7d7219215b6faad126`。
+- `writer-r2-format-initial`: `mise exec -- pnpm exec biome check --write apps/mobile/notifications apps/mobile/src/main.tsx packages/ui/src/reminders packages/ui/src/session-fake.tsx packages/ui/src/session-fixture.ts tests/test_ui_push.mjs tests/test_ui_reminders.mjs tests/ui/reminders_browser.mjs tests/ui/reminders_emulator.mjs`、2026-10-28T10:54:34.666409+00:00→2026-10-28T10:54:35.294375+00:00、exit 0、0.627966s、unittest/counts []、Node []。metadata SHA-256 `362ea93806c4c4abb194f8eeeed3ed06ef7c1bb59635d90a8212f4c42c1e52e2`、raw SHA-256 `cf55b772a569482f1cccd5151babc1a4e827e13bc0fbe64ebb1da93f4e481ae3`。
+- `writer-r2-push-initial`: `mise exec -- node tests/test_ui_push.mjs`、2026-10-28T10:54:44.104536+00:00→2026-10-28T10:54:50.834922+00:00、exit 0、6.730386s、unittest/counts []、Node ['ℹ tests 19']。metadata SHA-256 `83007a1f0f21a194c7e54d70634871c37266eb2c569f557f72ebad696ee27c6c`、raw SHA-256 `2bba6f0afcf0b6e8a0791c4b24643186872781c26998a9f541200f61e65f08d8`。
+- `writer-r2-reminders-initial`: `mise exec -- node tests/test_ui_reminders.mjs`、2026-10-28T10:54:44.088657+00:00→2026-10-28T10:54:59.583846+00:00、exit 0、15.495189s、unittest/counts []、Node ['ℹ tests 23']。metadata SHA-256 `5137b100a890d3abc7847a3a10f21d992fc0ab3bd049ae5c419cc0ca21b4af8f`、raw SHA-256 `4246891cfeab959f74366fe58523bb6f3f9e2c13226ff8499d57f0edc41646de`。
+- `writer-r2-repros-v2`: `mise exec -- node /tmp/ba-ui-07-review-r1-repros-v2.mjs`、2026-10-28T10:54:44.088671+00:00→2026-10-28T10:54:44.513502+00:00、exit 0、0.424831s、unittest/counts []、Node ['ℹ tests 4']。metadata SHA-256 `629a809f7b90f03273d86f4b6f8e1eb8a3c74fbb6acbb7b5c90b6ef0d4d9ae43`、raw SHA-256 `3c94721bc5f5dd7611c7af0913e6006606ef4ade17d3fbb7ec940c9f930bad33`。
+- `writer-r2-types-initial`: `mise exec -- pnpm run typecheck`、2026-10-28T10:52:40.774309+00:00→2026-10-28T10:52:43.358828+00:00、exit 0、2.584519s、unittest/counts []、Node []。metadata SHA-256 `a5fb4d21b13d05e7f032effd654deb8070670f88b3e6bae77189b7bd794a7acf`、raw SHA-256 `d3abce4ad23c563e82c2e9ba2d19745dbe3a920b871a4477cbd6835c1768170b`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui07_review_r2`（新規独立context）。base commit: `8297071705bff7feb8b5645912a56811406ee985`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/capacitor.config.json` | `6ed4a1f2dde9728ce001957f9b0bfb9cfdd769cd76d77a9fd78502364e6957b6` |
+| `apps/mobile/notifications/controller.ts` | `bc73bec43a47437151ec402022157946fd03529664cbd482549c238ffeec892e` |
+| `apps/mobile/notifications/preview.tsx` | `138778b10ffe81a905c60c1b67e84df7d628b287b37d3f43aa048c68381dd120` |
+| `apps/mobile/notifications/view.tsx` | `6545886bb81bea3b65e7f8f2ab15d99ea69e1ef3bd788d7879c404b8ca0c04ed` |
+| `apps/mobile/package.json` | `6d436840d51e8747d10f4c6ab0e122bfa5f881048055793f337b4791d56abcab` |
+| `apps/mobile/platform/push.ts` | `64e5fc8c967ce6a56f55036451a0c7921baec89578a59045eab2d63539110d08` |
+| `apps/mobile/src/main.tsx` | `6ba75717b20698e39375670bd0806d760ffb5b2b7007a0dd1a97d78694ae81a0` |
+| `docs/08-implementation-tickets.md` | `d8015d0a91cfe2ab374c71c1e2b93421e07ca2acc44c04bf52d962fd1a1722e6` |
+| `docs/notifications.md` | `4d36b8aa1a7a370490bef37a8d608ea55c938a62acd8509326baaed2385fc86a` |
+| `docs/reminders.md` | `d76ad015c242e907cc2670f6127ddc0dfd74407263275461e1c742c404761a63` |
+| `docs/toolchain.md` | `b59dc1b3039cd0930b892d8efc088426e938129bfe208e363362fb7dcde4b102` |
+| `docs/ui-reminders.md` | `5c9b28c34e1df73f36d9f9ea8cc823532e45e9aa4c3f3794ede340b90b745fe5` |
+| `mise.toml` | `9d26bbeed4de50ca4161115f7ac211b8597d813e014d643a3dec3ecf307755ef` |
+| `packages/ui/src/reminders/canonical.ts` | `e6be2d8d8f6377c78887c7f78f2e39331c40b575cbb077113a7e532a5ea15417` |
+| `packages/ui/src/reminders/controller.ts` | `0a3e66675097eeccd29497ff127a71ad3b4915d541f1817dfc9db8d91cf59783` |
+| `packages/ui/src/reminders/fixture.ts` | `99690041b695b183e972a4c338f0c964f33efada595e6efea9657c559f48eff4` |
+| `packages/ui/src/reminders/notifications.ts` | `d98ebd97d2a889d9c645c797adf214dd8e4ba76998d97fd5094e07179ed086b5` |
+| `packages/ui/src/reminders/push-fixture.ts` | `1855811ec2e9a5398b78c64fc73dded33b1cabd51bf2a8c26b94833bb8511689` |
+| `packages/ui/src/reminders/view.tsx` | `d9acb8ceed2e4df0aa74142e7f1cda4d94ae49b0eb5da0359905f9e5cc0193e8` |
+| `packages/ui/src/session-fake.tsx` | `5c0aa6e643b0cd20f7bb93ca8bc3c2659816abe6a310d2f151dde791f0c863bd` |
+| `packages/ui/src/session-fixture.ts` | `13bc65159c55f261b995c1b9c98d8734039d9c01536d04f819774d5b1d63b0fc` |
+| `packages/ui/src/session-view.tsx` | `2874c2044572b56e8ca51d5b1393d89ce41d380d4778bb43b19dd3c70cc1fa76` |
+| `packages/ui/src/session.ts` | `a98edf4df9b42b9103e50024f1a96d9351f441b44a039d6889b6d50d82389ec8` |
+| `packages/ui/src/styles.css` | `a0f9039c8df2c42fb5fde20f91e60d3c2098a33b7ceb7b52a9d5779571e98daa` |
+| `pnpm-lock.yaml` | `5efeb20d8c007594eb806364df4cbc378dbc96bc45679da2d1e830460e76ded7` |
+| `tests/emulator/test_ui_reminders_integration.py` | `a7ee3528768479f3bb725b38480f9f6cdaa5d20517e55752c017482d72875315` |
+| `tests/test_ui_push.mjs` | `38640c3e4350e13225437eee44d9f88f7350a9e816b9f083cded7995a7cda648` |
+| `tests/test_ui_reminders.mjs` | `0ab0e613c185bdc68e75820efa3472ad686e47f17a08ce035bc9024b366e3d27` |
+| `tests/ui/reminders_browser.mjs` | `f57c92b31d2a7f52efd80a78950393184d61e0a881377e7fd70aa4c488a609cc` |
+| `tests/ui/reminders_emulator.mjs` | `2519d0d91b3484ddae0cdd3ddf8fad8b0d334a4eb4a29d5b9db1d5cfc581862e` |
+- `writer-r2-format-final`: `mise exec -- pnpm exec biome check --write packages/ui/src/reminders/controller.ts tests/test_ui_reminders.mjs tests/test_ui_push.mjs`、2026-10-28T11:01:18.058801+00:00→2026-10-28T11:01:18.686520+00:00、exit 0、0.627719s、unittest/counts []、Node []。metadata SHA-256 `46ee0bbd1751662db0a25321cdd5d8ba8108d9f7c69b63379c8aa7f8cd4b4b49`、raw SHA-256 `0b4a3ed344c637f1d3cd58dfc6916d5eb8287f0035ebb91a7faa0f89ed57ab84`。
+- `writer-r2-frozen-browser`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-r2-frozen-browser-images mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T11:03:02.766279+00:00→2026-10-28T11:03:09.388447+00:00、exit 0、6.622168s、unittest/counts []、Node []。metadata SHA-256 `d5c172e9f125383821187677351732e9ed0b3c6f3daa9fbbdcd2974e50bffc0b`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-r2-frozen-check`: `mise run check`、2026-10-28T11:03:00.811109+00:00→2026-10-28T11:03:33.383019+00:00、exit 0、32.57191s、unittest/counts []、Node []。metadata SHA-256 `86984da4554d8635b63a9fb509bea4113b6346ce285e221043ad64681ebc6d81`、raw SHA-256 `cfb97a5f7d8b14a4219b47f793e96eca114393bc6be3cfdc21b89c943644433d`。
+- `writer-r2-frozen-emulator`: `mise exec -- bash /tmp/ba-ui-07-writer-emulator-v2.sh`、2026-10-28T11:03:06.340575+00:00→2026-10-28T11:03:22.168346+00:00、exit 0、15.827771s、unittest/counts ['Ran 1 test in 6.328s']、Node []。metadata SHA-256 `d66bff867ab064e9f4104d8ed8a517a9fb394e61a0cd9f6ecb6849127321d2e2`、raw SHA-256 `2e0ec9337c1de3d1a0b5c48e84d1361785dc0bc35b2f7bfe80ea9fb0db669765`。
+- `writer-r2-frozen-node`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs`、2026-10-28T11:02:27.256198+00:00→2026-10-28T11:02:43.197926+00:00、exit 0、15.941728s、unittest/counts []、Node ['ℹ tests 280']。metadata SHA-256 `3140128c70c4639b52b525f11b04b7602535220183c8db7c6dafbbca1966cf3f`、raw SHA-256 `a61039d976f906fdef71af15fff56bd9141cd202ae6bba04b4b8dc7a631455d7`。
+- `writer-r2-frozen-skill`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'`、2026-10-28T11:03:00.822217+00:00→2026-10-28T11:03:01.263853+00:00、exit 0、0.441636s、unittest/counts ['Ran 18 tests in 0.153s']、Node []。metadata SHA-256 `fcae27d3c3948e468910287da21f953574a3762eb3d51f9b5e4b460754c9bd15`、raw SHA-256 `427b6a1fe980db891687b9dbbce70db505a0ea711298ca0aadc77902b37afe64`。
+- `writer-r2-push-final-preflight`: `mise exec -- node tests/test_ui_push.mjs`、2026-10-28T11:01:25.998982+00:00→2026-10-28T11:01:32.735058+00:00、exit 0、6.736076s、unittest/counts []、Node ['ℹ tests 20']。metadata SHA-256 `e6575800acde953901a4b7170dca66608fbb434212d6d3601b1fd7a108be7175`、raw SHA-256 `edfe8349988a16dbe318f4c1caaaaa6cf8f1e1ec376e95e7eb5ef8d2e2fb71ea`。
+- `writer-r2-reminders-final-preflight`: `mise exec -- node tests/test_ui_reminders.mjs`、2026-10-28T11:01:26.011850+00:00→2026-10-28T11:01:41.596715+00:00、exit 0、15.584865s、unittest/counts []、Node ['ℹ tests 25']。metadata SHA-256 `ff0ff6f426a5cf5f0dad27858bd591da1fe93e38c31ce9eeacf8c7ec31a43448`、raw SHA-256 `0ad6b12bd2ed9e21f8c465fcd9cb79a1efa20f6f776ddb2bdc08489c8649f390`。
+
+- 親のR2最終画像確認: 全19枚中2枚を実際に表示して確認。`mobile-acknowledged.png`では同一予定の通知・予定一覧双方がacknowledged、別予定はscheduledを保つ。`mobile-push-removal-unconfirmed-recoverable.png`では解除未確認と動作可能な再確認・登録操作を表示する。synthetic bridgeのChromium画像でありOS実機ではない。
+- `/tmp/ba-ui-07-writer-r2-frozen-browser-images/mobile-acknowledged.png` SHA-256 `0f39f511c8c2ddf549d7e6ede97bd371b62435422224fec243b59a986590f3bb`。
+- `/tmp/ba-ui-07-writer-r2-frozen-browser-images/mobile-push-removal-unconfirmed-recoverable.png` SHA-256 `9535fd2733157fb45d6f9a7a91e9cbe307d76ba10866c9cb988efcfef70d7643`。
+- `review-r2-baseline`: `git diff --check`、2026-10-28T11:04:06.274499+00:00→2026-10-28T11:04:06.392839+00:00、exit 0、0.11834s、unittest/counts []、Node []。metadata SHA-256 `42b4e9b34cf07f7dfda746e89cd36bf6011e447f04363c9b443fb4c420796db1`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `review-r2-canonical-repros`: `mise exec -- node /tmp/ba-ui-07-review-r1-canonical-repros.mjs`、2026-10-28T11:04:14.913645+00:00→2026-10-28T11:04:15.340502+00:00、exit 0、0.426857s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `70fe1dc930957b0e47c30f4e4a92e0c7d1cf321c0b427061faac03f65dd15111`、raw SHA-256 `18c9cd7f817a674b41218f176d8316589786344e6196e835c89fb33c1da504a3`。
+- `review-r2-push-suite`: `mise exec -- node tests/test_ui_push.mjs`、2026-10-28T11:04:14.923600+00:00→2026-10-28T11:04:21.751369+00:00、exit 0、6.827769s、unittest/counts []、Node ['ℹ tests 20']。metadata SHA-256 `f76b6379ef813c11090c27a681d4c6f2b4a174dcceccd9d2751b7ae5e962a953`、raw SHA-256 `a9c1a8c75a28b781292e1a6eea3e0223b0f56e9861855af271a36a146b79c747`。
+- `review-r2-reminders-suite`: `mise exec -- node tests/test_ui_reminders.mjs`、2026-10-28T11:04:14.911934+00:00→2026-10-28T11:04:30.513493+00:00、exit 0、15.601559s、unittest/counts []、Node ['ℹ tests 25']。metadata SHA-256 `1c0625b8e8b0bc37566e730edb54a1d4e895f39a62d90fde5e9b66a7c265982f`、raw SHA-256 `e4d192ef52a240089f7183b1bf020e9783f3f993d9c6a98a0556a768b670bf47`。
+- `review-r2-repros-v2`: `mise exec -- node /tmp/ba-ui-07-review-r1-repros-v2.mjs`、2026-10-28T11:04:14.872369+00:00→2026-10-28T11:04:15.300507+00:00、exit 0、0.428138s、unittest/counts []、Node ['ℹ tests 4']。metadata SHA-256 `c2aa3fae98e555b93100386d8a764c2a7e41ee5d988e38868a7cae71c3213d1f`、raw SHA-256 `294aec95262c84c77e9bde8b8729a653bdd2c518aa0815a90943b0ab3f142db9`。
+- `review-r2-session-suite`: `mise exec -- node tests/test_ui_session.mjs`、2026-10-28T11:05:58.195792+00:00→2026-10-28T11:05:58.415565+00:00、exit 0、0.219773s、unittest/counts []、Node ['ℹ tests 23']。metadata SHA-256 `d4b710e9359c231d00de52e0807d74e44cad725f2b8fa4dfb2a447de457e28f1`、raw SHA-256 `589c3450f0e2321fa34f4865e1d61ecef8c07bd97930a5c71fc9252a5a7cdb32`。
+- `writer-r2-frozen-session-browser`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-07-writer-r2-frozen-session-browser-images mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T11:03:43.131331+00:00→2026-10-28T11:03:51.725629+00:00、exit 0、8.594298s、unittest/counts []、Node []。metadata SHA-256 `eeaeb62810d0792fd2426ee3a69fc0f2559b7c36b29da4566a3658a9a935d5eb`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+
+### R2修正と凍結版の検証
+
+- 修正担当 `/root/ui07_implementation`。全5指摘の対応と根拠は `/tmp/ba-ui-07-writer-correction-r2.md` SHA-256 `c187fc3f08846c4a74b950b24aa5b8154980f5314c53b4a6d82ceb909e698297`。
+- Writer検証監査 `/tmp/ba-ui-07-writer-validation-audit-r2.json` SHA-256 `f3b4922bab7b89ee525cb0a1eb0ba1c4d75b24c840c4692ef12a0b2d6feba8d4`。16phaseの原ログ/metadata hash・実child/tool exit0・所有資源終了を親が再照合。親監査SHA-256 `d8c8251341195597334e3d6f0a3fbfb2ca953f137ddf5ac696f28d11e06e2fdc`。最終6phaseは721source前後一致、親全map監査 `1a5a51e8cf53d9e171c530276e2e90f6ca93d9e3def1a6733e3d4b2119836979`。
+- R1→R2は正確に18path。新規canonical observer、通知/予定controller・fixture・fake画面・試験・UI07文書が対象。通常Python処理/試験・認証runtime・native adapter・依存lockは不変。変更したemulator Pythonは今回再検証。
+- 凍結後: Node280件、skill18件、checkと両build、UI07実Chromium19状態、過去音声期限を含む実HTTP/Firestore1件、session browserが全成功。R1の独立再現6件も成功。
+- R1通常Python1306、公式Auth結合、UI03〜06既存browser、依存導入を変更範囲に従い再利用。R1通常test全mapがR2と同じとは主張しない。共有fake構成変更はR2session/UI07browserと全Nodeで再確認。
+- OS実機/実FCM/APNs/署名buildは未実施。ユーザー承認に従い必須release gateとしてOPS09/10・QA06へ接続。ローカルticket承認とrelease判定を区別する。
+
+### 独立レビューR2終了・ローカル実装承認
+
+- 2026-10-28T11:13:12.428434+00:00 `/root/ui07_review_r2` を正式close。全30path（新規16、削除0）・source721件を確認し、`approve`（ローカルticket完了のみ）。R1-01〜05はすべて解消、未解決/新規必須0、任意0。
+- `/tmp/ba-ui-07-review-r2-report.md` SHA-256 `32f1d8224ca003ed331975a9ec904310afb2a11774b5d2f9218cd10cc92b86da`。
+- `/tmp/ba-ui-07-review-r2-result.json` SHA-256 `f41806f8eeaf6ebf48649a700394fffaf33639c8bac0a9b9369bbb283fa658eb`。
+- `/tmp/ba-ui-07-review-r2-closure.json` SHA-256 `d65b9ba068854af602a2218717837e304b9bdf97aa75d6517a2a6a2aa55109a3`。
+- 独立検証Node74件（既存68+R1再現6）とbackend1件が実exit0。最終画像27枚（UI07 19+session 8）を確認。writer R1 27phase/R2 16phaseの全hashと最終6phaseの凍結版一致を独立照合。製品/index不変、全所有実行終了。
+- レビューclosureのsource digest `3bf5408b544bbe0657ffb930c6b7aa260f31091a6592214b5d3859bb1c2363d8`は空白付きJSON、親正規化digest `1e14feb0a4ada2ee71acf68801a6fd862e50255368877a12f170453d75798fdb`はcompact JSON。親が辞書全件一致と両serializationを確認した。
+- ローカル受入条件: payloadに本文を使わず現在認証/予定版で再取得、snooze旧世代ack拒否、OS拒否時も作成と5分超の未確認一覧、確定登録拒否/解除未確認からの復旧、ack正本の一覧同期を確認。実機OS/FCM/APNsは未実施の必須release gateであり、この承認は公開判定ではない。
+
+### ローカル実装完了
+
+- 実装コミット: `452b167eb459060dcf27f1230a0d17bdd5a5306a`（`feat(ui): BA-UI-07 add reminders and notification controls`）。承認済み30pathのworktree/index/commit内容を照合し、全721sourceも凍結版と一致。
+- 2026-10-28T11:14:09.886174+00:00 ローカル完了、独立レビュー2回、最終approve・未解決必須0。実機条件はユーザー承認どおりリリース前の必須未完了項目として保持。
+- 予定の作成/編集/取消/スヌーズ、通知を開く/明示本人確認、private payload非依存、旧世代拒否、OS許可拒否時の一覧、native FCM登録/解除と復旧、UID変更時の破棄を実装。API/schema移行なし。
+- 最終検証: Node280、skill18、checkと両build、UI07ブラウザー19状態・session回帰、実HTTP/Firestore1件。変更のないPython1306/公式Auth等は記載の範囲で再利用。実FCM/APNs・署名build・OS実機成功とは扱わない。
+
+- done反映後の必須`mise run check`: 2026-10-28T11:14:18.527129+00:00→2026-10-28T11:14:23.016502+00:00、親所有session91888の実tool/child exit0を回収。全721source・raw/logical index不変、所有PID/listener終了。raw SHA-256 `b0baeedc064f45d169c95c3b75ee276d7354d3bd58a2d0da2a5183b03720a040`、tool結果保存SHA-256 `f7dae210980dca6e4e19593709c8b8e38d33d2ccb51110b6ae5eb6bd266198c6`。全check/両build成功、既存CSS specificity警告2件は情報として保持。
