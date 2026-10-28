@@ -89,3 +89,5 @@ FCMにはこのアプリのeffect keyで受付を照会するAPIがない。look
 [共通HTTP/配送シナリオ](../tests/fakes/push_scenarios.py) と [Firestore結合](../tests/emulator/test_push_notifications_integration.py) がT-030/T-038、現在本人認可、再登録、部分成功、未知結果、lease、idempotency応答喪失、実HTTP transport境界を検証する。[device取得](../tests/test_notification_devices.py)、[実purge](../tests/test_notification_lifecycle.py)、[実export](../tests/test_notification_export.py) も確認する。実FCM/APNs、実機表示、staging、cloud設定/配備は未実施で、OPEN-006およびOPS-09/10/UI-07の外部結合範囲である。
 
 公開契約の確認日: 2026-10-27。[HTTP v1送信・scope](https://firebase.google.com/docs/cloud-messaging/send/v1-api)、[send API](https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages/send)、[FCMエラー](https://firebase.google.com/docs/cloud-messaging/error-codes)、[token管理](https://firebase.google.com/docs/cloud-messaging/manage-tokens)。現在のtoken契約を維持し、FIDへの移行は本変更に含めない。
+
+BA-UI-07の[通知画面とnative登録](ui-reminders.md)は本文の再取得、旧予定ID拒否、表示と明示ackの分離、global installationの所有期間をこの契約へ接続する。実機OS権限・FCM/APNs確認は同文書の未完了条件を満たす必要がある。

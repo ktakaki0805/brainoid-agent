@@ -11,7 +11,15 @@ if (!element) throw new Error("Missing app root");
 const root = createRoot(element);
 if (import.meta.env.MODE === "fake") {
   const { SessionPreview } = await import("@brainoid-internal/ui/session-fake");
-  root.render(<SessionPreview surface="mobile" />);
+  const { PushPreview } = await import("../notifications/preview.tsx");
+  root.render(
+    <SessionPreview
+      surface="mobile"
+      extra={(controller, fixture) => (
+        <PushPreview session={controller} network={fixture.push.controls} />
+      )}
+    />,
+  );
 } else {
   try {
     const config = authenticationConfiguration(import.meta.env, import.meta.env.MODE);
@@ -34,7 +42,30 @@ if (import.meta.env.MODE === "fake") {
         baseUrl: config.apiUrl,
         ...browserNavigation(),
       });
-      root.render(<SessionApp controller={controller} surface="mobile" />);
+      let push: React.ReactNode;
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { FirebaseMessaging } = await import("@capacitor-firebase/messaging");
+          const { nativePush } = await import("../platform/push.ts");
+          const { PushController } = await import("../notifications/controller.ts");
+          const { PushSettings } = await import("../notifications/view.tsx");
+          const platform = Capacitor.getPlatform();
+          if (platform === "ios" || platform === "android")
+            push = (
+              <PushSettings
+                controller={new PushController(controller, nativePush(FirebaseMessaging), platform)}
+              />
+            );
+        } catch {
+          push = <p>OS通知を準備できません。アプリ内通知をご利用ください。</p>;
+        }
+      }
+      root.render(
+        <>
+          <SessionApp controller={controller} surface="mobile" />
+          {push}
+        </>,
+      );
     }
   } catch {
     root.render(<SetupRequired surface="mobile" />);

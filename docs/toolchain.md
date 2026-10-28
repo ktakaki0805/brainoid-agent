@@ -215,3 +215,5 @@ BA-UI-02 は2026-10-28に公式配布metadata・sourceと一次資料を確認�
 Firebase推移依存とintegrityは `pnpm-lock.yaml` に固定する。Web bundleはAuth/Appの必要moduleだけをimportし、Firestore clientから直接DBへ接続しない。native配布にはpluginとnative Firebase依存のlicense noticeも必要。認証SDKは指定Firebase projectへの本人認証・token更新の通信権限を持つが、導入だけでcloud IAM権限や実accountを作らない。API認証は既存のFirebase Adminを維持する。
 
 `@firebase/util` のpostinstallは `FIREBASE_WEBAPP_CONFIG` からSDK設定を埋め込む処理であり、明示設定を使う本アプリでは不要なので `allowBuilds: false` とする。WebView側に独自refresh-token保存・localStorage fallbackを追加しない。Playwrightは開発時だけprofile・静的build・スクリーンショットを専用tmpへ作り、所有browser/loopbackサーバーを終了する。native実機の保存と配布は [UI認証の境界](ui-authentication.md#認証と保存先)を参照。
+
+BA-UI-07はmobile実行依存に`@capacitor-firebase/messaging`8.5.2（Apache-2.0）を固定した。Capacitor >=8.0.0、Firebase ^12.6.0のpeerを既存構成で満たす。用途、実行権限、native依存のライセンス、OS/FCM/APNs設定と未実施の実機gateは[リマインダーUI](ui-reminders.md#依存と実機準備)に記録する。導入だけでnativeプロジェクトや資格情報を生成しない。

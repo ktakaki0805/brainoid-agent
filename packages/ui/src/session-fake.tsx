@@ -2,12 +2,22 @@ import { useState } from "react";
 import type { ChatScenario } from "./chat/fixture.ts";
 import type { MemoryScenario } from "./memories/fixture.ts";
 import type { NoteScenario } from "./notes/fixture.ts";
+import type { ReminderScenario } from "./reminders/fixture.ts";
 import { type SessionContext, SessionController } from "./session.ts";
 import { createSessionFixture } from "./session-fixture.ts";
 import { browserNavigation, SessionApp } from "./session-view.tsx";
 import type { TaskScenario } from "./tasks/fixture.ts";
 
-export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
+export function SessionPreview({
+  surface,
+  extra,
+}: {
+  surface: "mobile" | "display";
+  extra?: (
+    controller: SessionController,
+    fixture: ReturnType<typeof createSessionFixture>,
+  ) => React.ReactNode;
+}) {
   const [fixture] = useState(createSessionFixture);
   const [controller] = useState(
     () =>
@@ -23,9 +33,29 @@ export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
       <SessionApp controller={controller} surface={surface} preview>
         {(context) => <ContextProbe context={context} />}
       </SessionApp>
+      {extra?.(controller, fixture)}
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            リマインダーの動作
+            <select
+              aria-label="リマインダーの動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.reminders.controls.scenario = event.target.value as ReminderScenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="empty">空の一覧</option>
+              <option value="conflict">編集の競合</option>
+              <option value="lost_save">保存の応答喪失</option>
+              <option value="failed">通信失敗</option>
+              <option value="denied">権限拒否</option>
+              <option value="expired">通知の失効</option>
+              <option value="audio_expired">音声期限超過（一覧は保持）</option>
+            </select>
+          </label>
           <label>
             タスクの動作
             <select

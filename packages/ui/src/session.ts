@@ -7,6 +7,7 @@ import {
   type Tenant,
 } from "@brainoid-internal/api-client";
 import type { AuthenticationAdapter, AuthIdentity } from "../platform/auth.ts";
+import { type NotificationHint, notificationHint } from "./reminders/notifications.ts";
 
 export class StaleContext extends Error {
   constructor() {
@@ -152,6 +153,7 @@ export interface SessionState {
   readonly message?: string | undefined;
   readonly busy?: boolean | undefined;
   readonly revision: number;
+  readonly notificationHint?: NotificationHint | undefined;
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const messageFor = (status: number) =>
@@ -162,6 +164,27 @@ const messageFor = (status: number) =>
       : "通信を確認して、もう一度お試しください。";
 
 export class SessionController {
+  private endHooks = new Set<(closing: SessionContext) => Promise<void>>();
+  private ending?: Promise<void> | undefined;
+  globalContext = () => this.userContext;
+  beforeSignOut(callback: (closing: SessionContext) => Promise<void>) {
+    this.endHooks.add(callback);
+    return () => {
+      this.endHooks.delete(callback);
+    };
+  }
+  openNotification(value: unknown) {
+    const hint = notificationHint(value);
+    if (!hint || this.ending || !this.state.context) return;
+    if (hint.tenantId !== this.state.context.tenantId) {
+      this.publish({
+        ...this.state,
+        message: "通知は対象テナントの通知一覧から確認してください。",
+      });
+      return;
+    }
+    this.publish({ ...this.state, notificationHint: hint });
+  }
   private state: SessionState = { phase: "starting", tenants: [], revision: 0 };
   private listeners = new Set<() => void>();
   private userContext?: SessionContext | undefined;
@@ -271,6 +294,7 @@ export class SessionController {
     this.publish({ phase: "ready", uid: this.state.uid, tenants: [], message: messageFor(status) });
   }
   async signIn(email: string, password: string): Promise<void> {
+    if (this.ending) await this.ending;
     if (this.state.busy) return;
     this.blocked = true;
     this.clear();
@@ -298,7 +322,52 @@ export class SessionController {
     }
   }
   async signOut(message?: string): Promise<void> {
-    await this.endSession(message, true);
+    if (this.ending) return this.ending;
+    const uid = this.state.uid;
+    this.blocked = true;
+    let finish!: () => void;
+    this.ending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    // Ordinary contexts are fenced before any async cleanup or observer callback.
+    let closing: SessionContext | undefined;
+    if (uid)
+      closing = new SessionContext({
+        uid,
+        generation: ++this.generation,
+        baseUrl: this.options.baseUrl,
+        transport: this.options.transport ?? globalThis.fetch,
+        current: () => !!closing && !closing.signal.aborted,
+        token: (force) => this.options.auth.token(uid, force),
+        denied: () => {},
+      });
+    const hooks = closing
+      ? [...this.endHooks].map((hook) => {
+          try {
+            return hook(closing as SessionContext);
+          } catch {
+            return Promise.resolve();
+          }
+        })
+      : [];
+    this.clear();
+    this.options.navigate?.(undefined, true);
+    this.publish({ phase: "signed-out", tenants: [], busy: true, ...(message ? { message } : {}) });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        Promise.allSettled(hooks),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, 6000);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+      closing?.dispose();
+      await this.endSession(message, false);
+      this.ending = undefined;
+      finish();
+    }
   }
   private async endSession(message: string | undefined, navigate: boolean): Promise<void> {
     this.blocked = true;
@@ -324,7 +393,7 @@ export class SessionController {
   }
   async loadTenants(more = false, revalidate = true): Promise<void> {
     const scope = this.userContext;
-    if (!scope) return;
+    if (!scope || this.ending) return;
     const listing = ++this.listing;
     if (revalidate && !more && this.state.tenant)
       void this.selectTenant(this.state.tenant.id, false);
@@ -363,6 +432,7 @@ export class SessionController {
     }
   }
   async selectTenant(id: string | undefined, navigate = true): Promise<void> {
+    if (this.ending) return;
     this.selection++;
     this.tenantContext?.dispose();
     this.tenantContext = undefined;
@@ -396,7 +466,7 @@ export class SessionController {
   }
   async createTenant(name: string, timezone: string): Promise<void> {
     const scope = this.userContext;
-    if (!scope || this.state.busy) return;
+    if (!scope || this.state.busy || this.ending) return;
     const body = { name: name.trim(), timezone: timezone.trim() };
     if (
       !this.creation ||

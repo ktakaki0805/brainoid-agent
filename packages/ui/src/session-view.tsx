@@ -4,6 +4,7 @@ import { Chat } from "./chat/view.tsx";
 import { Frame, StateCard } from "./components.tsx";
 import { Memories } from "./memories/view.tsx";
 import { Notes } from "./notes/view.tsx";
+import { Reminders } from "./reminders/view.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
 import { Tasks } from "./tasks/view.tsx";
 
@@ -85,6 +86,14 @@ export function SessionApp({
           key={`tasks:${state.context.generation}`}
           context={state.context}
           surface={surface}
+        />
+      )}
+      {state.context && (
+        <Reminders
+          key={`reminders:${state.context.generation}`}
+          context={state.context}
+          surface={surface}
+          hint={state.notificationHint}
         />
       )}
       {state.phase === "starting" ? (

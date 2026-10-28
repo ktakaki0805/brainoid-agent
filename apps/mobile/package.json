@@ -15,6 +15,7 @@
     "@brainoid-internal/api-client": "workspace:*",
     "@brainoid-internal/ui": "workspace:*",
     "@capacitor-firebase/authentication": "8.5.2",
+    "@capacitor-firebase/messaging": "8.5.2",
     "@capacitor/core": "8.5.3",
     "firebase": "12.19.0",
     "react": "19.3.1",

@@ -3141,7 +3141,8 @@ Piサービスが専用資格情報でcloud API・SSE・WSSへ接続し、ブラ
 
 **検証方法**
 
-- T-013・T-014・T-030・T-038をfakeとOS通知許可の実機確認で検証する。
+- 2026-10-28の利用者の明示指示により、このチケットはローカル実装・検証・独立レビューの完了を完了条件とする。T-013・T-014・T-030・T-038をfake、synthetic native bridgeを使うChromium、HTTP/Firestore結合で検証する。OS実機成功とは扱わない。
+- Android/iOSのOS通知許可・実FCM/APNs・署名build・lockscreen非露出・重複/旧通知・offline復帰・token rotation・失効・UID切替・再起動は**リリース前の必須実機gate**として保持する。[BA-OPS-09](#ba-ops-09-android署名buildと内部配布手順)・[BA-OPS-10](#ba-ops-10-ios署名buildと内部配布手順)のnative環境と[BA-QA-06](#ba-qa-06-mvp全受入基準の証跡と公開判定)へ証跡を結び付ける。他チケットの条件は自動的に緩和しない。
 
 **このPRに含めないもの**
 
@@ -3150,7 +3151,7 @@ Piサービスが専用資格情報でcloud API・SSE・WSSへ接続し、ブラ
 
 **外部前提**
 
-- Android/iOSのテスト端末、FCM/APNsの開発用設定。秘密鍵はcommitしない。
+- リリース前実機gateにはAndroid/iOSのテスト端末、macOS/Xcodeを含むnative build環境、署名・FCM/APNs開発用設定が必要。利用者のiPhoneは利用候補だがMacはなく、native構成と実機証跡は未提供/未検証。端末/OS版・build/app ID・artifact digest・provider構成識別子・実行結果を記録する。秘密鍵はcommitしない。具体的な未完了項目は[通知UIの実機条件](ui-reminders.md#検証と未完了の実機条件)を参照する。
 
 #### BA-UI-08 Calendar連携・予定・確認カード
 

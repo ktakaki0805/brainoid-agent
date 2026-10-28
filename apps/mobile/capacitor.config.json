@@ -6,6 +6,9 @@
     "FirebaseAuthentication": {
       "skipNativeAuth": false,
       "providers": []
+    },
+    "FirebaseMessaging": {
+      "presentationOptions": []
     }
   }
 }

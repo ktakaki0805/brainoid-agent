@@ -3,6 +3,8 @@ import type { AuthenticationAdapter, AuthIdentity } from "../platform/auth.ts";
 import { createChatFixture } from "./chat/fixture.ts";
 import { createMemoryFixture } from "./memories/fixture.ts";
 import { createNoteFixture } from "./notes/fixture.ts";
+import { createReminderFixture } from "./reminders/fixture.ts";
+import { createPushFixture } from "./reminders/push-fixture.ts";
 import { createTaskFixture } from "./tasks/fixture.ts";
 
 export const tenantA = "10000000-0000-4000-8000-000000000001";
@@ -25,6 +27,8 @@ export function createSessionFixture() {
   const memories = createMemoryFixture();
   const notes = createNoteFixture();
   const tasks = createTaskFixture();
+  const reminders = createReminderFixture();
+  const push = createPushFixture();
   let user: AuthIdentity | null = null;
   const listeners = new Set<(user: AuthIdentity | null) => void>();
   const emit = (next: AuthIdentity | null) => {
@@ -63,6 +67,10 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const pushResponse = await push(request, user.uid);
+    if (pushResponse) return pushResponse;
+    const reminderResponse = await reminders.handle(request, user.uid);
+    if (reminderResponse) return reminderResponse;
     const taskResponse = await tasks.handle(request, user.uid);
     if (taskResponse) return taskResponse;
     const noteResponse = await notes.handle(request, user.uid);
@@ -94,5 +102,5 @@ export function createSessionFixture() {
     const tenant = tenants.find((value) => value.id === id);
     return tenant ? Response.json(tenant) : Response.json({}, { status: 404 });
   };
-  return { auth, transport, controls, emit, chat, memories, notes, tasks };
+  return { auth, transport, controls, emit, chat, memories, notes, tasks, reminders, push };
 }

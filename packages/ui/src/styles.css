@@ -843,3 +843,15 @@ textarea:focus-visible {
 .tasks .button {
   margin-top: 8px;
 }
+
+.reminders fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.reminders input,
+.reminders select {
+  max-width: 100%;
+}

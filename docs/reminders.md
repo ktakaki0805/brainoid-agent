@@ -54,3 +54,5 @@ MEM-09 は明示的 ReminderView と content-free manifest を使い、actor・�
 既存データの一括移行や依存追加はない。切戻し時は reminder API/tool admission を止め、未確定 run/effect と受理済み lifecycle purge・export を対応版で回復・完了させる。先に旧workerへ切り替えたり、effect・ledger・fence を削除して再実行しない。
 
 [HTTP/tool/T-038](../tests/test_reminders.py)、[結果現在性・回復](../tests/test_reminder_regressions.py)、[lifecycle](../tests/test_reminder_lifecycle.py)、[Firestore競合・復旧](../tests/emulator/test_reminders_integration.py) を提供する。実cloud・provider・本番索引・実機通知は未検証で、BA-APP-05 と後続結合確認で扱う。
+
+BA-UI-07の[リマインダー画面](ui-reminders.md)は明示時点・timezone・配信先、取消、期待版付きスヌーズ、現在正本の表示と競合確認を提供する。native実機条件は同文書に分けて記録する。
