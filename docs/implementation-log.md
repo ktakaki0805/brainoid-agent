@@ -12477,3 +12477,176 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 追加の外部前提なし。依存fixture/fake/official Emulatorによるticket完了範囲で検証。実HAの物理状態・Pi実機・ホスト導入・実クラウド配備は未実施で、QA/配備時の検証に残る。push/PRは実施していない。SQLite ResourceWarningの原因は未帰属で、試験合格を原因解消とは扱わない。
 
 - done記録後の必須 `mise run check` はparent owner session79532 actual0、2026-10-28T05:13:35.678629+00:00→2026-10-28T05:13:40.774315+00:00。全product656 before/afterは承認freeze03一致。raw SHA-256 `754475cf4497e6d9a30faac9cfc4cb1018f90efc97f79000963d7b6eec3400ba`、metadata `92cb9a56b17e0ee61b5d984858057f01005c60270d7e95140130c213f2bfb192`、同hostの記録PID・birth回収を含む親監査 `0f4b8e132c444207a02bc3fd3bd8d448b388ad18d59ae33db316fef673ca7c9d`。inert cacheを残すが記録listenerの残存なし。
+
+## ba-ui-02-20261028t051557z
+
+- チケット: BA-UI-02 ログイン・テナント選択・context切替 / FR-001。
+- 状態in_progress、開始 2026-10-28T05:15:57.280939+00:00。main / base `720947b9f4fdb9ee67f02a0cec43dcc96b38fb83`、開始時clean、既存無関係変更なし。ID指定なしplannerで選択。実装担当 `/root/ui02_implementation`、親は台帳・log・commit担当。
+- 依存done/祖先確認: BA-UI-01 `da9a99b591ca963c9e01be0f2484496d8c32e1f6`, BA-IAM-03 `097b694329c4abc3a2990b278cf9e3ae7f918ece`。全656product開始map `/tmp/ba-ui-02-start.json`。前DEV07 sealed208証跡hash不変。
+- 範囲・受入: Firebase認証とplatform資格情報管理、所属一覧/作成/選択、API context、旧要求中断/cache・SSE・編集状態破棄、401/403/404・サインアウト処理。A遅延応答がBへ描画されないこと、signout後の戻る操作でprivate内容が復活しないこと、未所属URLtenantを取得済みに見せないことを検証する。
+- 検証計画: T-001/T-005の遅延・失効・context切替をNode/実ブラウザで確認し、スマホ幅とディスプレイ幅の共通UI状態とprivate消去を確認。実Firebase SDKとofficial Auth/Firestore Emulator、既存API認可、生成SDKを利用。setup/check/全通常回帰・両entry build、各round新規独立contextによる最新全差分レビューを行う。
+- 追加外部前提なし。依存fixture/fake/emulatorで検証する。会員/role管理はUI11、Pi端末認証はDEV10を利用し、所有者Firebase資格情報をPiへ渡さない。実クラウド設定・実アカウント・実機署名/配備・push/PR・ホスト導入は行わない。native安全保存のadapter設計はdocs02に従い、未実施の実機確認とfake検証を区別する。
+- `writer-browser-host-1`: `bash /tmp/ba-ui-02-writer-browser-run.sh`、2026-10-28T05:29:00.782900+00:00→2026-10-28T05:29:12.005597+00:00、exit 0、11.222697s、unittest/counts []、Node []。metadata SHA-256 `33019e488daa99fe6351c8d4226ddbadca3369d8482f625fc53f7e40269c3e01`、raw SHA-256 `84f986a27b3c9abed3b3fe7a5151525a7865d87a8914ebde035d5fa57719be38`。
+- `writer-browser-sandbox`: `bash /tmp/ba-ui-02-writer-browser-run.sh`、2026-10-28T05:28:06.655708+00:00→2026-10-28T05:28:07.849599+00:00、exit 1、1.193891s、unittest/counts []、Node []。metadata SHA-256 `768a3f6235046855d6b671e5a9c6f4d8190f48f1fe590e904e58f93b9f65b590`、raw SHA-256 `1fd8ee9d35c7a0eb7bba3b717262f853028966e2e8bd975d0f9ce4f49cce2047`。
+- `writer-emulator-ui-1`: `bash /tmp/ba-ui-02-writer-emulator-ui.sh`、2026-10-28T05:29:57.791053+00:00→2026-10-28T05:30:17.495879+00:00、exit 0、19.704826s、unittest/counts ['Ran 1 test in 2.838s']、Node []。metadata SHA-256 `257162924a68378e8bdf8f2ed5cdbd40cd29309eb851e4e208e18ad3b1b13ad3`、raw SHA-256 `d101d3a66b15775a009627d538342b77452b8cca160d0de2ab5ea46303bff85f`。
+- `writer-browser-host-2`: `bash /tmp/ba-ui-02-writer-browser-run.sh`、2026-10-28T05:32:04.491929+00:00→2026-10-28T05:32:40.898520+00:00、exit 1、36.406591s、unittest/counts []、Node []。metadata SHA-256 `741d76d60107c04c8e5051e5a5c6cc2bfeca7428fa892a1702d30e3cf40c9546`、raw SHA-256 `727810805c571ba98f416c6d1e85488e1698cc6ca220dc1fe20dcc8a49bbae37`。
+- `writer-browser-host-3`: `bash /tmp/ba-ui-02-writer-browser-run.sh`、2026-10-28T05:33:29.579981+00:00→2026-10-28T05:33:39.459097+00:00、exit 0、9.879116s、unittest/counts []、Node []。metadata SHA-256 `53c683cdc7c1aef1c10b712f4b7314759151b543ee08a584b0517d6892253770`、raw SHA-256 `7f49851f729161a859c8151801167762e3541242979f979d433b7d15d943f10b`。
+- `writer-emulator-browser-1`: `bash /tmp/ba-ui-02-writer-emulator-browser.sh`、2026-10-28T05:32:07.655494+00:00→2026-10-28T05:32:53.186299+00:00、exit 1、45.530805s、unittest/counts ['Ran 1 test in 34.718s']、Node []。metadata SHA-256 `3d99440194fd4b09d11b70a5d9595919d902cffa8f410ad22f08aebc68f1ad8b`、raw SHA-256 `bdceb2d169efa7cf7170badcd7eef24e62f7ec320ac591e499b4610b1cf58cc7`。
+- `writer-emulator-browser-2`: `bash /tmp/ba-ui-02-writer-emulator-browser.sh`、2026-10-28T05:33:31.257314+00:00→2026-10-28T05:34:17.949580+00:00、exit 1、46.692266s、unittest/counts ['Ran 1 test in 34.966s']、Node []。metadata SHA-256 `541b21a30bc2c69f075f02671fbefa9e41b1f388d2d46963093e1c0c5343808d`、raw SHA-256 `2eba7c61b81d6f2c8630b7ecff3d2b68642fe633f65cc74bec928be996714925`。
+- `writer-cors-fast`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_client_origins.py`、2026-10-28T05:35:11.611854+00:00→2026-10-28T05:35:13.032524+00:00、exit 0、1.42067s、unittest/counts ['Ran 3 tests in 0.038s']、Node []。metadata SHA-256 `9f3f1327bd902508abde06206647938fb1be24cde850c0372396fe25ff1990b7`、raw SHA-256 `e4203c2a2c9a8a087787df57a8aeba4f3c42ad2d29b7c8d9ed9832bce2de5a83`。
+- `writer-emulator-browser-3`: `bash /tmp/ba-ui-02-writer-emulator-browser.sh`、2026-10-28T05:34:48.503197+00:00→2026-10-28T05:35:39.215610+00:00、exit 1、50.712413s、unittest/counts ['Ran 1 test in 34.402s']、Node []。metadata SHA-256 `eb095a0405f158a57c10d0d3b9dd2ea762308ed5d264752cfa11e9fc6f7e2cea`、raw SHA-256 `cbe0ca8f053b107623178b0413a48e4c349f8389fd06d76d99e0002791fdefa6`。
+- `writer-emulator-browser-4`: `bash /tmp/ba-ui-02-writer-emulator-browser-4.sh`、2026-10-28T05:37:31.587217+00:00→2026-10-28T05:37:48.611800+00:00、exit 0、17.024583s、unittest/counts ['Ran 1 test in 5.777s']、Node []。metadata SHA-256 `bb9c4f8b9d8045793ab8d42415fda7c96ca7953c930ad8a99577be293226e882`、raw SHA-256 `fbd4c1e5b784db45074114a54dc80aa9820a99c46397292bc473374ad3e2ccda`。
+- `writer-check-fast-1`: `mise run check`、2026-10-28T05:39:11.767610+00:00→2026-10-28T05:39:33.832776+00:00、exit 1、22.065166s、unittest/counts []、Node []。metadata SHA-256 `8c84a692252a357a2c1713a60410957e20cc53f8f91a45401132c5f9ff2cd21a`、raw SHA-256 `5706cbcfdfb58af8bbf585c37ec5d2a9791f4477aa6c8c4c72cf8b7b2f0097c7`。
+- `writer-node-fast-1`: `mise exec -- node --test --test-reporter=tap tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs`、2026-10-28T05:40:24.031326+00:00→2026-10-28T05:40:45.379809+00:00、exit 0、21.348483s、unittest/counts []、Node ['# tests 64']。metadata SHA-256 `297124de65763f1bd7296c31047ef150abb9dad3ea492a6df37ff17540ba9e55`、raw SHA-256 `b2d462c0b5b9d0b6a7b1a7498bcf61db5b8603a5f1e11e22a1309e6ba6749db7`。
+- `writer-browser-final`: `bash /tmp/ba-ui-02-writer-browser-final.sh`、2026-10-28T05:42:23.493748+00:00→2026-10-28T05:42:58.708892+00:00、exit 1、35.215144s、unittest/counts []、Node []。metadata SHA-256 `ba46b2d088bde6683daa832ba3021b03533fe50936b98eb8664908093eebde9e`、raw SHA-256 `1f28f1be2e11f005fcbbf6a6cb67692e35f0ba180e27243c5233ee2902e627dc`。
+- `writer-check-fast-2`: `mise run check`、2026-10-28T05:40:50.097630+00:00→2026-10-28T05:41:24.032641+00:00、exit 0、33.935011s、unittest/counts []、Node []。metadata SHA-256 `509ded3c9b4cd1a009cac62829fd9e116f4e55f9a1d343c994d55d6f1b594023`、raw SHA-256 `9f24c0f7221de008d97fdd6740a8d53d7385a5428014a44f532cfa1c7af0b8df`。
+- `writer-emulator-browser-final`: `bash /tmp/ba-ui-02-writer-emulator-browser-final.sh`、2026-10-28T05:42:26.987147+00:00→2026-10-28T05:42:41.870909+00:00、exit 0、14.883762s、unittest/counts ['Ran 1 test in 4.712s']、Node []。metadata SHA-256 `b9c972002cd5cfa9ba905d56a438ee2b2d38a5e4f02dcf565970caf24df08719`、raw SHA-256 `942dcc6889c415fd1e6d95a2c15321c05e02690c0ed9811a8ff9d9859ad78452`。
+- `writer-setup-final`: `mise run setup`、2026-10-28T05:41:47.972650+00:00→2026-10-28T05:41:50.402925+00:00、exit 0、2.430275s、unittest/counts []、Node []。metadata SHA-256 `633bedcef45cea503ce931e0adf98a81ab3d790fc8c9c1559a9c42d5f77ddf7a`、raw SHA-256 `b8c9540b61e428c61338ee15586d39862700daac0d9164a8183a92cd7bc11aa5`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui02_review_r1`（新規独立context）。base commit: `720947b9f4fdb9ee67f02a0cec43dcc96b38fb83`。
+- 未追跡を含む最新全35files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/src/main.tsx` | `e57e9c9f4a2af781a780f689ce340ca1731819577ad64af0b7927f540af4a62a` |
+| `apps/mobile/capacitor.config.json` | `3fb7292f09db7f85c6f7d72c5e178b4e99b42e5c758158cdeb110d55bd829c8c` |
+| `apps/mobile/package.json` | `863dba8c07eb7755f293a4d5b9b817dc5e1646fd78235b2cf341b857664bf455` |
+| `apps/mobile/src/auth-config.ts` | `63000a03e8efe1e29ff7546a91d7e166f1f9a5331e72038e9691ff39941b7ae0` |
+| `apps/mobile/src/firebase-browser.ts` | `dee0195885a6f2d38ab19209fa411c4de35c9bf4322318ee12668c397d262535` |
+| `apps/mobile/src/firebase-native.ts` | `834b277bc012d72c8b77d98d95cd6178a15bccf932282c80ea2d2f78759473ea` |
+| `apps/mobile/src/main.tsx` | `b80f5ab2aaa4234d80ef2499d757c9ebb1c575a9323cd0872350f5a382ac9938` |
+| `biome.json` | `f9127e2dfdfa0202f3e68af8880dd54a84e6bb48f73cd6240010cedb6e461992` |
+| `docs/04-interfaces.md` | `bb9c25548ada0eddf5e2606bc8f75616cf16c961b7d84ab24d0bb9ca3d033c9f` |
+| `docs/05-development-and-testing.md` | `1885432c0fe48b24d324a5f041c0b984089df68d8c965130226f3861f19595c4` |
+| `docs/authentication.md` | `f4556655a2973e39126345d7c70fd459c91dcfd41af277e485e6ae84e9c6e47b` |
+| `docs/toolchain.md` | `54e04fe8d98449863b1d3f0dbda4d0285317a82421718e217817d08480782b9f` |
+| `docs/ui-authentication.md` | `fdbec39b7554ed1d3d9ef20c9dd6b078b0213b6e5ce39d741ac367b79d613f36` |
+| `docs/ui-foundation.md` | `faa1aee60823cda0d133b263ec6966122f5f4c5be98dc8d8d98f77bd48375424` |
+| `mise.toml` | `5dbda34c51d00624340a480d69db97509408a2a19ca786f8e65ffb229e4d7533` |
+| `package.json` | `602bb9efd147657a6ac47e8b8f283c65503ba66abb02fdeec8ca86185ce8e7c1` |
+| `packages/ui/package.json` | `8ae4876c5ee5c4c36c470300e49d086e7e369f0b8275baeacb937f947abfbf82` |
+| `packages/ui/platform/auth.ts` | `d8fc7d7300e498447c0fd751457475960c40320306e7d6530d8695758cf5edb7` |
+| `packages/ui/platform/index.ts` | `703794e11c2067479bb94e6baf225b36022494521fb3be4e2a1ffb2701b75416` |
+| `packages/ui/src/session-fake.tsx` | `2a954ddc422d16d7c8d08843e41cab5b8e0742fb915e21efdbf6316c908d6916` |
+| `packages/ui/src/session-fixture.ts` | `4a5cb3708f06e8f6df57ab3594c9807a149c41d8003bb699887880e32d03af71` |
+| `packages/ui/src/session-view.tsx` | `8fb6752481c48d0e5dcd94de59db9d1d655b5b337fc7fd24ab2b3695373d7834` |
+| `packages/ui/src/session.ts` | `d4cf204a0ea80fc62c443508ff6b383b3a97776117848b4d125185688a5e36d5` |
+| `packages/ui/src/styles.css` | `77148e1e3f79b27615e714ad1d2d4c32b5998bdf8a149ed69dd135cb050617f4` |
+| `pnpm-lock.yaml` | `08d6b2441ffa4b5159c81999911cfddf0d0e72525e4c8ce0a16512da50a7e45b` |
+| `pnpm-workspace.yaml` | `c9a6a9e234cc09b03ae8c8de14eaf4a098c176ce02d7c6455c2085cfd2f08b53` |
+| `services/api/src/brainoid_api/app.py` | `422a56569ab4f2fefd1a6c77836f8a366d4a6327df772dbae11699b28178ddfc` |
+| `services/api/src/brainoid_api/cors.py` | `33131bc024fa90abcb420a0374c4d5c0b709b6014b67b7c67d10c5a7b0451cd5` |
+| `services/api/src/brainoid_api/settings.py` | `1fe0613d2b71ff351845a8b6a8aeeb814fdba0bbb6250fa513886769c3408468` |
+| `tests/emulator/test_ui_session_integration.py` | `352155014a336b596778e36e6a839db35c854053794140c98e0fd751f5583141` |
+| `tests/test_client_origins.py` | `c73e8a69d67a6ee4c70e8f2f1929caf1f1e22b47f990ea4ad4554221540b32e4` |
+| `tests/test_ui_session.mjs` | `d6740c61baddaf3dd7bf0a0e9f648ad91594ba019cc276a2c2e20ae350040c2f` |
+| `tests/ui/session_browser.mjs` | `9633ce30c6b4362de6ef4bc5bdfdd37abf513122e2ccaac74c1076dd497e7dc8` |
+| `tests/ui/session_browser_emulator.mjs` | `ce72fd360181428aa5d83a55040956141407bd16f91cc909ee0a4987dff58672` |
+| `tests/ui/session_emulator.mjs` | `d97393a363889f891ef9f8e17f31c43b308b4549abaa1f918edb0ad3c0da5364` |
+- `writer-browser-probe`: `bash /tmp/ba-ui-02-writer-browser-probe.sh`、2026-10-28T05:44:23.033721+00:00→2026-10-28T05:44:32.043912+00:00、exit 0、9.010191s、unittest/counts []、Node []。metadata SHA-256 `e352d7511b7d88294f8930767381d1caebee0ea294c8ab3a27ee853ae2a247a0`、raw SHA-256 `7f49851f729161a859c8151801167762e3541242979f979d433b7d15d943f10b`。
+
+- R1中間確認: 最終 `writer-browser-final` はexit1で未達。未所属URLで一覧を破棄した後にもlogin helperがテナントA行を待つ。repo外helper診断 `writer-browser-probe` はexit0だが製品内テストの成功扱いにはしない。親の失敗監査 `/tmp/ba-ui-02-parent-browser-failure-audit-r1.json` SHA-256 `464554368ed9ea771f89172f903124e730c148b934e4ad319260e9586d58c85b` は全672製品・index不変とraw照合を確認。独立レビューでさらに古いcreateの403/404が現在の選択を解除する事象を再現中。正式判定前の製品修正は行わない。
+- `review-r1-browser-probe-host`: `mise exec -- node /tmp/ba-ui-02-review-r1-browser-probe-host.mjs`、2026-10-28T05:50:05.885572+00:00→2026-10-28T05:50:09.036032+00:00、exit 0、3.15046s、unittest/counts []、Node []。metadata SHA-256 `353c4632704bbf1f8a9fc5ade2006e3b136308829a581b52069d3c60f9aae3e3`、raw SHA-256 `885e444d75c23bc63823c430afb8cb1d814ecce41225bbcc1fe9dc0bec8bdf14`。
+- `review-r1-browser-probe-sandbox`: `mise exec -- node /tmp/ba-ui-02-review-r1-browser-probe.mjs`、2026-10-28T05:49:05.985612+00:00→2026-10-28T05:49:07.383133+00:00、exit 1、1.397521s、unittest/counts []、Node []。metadata SHA-256 `9ffb9ec1ae06d37c1f2cd1adf1f2f1a2587cfd68aa3050e8011526c684704f50`、raw SHA-256 `3405494cbf2dab08d5c4d73ab131a1d7e3977417a45e880003b9b21d215c0526`。
+- `writer-test-final`: `mise run test`、2026-10-28T05:42:20.116705+00:00→2026-10-28T05:55:38.701586+00:00、exit 0、798.584881s、unittest/counts ['Ran 1306 tests in 746.172s', 'Ran 18 tests in 0.159s']、Node ['ℹ tests 64']。metadata SHA-256 `649783a47c0599ab420941430d9a0545b2506b7fa9997976fda1d5e19ab64374`、raw SHA-256 `34f354daf1be9c69a425978c90b52d98f4f679a5c5e5133474df88650713db5e`。
+- `writer-emulator-full-final`: `bash /tmp/ba-ui-02-writer-emulator-full.sh`、2026-10-28T05:44:26.254193+00:00→2026-10-28T05:59:25.183814+00:00、exit 130、898.929621s、unittest/counts []、Node []。metadata SHA-256 `37d7991ac601f54f14df3a47623123b75f9358bdfcebca00164541b293f5cc49`、raw SHA-256 `895a5bd8b248d5c26389e17625166a9ecf61cbf78d6923a94ba51e2cfde69543`。
+
+- R1全Emulatorは必須指摘確定後、旧candidateの長時間回帰を親判断で制御中断した（metadata exit130、約899秒、合格扱いしない）。訂正版で全体検証をやり直す。全672製品/indexとraw一致を確認した親監査 `/tmp/ba-ui-02-parent-emulator-cancellation-audit-r1.json` SHA-256 `ff460c6bce5b5f6e962da8a59bfc7f1114ba78cbaab453d9f6f136e064aba538`。同hostnamespaceで16phase・593 PID/birthと9fixtureportの閉鎖を確認（別sandbox 3phaseは区別、短命process samplingの限界あり）。独立reviewerへ実SDK限定検証用portを引継いだ。
+
+### 独立レビュー R1 判定・修正引継ぎ
+
+- 新規担当 `/root/ui02_review_r1`、全35変更（新規16）を確認。判定 **request_changes**、必須3件、完了round1。正式全文 `/tmp/ba-ui-02-review-r1-report.md` SHA-256 `63a704ee8842c68ac37aef2521033a58ddd18dd5b40e41b99e53d57711d56356`、親閉鎖証跡 `/tmp/ba-ui-02-parent-review-r1-closed.json` SHA-256 `49903f7fdd3a6989d3f97f85260448994d3751c965753e152a558a642a6c8e80`。全672製品・raw/logical index不変。
+- `UI02-R1-003` P1 `packages/ui/src/session.ts:416`: 旧documentから別documentへ移動しサインアウト後Backすると、bfcache内のin-memory Authで認証済みcontextが再公開される。独立実Chromium＋Firebase SDK＋公式Auth/Firestore/API/CORSで再現。旧draft残留や実会話漏えいの観測とは区別。同期的失効と明示再ログイン、遅延callbackの遮断、実SDK回帰が必要。
+- `UI02-R1-002` P2 `packages/ui/src/session.ts:255`: 古いcreate403/404が共通userContext denied処理経由で明示選択後のB context/draftを消す。拒否副作用にも操作の選択世代を適用する。現在UIDの401失効は維持。
+- `UI02-R1-001` P2 `tests/ui/session_browser.mjs:63`: 未所属URLでもTenant A行を待つhelperで必須ブラウザ試験が停止。認証完了を待つ適切な条件へ修正し、両画面の製品内scriptを完走させる。
+- 任意O1（SDKが使うresponse.textの実遅延を検証）、O2（Playwright Node>=20文書）、O3（passwordの一時React入力stateと永続保存の文書上の区別）は同じ修正で対応する方針。
+- 提供通常回帰1306 Python＋18skill＋64Nodeは成功。独立probeのexit0は不具合再現assert成功の意味を含み、受入合格と混同しない。公式Emulator全体は制御中断child wait130で未完走。元の終了tool応答は圧縮後未保持、後続owner照会はsession closedでありtool-level130再観測とは記さない。親とownerのhost閉鎖確認済み。
+- 独立reviewerのhost31観測PID/birth・listener/profileは閉鎖確認。別sandbox試行とsampling限界を区別。元writerへ必須3件＋任意3件を戻し、修正後は新規R2が最新差分全体を再確認する。
+
+- 修正版のEmulator検証範囲を影響境界で再整理: docs05 §7/DoDは関連変更のintegrationを要求し、毎チケット全222ケースを要求していない。今回のbackend変更はCORS/settingsで、Firestore業務transactionは不変。最終版ではseed・common mutations・authentication・authz ledger・tenants・memberships・UI sessionの各module全件を公式Emulatorで確認する。UI sessionには実SDK/実ブラウザを含む。通常の全体 `mise run test` と `mise run check`、両画面のブラウザ回帰は維持。未変更のCalendar・memory・job・device等を含む旧broad discoverは中断・未完走として残し、全222件合格とは記さない。新規R2は範囲の十分性も独立に判断する。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui02_review_r2`（新規独立context）。base commit: `720947b9f4fdb9ee67f02a0cec43dcc96b38fb83`。
+- 未追跡を含む最新全35files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/src/main.tsx` | `e57e9c9f4a2af781a780f689ce340ca1731819577ad64af0b7927f540af4a62a` |
+| `apps/mobile/capacitor.config.json` | `3fb7292f09db7f85c6f7d72c5e178b4e99b42e5c758158cdeb110d55bd829c8c` |
+| `apps/mobile/package.json` | `863dba8c07eb7755f293a4d5b9b817dc5e1646fd78235b2cf341b857664bf455` |
+| `apps/mobile/src/auth-config.ts` | `63000a03e8efe1e29ff7546a91d7e166f1f9a5331e72038e9691ff39941b7ae0` |
+| `apps/mobile/src/firebase-browser.ts` | `dee0195885a6f2d38ab19209fa411c4de35c9bf4322318ee12668c397d262535` |
+| `apps/mobile/src/firebase-native.ts` | `834b277bc012d72c8b77d98d95cd6178a15bccf932282c80ea2d2f78759473ea` |
+| `apps/mobile/src/main.tsx` | `b80f5ab2aaa4234d80ef2499d757c9ebb1c575a9323cd0872350f5a382ac9938` |
+| `biome.json` | `f9127e2dfdfa0202f3e68af8880dd54a84e6bb48f73cd6240010cedb6e461992` |
+| `docs/04-interfaces.md` | `bb9c25548ada0eddf5e2606bc8f75616cf16c961b7d84ab24d0bb9ca3d033c9f` |
+| `docs/05-development-and-testing.md` | `1885432c0fe48b24d324a5f041c0b984089df68d8c965130226f3861f19595c4` |
+| `docs/authentication.md` | `f4556655a2973e39126345d7c70fd459c91dcfd41af277e485e6ae84e9c6e47b` |
+| `docs/toolchain.md` | `77eccfd18a70ea5a622a680822f54277f66def2879a6f5fd76ca6227d17bb17e` |
+| `docs/ui-authentication.md` | `fd9475e6bf9ea08323d4ea6b197c199f5f40cf81f636a03e0b60b1f2e302986a` |
+| `docs/ui-foundation.md` | `faa1aee60823cda0d133b263ec6966122f5f4c5be98dc8d8d98f77bd48375424` |
+| `mise.toml` | `5dbda34c51d00624340a480d69db97509408a2a19ca786f8e65ffb229e4d7533` |
+| `package.json` | `602bb9efd147657a6ac47e8b8f283c65503ba66abb02fdeec8ca86185ce8e7c1` |
+| `packages/ui/package.json` | `8ae4876c5ee5c4c36c470300e49d086e7e369f0b8275baeacb937f947abfbf82` |
+| `packages/ui/platform/auth.ts` | `d8fc7d7300e498447c0fd751457475960c40320306e7d6530d8695758cf5edb7` |
+| `packages/ui/platform/index.ts` | `703794e11c2067479bb94e6baf225b36022494521fb3be4e2a1ffb2701b75416` |
+| `packages/ui/src/session-fake.tsx` | `2a954ddc422d16d7c8d08843e41cab5b8e0742fb915e21efdbf6316c908d6916` |
+| `packages/ui/src/session-fixture.ts` | `4a5cb3708f06e8f6df57ab3594c9807a149c41d8003bb699887880e32d03af71` |
+| `packages/ui/src/session-view.tsx` | `8fb6752481c48d0e5dcd94de59db9d1d655b5b337fc7fd24ab2b3695373d7834` |
+| `packages/ui/src/session.ts` | `253e071a01480e8cdf3e520c0d7902d52e260baf409cf7bb37a6fe808496d08e` |
+| `packages/ui/src/styles.css` | `77148e1e3f79b27615e714ad1d2d4c32b5998bdf8a149ed69dd135cb050617f4` |
+| `pnpm-lock.yaml` | `08d6b2441ffa4b5159c81999911cfddf0d0e72525e4c8ce0a16512da50a7e45b` |
+| `pnpm-workspace.yaml` | `c9a6a9e234cc09b03ae8c8de14eaf4a098c176ce02d7c6455c2085cfd2f08b53` |
+| `services/api/src/brainoid_api/app.py` | `422a56569ab4f2fefd1a6c77836f8a366d4a6327df772dbae11699b28178ddfc` |
+| `services/api/src/brainoid_api/cors.py` | `33131bc024fa90abcb420a0374c4d5c0b709b6014b67b7c67d10c5a7b0451cd5` |
+| `services/api/src/brainoid_api/settings.py` | `1fe0613d2b71ff351845a8b6a8aeeb814fdba0bbb6250fa513886769c3408468` |
+| `tests/emulator/test_ui_session_integration.py` | `352155014a336b596778e36e6a839db35c854053794140c98e0fd751f5583141` |
+| `tests/test_client_origins.py` | `c73e8a69d67a6ee4c70e8f2f1929caf1f1e22b47f990ea4ad4554221540b32e4` |
+| `tests/test_ui_session.mjs` | `22a84eb725c7ecf540a6a222a4d24fd72d360103da3d2e9d16345d0da2772c80` |
+| `tests/ui/session_browser.mjs` | `afd2ebeee0d726ea177c0832a24244f5dfc310a64173a879fb729a5b2eb43af6` |
+| `tests/ui/session_browser_emulator.mjs` | `a1e4999859e93601f466e6761632f61a04eda01fb0040c56ba4895e154311272` |
+| `tests/ui/session_emulator.mjs` | `d97393a363889f891ef9f8e17f31c43b308b4549abaa1f918edb0ad3c0da5364` |
+- `writer-r1-browser`: `bash /tmp/ba-ui-02-writer-r1-browser.sh`、2026-10-28T06:08:11.649776+00:00→2026-10-28T06:08:21.704248+00:00、exit 0、10.054472s、unittest/counts []、Node []。metadata SHA-256 `32c667e2033d085831707ce55b0cf3df528bdb6a3b7ef1bfaf7122e00dae2da4`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+- `writer-r1-check-fast`: `mise run check`、2026-10-28T06:07:39.287094+00:00→2026-10-28T06:08:12.389877+00:00、exit 0、33.102783s、unittest/counts []、Node []。metadata SHA-256 `7377d671a6575e0ada8f8dfe77a0d9e41a2da4660cc6366ef97ca3ca92dbd667`、raw SHA-256 `d3dac0c3855781202c89191894cd5606129950a7efa157a35688f9555e27d1f8`。
+- `writer-r1-emulator-browser`: `bash /tmp/ba-ui-02-writer-r1-emulator-browser.sh`、2026-10-28T06:08:12.523575+00:00→2026-10-28T06:08:31.147959+00:00、exit 0、18.624384s、unittest/counts ['Ran 1 test in 6.937s']、Node []。metadata SHA-256 `87140b9abb87ac1b43e1e71a6f68efbab5f0334e63e3fb434faea749f7b1f5ee`、raw SHA-256 `dbc307e247b98f9c6b13261662cd1773c7cba1df97c135e3517c2cc405fc6e5a`。
+- `writer-r1-node-all`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs`、2026-10-28T06:07:53.496425+00:00→2026-10-28T06:08:11.265660+00:00、exit 0、17.769235s、unittest/counts []、Node ['ℹ tests 69']。metadata SHA-256 `bdf94a12832b48f8bae0ffdce3be79f8aafeace7b4b42f94d4e9e88d85ed7540`、raw SHA-256 `53831fe10a1fd61ed2be54c4c5dfa18d7b194bdf6446e6c6a3a43dac7b5b72da`。
+- `writer-r1-node-fast`: `mise exec -- node --test tests/test_api_client.mjs tests/test_pr_workflow.mjs tests/test_ui.mjs tests/test_ui_session.mjs`、2026-10-28T06:07:41.401200+00:00→2026-10-28T06:07:41.739757+00:00、exit 0、0.338557s、unittest/counts []、Node ['ℹ tests 29']。metadata SHA-256 `e46a64b5473970dd79a159afbf445a706d3e699896dd8a4b31ba69733384163e`、raw SHA-256 `3b0e1cbb3f4e74040d78903ce8a943fdc22c23556cfc3e91588f06247db36c39`。
+- `writer-r2-emulator-affected`: `bash /tmp/ba-ui-02-writer-r2-emulator-affected.sh`、2026-10-28T06:10:29.326002+00:00→2026-10-28T06:11:19.356422+00:00、exit 0、50.03042s、unittest/counts ['Ran 36 tests in 39.612s']、Node []。metadata SHA-256 `5b10a65b8bfb46fd88e8875d76df2e251dce67f0bf2d45680430188e9ac5097d`、raw SHA-256 `cbf312c7d0122e68e870e3b4f2bb137610bc42996ec79a389202d7fa0c73cd4a`。
+
+- 親の最終画面確認: 実SDKの別document Back後mobileは空のサインインフォームで認証済みtenant表示なし。fake displayのB選択・一覧・作成フォームはfull-page画像でラベル欠けなし（画像はviewportより縦長で、無scrollの収まりを主張しない）。画像SHA/観察記録 `/tmp/ba-ui-02-parent-image-inspection-r2.json`。静止画は実ブラウザ競合assertの補助であり、単独の消去保証や実機検証とは扱わない。
+- Emulator証拠の限界: writerのCLIはignored workspace `firestore-debug.log` をphase間で上書きしていた。最終版のdebugだけは専用copy/hashへ保存済み。過去phaseのstdout/raw・metadataは保持しているが、過去個別debugの保全は主張しない。
+- `review-r1-delayed-text`: `mise exec -- node /tmp/ba-ui-02-review-r1-delayed-text.mjs`、2026-10-28T05:53:48.961226+00:00→2026-10-28T05:53:49.402951+00:00、exit 0、0.441725s、unittest/counts []、Node []。metadata SHA-256 `34165e401f06fefa8028ae89e6a718738367fb9b6783263b5e95a2c2eceea011`、raw SHA-256 `2003e7698f43f09f353c90323803f787f9444f716f9b2995b1cdc628f366f18c`。
+- `review-r1-node-probe`: `mise exec -- node /tmp/ba-ui-02-review-r1-probe.mjs`、2026-10-28T05:48:02.540031+00:00→2026-10-28T05:48:02.770561+00:00、exit 0、0.23053s、unittest/counts []、Node []。metadata SHA-256 `fde49eb9e62c28feaa0624d06e664d511b589771d8c5d269a51784a9797f5e79`、raw SHA-256 `c6dfd21e4769b55f0626790f9751ebfe11bcb38ab9ada15c2cae43441a3c8e29`。
+- `review-r1-real-sdk-emulator`: `mise exec -- bash /tmp/ba-ui-02-review-r1-emulator-run.sh`、2026-10-28T06:01:46.668739+00:00→2026-10-28T06:02:00.861069+00:00、exit 0、14.19233s、unittest/counts []、Node []。metadata SHA-256 `e9c3b7a7dea909a642c02757f48b5f6cdb8161f4da8d4a9df565d6fa24de49f4`、raw SHA-256 `d0f5ef9b06527265443049e8c421076eaf2d5ba32b514d2483f8ac5f8c39861d`。
+- `review-r2-direct-probe`: `mise exec -- node /tmp/ba-ui-02-review-r2-direct-probe.mjs`、2026-10-28T06:16:02.254384+00:00→2026-10-28T06:16:02.566410+00:00、exit 0、0.312026s、unittest/counts []、Node []。metadata SHA-256 `bc67c24a8baa3893ae7b45f5f8417cc5aced321071de2b69aa5a3b339f353eb6`、raw SHA-256 `8479b74c098999bc15a3f20adad60b945ea815b6f8e1e0155a5b4f36557c80bc`。
+- `review-r2-node-probe`: `mise exec -- node --test /tmp/ba-ui-02-review-r2-probe.mjs`、2026-10-28T06:14:42.633624+00:00→2026-10-28T06:14:43.134070+00:00、exit 0、0.500446s、unittest/counts []、Node ['ℹ tests 1']。metadata SHA-256 `58d8ce2c4c447f092e404c43a2d610aacff2a094da4720111fb63e829b3b67d4`、raw SHA-256 `2b34055f2251e2aa5d6cf06d4167c18bb2963085420267ddecc10a5f9ad9fd5c`。
+- `writer-r2-test-final`: `mise run test`、2026-10-28T06:10:26.863495+00:00→2026-10-28T06:22:18.651551+00:00、exit 0、711.788056s、unittest/counts ['Ran 1306 tests in 664.479s', 'Ran 18 tests in 0.150s']、Node ['ℹ tests 69']。metadata SHA-256 `04e2b5e19334f4eadff9da5eb8b8f7d436bae185ffb87a7bbe126d8e48e426ca`、raw SHA-256 `ebede56d551a220f73eeb99851e4e1203e572a53bb36e5c988c56d676b67991b`。
+
+### 独立レビュー R2 承認
+
+- 新規担当 `/root/ui02_review_r2` が最新全35変更（新規16、全製品672）を再評価し **approve**、要修正0・任意0。R1必須001/002/003とO1/O2/O3をすべて解消確認。正式report `/tmp/ba-ui-02-review-r2-report.md` SHA-256 `453ce2cd5690113ee092b282f73cf8444bceb0d34eff9035b7281ae685d67a94`、結果JSON SHA-256 `62b55566ba397c0c19a9a7d971415af27b7df983ece22205269e5ef32fbaf1ba`、closure SHA-256 `8dfec92ee742ec2d8ca59833a87ad1efc800d3e11bb6c71e7f920093cbc1001c`。親閉鎖 `/tmp/ba-ui-02-parent-review-r2-closed.json` SHA-256 `aa1baa5be39bba41701da2bf3274fb35ea9dd293d4677eefad537b4415924193`。
+- 全最終phaseの製品672map・raw/logical indexを親も照合。通常test owner20471のtool0/child0を回収し、1306 Python＋18skill＋69 Node成功。affected Emulator7module37件、両幅ブラウザ、公式SDK結合、一括check両build成功。親host監査は22hostphase・1021観測PID/birthとfixtureport閉鎖を確認、4別namespaceは区別。短命processの網羅やtmpが完全空との主張はしない。
+- R2独立5境界probeは旧一覧403/404対現行拒否、旧create401のUID全体失効と同key/body、pagehide中の遅延signin、rapid A→B→Aを直接awaitして成功。先行Node test runnerの1file表示は5件実行根拠にせず、別rawを保持して直接実行し直した。
+- setup成功後に変更したのはsession/tests/docの6ファイルだけで、依存manifest・lockは不変。setupの重複実行はせず、修正版のcheck/test/browser/Emulatorを実施した。未解決事項なし。実native build/署名/OS保存・実provider・Pi実機は文書の後続OPS gateであり、ローカル受入結果へ含めない。
+
+### 最終実装・受入結果
+
+- 状態: done。実装コミット: `cafdaa7aa668248518ff14cf1a93748d50455078`。親は承認manifest全35ファイルだけをstageし、cached全blob/hash・diff check・commit後全blob/hashを照合。記録対象2ファイルは分離した。独立レビュー2回、最終approve・未解決必須0。
+- Firebaseの具体的Web/native adapter、UID/tenant単位の生成clientと世代・AbortSignal、所属一覧/作成/選択、1回の401再認証、403/404拒否、同期cache/draft/SSE消去と履歴復元時の再ログインを実装。browserとAPIの接続に必要なexact CORS origin設定を追加。Pi通常Recovery・専用device資格情報は維持する。
+
+| 受入条件 | 最終候補の根拠 | 結果 |
+| --- | --- | --- |
+| Aの遅延応答をBへ描画しない | Node23 sessionケース、abort無視・実response.text遅延・UID変更・refresh競合・create成功/403/404、実browser両幅、独立rapid A→B→A | 成功。旧context/cache/draft/SSEをdisposeし完了時も世代照合 |
+| サインアウト後Backでprivateを復活させない | checked-in Chromium mobile/displayと公式SDK/Auth/Firestore/API/CORSで別document signin/signout→Back、実pageshow.persisted=trueとpagehide privateDOM0。SDK cleanup保留/拒否・遅延callbackのNode/独立probe | 成功。browser/fakeは同期blocked、復元後は明示再ログイン |
+| 未所属URLを取得済み表示しない | Node・両幅browser・公式SDK/Emulator、GETのid/tenant_id一致と現在membership、403/404 | 成功。自動fallbackなし、profile未作成onboardingは維持 |
+| 既存契約・認証境界・回帰 | setup依存不変、mise check両build、通常1306 Python＋18skill＋69Node、影響Emulator7module37件、独立5境界probe | 全必須検証成功 |
+
+- 受入の最終凍結は全672製品SHA `438d4b8fd8f01d3cb0759353b006a1a396688d02e24e3ec6cbdd276415b2d838`。親の最終検証監査 `/tmp/ba-ui-02-parent-final-validation-audit-r2.json` SHA-256 `1d62712e2ef3e3e54209d995e03cdc8856ed64aaf753eba52600085a1e743b83`。各コマンド・実終了・raw/hash・旧失敗/中断・scope根拠は上の逐次記録とphase artifactsに保持した。
+- 新規データ/schema移行なし。切戻しは旧mobile bundleと必要なCORS origin設定で行い、既に作成したtenantや冪等台帳を消さない。native署名build・OS安全保存/backup・実provider・Pi実機の配布gateは未実施としてdocs/ui-authentication.mdに明記。push、PR、実cloud、実HA、実deviceの操作なし。
+- 最終記録前に台帳done状態で `mise run check` を実行し、台帳/logだけを別コミットへ記録する。
+- `parent-postdone-check`: `mise run check`、2026-10-28T06:27:33.503843+00:00→2026-10-28T06:27:38.788505+00:00、exit 0、5.284662s、unittest/counts []、Node []。metadata SHA-256 `228c0cb2a974dc37c0f9c3bd7094de557414f31893064b4d3fbbfa9691edff1c`、raw SHA-256 `42ebb6982c5fb8edb2137f6071a73d520751116aa8bd4b6067edc326db74c721`。
+
+- 完了台帳での最終 `mise run check` は親owner81759でtool0/child0、両buildを含め成功。全672製品不変・postcommit raw/logical index不変・変更は台帳/logだけと確認した（親監査SHA-256 `400b9a5ed12e0deaa95d35374c83014af9be39c04b8fd51d1cd22c0a61db4d82`）。同host所有PID/birthとlistener閉鎖SHA-256 `8bec662b4ebdd2058f401588d84622c6dac98cb34c98348b704408c12236902e`。active sessionなし。台帳と作業ログだけを記録コミットへ保存する。
