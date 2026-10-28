@@ -716,3 +716,72 @@ textarea:focus-visible {
   font-size: 14px;
   padding: 10px 0;
 }
+
+.memories {
+  margin-top: 28px;
+}
+.memory-search,
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.memory-search label {
+  flex: 1 1 220px;
+}
+.memory-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 18px;
+}
+.memory-fact {
+  overflow-wrap: anywhere;
+}
+.memory-value {
+  font-size: 1.25em;
+  white-space: pre-wrap;
+}
+.memory-source {
+  font-size: 0.9em;
+  border-top: 1px solid #d9e0d5;
+  padding-top: 12px;
+}
+.memory-warning {
+  background: #fff5e6;
+  border: 1px solid #a07843;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.memory-editor {
+  margin: 24px 0;
+  padding: 20px 0;
+  border-block: 1px solid #d9e0d5;
+}
+.memories fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.memories fieldset:disabled {
+  opacity: 0.75;
+}
+.memories .button {
+  margin-top: 8px;
+}
+.memories label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.memories input,
+.memories select {
+  width: 100%;
+  min-width: 0;
+}

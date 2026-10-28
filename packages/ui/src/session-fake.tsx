@@ -1,3 +1,4 @@
+import type { MemoryScenario } from "./memories/fixture.ts";
 import type { ChatScenario } from "./chat/fixture.ts";
 import { useState } from "react";
 import { type SessionContext, SessionController } from "./session.ts";
@@ -23,6 +24,25 @@ export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            記憶の動作
+            <select
+              aria-label="記憶の動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.memories.controls.scenario = event.target.value as MemoryScenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="empty">新規テナントの空状態</option>
+              <option value="reject">入力のAPI拒否</option>
+              <option value="conflict">訂正の競合</option>
+              <option value="lost_save">保存の応答喪失</option>
+              <option value="forget_failed">忘却受付の失敗</option>
+              <option value="lost_forget">忘却の応答喪失</option>
+              <option value="purge_failed">消去処理の失敗</option>
+            </select>
+          </label>
           <label>
             会話イベント
             <select

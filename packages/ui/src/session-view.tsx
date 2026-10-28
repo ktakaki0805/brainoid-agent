@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
+import { Memories } from "./memories/view.tsx";
 import { Chat } from "./chat/view.tsx";
 import { Frame, StateCard } from "./components.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
@@ -62,6 +63,13 @@ export function SessionApp({
       )}
       {state.context && (
         <Chat key={state.context.generation} context={state.context} surface={surface} />
+      )}
+      {state.context && (
+        <Memories
+          key={`memories:${state.context.generation}`}
+          context={state.context}
+          surface={surface}
+        />
       )}
       {state.phase === "starting" ? (
         <StateCard state="loading" title="認証を確認しています">

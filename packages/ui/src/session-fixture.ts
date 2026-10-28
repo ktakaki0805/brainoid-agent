@@ -1,3 +1,4 @@
+import { createMemoryFixture } from "./memories/fixture.ts";
 import { createChatFixture } from "./chat/fixture.ts";
 import type { Tenant } from "@brainoid-internal/api-client";
 import type { AuthenticationAdapter, AuthIdentity } from "../platform/auth.ts";
@@ -19,6 +20,7 @@ export function fixtureTenant(id: string, name: string): Tenant {
 }
 export function createSessionFixture() {
   const chat = createChatFixture();
+  const memories = createMemoryFixture();
   let user: AuthIdentity | null = null;
   const listeners = new Set<(user: AuthIdentity | null) => void>();
   const emit = (next: AuthIdentity | null) => {
@@ -57,6 +59,8 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const memoryResponse = await memories.handle(request, user.uid);
+    if (memoryResponse) return memoryResponse;
     const chatResponse = await chat.handle(request, user.uid);
     if (chatResponse) return chatResponse;
     if (url.pathname === "/v1/tenants") {
@@ -82,5 +86,5 @@ export function createSessionFixture() {
     const tenant = tenants.find((value) => value.id === id);
     return tenant ? Response.json(tenant) : Response.json({}, { status: 404 });
   };
-  return { auth, transport, controls, emit, chat };
+  return { auth, transport, controls, emit, chat, memories };
 }
