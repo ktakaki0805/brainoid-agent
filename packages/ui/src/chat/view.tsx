@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { SessionContext } from "../session.ts";
+import { WaitingProposal } from "../calendar/view.tsx";
 import { ChatController } from "./controller.ts";
 import type { CharacterState, ToolStatus } from "./events.ts";
 
@@ -220,8 +221,16 @@ export function Chat({
             )}
             {!knownTerminal && state.events?.character === "confirmation" && (
               <p className="chat-notice">
-                操作内容の確認または外部結果を待っています。確認の操作画面は準備中です。「状態を確認」で進捗を取得できます。
+                操作内容の確認または外部結果を待っています。「状態を確認」で現在の確認先と進捗を取得できます。
               </p>
+            )}
+            {state.run?.waiting_proposal_id && (
+              <WaitingProposal
+                key={state.run.waiting_proposal_id}
+                context={context}
+                surface={surface}
+                id={state.run.waiting_proposal_id}
+              />
             )}
             {state.run?.status === "failed" && (
               <p role="alert">

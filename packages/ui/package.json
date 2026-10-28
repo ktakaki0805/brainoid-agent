@@ -17,7 +17,8 @@
     "./auth": "./platform/auth.ts",
     "./session": "./src/session.ts",
     "./session-view": "./src/session-view.tsx",
-    "./session-fake": "./src/session-fake.tsx"
+    "./session-fake": "./src/session-fake.tsx",
+    "./calendar": "./src/calendar/contracts.ts"
   },
   "devDependencies": {
     "react": "19.3.1",

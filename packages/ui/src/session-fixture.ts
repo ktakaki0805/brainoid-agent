@@ -1,6 +1,7 @@
 import type { Tenant } from "@brainoid-internal/api-client";
 import type { AuthenticationAdapter, AuthIdentity } from "../platform/auth.ts";
 import { createChatFixture } from "./chat/fixture.ts";
+import { createCalendarFixture } from "./calendar/fixture.ts";
 import { createMemoryFixture } from "./memories/fixture.ts";
 import { createNoteFixture } from "./notes/fixture.ts";
 import { createReminderFixture } from "./reminders/fixture.ts";
@@ -23,7 +24,10 @@ export function fixtureTenant(id: string, name: string): Tenant {
   };
 }
 export function createSessionFixture() {
-  const chat = createChatFixture();
+  const calendar = createCalendarFixture();
+  const chat = createChatFixture((tenant, uid, proposal, run) =>
+    calendar.seedProposal(tenant, uid, proposal, run),
+  );
   const memories = createMemoryFixture();
   const notes = createNoteFixture();
   const tasks = createTaskFixture();
@@ -67,6 +71,8 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const calendarResponse = await calendar.handle(request, user.uid);
+    if (calendarResponse) return calendarResponse;
     const pushResponse = await push(request, user.uid);
     if (pushResponse) return pushResponse;
     const reminderResponse = await reminders.handle(request, user.uid);
@@ -102,5 +108,17 @@ export function createSessionFixture() {
     const tenant = tenants.find((value) => value.id === id);
     return tenant ? Response.json(tenant) : Response.json({}, { status: 404 });
   };
-  return { auth, transport, controls, emit, chat, memories, notes, tasks, reminders, push };
+  return {
+    auth,
+    transport,
+    controls,
+    emit,
+    chat,
+    memories,
+    notes,
+    tasks,
+    reminders,
+    push,
+    calendar,
+  };
 }

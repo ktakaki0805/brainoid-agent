@@ -1,4 +1,5 @@
 import { SetupRequired } from "@brainoid-internal/ui/react";
+import type { CalendarOAuth } from "@brainoid-internal/ui/calendar";
 import { SessionController } from "@brainoid-internal/ui/session";
 import { browserNavigation, SessionApp } from "@brainoid-internal/ui/session-view";
 import { Capacitor } from "@capacitor/core";
@@ -10,16 +11,8 @@ const element = document.getElementById("root");
 if (!element) throw new Error("Missing app root");
 const root = createRoot(element);
 if (import.meta.env.MODE === "fake") {
-  const { SessionPreview } = await import("@brainoid-internal/ui/session-fake");
-  const { PushPreview } = await import("../notifications/preview.tsx");
-  root.render(
-    <SessionPreview
-      surface="mobile"
-      extra={(controller, fixture) => (
-        <PushPreview session={controller} network={fixture.push.controls} />
-      )}
-    />,
-  );
+  const { CalendarPreview } = await import("../calendar/preview.tsx");
+  root.render(<CalendarPreview />);
 } else {
   try {
     const config = authenticationConfiguration(import.meta.env, import.meta.env.MODE);
@@ -43,6 +36,20 @@ if (import.meta.env.MODE === "fake") {
         ...browserNavigation(),
       });
       let push: React.ReactNode;
+      let calendarOAuth: CalendarOAuth | undefined;
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { fixedReturnURL, nativeCalendarOAuth } = await import("../platform/oauth.ts");
+          const returnURL = fixedReturnURL(import.meta.env.VITE_CALENDAR_MOBILE_RETURN_URL);
+          if (returnURL) {
+            const { Browser } = await import("@capacitor/browser");
+            const { App } = await import("@capacitor/app");
+            calendarOAuth = nativeCalendarOAuth(Browser, App, returnURL);
+          }
+        } catch {
+          /* Calendar setup is independent of login and notifications. */
+        }
+      }
       if (Capacitor.isNativePlatform()) {
         try {
           const { FirebaseMessaging } = await import("@capacitor-firebase/messaging");
@@ -62,7 +69,7 @@ if (import.meta.env.MODE === "fake") {
       }
       root.render(
         <>
-          <SessionApp controller={controller} surface="mobile" />
+          <SessionApp controller={controller} surface="mobile" calendarOAuth={calendarOAuth} />
           {push}
         </>,
       );

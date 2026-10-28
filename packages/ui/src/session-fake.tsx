@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { CalendarOAuth } from "./calendar/contracts.ts";
+import type { CalendarScenario } from "./calendar/fixture.ts";
 import type { ChatScenario } from "./chat/fixture.ts";
 import type { MemoryScenario } from "./memories/fixture.ts";
 import type { NoteScenario } from "./notes/fixture.ts";
@@ -11,8 +13,10 @@ import type { TaskScenario } from "./tasks/fixture.ts";
 export function SessionPreview({
   surface,
   extra,
+  calendarOAuth,
 }: {
   surface: "mobile" | "display";
+  calendarOAuth?: CalendarOAuth | undefined;
   extra?: (
     controller: SessionController,
     fixture: ReturnType<typeof createSessionFixture>,
@@ -30,13 +34,34 @@ export function SessionPreview({
   );
   return (
     <>
-      <SessionApp controller={controller} surface={surface} preview>
+      <SessionApp controller={controller} surface={surface} preview calendarOAuth={calendarOAuth}>
         {(context) => <ContextProbe context={context} />}
       </SessionApp>
       {extra?.(controller, fixture)}
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            Calendarの動作
+            <select
+              aria-label="Calendarの動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.calendar.controls.scenario = event.target.value as CalendarScenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="empty">空の一覧</option>
+              <option value="failed">通信失敗</option>
+              <option value="lost">受付の応答喪失</option>
+              <option value="conflict">連携の競合</option>
+              <option value="expired">確認期限切れ</option>
+              <option value="provider_conflict">Google側の競合</option>
+              <option value="unknown">書込結果不明</option>
+              <option value="reauth">再認可が必要</option>
+              <option value="cleanup">消去完了</option>
+            </select>
+          </label>
           <label>
             リマインダーの動作
             <select

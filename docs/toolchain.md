@@ -117,6 +117,7 @@ Java・Firebase CLIはBA-FND-05で下記の通り導入する。Android SDK・Xc
 | React・React DOM 19.3.1 | 両appの実行依存、UIのReact peer | React DOMのpeer ^19.3.1に一致、MIT。[React](https://www.npmjs.com/package/react/v/19.3.1)、[React DOM](https://www.npmjs.com/package/react-dom/v/19.3.1) |
 | @types/react・@types/react-dom 19.3.0 | ルートdev。Reactの型 | React 19系、相互peer ^19.3.0に一致、MIT。[React型](https://www.npmjs.com/package/@types/react/v/19.3.0)、[DOM型](https://www.npmjs.com/package/@types/react-dom/v/19.3.0) |
 | @capacitor/core 8.5.3 | mobileの実行依存 | Node engine制約の宣言なし。今回のNodeでimport確認、MIT。native platform/CLIは後続。[npm](https://www.npmjs.com/package/@capacitor/core/v/8.5.3) |
+| @capacitor/browser 8.0.5・@capacitor/app 8.1.2 | mobileのCalendar OAuth用system browserとUniversal/App Link受信 | 両peer core >=8.0.0、MIT。公式plugin群。2026-10-28にmetadata・型・license確認。[設定・依存境界](ui-calendar.md) |
 
 公式metadata上、Python側の上表の開発ツール・API依存は2026年9〜10月にもリリースされている。Node側も各公式配布元の採用版を固定し、現在のtoolchainで型検査とimportを実行する。これらは通常のローカルコード実行権限を持ち、setupではダウンロード・環境作成を行う。クラウドIAM・認証情報・外部サービスへの実行権限は追加しない。アプリの配布に含まれる依存と、開発時だけ使う依存を上表の配置で区別する。
 

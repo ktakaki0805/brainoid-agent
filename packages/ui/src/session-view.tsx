@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { Chat } from "./chat/view.tsx";
+import { Calendar } from "./calendar/view.tsx";
+import type { CalendarOAuth } from "./calendar/contracts.ts";
 import { Frame, StateCard } from "./components.tsx";
 import { Memories } from "./memories/view.tsx";
 import { Notes } from "./notes/view.tsx";
@@ -26,11 +28,13 @@ export function SessionApp({
   surface,
   preview = false,
   children,
+  calendarOAuth,
 }: {
   controller: SessionController;
   surface: "mobile" | "display";
   preview?: boolean;
   children?: (context: SessionContext) => React.ReactNode;
+  calendarOAuth?: CalendarOAuth | undefined;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   useEffect(() => {
@@ -66,6 +70,14 @@ export function SessionApp({
       )}
       {state.context && (
         <Chat key={state.context.generation} context={state.context} surface={surface} />
+      )}
+      {state.context && (
+        <Calendar
+          key={`calendar:${state.context.generation}`}
+          context={state.context}
+          surface={surface}
+          oauth={calendarOAuth}
+        />
       )}
       {state.context && (
         <Memories

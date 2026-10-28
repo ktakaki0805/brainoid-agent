@@ -265,6 +265,8 @@ BA-CAL-02は[Calendar予定参照](calendar-events.md)の本人allowlist更新�
 
 BA-CAL-03は[Calendar操作proposal](calendar-proposals.md)の生成・取得・否認・期限回収と既定calendar.proposeを提供する。会話では同期限のcheckpointとconfirmation.requiredを保存し、worker leaseを解放する。
 
+BA-UI-08の[Calendar画面](ui-calendar.md)は、ネイティブOAuth復帰後の現在認証による再取得、本人のcalendar選択、予定一覧、固定proposalの確認・拒否、operationと解除の消去状態を提供する。Pi画面から書込確認を代行しない。
+
 `calendar-proposals` は作成/変更/削除の正規化内容、対象、本人、args_hash、初期5分の期限を保存する。実行confirmは本人スマホからのみ受け、同じproposalとhashに対して一度だけ進める。日時はtimezoneを含めて表示し、endがstartより後であることを検査する。終日予定はdateで表現し、終了日は排他的終端とする。
 
 作成時はoperation IDからprovider仕様に適合するevent IDを作り、結果不明ならそのIDで照合する。更新/削除はprovider ETagをIf-Matchに渡し、競合時は再確認する。Google Calendarは条件付き更新/削除でETagを利用できる。[版管理の公式資料](https://developers.google.com/workspace/calendar/api/guides/version-resources)、[event IDの公式資料](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert)

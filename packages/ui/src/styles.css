@@ -855,3 +855,40 @@ textarea:focus-visible {
 .reminders select {
   max-width: 100%;
 }
+/* Calendar IDs and fixed previews must remain readable on narrow phone screens. */
+.calendar-workspace,
+.calendar-proposal {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.calendar-workspace {
+  margin-block: 1rem;
+}
+.calendar-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.calendar-description {
+  white-space: pre-wrap;
+}
+.calendar-preview-tools {
+  margin: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #d0d6df);
+  border-radius: 12px;
+}
+.calendar-proposal .button-row {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .calendar-proposal .button-row {
+    display: flex;
+  }
+}
+.calendar-editor,
+.calendar-proposal {
+  margin-block: 1rem;
+}

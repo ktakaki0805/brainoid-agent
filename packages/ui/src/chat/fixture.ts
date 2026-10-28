@@ -19,7 +19,14 @@ export type ChatScenario =
   | "disconnect_tools"
   | "read_failure"
   | "message_failure";
-export function createChatFixture() {
+export function createChatFixture(
+  onWaiting?: (
+    tenant: string,
+    uid: string,
+    proposal: string,
+    run: string,
+  ) => { expires_at: string },
+) {
   const controls = {
     scenario: "normal" as ChatScenario,
     delay: 600,
@@ -188,11 +195,14 @@ export function createChatFixture() {
               status: "failed",
             });
         }
+        const waitingId = crypto.randomUUID();
         if (scenario === "waiting")
           event("confirmation.required", {
-            proposal_id: crypto.randomUUID(),
+            proposal_id: waitingId,
             kind: "calendar_write",
-            expires_at: "2026-10-28T00:05:00Z",
+            expires_at:
+              onWaiting?.(tenant, uid, waitingId, runId).expires_at ??
+              new Date(Date.now() + 300000).toISOString(),
           });
         else if (["failed", "unknown", "fast_unknown"].includes(scenario))
           event("run.failed", {
@@ -230,6 +240,7 @@ export function createChatFixture() {
             version: 1,
             last_event_seq: 0,
             created_at: timestamp,
+            ...(scenario === "waiting" ? { waiting_proposal_id: waitingId } : {}),
           },
           events,
           connections: 0,
