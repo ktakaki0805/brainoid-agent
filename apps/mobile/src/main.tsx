@@ -1,13 +1,42 @@
 import { SetupRequired } from "@brainoid-internal/ui/react";
+import { SessionController } from "@brainoid-internal/ui/session";
+import { browserNavigation, SessionApp } from "@brainoid-internal/ui/session-view";
+import { Capacitor } from "@capacitor/core";
 import { createRoot } from "react-dom/client";
+import { authenticationConfiguration } from "./auth-config.ts";
 import "@brainoid-internal/ui/styles.css";
 
 const element = document.getElementById("root");
 if (!element) throw new Error("Missing app root");
 const root = createRoot(element);
 if (import.meta.env.MODE === "fake") {
-  const { Preview } = await import("@brainoid-internal/ui/preview");
-  root.render(<Preview surface="mobile" />);
+  const { SessionPreview } = await import("@brainoid-internal/ui/session-fake");
+  root.render(<SessionPreview surface="mobile" />);
 } else {
-  root.render(<SetupRequired surface="mobile" />);
+  try {
+    const config = authenticationConfiguration(import.meta.env, import.meta.env.MODE);
+    if (!config) root.render(<SetupRequired surface="mobile" />);
+    else {
+      const auth = Capacitor.isNativePlatform()
+        ? await (async () => {
+            if (config.emulator)
+              throw new Error("Native emulator requires a dedicated device configuration");
+            const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+            const { createNativeAuthentication } = await import("./firebase-native.ts");
+            return createNativeAuthentication(FirebaseAuthentication);
+          })()
+        : (await import("./firebase-browser.ts")).createBrowserAuthentication(
+            config.firebase,
+            config.emulator,
+          );
+      const controller = new SessionController({
+        auth,
+        baseUrl: config.apiUrl,
+        ...browserNavigation(),
+      });
+      root.render(<SessionApp controller={controller} surface="mobile" />);
+    }
+  } catch {
+    root.render(<SetupRequired surface="mobile" />);
+  }
 }

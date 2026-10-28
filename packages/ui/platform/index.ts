@@ -1,7 +1,7 @@
 import type { Client } from "@brainoid-internal/api-client";
 
 /** Presentation capabilities only; these never grant authorization or OS permission.
- * Native credential, notification and recording operations belong in later adapters.
+ * Credential operations use AuthenticationAdapter; notification and recording have later adapters.
  */
 export interface ClientPlatformAdapter {
   readonly surface: "mobile" | "display";

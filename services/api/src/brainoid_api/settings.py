@@ -35,6 +35,7 @@ class Settings(BaseModel):
     model_id: Identifier
     firestore_emulator_host: str | None = None
     firebase_auth_emulator_host: str | None = None
+    client_origins: tuple[str, ...] = ()
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     readiness_timeout_seconds: Annotated[float, Field(gt=0, le=30, allow_inf_nan=False)] = 2.0
     cursor_signing_key: Annotated[SecretStr, Field(min_length=32, max_length=512)] | None = None
@@ -49,6 +50,40 @@ class Settings(BaseModel):
     authz_ledger_directory: (
         Annotated[str, Field(min_length=2, max_length=4096, pattern=r"^/")] | None
     ) = None
+
+    @field_validator("client_origins", mode="before")
+    @classmethod
+    def parse_client_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return tuple(item.strip() for item in value.split(",")) if value else ()
+        return value
+
+    @field_validator("client_origins")
+    @classmethod
+    def validate_client_origins(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if len(values) > 16 or len(set(values)) != len(values):
+            raise ValueError("client origins must be unique, at most 16")
+        for value in values:
+            try:
+                parsed = urlsplit(value)
+                valid = (
+                    parsed.hostname is not None
+                    and parsed.scheme in ("https", "http", "capacitor")
+                    and parsed.username is None
+                    and parsed.password is None
+                    and not parsed.path
+                    and not parsed.query
+                    and not parsed.fragment
+                    and "*" not in value
+                    and not any(c.isspace() for c in value)
+                    and (parsed.port is None or 1 <= parsed.port <= 65535)
+                    and (parsed.scheme != "capacitor" or value == "capacitor://localhost")
+                )
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError("client origins must be explicit origins without URL components")
+        return values
 
     @field_validator("firestore_emulator_host", "firebase_auth_emulator_host")
     @classmethod
@@ -78,6 +113,12 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
+        for origin in self.client_origins:
+            parsed = urlsplit(origin)
+            if parsed.scheme == "http" and not (
+                self.app_env.startswith("local-") and parsed.hostname == "127.0.0.1"
+            ):
+                raise ValueError("client origins require HTTPS, native localhost or local loopback")
         if self.app_env == "local-fake":
             if (
                 self.device_token_provider != "disabled"

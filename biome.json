@@ -11,6 +11,7 @@
       "!packages/api-client/src/generated",
       "scripts/*.mjs",
       "tests/*.mjs",
+      "tests/ui/*.mjs",
       "tests/fixtures/tenants/*.json",
       "firebase.json",
       "openapi-ts.config.mjs",

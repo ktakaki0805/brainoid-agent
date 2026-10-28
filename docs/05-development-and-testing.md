@@ -103,6 +103,7 @@ BA-FND-02でAPIが読む設定は次の通り。上表の音声・利用量・�
 | `GCP_PROJECT_ID` | 必須。小文字英字開始の6〜30文字。localは `demo-` prefix。`GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` があれば一致必須 |
 | `GCP_REGION` / `FIRESTORE_DATABASE_ID` / `MODEL_ID` | 全環境で明示必須。空文字・空白・URLは不可。fakeでも例の固定値を設定し、別project/model/regionへ補完しない |
 | `FIRESTORE_EMULATOR_HOST` / `FIREBASE_AUTH_EMULATOR_HOST` | local-emulatorでは両方必須、credential・scheme・pathなしの `host:port`。他環境では空文字を含め存在自体を拒否 |
+| `CLIENT_ORIGINS` | BA-UI-02。最大16件のカンマ区切りexact origin、既定空。native/browser接続と環境制約は [UI認証](ui-authentication.md#設定と実接続)を参照 |
 | `LOG_LEVEL` | 既定 `INFO`。`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL`。APIアプリログに適用 |
 | `READINESS_TIMEOUT_SECONDS` | 既定2秒。0より大きく30以下の有限数。全probeの確認に対する共通期限 |
 

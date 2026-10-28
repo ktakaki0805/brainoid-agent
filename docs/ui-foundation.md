@@ -1,6 +1,6 @@
 # 共有UIとモバイル・ディスプレイの起動
 
-BA-UI-01 / FR-004 の画面基盤。Reactの状態・エラー・確認カードは `packages/ui`、独立したVite entryは `apps/mobile` と `apps/display` にある。会話、認証、録音、個人／共有の認可、SSEの再接続は後続チケットであり、この画面はそれらの完了を表さない。AC-004全体の受入には後続機能の検証が必要。
+BA-UI-01 / FR-004 の画面基盤。Reactの状態・エラー・確認カードは `packages/ui`、独立したVite entryは `apps/mobile` と `apps/display` にある。認証・tenant選択は [BA-UI-02](ui-authentication.md) が提供する。会話、録音、個人／共有の表示、SSE再接続は後続チケットであり、この基盤はそれらの完了を表さない。AC-004全体の受入には後続機能の検証が必要。
 
 ## 起動とビルド
 
@@ -19,11 +19,11 @@ BA-UI-01 / FR-004 の画面基盤。Reactの状態・エラー・確認カード
 
 開発サーバーはCtrl-Cで終了する。buildは型検査を兼ねないため、変更後は `mise run check` も実行する。fake bundleをローカル確認する場合は、対象packageで `preview --outDir dist-fake --port 4173`（displayは4174）を実行する。fake成果物を配布用 `dist` へコピーしない。
 
-通常buildは接続先未設定の画面で停止し、ネットワーク接続を行わない。`--mode fake` の場合だけ体験画面とfake transportを取り込む。`VITE_*` やquery stringからtoken・接続先・fake切替を読まない。画面の「表示の確認」から空・読み込み・エラー、長い確認内容を操作できる。読み込みは10秒でエラーに移り、再試行できる。体験画面の確認ボタンはローカル表示だけを変え、業務データの保存や送信はしない。
+BA-UI-01時点の通常buildは接続先未設定の画面で停止する。現在のmobile通常entryは [認証設定](ui-authentication.md#設定と実接続)を使用し、display通常entryは復旧画面を提供する。`--mode fake` の場合だけ体験画面とfake transportを取り込む。tokenやfake切替をquery stringから読まない。現在のfake entryは [認証と切替の検証画面](ui-authentication.md)であり、以下の旧状態プレビュー部品も `/preview` として保持する。画面の「表示の確認」から空・読み込み・エラー、長い確認内容を操作できる。読み込みは10秒でエラーに移り、再試行できる。体験画面の確認ボタンはローカル表示だけを変え、業務データの保存や送信はしない。
 
 ## 接続と端末の境界
 
-`apps/mobile/src/index.tsx` の `mountMobile(element, dependencies)`、display側の `mountDisplay` は `{ api, platform }` を受け取り、unmount関数を返す。実接続のcompositionは後続チケットで `src/main.tsx` に組み込む。APIは `createBrainoidClient({ baseUrl, auth, fetch })` の既存clientを注入する。共通UIは生成済み `getReadiness` を使い、別のHTTP契約を定義しない。health成功は認証・権限・会話可能状態を意味しない。
+`apps/mobile/src/index.tsx` の `mountMobile(element, dependencies)`、display側の `mountDisplay` は `{ api, platform }` を受け取り、unmount関数を返す。mobile実接続のcompositionは BA-UI-02 が `src/main.tsx` に接続する。APIは `createBrainoidClient({ baseUrl, auth, fetch })` の既存clientを注入する。共通UIは生成済み `getReadiness` を使い、別のHTTP契約を定義しない。health成功は認証・権限・会話可能状態を意味しない。
 
 `packages/ui/platform/index.ts` の `ClientPlatformAdapter` は表示面と音声の未対応理由を持つ。現段階では音声は必ず未対応で、録音APIを提供しない。今後の資格情報保管・通知・録音の実装はこの境界を拡張し、共通React部品からネイティブAPIを直接呼ばない。表示面の指定は認可境界ではない。Piの資格情報やHA tokenをブラウザーへ渡さず、device service経由の接続はBA-DEV-10等で扱う。
 

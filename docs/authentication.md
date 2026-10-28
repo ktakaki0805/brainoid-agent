@@ -41,3 +41,5 @@ token、Authorization、要求本文、JWT claim、SDK例外の文字列・trace
 [emulator結合テスト](../tests/emulator/test_authentication_integration.py)は公式SDKで取得したemulator ID tokenをAPIへ送り、6ユーザーの公開schema、実失効・無効化、未作成・重複・不正・削除中profile、opaque UID、emulatorが省略する時刻検証を確認する。テストごとに専用demo projectをreset/seedし、終了時もresetする。明示的な実行手順は[開発ガイド](05-development-and-testing.md#52-authfirestore-emulatorの起動と初期化)の `mise run test-emulator` を使う。
 
 公式資料（2026-10-26確認）: [ID token検証](https://firebase.google.com/docs/auth/admin/verify-id-tokens)、[失効の確認](https://firebase.google.com/docs/auth/admin/manage-sessions)、[Python auth API](https://firebase.google.com/docs/reference/admin/python/firebase_admin.auth)、[Auth emulator](https://firebase.google.com/docs/emulator-suite/connect_auth)、[固定SDKの実装](https://github.com/firebase/firebase-admin-python/tree/v7.7.0/firebase_admin)。
+
+BA-UI-02 の [mobile認証・tenant選択](ui-authentication.md) は公式Web/native SDKと生成clientを接続し、UID/tenant変更・サインアウト・bfcache復元で前contextを破棄する。

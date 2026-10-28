@@ -31,7 +31,7 @@ HTTPはOpenAPI 3.1、各JSON SchemaはDraft 2020-12を採用する設計案で�
 - サーバーはURLのtenant選択をmembershipまたはdeviceの所属と照合し、resourceを同じtenant内で解決する。
 - 権限変更・削除・個人セッション終了は既存のSSE/WSS・workerにも適用する。接続時だけのチェックにしない。
 - 破壊的なアカウント/tenant削除は、直近5分以内のFirebase再認証を初期条件とする。単に有効期限内の古いtokenを持つだけでは満たさない。
-- contentを返す応答は `Cache-Control: no-store` とし、CORSは登録済みクライアントのoriginに限定する。
+- contentを返す応答は `Cache-Control: no-store` とし、CORSは登録済みクライアントのoriginに限定する。APIの `CLIENT_ORIGINS` と公開headerは [UI認証の設定](ui-authentication.md#設定と実接続)に従う。
 
 データのvisibilityとdisplay_policyの条件、role、本人確認は[データ・権限設計](03-data-and-authorization.md)を適用する。unknown speakerのPiが記憶・ノート・タスクを書き込むことは認めず、対応scopeを持つ本人セッションを要求する。
 

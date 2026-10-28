@@ -13,5 +13,6 @@ autoInstallPeers: false
 strictPeerDependencies: true
 # Auth/Firestore do not use the optional RE2 native matcher or protobuf's install notice.
 allowBuilds:
+  "@firebase/util": false
   re2: false
   protobufjs: false

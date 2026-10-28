@@ -13,13 +13,19 @@
     "./platform": "./platform/index.ts",
     "./fake": "./src/fake.ts",
     "./preview": "./src/preview.tsx",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./auth": "./platform/auth.ts",
+    "./session": "./src/session.ts",
+    "./session-view": "./src/session-view.tsx",
+    "./session-fake": "./src/session-fake.tsx"
   },
   "devDependencies": {
-    "react": "19.3.1"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "peerDependencies": {
-    "react": "19.3.1"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "dependencies": {
     "@brainoid-internal/api-client": "workspace:*"

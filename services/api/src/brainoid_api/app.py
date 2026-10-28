@@ -6,6 +6,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from fastapi import FastAPI
 
 from brainoid_api.auth.runtime import VectorSearchFactory, authentication_lifespan
+from brainoid_api.cors import ClientOriginsMiddleware
 from brainoid_api.device_gateway import router as device_gateway_router
 from brainoid_api.errors import RequestContextMiddleware, install_error_handlers, logger
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
@@ -98,6 +99,7 @@ def create_app(
     )
     app.state.runtime = RuntimeState()
     app.state.auth_services = None
+    app.add_middleware(ClientOriginsMiddleware, settings=lambda: app.state.runtime.settings)
     app.add_middleware(RequestContextMiddleware)
     install_error_handlers(app)
     app.include_router(router)

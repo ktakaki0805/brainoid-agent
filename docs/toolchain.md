@@ -201,3 +201,17 @@ BA-DEV-03のAPI実行依存は既存固定版 `anyio==4.15.1`（MIT、request ca
 BA-DEV-08 は device member に `uv add --package brainoid-device tuf==7.0.1 'securesystemslib[crypto]==1.3.1'` で直接依存を固定した。TUFは署名付きmetadataの完全なclient workflow、securesystemslibのcrypto extraはEd25519等の署名検証を提供する。2026-10-28に公式[TUF固定版metadata](https://github.com/theupdateframework/python-tuf/blob/v7.0.1/pyproject.toml)、[securesystemslib固定版](https://github.com/secure-systems-lab/securesystemslib/tree/v1.3.1)、導入済みsource/METADATAを照合した。TUF 7.0.1はPython >=3.10、Apache-2.0 OR MIT、securesystemslib 1.3.1はPython ~=3.8、MITで、固定Python 3.13に適合する。TUF 7系の保守済み修正版を選択し、securesystemslibはその宣言範囲内の安定版に固定した。
 
 新規packageはこの2件だけで、既存lockの版は変更しない。device配布の依存閉包に既存 `cryptography`（Apache-2.0 OR BSD-3-Clause）、`urllib3`（MIT）、関連するCFFI/pycparserのnoticeを含める。cloud KMS/HSM extraは導入しない。必要な権限は配布URLへのHTTPS読取、専用update directoryと既存stateの読書き、所有daemon/子孫の起動停止とloopback healthのみ。署名秘密鍵、IAM追加、host service管理権限は不要。[更新契約](device-updates.md)にtest rootとproductionの分離、実行ABI、復旧と未実施の実機検証を記録する。
+
+## UI認証とブラウザー検証の依存
+
+BA-UI-02 は2026-10-28に公式配布metadata・sourceと一次資料を確認し、以下を完全固定した。
+
+| 直接依存・版 | 用途・互換性・ライセンス |
+| --- | --- |
+| firebase 12.19.0 | mobile実行依存。公式Web Auth SDK、Apache-2.0。native pluginのpeer `^12.6.0` を満たし、固定Node24で使用。13系へは同時更新しない。[公式release](https://firebase.google.com/support/release-notes/js)、[npm metadata](https://registry.npmjs.org/firebase/12.19.0) |
+| @capacitor-firebase/authentication 8.5.2 | mobile実行依存。Capacitor >=8、Firebase ^12.6、Apache-2.0。保守中8系のnative Firebase adapter。[提供者の互換表・設定](https://capawesome.io/docs/sdks/capacitor/firebase/authentication/)、[npm metadata](https://registry.npmjs.org/@capacitor-firebase/authentication/8.5.2) |
+| playwright-core 1.63.0 | ルートdev依存。Node >=20、Apache-2.0。実Chromiumで画面・履歴・消去の回帰確認。browser binaryは別途明示し、自動download/installは行わない。[公式release](https://playwright.dev/docs/release-notes)、[npm metadata](https://registry.npmjs.org/playwright-core/1.63.0) |
+
+Firebase推移依存とintegrityは `pnpm-lock.yaml` に固定する。Web bundleはAuth/Appの必要moduleだけをimportし、Firestore clientから直接DBへ接続しない。native配布にはpluginとnative Firebase依存のlicense noticeも必要。認証SDKは指定Firebase projectへの本人認証・token更新の通信権限を持つが、導入だけでcloud IAM権限や実accountを作らない。API認証は既存のFirebase Adminを維持する。
+
+`@firebase/util` のpostinstallは `FIREBASE_WEBAPP_CONFIG` からSDK設定を埋め込む処理であり、明示設定を使う本アプリでは不要なので `allowBuilds: false` とする。WebView側に独自refresh-token保存・localStorage fallbackを追加しない。Playwrightは開発時だけprofile・静的build・スクリーンショットを専用tmpへ作り、所有browser/loopbackサーバーを終了する。native実機の保存と配布は [UI認証の境界](ui-authentication.md#認証と保存先)を参照。
