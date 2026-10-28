@@ -14075,3 +14075,222 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 会員・招待・owner移譲・role別利用量、現在権限に基づく画面消去、再認証・exact未確定要求回復を実装。T-002/033/034、FR-002/015を上記現検証/不変scope再利用/独立12境界で確認。任意OpenAPI説明整備は前節の理由で後続に残す。記録更新後の親checkを続ける。
 
 - 記録前親検証 `2026-10-28T18:25:45.246792+00:00`–`2026-10-28T18:25:49.900718+00:00`: `mise run check` child/tool exit0（session96190回収済み）。768source=承認freeze、raw/logical index実行前後同一、所有子プロセス・listener残留0。raw `/tmp/ba-ui-11-parent-done-check.log` SHA-256 `aa8c2bec3b6ef3db06944df56af953eeb5e2c0eaa992eff0c6957a0590f69d46`。既知warning3件を除きcheck成功、記録差分確認後に記録commit。
+
+## ba-ui-12-20261028t182726z
+
+- チケット: BA-UI-12 エクスポート・退会・削除の利用者導線
+- 状態: in_progress
+- 開始: 2026-10-28T18:27:26.644140+00:00
+- ブランチ: main / base commit: `8bf6d65a9dc3e5cefa89f9690f20d00e951a3b07`。開始時clean。依存3件doneと実装commitの現履歴を確認。
+- 実装担当予定: `/root/ui12_implementation`（独立context・sole writer）。親が台帳/log/commit、各回新規独立reviewを担当。
+- 対応: FR-013/AC-013、T-022/034。本人exportの生成・認可取得、削除範囲の確認・再認証・最後owner案内、202受付とpurge完了の区別、失効時のdownload/private表示消去。追加外部前提なし、UI12自身のfake/emulator許容範囲。
+- 既存契約上、account provider最終処理後のstatus404/401は成功確認の代替にしない。会話単位削除の仕様と既存APIの不足は実装前に担当が追跡し、必要な統合範囲を説明する。公開説明文の最終確定・実backend外部配備はこのUIの実施証拠へ混同しない。
+
+### UI12 会話削除の既存契約不足と必要な統合範囲
+
+- 判断日時: 2026-10-28T18:33:06.386991+00:00。親 `/root` が仕様と実装担当 `/root/ui12_implementation` の追跡結果を確認。
+- docs/03-data-and-authorization.md §8 は会話・messages・run events・speech参照の削除、および派生記憶を含むかの選択（既定true）を要求する。一方、既存の operation create、DeletionTarget、delete_resource受付はnote/taskまでで、会話削除を要求できなかった。
+- BA-UI-12の対象確認・削除要求を満たす必要な統合として、既存delete_resource/削除台帳/tombstone/purge機構へconversationを追加する。新たな削除基盤は作らない。本人write認可・対象版・子階層・派生記憶の選択・即時読取停止・復元/late jobのfence・他人/別tenant境界を実装と検証で確認する。
+- API/モデルの変更に伴うDTO/OpenAPI/生成client、導入/切戻し互換の文書を対象に含める。backendが変わるため、旧Python実行の結果を現行全体の代用にせず、通常Python/Skill/Node suiteと全checkを実行する。現時点では実装・検証とも未完了。
+
+### UI12 スマホのエクスポート取得を完遂する統合
+
+- 判断日時: 2026-10-28T18:36:31.761190+00:00。既存mobile依存には認証・通知・ブラウザー遷移のみがあり、生成ZIPのnative保存/共有手段がなかった。対応ブラウザーを案内するだけではスマホの要求・進捗・download導線が完結しないため、必要最小限の固定Filesystem/Share plugin依存とadapter実装を今回に含める。
+- OS SDK導入・実機配備・公開は行わない。固定版と公式情報、lock/license、完全な認証済みZIPだけを渡すこと、専用一時ファイルの終了/失敗/失効/再起動時清掃を実装・fixtureで確認する。実機で保存/共有を確認済みとは記録しない。既に端末外へ渡したファイルは回収できない制約を利用者へ説明する。
+
+### UI12 通常suiteの検証（最終画面文言調整前）
+
+- 実装担当 `/root/ui12_implementation`: `mise run test`、2026-10-28T18:51:02.677477+00:00–2026-10-28T18:58:17.102303+00:00、実exit0。Python 1,326件、Skill 18件、Node 522件が成功（Nodeはspec reporterの実test/pass件数）。全783sourceの実行前後SHA一致。
+- raw `/tmp/ba-ui-12-writer-20261028T185102677447.stdout` SHA-256 `fc37b612bbfb03a8b6ef45da0dcfb711972dbc4b1a0a7e97e5fea88eb0bb3e81`。実行記録 `/tmp/ba-ui-12-writer-20261028T185102677447.json`。親もraw・件数・exit・source不変を確認。
+- この後の確認文/条件表示の変更は未反映の実行。最終sourceで影響するUI試験と全checkを行い、Python/Skill等を再利用する場合は入力の不変範囲を示す。実装担当のtool/session終了確認と最終引継ぎは後続記録へ残す。
+
+- 最終候補検証 `20261028T190546103532`: `mise run check`、2026-10-28T19:05:46.103564+00:00–2026-10-28T19:05:50.510155+00:00、actual exit0。全783source実行前後不変。raw `/tmp/ba-ui-12-writer-20261028T190546103532.stdout` SHA-256 `1b98b3a1b334a845467f550fee7f26fc9e5dbeef39b359b3a5c35e077cb507b4`。全check成功、既存Biome警告3件。最終通常suiteと独立reviewは後続。
+
+- 最終候補検証 `20261028T190601106269`: `env UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome UI_ARTIFACTS=/tmp/ba-ui-12-writer-browser3-artifacts mise exec -- node tests/ui/data_controls_browser.mjs`、2026-10-28T19:06:01.106320+00:00–2026-10-28T19:06:05.386851+00:00、actual exit0。全783source実行前後不変。raw `/tmp/ba-ui-12-writer-20261028T190601106269.stdout` SHA-256 `ae558f6867b461be28ccc3445cfa84d85029979df552db86b4703384ac3d1c89`。browser6flows成功。最終通常suiteと独立reviewは後続。
+
+### UI12 最終候補の通常suite
+
+- `mise run test` 2026-10-28T19:06:26.556840+00:00–2026-10-28T19:13:51.044991+00:00、runner child actual exit0。Python1,326 / Skill18 / Node522（明示TAP522 pass、0fail）成功。全783sourceのbefore/afterと直前check・browserの全入力SHAが一致。旧実行の範囲再利用ではなく、この最終候補で通常suiteを実行した。
+- raw `/tmp/ba-ui-12-writer-20261028T190626556808.stdout` SHA-256 `d95e6dd2a7804f6a6fe392d5c21a07d4a0b7fa4a8da5978116dafee49e9e3524`、実行記録 `/tmp/ba-ui-12-writer-20261028T190626556808.json`。親もexit・件数・3実行間のsource一致を照合。実tool回収・終了確認と独立レビューは後続。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui12_review_r1`（新規独立context）。base commit: `8bf6d65a9dc3e5cefa89f9690f20d00e951a3b07`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/LICENSE.capacitor-filesystem` | `de884404585ed20280150b0768082b6004d3548aaa0d6e596d6bfa0538ab331d` |
+| `apps/mobile/LICENSE.capacitor-share` | `eb99a0d61b507ad0182e18e9d2a91537c1d9025c94e098e4e7603a53b4b5218a` |
+| `apps/mobile/LICENSE.capacitor-synapse` | `de884404585ed20280150b0768082b6004d3548aaa0d6e596d6bfa0538ab331d` |
+| `apps/mobile/data-controls/native.ts` | `7a5e65ec090bd6108797240ad8189d1e929d67f24e2d72e88c9671aa6c34b89c` |
+| `apps/mobile/data-controls/notice.tsx` | `946f93a55edcc67db596eddf69d3b36a79a3bea12723d34856438fb3d1180208` |
+| `apps/mobile/package.json` | `b447d2215d954e1c02f5da9ec090d5d1c7eb0d9cdd126b91d0ebaf0f958e4cb4` |
+| `apps/mobile/src/main.tsx` | `e4493a62af8d35519c36724e8dc485d8f0df76f7eb2af7efab192c96e228e180` |
+| `docs/memory-forgetting.md` | `7432c02d6924273f31b90ea50b42f31edcde508fad2247d014150698e4ec8ad2` |
+| `docs/memory-purge.md` | `c13dfc923813e58da75ffd9fa8a7dbcc810c8fbdb77a22672b2459037e7353b0` |
+| `docs/toolchain.md` | `141590b7187e74f889937d18dfaf8ad3d35ce146c9e3bd2b392aaf30ccd724e1` |
+| `docs/ui-data-controls.md` | `6514af0b04f6555776a45ca3c96f627de5c3da5e9d088775d9c69b41847dcfaa` |
+| `mise.toml` | `248037185e3697916dd20c0330a8b456e64a85392f2be398915aa70ae2195df6` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `49b4a9b11facaf979432a7977214e3ef2f35be55cd712ba871575a36f40976a8` |
+| `packages/api-client/src/generated/sdk.gen.js` | `e1f04d8885d14da3cb28d31067de5bb209baf682a2428d63315e14f554ef2f48` |
+| `packages/memory/src/brainoid_memory/conversation_deletion.py` | `b40c8f6b8e04cdd1d728844aaaa6b686c930ca3e4008c6c2e775bd7aa454615e` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `87b6c24f2a441f55d3ac064c0569bbe26a0c2608ce7a41206bd4595d4d789619` |
+| `packages/memory/src/brainoid_memory/forget.py` | `39be7020ac1438806df468170e7dcba6b2f423a0133d9645727264fc728aa59e` |
+| `packages/ui/package.json` | `8a6270be991cec8e58b995901b2e9dbca7e7e8bb887835de635bb8eae0a1bfd0` |
+| `packages/ui/src/data-controls/controller.ts` | `07b22f33d0309397687516aa500da441d669a24d7208e494bb8742d156457c65` |
+| `packages/ui/src/data-controls/fixture.ts` | `01bb75875b58bd3029d604c7678d519622bac7ea10f3e7e4eb00a32776d92369` |
+| `packages/ui/src/data-controls/view.tsx` | `df43ee82bcac7faeb0d04b7fa7d9262fc459de3c53c90e598656f7ba241e7d8c` |
+| `packages/ui/src/session-fake.tsx` | `38f0a446dcdf7ede8e7ca7165aef82809d3f402aa9a218d444ae64b666746f7e` |
+| `packages/ui/src/session-fixture.ts` | `20cbf5968ace5ec16f55ab4045d3c2ef96251b652913a1230ac7251b94dcd35f` |
+| `packages/ui/src/session-view.tsx` | `2fe806e22bc97f37b19cbff4adb4131fb963b40c6e3469da08a3aba7470a78d6` |
+| `pnpm-lock.yaml` | `02e948b39015b36376a964d85e4bd1275c6d315aab30652271fc54f5ebdcffaf` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `e3c3fafe2d43f7468cdd6d0048f0f9b52028eb812c4caa065a91782a16760eff` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `5b67a6effaf75c1624ef5aa9ba7e9064853c7429caf158de2122ebde1ace52be` |
+| `services/api/src/brainoid_api/routes/operations.py` | `44316501e89f2b4abb905e20c593112a3802f0ec23fc83a849d8c68f0da9ab83` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `be76215cbd611677274ccc3fb0927a6ee1f227665ee200014eb130abe9f0d7e1` |
+| `services/worker/src/brainoid_worker/note_erasure.py` | `b65c5283aed3ab72a5a4bbc1d94273ea30ba198a1f2811c62888562e86aabf5f` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `a23813e4822a0d0667f60ccd21e8af8f1e92f65fe07fa8e099f24cffd2da9bd2` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `743aeb58a96339cc50f6e2940f23fb6b565e645cdafaf4924fbde27f37958c7e` |
+| `specs/openapi.yaml` | `21dc2a8655ddcad2cc876f2fe4c230fe5ff92d5014aae738462f3c5ece02acd3` |
+| `tests/test_conversation_deletion.py` | `97d1d4d0fec85bd9f5d08704f24308912b3429c773a6411656a8744383b8661e` |
+| `tests/test_ui_data_controls.mjs` | `263c79727841c30dd5a8ace5dffb1e199b943198784b1fbb53c89e297c1b2ae8` |
+| `tests/test_ui_data_controls_render.mjs` | `4c6061eb7a58f0b4dbc6924dbeae5b8a5d19fd91584848f482343c0f981320ce` |
+| `tests/ui/data_controls_api_fixture.py` | `6fcf3f9132265e6f2461d2d8e203bb5cf13067728e5b36a7e164ec069fa59a13` |
+| `tests/ui/data_controls_browser.mjs` | `c00b26165c97b3a1cdca2c84db34876b5365e33d512a5ea230f6106cf4149fb4` |
+
+### UI12 実装担当の凍結・検証終了とR1引継ぎ
+
+- 2026-10-28T19:16:54.819466+00:00: `/root/ui12_implementation` が全38paths（追加15/変更23/削除0）を凍結。最終normalはsession80236のtool actualexit0を直接回収済み。最終check/browser/normalの783入力が完全一致し、以前のscope再利用は不要。親はHEAD/main/raw・logical index/全source/各raw SHAも照合。
+- 親のhost namespace `pid:[4026532221]` から実装担当の52 PID/birth終了と5198/5199待受閉鎖を独立確認。親所有process/sessionなし。台帳をin_reviewにして、新規独立R1へ最新差分全体を渡す。
+- `/tmp/ba-ui-12-writer-handoff.md` SHA-256 `b0a8533d0940f0b56ae745fac0f888c2e8975ddc3dad223266595df171693792`。
+- `/tmp/ba-ui-12-writer-final-sources.json` SHA-256 `dd3e67fbcca13b13f8540ec50bfdb0e1b43bfa7845f7933b54e16cda24067da8`。
+- `/tmp/ba-ui-12-writer-executions.json` SHA-256 `a1b16eb549ac9a393600a1c81a62204b99329496c189e7b1c0719d3da951dda9`。
+- `/tmp/ba-ui-12-writer-closure.json` SHA-256 `1e40295a09c8983c20d44dcb4ae8b9b64df616679c24f8008a867d0c826571d7`。
+- `/tmp/ba-ui-12-parent-freeze-r1.json` SHA-256 `895e42782c7f203a770e759680519b1f02c105ad656979b47f867006b75f38d6`。
+- 開発中の失敗は原記録を保持: fixtureのmetadata/権限名/認証dependency factory、source-ownerの負例根拠、Biome依存/未使用変数、mypy補助注釈とhttpx2 Response型、browserのopen属性/env名を修正。190331 check/browserのsource差分は並列Nodeが作成/清掃した`.pr-link-test-14zJx2/links.md`のみと親も確認し、最終検証は逐次実行。以前のnormal session81532再照会Unknownからtool0を推測しない（現normal80236は直接0確認）。
+- 独立API/worker・SDK/React・native adapterはsynthetic fake構成。late run/redeliveryおよびshared別参加者の寄稿を実producerで確認する追加proofも実行記録に保存。実Auth/cloud/provider/OS共有sheet/native platform配備は未実施であり成功と扱わない。UI12自身のfake/emulator許容範囲で検証、UI07の例外を他ticketへ流用しない。
+- 追加Filesystem8.1.5/Share8.0.3/Synapse1.0.4のlock/license、Cache限定共有、起動時清掃・中断/失敗時清掃を含む。native組込時のplugin sync・iOS PrivacyInfo FileTimestamp C617.1と実機保存/共有確認は未実施事項として製品文書に残す。
+
+- R1開始時のindex観測: reviewerの最初のread-only `git diff`でGIT_OPTIONAL_LOCKS=0指定が漏れ、raw SHAが`22ea9f918e6cc7702eb0831d3051def8ac46f4786ad1a9ce22f3211c9541e8df`から`0a52eb05198fe9d14496e8a524a424e07dcf468367ad946169192ac5f863c512`へ変化。親はlogical mode/blob/stage/path SHA `32c6d40b6d17af74f9628402ca3835c90b439d1238a9eea936e983b28e08a1d1`不変、staged差分0、全entry通常H、HEAD/main/783source不変を確認。stat cache更新の可能性はあるが旧raw bytes未保存のため具体的なbyte field原因は断定しない。index復元は行わず現raw/logical/flagsを保存し、以後optional locks無効で継続。観測 `/tmp/ba-ui-12-parent-index-refresh-r1.json`。review対象コードに変更なし。
+
+### R1 途中検証: 先行する出典削除と会話の派生記憶消去
+
+- 独立reviewer `/root/ui12_review_r1` が実producerで同一message由来のFact2件を作成し、1件目のforget_memory(delete_source)完了後に会話をinclude_derived_memories=trueで削除。会話operationがsucceededでも2件目Fact本文が残るケースを再現。read/model拒否と物理消去完了を区別する必要がある。正式finding/verdictはreview全体の終了後に確定する。
+- 独立検証 2026-10-28T19:21:04.762775+00:00–2026-10-28T19:21:05.591084+00:00、actual exit0・source前後不変。raw `/tmp/ba-ui-12-review-r1-missing-source-final.stdout` SHA-256 `1dd2c23f4f6236ac87bc91f8054494b920aaa1aef8178e21a999cd971e6af9a8`。親も原出力とmetadataを確認。実装を固定し、残るレビューを継続中。
+
+### R1 途中検証: 会話の削除予約と既存run完了の競合
+
+- 独立reviewerが実HTTP/workerで、未完了turnのある会話の削除について、DeletionLedger.append中に既存RunTurnを完了させた。parent versionが1→2になり削除412、同key/bodyも412、新版を同/別keyで再送しても409、新turnも409で予約が残る状態を再現。API WRITE/POSTのguardだけではworker commitを止められない。正式finding/verdictはreview全体終了後に確定する。
+- 2026-10-28T19:22:57.886781+00:00–2026-10-28T19:22:59.066207+00:00、actual exit0・source前後不変。raw `/tmp/ba-ui-12-review-r1-reservation-race.stdout` SHA-256 `9109d5770ca644565a962392373f6a0fe9b1cf07f166da51568f8d6faec24581`。親も出力を確認し、実装を固定してreview継続。
+
+### R1 途中検証: Fact原本欠落時の派生receipt
+
+- 正規MemoryMutations.mutate(effect=...)で作成したFactとmemory_effects receiptに対し、Fact原本だけ欠落する復元/部分消去状態を注入。出典messageが存在してもreceiptのrecord/requestが残り会話削除succeededとなることを独立reviewerが再現。通常順序だけで発生する前記の先行forgetケースとは区別する。
+- 2026-10-28T19:24:48.636568+00:00–2026-10-28T19:24:49.370882+00:00、actual exit0・source前後不変。raw `/tmp/ba-ui-12-review-r1-orphan-effect-final.stdout` SHA-256 `f48fb9977179a4b13fc940ce2b1afb03209dcd3290bafe81e00ff4eb43486309`。親も出力を確認。全findingはR1正式終了時にまとめ、実装担当へ戻す予定。
+
+### 独立レビュー ラウンド1 結果・正式終了
+
+- 2026-10-28T19:32:27.212144+00:00: `/root/ui12_review_r1` は最新全38pathを確認しrequest_changes。必須P1×2/P2×1、任意P3×2。全783source/logical index/base/main不変、報告済みraw index更新後の基準から不変。親もreport/結果/closure/raw SHA・全sourceを照合し、hostで4所有process group残留0を確認して正式close。
+- `/tmp/ba-ui-12-review-r1-report.md` SHA-256 `73e3a026220b0d1d9f52a06abb7ce77e81ab2cd83aa968b478829de9a73e565c`。
+- `/tmp/ba-ui-12-review-r1-result.json` SHA-256 `61ae2cf82d75293ae391119fa8d6dec0b147230bd78a0975ed791011e623ba2b`。
+- `/tmp/ba-ui-12-review-r1-closure.json` SHA-256 `5be8aa93daa779a70641d0fae07670bc8b693e5c14dfe92310142293c86e3d01`。
+- R1-F1/P1: 先行forget(delete_source)後、live messageを失った別Factを会話の派生消去から漏らしてsucceeded。exactな永続source帰属証拠と証拠欠落時の未完了扱いが必要。
+- R1-F2/P1: 削除予約〜台帳append中のRunTurn完了でparent版が進み、同key412/新版409/新turn409へ固定。全関連writerのcommitと固定intentの回復を整合させる。台帳/予約破棄やrequest書換で回避しない。
+- R1-F3/P2: 正規memory_effects receiptを残してFact原本が欠落した復元/部分消去状態で、receipt本文を残しsucceeded。receiptのexact帰属証拠に基づく補助コピー消去と未証明時の扱いが必要。
+- 独立実行: conversation6/controller-native28/API→React8成功、追加3probeで上記不具合再現。sandbox Nodeの1wrapperを28成功とは数えずhostで確認。提供browser画像3枚目視、独立browser再実行はしていない。
+- 任意O1: memory-purgeのauthorizer未提供という古い文を修正。O2: Synapse package.jsonのISCとLICENSE.md本文MITの出典差を正確に文書化（法的結論を加えない）。今回の文書範囲内なので併せて実装担当へ返す。
+- 元writerへ3必須+2任意を戻し、認可を広げない修正・回帰テスト・全check/通常suite後、fresh独立R2で最新差分全体を確認する。R1成果物は以後上書きしない。
+
+### R1指摘の修正と範囲を絞った回帰検証
+
+- 元writerがF1/F3を既存bounded walkerの本文なしmessage帰属・receipt固有proofへ接続。先行forgetは独立ledger/受理済みoperation・job/exact tombstoneから確認し、不明な帰属はlegacy_pendingで既知範囲の消去を進めつつ未完了に残す。F2はRunState.checkとcancelの親更新で予約fenceを共有。固定intent/hashは変更しない。O1/O2の関連文書も修正中（最終差分はR2で独立確認する）。
+- `env PYTHONPATH=tests mise exec -- uv run --all-packages --locked --offline python -B -m unittest test_conversation_deletion test_conversation_deletion_regressions test_memory_forget test_memory_purge test_notes test_note_regressions test_tasks test_task_regressions`、2026-10-28T19:49:30.476754+00:00–2026-10-28T19:50:12.876177+00:00、actual exit0。123件成功（writer報告では追加回帰19件を含む）、source before/after不変。raw `/tmp/ba-ui-12-writer-r2-20261028T194930476724.stdout` SHA-256 `b03807b67e5e801acf0d11eb45243b15d3172c63b28f9145f5dfeeed715be09a`。親もraw/actualexit/source不変を確認。
+- 開発中の失敗: message帰属DTOに削除epoch型を流用した不備を専用MessageOriginへ修正、model fakeの観測属性とテスト期待を修正。受付commit応答喪失では実API500を503と期待していたテストを実契約500＋同key回復へ合わせた。失敗rawは保持。全check/全通常suiteとfresh独立R2は後続。
+
+- R2候補の `mise run check` 2026-10-28T19:51:08.885044+00:00–2026-10-28T19:51:13.544386+00:00、actual exit0、全785source前後不変。raw `/tmp/ba-ui-12-writer-r2-20261028T195108885014.stdout` SHA-256 `86abe5e5fe6283d45e327c8061beaeb259c1c8840956e772509d2e6e6b3415a6`。型/契約/生成/build等の全check成功。全通常suiteとfreshR2は後続。
+
+- R2候補の全通常suite `mise run test` 2026-10-28T19:52:19.067344+00:00–2026-10-28T19:59:44.464859+00:00、runner actual exit0。Python1,345 / Skill18 / Node明示TAP522 pass（0fail）成功。全785source before=after=直前check、親も照合。raw `/tmp/ba-ui-12-writer-r2-20261028T195219067313.stdout` SHA-256 `cdddef24a5cf9b46c556e2b8eba67c67bcbebf82d33583a5a9a48bf07341e3b3`。writerのtool回収・補助proof再実行・closure後にfresh独立R2へ渡す。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui12_review_r2`（新規独立context）。base commit: `8bf6d65a9dc3e5cefa89f9690f20d00e951a3b07`。
+- 未追跡を含む最新全44files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/LICENSE.capacitor-filesystem` | `de884404585ed20280150b0768082b6004d3548aaa0d6e596d6bfa0538ab331d` |
+| `apps/mobile/LICENSE.capacitor-share` | `eb99a0d61b507ad0182e18e9d2a91537c1d9025c94e098e4e7603a53b4b5218a` |
+| `apps/mobile/LICENSE.capacitor-synapse` | `de884404585ed20280150b0768082b6004d3548aaa0d6e596d6bfa0538ab331d` |
+| `apps/mobile/data-controls/native.ts` | `7a5e65ec090bd6108797240ad8189d1e929d67f24e2d72e88c9671aa6c34b89c` |
+| `apps/mobile/data-controls/notice.tsx` | `946f93a55edcc67db596eddf69d3b36a79a3bea12723d34856438fb3d1180208` |
+| `apps/mobile/package.json` | `b447d2215d954e1c02f5da9ec090d5d1c7eb0d9cdd126b91d0ebaf0f958e4cb4` |
+| `apps/mobile/src/main.tsx` | `e4493a62af8d35519c36724e8dc485d8f0df76f7eb2af7efab192c96e228e180` |
+| `docs/memory-forgetting.md` | `7432c02d6924273f31b90ea50b42f31edcde508fad2247d014150698e4ec8ad2` |
+| `docs/memory-purge.md` | `b95d0b4ba094cf3768a8626f9eb4335356aa67bb266442fb24ee82fe68f4ebc7` |
+| `docs/toolchain.md` | `141590b7187e74f889937d18dfaf8ad3d35ce146c9e3bd2b392aaf30ccd724e1` |
+| `docs/ui-data-controls.md` | `8f179783b4c3e912af0e469fa7f4176edb189bd666eccd69626f107f6c25bd45` |
+| `mise.toml` | `248037185e3697916dd20c0330a8b456e64a85392f2be398915aa70ae2195df6` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `49b4a9b11facaf979432a7977214e3ef2f35be55cd712ba871575a36f40976a8` |
+| `packages/api-client/src/generated/sdk.gen.js` | `e1f04d8885d14da3cb28d31067de5bb209baf682a2428d63315e14f554ef2f48` |
+| `packages/contracts/src/brainoid_contracts/deletion.py` | `f991b62dffdd27a4c0bed0d69b0f5a3825b60b86cde5c94fe30369c488d9dfe0` |
+| `packages/memory/src/brainoid_memory/conversation_deletion.py` | `b40c8f6b8e04cdd1d728844aaaa6b686c930ca3e4008c6c2e775bd7aa454615e` |
+| `packages/memory/src/brainoid_memory/deletion_ledger.py` | `87b6c24f2a441f55d3ac064c0569bbe26a0c2608ce7a41206bd4595d4d789619` |
+| `packages/memory/src/brainoid_memory/forget.py` | `39be7020ac1438806df468170e7dcba6b2f423a0133d9645727264fc728aa59e` |
+| `packages/runs/src/brainoid_runs/control.py` | `3244bad46f8ba1acaae3f66f5010569716c467a0942c8870dc94d36c4a220cd9` |
+| `packages/runs/src/brainoid_runs/state.py` | `54f67f9b5703992522cbf7631c5d9ef9c2d2f32847e5e302c11bd72c5b448e21` |
+| `packages/ui/package.json` | `8a6270be991cec8e58b995901b2e9dbca7e7e8bb887835de635bb8eae0a1bfd0` |
+| `packages/ui/src/data-controls/controller.ts` | `07b22f33d0309397687516aa500da441d669a24d7208e494bb8742d156457c65` |
+| `packages/ui/src/data-controls/fixture.ts` | `01bb75875b58bd3029d604c7678d519622bac7ea10f3e7e4eb00a32776d92369` |
+| `packages/ui/src/data-controls/view.tsx` | `df43ee82bcac7faeb0d04b7fa7d9262fc459de3c53c90e598656f7ba241e7d8c` |
+| `packages/ui/src/session-fake.tsx` | `38f0a446dcdf7ede8e7ca7165aef82809d3f402aa9a218d444ae64b666746f7e` |
+| `packages/ui/src/session-fixture.ts` | `20cbf5968ace5ec16f55ab4045d3c2ef96251b652913a1230ac7251b94dcd35f` |
+| `packages/ui/src/session-view.tsx` | `2fe806e22bc97f37b19cbff4adb4131fb963b40c6e3469da08a3aba7470a78d6` |
+| `pnpm-lock.yaml` | `02e948b39015b36376a964d85e4bd1275c6d315aab30652271fc54f5ebdcffaf` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `e3c3fafe2d43f7468cdd6d0048f0f9b52028eb812c4caa065a91782a16760eff` |
+| `services/api/src/brainoid_api/repositories/memories.py` | `5b67a6effaf75c1624ef5aa9ba7e9064853c7429caf158de2122ebde1ace52be` |
+| `services/api/src/brainoid_api/routes/operations.py` | `44316501e89f2b4abb905e20c593112a3802f0ec23fc83a849d8c68f0da9ab83` |
+| `services/worker/src/brainoid_worker/conversation_erasure.py` | `628f83b67be879efe2c385e1387830b27af77b3c83c178f5b6f5ed51fab52e83` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `be76215cbd611677274ccc3fb0927a6ee1f227665ee200014eb130abe9f0d7e1` |
+| `services/worker/src/brainoid_worker/note_erasure.py` | `eee7c7b35a979e881c2713d1836f4f86bed602e0d75c49b0b46a27bf91fef964` |
+| `services/worker/src/brainoid_worker/purge_authority.py` | `a23813e4822a0d0667f60ccd21e8af8f1e92f65fe07fa8e099f24cffd2da9bd2` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `3a4ad77a7d4a2f12d00836bc8197515d0f7e1c9d6e396efe787da6d451a0765c` |
+| `services/worker/src/brainoid_worker/purge_resource.py` | `1bfec13eba5770cdd3b3132325cae6f423fb565736b95f931178e6ed345504f7` |
+| `specs/openapi.yaml` | `21dc2a8655ddcad2cc876f2fe4c230fe5ff92d5014aae738462f3c5ece02acd3` |
+| `tests/test_conversation_deletion.py` | `97d1d4d0fec85bd9f5d08704f24308912b3429c773a6411656a8744383b8661e` |
+| `tests/test_conversation_deletion_regressions.py` | `a5b5bf0e55c7aed26a92287bdfb81f082de35c29cab125c83d0dc9c0f9c1d5a5` |
+| `tests/test_ui_data_controls.mjs` | `263c79727841c30dd5a8ace5dffb1e199b943198784b1fbb53c89e297c1b2ae8` |
+| `tests/test_ui_data_controls_render.mjs` | `4c6061eb7a58f0b4dbc6924dbeae5b8a5d19fd91584848f482343c0f981320ce` |
+| `tests/ui/data_controls_api_fixture.py` | `6fcf3f9132265e6f2461d2d8e203bb5cf13067728e5b36a7e164ec069fa59a13` |
+| `tests/ui/data_controls_browser.mjs` | `c00b26165c97b3a1cdca2c84db34876b5365e33d512a5ea230f6106cf4149fb4` |
+
+### R2候補の凍結・終了と新規独立レビュー引継ぎ
+
+- 2026-10-28T20:05:07.699640+00:00: writer `/root/ui12_implementation` はF1/F2/F3とO1/O2の修正後、全44paths（A17/M27）/785sourceを凍結。R1からの差分10paths。全境界123/check/normal1345・18・522が同一785入力。session57436のtool actual0を直接回収済み。親が全source/raw/logical indexと各raw SHAを照合し、hostで20 PID/birth終了・5198/5199閉鎖を確認した。
+- `/tmp/ba-ui-12-writer-r2-handoff.md` SHA-256 `8748a2077f9cb61fd87cd2111480754f48e438083e1dc370ddb1ab9e83d58869`。
+- `/tmp/ba-ui-12-writer-r2-final-sources.json` SHA-256 `ac8879f0f680275f6c436dfd4f6342bf6107a5b1b47fbb0152d762998815e2c1`。
+- `/tmp/ba-ui-12-writer-r2-executions.json` SHA-256 `6e5cd94d1439f7acb08734b664c7b343ad8975340b36a05230b6b324d8d45549`。
+- `/tmp/ba-ui-12-writer-r2-closure.json` SHA-256 `00c0dfc6651198aa384a5ea2b540b463fa22a0694c9c329cb882d4d8144bb0fe`。
+- `/tmp/ba-ui-12-writer-r2-browser-reuse.json` SHA-256 `43d94fcc9dbbf7b8bc16943719820a64e694e10770df8391fa5642352eb68fb1`。
+- `/tmp/ba-ui-12-parent-freeze-r2.json` SHA-256 `f612d966b11f68ca6c4756ca1f455287a1ccaa3991ce9c1513db7e390d3930aa`。
+- 旧browser6flowsはUI/app/native/client/config/lock/script/tsconfig.base.jsonの134入力不変に限り再利用し、親もR1元runのSHAと照合。現backendのAPI/worker/Nodeは今回の実行で検証。現版late-job/redelivery補助proof raw `0d006009a2b31418a0b0c63cc42c6817d72fb8704d259bb6a53c0bc12e590d64`、shared別参加者/unrelated会話proof raw `11903d6157e497025ce99d07f0383ebccf96e52b6603edeec94d0e7327b273c6` は共にactual/tool0、785入力一致。補助初回のPYTHONPATH不足は失敗として保持。
+- 親はR2前のraw/logical/flags実bytesを別保存。台帳in_review、新規独立context `/root/ui12_review_r2` に最新差分全体とR1正式指摘を渡した。writerは停止中、親も検証processなし。
+
+### 独立レビュー ラウンド2 終了
+
+- 担当 `/root/ui12_review_r2`、判定 **approve**。R1-F1/F2/F3（必須3件）とO1/O2（任意2件）はすべて解消。新規必須指摘・未検証必須事項・任意提案なし。確認済みレビュー回数2。
+- 正式報告 `/tmp/ba-ui-12-review-r2-report.md` SHA-256 `9358363b56e28cbdc8e5b78b4667b92561710befb3d3587944d2d1dbb51f645a`、結果JSON SHA-256 `13d499937ec0873b4723a9a9888ebddce6de249c278c00e0757cea706f1c4480`、closure SHA-256 `fda5f265b49bcf2ce9a31a8d03c9157a482420733116b7b04fe271ee6c3cff34`。
+- 独立実行: 会話25件、R1再現3本の修正後期待値、追加5件とimport既存12件（計17）、UI/native/API→React Node36件すべてactual exit 0。各コマンド・UTC・raw/metadata SHAはclosure executionsへ保存。親が4実行のraw/metadata SHAを照合。
+- 原文消失後の派生Fact、予約とRun終了の競合、原本欠落時のmemory_effects消去を再現して修正を確認。証拠hash/tenant/parent/request/versionの不一致を未完了として保持し、正しい証拠の復旧後は同operationで完了。別会話・無関係な現在Fact/vectorを保持。
+- Browserは134入力一致を確認したR1の6flowsの限定再利用。R2でBrowserを再実行したとは扱わない。現backendは現版API/worker/Nodeで確認。提供full suite Python1345/Skill18/Node522、boundary123、checkの全785入力一致も独立照合。
+- 親が全785source、44paths、main/base、staged0、保存済みraw/logical/flags index実bytes不変を再確認。reviewerの自己processはclosure/process auditにより終了、所有listenerなし。再開時の親git statusは環境指定漏れだったがraw indexは保存値と一致しており変更なし。
+- 実native OS共有、Cloud/Firestore staging、実provider、実Pi、deployは未実施。UI12仕様のfake/local許容範囲を満たした承認であり、実運用配備の承認ではない。
+
+### 完了と実装コミット
+
+- 2026-10-28T20:21:27.380981+00:00: BA-UI-12をdoneへ更新。実装コミット `336b05d48184465a55f2fee99053c3ebb11a683c`（main）、承認対象44pathsのblob一致をコミット後に検証。
+- Export保存、会話削除、記憶忘却案内、退出、アカウント・テナント削除を接続。非同期受付と物理消去完了を区別し、失効・忘却後のdownload拒否、native一時ファイル清掃、共有端末のスマホ案内を検証。独立レビュー2回、未解決要修正ゼロ。
+- UI12のfake/local範囲は完了。native OS実共有・本番provider・実配備は実施していない。台帳更新後の親checkと記録コミットを続ける。
+
+- 親のdone後 `mise run check`: 2026-10-28T20:21:29.365027+00:00–2026-10-28T20:22:01.749895+00:00、runner/tool actual exit 0（session38351回収）。mypy464、contracts/client/build/types/docs/workflow/tickets成功、68/96 done。既知Biome3警告・timezone schema警告あり。raw SHA-256 `4a98ccf0b26f5828c40c17f47c6f4e5422d8a9573f2139d448858413633387a5`。全785sourceは承認版と同一、検証前後index不変、自己子processとlistener残存なし。
+- 記録コミット対象は `docs/implementation-status.json` と `docs/implementation-log.md` のみ。
