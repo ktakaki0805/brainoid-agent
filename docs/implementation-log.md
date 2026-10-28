@@ -14294,3 +14294,152 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 
 - 親のdone後 `mise run check`: 2026-10-28T20:21:29.365027+00:00–2026-10-28T20:22:01.749895+00:00、runner/tool actual exit 0（session38351回収）。mypy464、contracts/client/build/types/docs/workflow/tickets成功、68/96 done。既知Biome3警告・timezone schema警告あり。raw SHA-256 `4a98ccf0b26f5828c40c17f47c6f4e5422d8a9573f2139d448858413633387a5`。全785sourceは承認版と同一、検証前後index不変、自己子processとlistener残存なし。
 - 記録コミット対象は `docs/implementation-status.json` と `docs/implementation-log.md` のみ。
+
+## ba-ui-13-20261028t202302z
+
+- チケット: BA-UI-13 Webからのアカウント削除申請導線
+- 状態: in_progress、開始 2026-10-28T20:23:02.709245+00:00。
+- ブランチ main / base commit `d372f90ee9bc7beb0e19c391806274a57b82f69a`。開始時worktree/stagedとも空。
+- selectorが依存UI02/UI12/IAM10完了を確認して選択。親は台帳・log・commit、独立writerが製品変更、新規独立reviewerが各回の全差分確認を担当。
+
+### 範囲と検証予定
+
+- apps/web-data-controlsのブラウザーentryから既存認証・本人再認証・明示確認・既存account削除APIとoperation表示を再利用する。他UID/tenant削除への置換を拒否し、202と物理消去完了を区別する。
+- T-022/T-034: 未ログイン、ログイン、再認証、対象確認、再読込み後の本人operation回復、認証失効とprivate状態破棄をブラウザー・境界テストで確認。既存mobileのinMemoryPersistence・token非保存契約と整合させる。
+- 公開HTTPS URL、Firebase許可domain、GOV03説明ページ配置は未確定（以前の質問への回答待ち）。推測の値を設定済みにしない。ローカル実装・検証を具体化してから必要な公開前提の扱いを確定する。push/deploy/cloud設定変更は依頼範囲外。UI07実機例外を自動適用しない。
+- 受入基準に必要な実装・build/type/contract/local test・独立レビューを実施し、未検証の公開結合条件を分離して記録する。
+
+### 認証とreloadの設計境界
+
+- 既存Firebase browserのinMemoryPersistenceは維持する。full reloadでは再ログインし、同じ本人の有効認証を再確立した後に保存済みopaque operation locatorから既存global GETで進捗を取得する方針。チケットは認証session自体の永続化を明記していないため、認証永続化を追加要件として扱わず、実Browserでこの導線を検証し独立レビューで受入との整合を確認する。
+- locatorは認可の根拠にせず、token/password/FirebaseUser/進捗本文を保存しない。UID hashを利用する場合も匿名化やserver認可の代替とは扱わない。別人login・失効・logout・改竄・遅延応答の負例を確認する。reloadから新しい削除POSTを自動送信しない。
+
+### 実装途中の検証報告
+
+- writerより、新workspace用pnpm importer追加（既存依存版変更なし）、全workspace typecheck成功の報告。offline frozen installは既存Capacitor metadata cache不足で失敗を保持し、限定hostからregistry metadataを取得するfrozen installが成功（`/tmp/ba-ui-13-writer-20261028T202959994176.json`、exit0）。これは途中版の証跡であり、最終sourceのチェックに代えない。
+- Node境界試験のsandbox isolation表示がファイル数のみになる現象を確認中。明示TAPの実case数で確認し、最終通常suiteはhost実行の実件数を記録する。公式FirebaseSDK + Auth/Firestore emulator + APIの実Browser試験を準備中。
+
+### 実Browser結合と全check（候補版）
+
+- 実装担当 `/root/ui13_implementation`。公式Firebase browser SDK + Auth/Firestore emulator + API/CORSの実Browser実行 `/tmp/ba-ui-13-writer-20261028T203450564397.json` はexit0、全797source before=after。raw SHA-256 `4cb1fae049dd19faec8465ac11316bc43ec2660c7bb3771e827e4a0221a46497` を親照合。
+- 実202受付、reloadで未ログイン、同本人再ログインで同operation GET、別UID/owner hash偽造後のGET拒否、最後owner409、Auth emulatorでuser無効化後の401とprivate/locator消去、別documentからBackの消去を確認。running/failed/outcome_unknown/succeeded表示は明示GET注入の表示検証であり、実provider消去の成功とは区別する。
+- 390px/1280px画像をwriter確認、親もtarget-confirmation-mobile/recovered-mobile/expired-desktopを目視。本人再認証後の明示確認、pending≠完了、認証終了後private表示なしを確認した。保存先 `/tmp/ba-ui-13-writer-browser-r1/`。
+- `mise run check` `/tmp/ba-ui-13-writer-20261028T203459732034.json` はexit0、全797source before=after。raw SHA-256 `15ab4a1cfa68664ad0e87331cf422946f74f84a110c1a2fa9b0c5215161cc80e` を親照合。新Webを含む全workspace型・3entry build・既存contracts/client/docs/workflow等が成功。最終suiteとmobile/display共有フォーム回帰は継続中。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui13_review_r1`（新規独立context）。base commit: `d372f90ee9bc7beb0e19c391806274a57b82f69a`。
+- 未追跡を含む最新全21files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/web-data-controls/index.html` | `64a192e4e4e99e986bca1cd4dd4f3991a9a95eccfc636e063629a0bdfbdf406a` |
+| `apps/web-data-controls/package.json` | `4eaed411da08215741f659008f233c3dc7755a9e0d8cfb48e95f6028d7074893` |
+| `apps/web-data-controls/src/main.tsx` | `e9cd28ca94bb0a526ac75d3a68fad57b46293f1f760a896ac2d5c3a5f96e272d` |
+| `apps/web-data-controls/src/recovery.ts` | `3f7fa16fc3cb941cda75932dd4179007d4bd60b4465367d8106777a2e3be050a` |
+| `apps/web-data-controls/src/styles.css` | `adf1efa85e22b7f595e1d6210d9895be146f9f2db7754a97280c72d72a2deb52` |
+| `apps/web-data-controls/src/view.tsx` | `dab8ab87eb1c89d00689e683a8f238dab2d9a2c0c83b73122490f2f4a5ffae3f` |
+| `apps/web-data-controls/tsconfig.json` | `c8d38835623ac1e96f406f8c7b2230fa48674d2748ed51c0726ed592070252f7` |
+| `apps/web-data-controls/vite.config.ts` | `55919d9f80c32337ee77d4e3c4048da12ccc82090142f3b56835e70ed12426b9` |
+| `docs/public-web-contract.md` | `ff57cdaf8a6036510bf544bed3f0425ffc6ade4c2d065c01bbabc13e46bb8833` |
+| `docs/ui-authentication.md` | `d722d9f9cb4fa2994de01ce2427f1f75a9fc03b6daa7908126b6378ac01b8f12` |
+| `docs/ui-data-controls.md` | `8cf1084fd05ce12d9eaead8b453703ce49ddb79984b36e0bd4c2792f730e7aac` |
+| `mise.toml` | `62f82b1f1b7d4072b24c2ac601577794b0dc468bd8aae4416b721b358ab3ea37` |
+| `packages/ui/package.json` | `8ce86a379a098b05c9d507aa9f3cb4de2e6916a2836dad8cd79c92be1e94c79c` |
+| `packages/ui/src/data-controls/controller.ts` | `e03f40b9bec74a2673afb9b6bb4717218fe7feb48e7bf64fa483f0c14e86736a` |
+| `packages/ui/src/data-controls/view.tsx` | `da97fd2482f7b1ac6d039c4df4a3308c99ef413d699e537debca099f95a0078d` |
+| `packages/ui/src/session-view.tsx` | `31dd07b328656c2f9ff2cc9ab828ac1d26ea4163327eb689c047cc439bbb80c0` |
+| `packages/ui/src/session.ts` | `498f374a564854494e1b040cd1962874b427ad89186279cfd0fb3b5787df3346` |
+| `pnpm-lock.yaml` | `ed4502d9d878022430945e80e698ed8b40001c088d068f6c59172a3f4abdbc89` |
+| `tests/emulator/test_web_account_delete_integration.py` | `eb3d273792569a7b52d2fc24d1aaff4b4b41e2ff5e756a4c70baf210dc1fb984` |
+| `tests/test_web_account_delete.mjs` | `13a8096bf9b935c6593e2b9a57e072bc593262a687154f9214a712575dba11d9` |
+| `tests/ui/web_account_delete_browser.mjs` | `fca3475d9207feca6563537edbdde152b79064ff2cf3829966050b183302f583` |
+
+### 候補版の凍結と独立レビュー開始
+
+- writerは全21paths/797sourceを凍結。親が `/tmp/ba-ui-13-review-r1.json` と `/tmp/ba-ui-13-parent-freeze-r1.json` のSHAを現ファイルへ照合し、raw/logical/flags index実bytesを別保存した。
+- 新規独立context `/root/ui13_review_r1` に最新全差分と直接仕様確認を依頼。writerの製品編集は停止し、自己所有fullsuite session58370の回収と/tmp証跡整理だけ継続。レビューはreadonlyで、通常suite結果の追送前にapproveしない。
+- 公開HTTPS URL・認証許可domain・GOV03配置の未確定をreviewerにも明示。ローカル受入と未検証の公開結合を区別して判定する。製品コード承認や公開前提の例外を先取りしない。
+
+### R1途中の独立再現
+
+- reviewerが保存locatorの `operation: [validUUID]` を不正な型として捨てず、文字列化GET後に回復状態が固定される問題を独立probeで再現。認可迂回ではなく不正入力後の利用性・回復の指摘候補。`/tmp/ba-ui-13-review-r1-probes.stdout` はactual exit1（3件中2pass/1fail）。正式report前なのでラウンド終了回数にはまだ加えない。writerは凍結を維持し全指摘確定後に修正する。
+- reviewerは既存memory-only方針でreload後に同本人再ログインしてGET回復する導線をUI13受入と整合すると評価。公開HTTPS/domain/配置は別の未確定gateとして残す。storage取得拒否とhash遅延A→B→Aの独立probeはpass。
+
+### 通常suiteの結果（R1候補）
+
+- `/tmp/ba-ui-13-writer-20261028T203513582399.json/.stdout` の `mise run test` はrunner/tool exit1。Python1345件とSkill18件はOK、Node550件中548pass/2fail。raw SHA-256 `3badb95cd0d126754d6b092f71d26f514734f29ba000c0f999a2a350b5b6acc1`、全797source before/after=freezeを親照合。全体成功とは扱わない。
+- 失敗は新Web境界テストのsetImmediate固定回数待機が1.7ms/5.3msで尽き、非同期WebCrypto計算を待ち切れない2件。writerはwall deadlineによる待機修正を予定。型検査不備とあわせR1正式終了後に修正する。writer session58370は自己回収済み、247所有process終了との報告、activeなし。
+- reviewerの独立Node境界79/79はpass。初回render込みはsandbox Vite HMR port24678 EPERMで停止し、自己session64073のみcode130で回収、hostで残存なし確認。成功・失敗・環境制約を区別し正式reportへ反映する。
+
+### 独立レビュー ラウンド1 終了
+
+- 担当 `/root/ui13_review_r1`、判定 **request_changes**、確認済みレビュー回数1。必須UI13-R1-F001/P2（recovery.tsのoperation型検査）、UI13-R1-F002/P2（新test待機方法、通常suite2件失敗）の2件、任意提案なし。
+- report SHA-256 `6fc9cc1446b7445b392fe9a7d6b063bbf40aecf54da0c30da456cdf1061aa2bf`、result SHA-256 `284b3d1f1f9ecc582f2fb3fc7b2c5b01baf2de37a69c43f00bfbb263503cf866`、closure SHA-256 `a57f38f92108728eb74c97411756e02766531075a97cdab510bb6b3523d54312`。正式原本は `/tmp/ba-ui-13-review-r1-*`。
+- 受入正常系・固定本人再認証/確認・実API再認可・失効/ABAは確認。reload後同本人再loginは既存inMemory契約と整合。F001は不正型を破棄しGET/POSTせず確認へ戻れる負例、F002は有限の実時間/完了通知待機と通常suite成功を要求。
+- 公開URL/domain/GOV03配置は未確定の外部gate。説明文の最終確定とrelease時相互リンクはGOV03の責任のまま。未実施を成功扱いにしない。
+- 親が全797source・index保存実bytes不変を確認。reviewer自己active sessionなし。writerの通常suiteも終了しており、台帳in_progressへ戻して元writerに正式修正を返す。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui13_review_r2`（新規独立context）。base commit: `d372f90ee9bc7beb0e19c391806274a57b82f69a`。
+- 未追跡を含む最新全21files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/web-data-controls/index.html` | `64a192e4e4e99e986bca1cd4dd4f3991a9a95eccfc636e063629a0bdfbdf406a` |
+| `apps/web-data-controls/package.json` | `4eaed411da08215741f659008f233c3dc7755a9e0d8cfb48e95f6028d7074893` |
+| `apps/web-data-controls/src/main.tsx` | `e9cd28ca94bb0a526ac75d3a68fad57b46293f1f760a896ac2d5c3a5f96e272d` |
+| `apps/web-data-controls/src/recovery.ts` | `04374afa9442e515c6d9d1c27fb9d53f879495fd2b33b16062fa8fd23b950080` |
+| `apps/web-data-controls/src/styles.css` | `adf1efa85e22b7f595e1d6210d9895be146f9f2db7754a97280c72d72a2deb52` |
+| `apps/web-data-controls/src/view.tsx` | `dab8ab87eb1c89d00689e683a8f238dab2d9a2c0c83b73122490f2f4a5ffae3f` |
+| `apps/web-data-controls/tsconfig.json` | `c8d38835623ac1e96f406f8c7b2230fa48674d2748ed51c0726ed592070252f7` |
+| `apps/web-data-controls/vite.config.ts` | `55919d9f80c32337ee77d4e3c4048da12ccc82090142f3b56835e70ed12426b9` |
+| `docs/public-web-contract.md` | `ff57cdaf8a6036510bf544bed3f0425ffc6ade4c2d065c01bbabc13e46bb8833` |
+| `docs/ui-authentication.md` | `d722d9f9cb4fa2994de01ce2427f1f75a9fc03b6daa7908126b6378ac01b8f12` |
+| `docs/ui-data-controls.md` | `8cf1084fd05ce12d9eaead8b453703ce49ddb79984b36e0bd4c2792f730e7aac` |
+| `mise.toml` | `62f82b1f1b7d4072b24c2ac601577794b0dc468bd8aae4416b721b358ab3ea37` |
+| `packages/ui/package.json` | `8ce86a379a098b05c9d507aa9f3cb4de2e6916a2836dad8cd79c92be1e94c79c` |
+| `packages/ui/src/data-controls/controller.ts` | `e03f40b9bec74a2673afb9b6bb4717218fe7feb48e7bf64fa483f0c14e86736a` |
+| `packages/ui/src/data-controls/view.tsx` | `da97fd2482f7b1ac6d039c4df4a3308c99ef413d699e537debca099f95a0078d` |
+| `packages/ui/src/session-view.tsx` | `31dd07b328656c2f9ff2cc9ab828ac1d26ea4163327eb689c047cc439bbb80c0` |
+| `packages/ui/src/session.ts` | `498f374a564854494e1b040cd1962874b427ad89186279cfd0fb3b5787df3346` |
+| `pnpm-lock.yaml` | `ed4502d9d878022430945e80e698ed8b40001c088d068f6c59172a3f4abdbc89` |
+| `tests/emulator/test_web_account_delete_integration.py` | `eb3d273792569a7b52d2fc24d1aaff4b4b41e2ff5e756a4c70baf210dc1fb984` |
+| `tests/test_web_account_delete.mjs` | `7a2e564f08dadefacf4178dce8fc1e4b61e56be8eb34784306ca3ec44a38d704` |
+| `tests/ui/web_account_delete_browser.mjs` | `55700ae7315649b46efb9aff69e500d1d08d67172eb76b02725d8a9118ced68d` |
+
+### R1指摘修正後の検証とR2凍結
+
+- F001: operationのstring型をUUID検査より先に要求。array/nested-array/object/null/number/booleanを破棄しGET/POSTなし・再確認可能を検証。実Browserでもarray locatorを追加。F002: performance.nowによる2秒期限と5ms timerで待機。50ms正常遅延と30ms有限失敗の境界を追加。
+- R1から変更はrecovery.ts、test_web_account_delete.mjs、web_account_delete_browser.mjsの3pathsのみ。親が全797source/21scopeと保存index実bytes不変を照合。対象境界36、全check、実public browser、共有mobile/display6flowsは最終797入力でexit0。
+- `/tmp/ba-ui-13-writer-r2-20261028T204846765157.json`: 2026-10-28T20:48:46.765187+00:00–2026-10-28T20:48:47.311693+00:00、actual exit0、raw SHA-256 `459a8e18d36a83229e3b2d0d7c0b6777ba8ec7daffa39f43b41f817fd64bb128`。
+- `/tmp/ba-ui-13-writer-r2-20261028T204856378788.json`: 2026-10-28T20:48:56.378820+00:00–2026-10-28T20:49:40.008633+00:00、actual exit0、raw SHA-256 `573d0371b536f224489e877b97b86bb70f3fe13117138ca72d8ba40640bc2271`。
+- `/tmp/ba-ui-13-writer-r2-20261028T204912017328.json`: 2026-10-28T20:49:12.017364+00:00–2026-10-28T20:49:27.361819+00:00、actual exit0、raw SHA-256 `8cca9010c2a26994de06532ffacab195373cf2179d6723c292c50ef9fc5fca90`。
+- `/tmp/ba-ui-13-writer-r2-20261028T204927058562.json`: 2026-10-28T20:49:27.058595+00:00–2026-10-28T20:49:32.162802+00:00、actual exit0、raw SHA-256 `fb5031170a6785b7aefa968bfaecc3378ad8d83adff19159fdc69be13ab41d7d`。
+- 新規独立review R2 `/root/ui13_review_r2` に最新全差分21pathsとR1正式指摘を渡す。writerは製品編集停止、fullsuite自己session15936のみ回収継続。全suite結果未確定のため最終承認前に追送する。公開gateは未確定。
+
+### R2途中の独立確認
+
+- reviewerが最新全21paths/797sourceと周辺仕様を読み、独立Node境界87/87をactual exit0で確認（raw SHA-256 `c3c5fe124b3638456d0ddf30dabf431fd37761e5506740eb275d53a9f3c23395`）。R1独立probe由来の型/storage/hash ABAと追加pagehide遅延POST・遅延reauth ABAの5/5もactual exit0（raw SHA-256 `62554f5c934e4685b9cdb2836299905f027ba4b942f01aa219b92e4dc12419b6`）。
+- 4本の提供check/boundary/browserログと797before/afterを独立照合、画像も確認。現在local必須コード指摘なし。F002は通常fullsuiteの成功を待って最終解消を確定する。公開URL/domain/配置を未確定のままticket全体approveとはしない方針で、local検証完了後に親がユーザーへ扱いの判断を求める。正式ラウンド終了前のためreview_roundsは1のまま。
+
+### 修正後の全検証完了と公開前提の確認
+
+- R2最終 `mise run test` `/tmp/ba-ui-13-writer-r2-20261028T204909235984.json/.stdout`: 2026-10-28T20:49:09.236026Z–20:56:43.420149Z、runner/tool actual exit0。Python1345/Skill18/Node558 pass、fail0・skip0。raw SHA-256 `e73c6ae3b1cd6133b7ab32a71fff194107dbea268e2a4c0a945bf85aeec07317`、全797source before/after=R2freezeを親とreviewerが各自実値照合。
+- writer session15936は自己回収、252所有process終了・activeなし。最終handoff SHA-256 `fceaf2e51a918ece48df01070469a7744fc0efe369fdd6129179dfa82eba2f4e`、closure `/tmp/ba-ui-13-writer-r2-closure.json`。製品編集停止。
+- R2 reviewerはF001/F002両方解消、最新全差分のローカル受入・必須検証充足、必須コード指摘0・任意0と確認。正式verdictは公開前提の扱い待ち。
+- ローカル実装・検証・独立確認を具体化した後、親からユーザーへ公開URL/Firebase許可domain/GOV03配置・公開結合検証を『公開前必須として残しローカル完了後次へ進む』か『設定・結合確認まで未完了にする』かの明示質問を送信。実装skillの外部前提を成功扱いにしない指示とUI13外部前提を根拠として説明。回答未着のまま例外承認や公開完了とは扱わない。
+
+### 独立レビュー ラウンド2 終了・外部前提の判断待ち
+
+- 2026-10-28T21:02:39.510312+00:00: 担当 `/root/ui13_review_r2`、正式判定 **blocked**。R1-F001/F002は解消。必須コード指摘0・任意0、受入3項目/T-022/T-034と共有画面回帰はローカルで充足。確認済みレビュー回数2。
+- report SHA-256 `112b16b50a00d1cf146cdeda3b2fef0d3f0e75ea9fb99110b7af534c2206b29d`、result SHA-256 `d526d72b49b111c2ac0785d8888e9a82bb0cc043113fb4d6974bd7bcfab7eed2`、closure SHA-256 `c91bc9cc0081f93855e9e099e7deaccf5ffcb02c7a243107f6138b5aa7cf83f1`。原本 `/tmp/ba-ui-13-review-r2-report.md`、result.json、closure.json。
+- G001/P2のみ未解決。公開HTTPS URL、Firebase許可domain/実project接続、GOV03説明ページ配置が未確定で、公開前必須として残してローカル完了後次へ進む扱いへの質問が未回答。未回答を延期承認とはみなさず、UI07の実機個別合意も流用しない。これは必須コード修正ではなく外部前提の完了範囲の判断待ち。
+- 親が全797source・report/result/closure SHAとreviewer自己資源終了を確認。writer・reviewerとも編集と検証process停止、製品21pathsはR2承認候補SHAのまま未コミットで保存。実装コミットは未作成、push/deploy/外部設定変更なし。
+- 台帳をblockedへ更新し、台帳・logのみblocker記録コミットにする。未承認の製品を記録コミットへ含めない。後続チケットへは進まない。
+
+### 再開条件
+
+- ユーザーが公開条件をリリース前必須として残しローカル完了後の続行を明示するか、設定確定・権限ある担当による公開結合の証跡が揃うこと。公開gateを満たしたと偽らず、決定内容をlogへ追記する。
+- 再開時は保存したR2全21paths/797sourceと現在の差分を照合。blocker記録コミットによる差分は親metadataだけであり、製品を作り直さない。必要な独立最終approveを得てから実装・done後check・完了記録を行う。製品不変なら既存の成功した全検証証跡を利用し、不必要な全suite再実行はしない。
