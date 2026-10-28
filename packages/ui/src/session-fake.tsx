@@ -1,6 +1,7 @@
-import type { MemoryScenario } from "./memories/fixture.ts";
-import type { ChatScenario } from "./chat/fixture.ts";
 import { useState } from "react";
+import type { ChatScenario } from "./chat/fixture.ts";
+import type { MemoryScenario } from "./memories/fixture.ts";
+import type { NoteScenario } from "./notes/fixture.ts";
 import { type SessionContext, SessionController } from "./session.ts";
 import { createSessionFixture } from "./session-fixture.ts";
 import { browserNavigation, SessionApp } from "./session-view.tsx";
@@ -24,6 +25,27 @@ export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            ノートの動作
+            <select
+              aria-label="ノートの動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.notes.controls.scenario = event.target.value as NoteScenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="empty">空の一覧</option>
+              <option value="reject">入力のAPI拒否</option>
+              <option value="denied">権限拒否</option>
+              <option value="conflict">編集の競合</option>
+              <option value="lost_save">保存の応答喪失</option>
+              <option value="delete_failed">削除受付の失敗</option>
+              <option value="lost_delete">削除の応答喪失</option>
+              <option value="purge_failed">消去処理の失敗</option>
+              <option value="purge_unknown">消去結果不明</option>
+            </select>
+          </label>
           <label>
             記憶の動作
             <select

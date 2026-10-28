@@ -785,3 +785,37 @@ textarea:focus-visible {
   width: 100%;
   min-width: 0;
 }
+
+.notes {
+  margin-top: 28px;
+}
+.notes fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.notes label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.notes input,
+.notes select,
+.notes textarea {
+  width: 100%;
+  min-width: 0;
+}
+.notes textarea {
+  min-height: 180px;
+}
+.notes .button {
+  margin-top: 8px;
+}
+.note-content {
+  overflow-wrap: anywhere;
+}
+.note-body {
+  white-space: pre-wrap;
+}

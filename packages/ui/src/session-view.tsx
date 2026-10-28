@@ -1,8 +1,9 @@
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
-import { Memories } from "./memories/view.tsx";
 import { Chat } from "./chat/view.tsx";
 import { Frame, StateCard } from "./components.tsx";
+import { Memories } from "./memories/view.tsx";
+import { Notes } from "./notes/view.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
 
 export function browserNavigation() {
@@ -67,6 +68,13 @@ export function SessionApp({
       {state.context && (
         <Memories
           key={`memories:${state.context.generation}`}
+          context={state.context}
+          surface={surface}
+        />
+      )}
+      {state.context && (
+        <Notes
+          key={`notes:${state.context.generation}`}
           context={state.context}
           surface={surface}
         />

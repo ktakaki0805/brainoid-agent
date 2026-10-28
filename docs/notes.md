@@ -1,6 +1,6 @@
 # ノートの API と会話 tool
 
-BA-APP-01 / FR-007 / AC-007 は [共通 Notes サービス](../packages/memory/src/brainoid_memory/notes.py) を HTTP と実行中の会話 tool から利用する。HTTP/Firebase SDK を共通サービスへ持ち込まず、既存の transaction・現在認可・独立削除台帳を使う。local fake と Auth/Firestore emulator で検証し、UI・外部文書 import・高度な全文検索は含めない。
+BA-APP-01 / FR-007 / AC-007 は [共通 Notes サービス](../packages/memory/src/brainoid_memory/notes.py) を HTTP と実行中の会話 tool から利用する。HTTP/Firebase SDK を共通サービスへ持ち込まず、既存の transaction・現在認可・独立削除台帳を使う。local fake と Auth/Firestore emulator で検証し、外部文書 import・高度な全文検索は含めない。BA-UI-05の[管理画面](ui-notes.md)が既存APIへ接続する。
 
 ## HTTP と保存内容
 
