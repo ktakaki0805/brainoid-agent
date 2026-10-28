@@ -388,45 +388,63 @@ class DeviceStorage:
         if clock_trusted is not True:
             raise LedgerConflict()
         with self._transaction() as db:
-            binding = self._bound(db, delivery.epoch, delivery.connection_generation)
-            if (binding.tenant_id, binding.device_id) != (delivery.tenant_id, delivery.device_id):
-                raise LedgerConflict()
-            saved = _command(db, delivery.command_id)
-            if saved is not None:
-                if (saved.epoch, saved.payload_digest, saved.delivery_seq, saved.expires_at_ms) != (
-                    delivery.epoch,
-                    delivery.payload_digest,
-                    delivery.delivery_seq,
-                    delivery.expires_at_ms,
-                ):
-                    raise LedgerConflict()
-                return saved
-            if (
-                binding.delivery_cursor != expected_cursor
-                or delivery.delivery_seq <= expected_cursor
+            return self._receive(db, delivery, expected_cursor=expected_cursor, now_ms=now_ms)
+
+    def _receive(
+        self,
+        db: sqlite3.Connection,
+        delivery: CommandDelivery,
+        *,
+        expected_cursor: int,
+        now_ms: int,
+        reordered: bool = False,
+    ) -> StoredCommand:
+        """Same transaction as DEV07's receipt/report extension when composed."""
+        binding = self._bound(db, delivery.epoch, delivery.connection_generation)
+        if (binding.tenant_id, binding.device_id) != (delivery.tenant_id, delivery.device_id):
+            raise LedgerConflict()
+        saved = _command(db, delivery.command_id)
+        if saved is not None:
+            if (saved.epoch, saved.payload_digest, saved.delivery_seq, saved.expires_at_ms) != (
+                delivery.epoch,
+                delivery.payload_digest,
+                delivery.delivery_seq,
+                delivery.expires_at_ms,
             ):
                 raise LedgerConflict()
-            status = "accepted" if delivery.expires_at_ms > now_ms else "expired"
-            db.execute(
-                """INSERT INTO commands (command_id,execution_id,epoch,payload_digest,
-                delivery_seq,received_generation,status,accepted_at_ms,expires_at_ms,updated_at_ms)
-                VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    delivery.command_id,
-                    str(uuid4()),
-                    delivery.epoch,
-                    delivery.payload_digest,
-                    delivery.delivery_seq,
-                    delivery.connection_generation,
-                    status,
-                    now_ms,
-                    delivery.expires_at_ms,
-                    now_ms,
-                ),
-            )
-            db.execute("UPDATE registration SET delivery_cursor=?", (delivery.delivery_seq,))
-            result = _command(db, delivery.command_id)
-            assert result is not None
+            return saved
+        if (
+            binding.delivery_cursor != expected_cursor
+            or (not reordered and delivery.delivery_seq <= expected_cursor)
+            or db.execute(
+                "SELECT 1 FROM commands WHERE delivery_seq=?", (delivery.delivery_seq,)
+            ).fetchone()
+        ):
+            raise LedgerConflict()
+        status = "accepted" if delivery.expires_at_ms > now_ms else "expired"
+        db.execute(
+            """INSERT INTO commands (command_id,execution_id,epoch,payload_digest,
+            delivery_seq,received_generation,status,accepted_at_ms,expires_at_ms,updated_at_ms)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (
+                delivery.command_id,
+                str(uuid4()),
+                delivery.epoch,
+                delivery.payload_digest,
+                delivery.delivery_seq,
+                delivery.connection_generation,
+                status,
+                now_ms,
+                delivery.expires_at_ms,
+                now_ms,
+            ),
+        )
+        db.execute(
+            "UPDATE registration SET delivery_cursor=?",
+            (max(expected_cursor, delivery.delivery_seq),),
+        )
+        result = _command(db, delivery.command_id)
+        assert result is not None
         return result
 
     def advance_cursor(self, epoch: str, generation: int, *, expected: int, cursor: int) -> None:

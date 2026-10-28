@@ -5,8 +5,9 @@ import logging
 import random
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from brainoid_contracts import ResourceId
@@ -17,6 +18,9 @@ from websockets.typing import Subprotocol
 from brainoid_device.cloud_client import CloudClient
 from brainoid_device.cloud_models import CloudError
 from brainoid_device.cloud_wire import MAX_BYTES, SUBPROTOCOL, encode, frame
+
+if TYPE_CHECKING:
+    from brainoid_device.command_executor import CommandExecutor
 
 QUIET = logging.Logger("brainoid.device.wire", level=logging.CRITICAL + 1)
 QUIET.propagate = False
@@ -49,11 +53,64 @@ class DeviceTransport:
         self.generation = 0
         self.socket: ClientConnection | None = None
         self.accepted = False
+        self.commands: CommandExecutor | None = None
+        self.command_active = False
+        self.pending: tuple[str, str, str, str, asyncio.Future[dict[str, Any]]] | None = None
 
-    def _frame(self, kind: str, payload: dict[str, Any]) -> str:
+    async def request(self, kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """One request at a time, with negotiated envelope-ID correlation.
+
+        A timeout closes the stream before any following status can be sent, so
+        an accepted ACK can never acknowledge a terminal report on a reconnect.
+        """
+        socket, generation = self.socket, self.generation
+        self.client.check()
+        if socket is None or self.pending is not None:
+            raise CloudError()
+        expected = "command_start_result" if kind == "command_start" else "command_status_ack"
+        future: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
+        request_id = str(uuid4())
+        self.pending = expected, payload["command_id"], payload["execution_id"], request_id, future
+        try:
+            async with asyncio.timeout(8):
+                await socket.send(self._frame(kind, payload, message_id=request_id))
+                response = await future
+            self.client.check()
+            if self.socket is not socket or generation != self.generation:
+                raise CloudError()
+            return response
+        except (TimeoutError, ConnectionClosed, OSError):
+            await self.close_socket(socket)
+            raise CloudError() from None
+        except BaseException:
+            await self.close_socket(socket)
+            raise
+        finally:
+            self.pending = None
+
+    @staticmethod
+    async def close_socket(socket: ClientConnection) -> None:
+        # An already disconnected peer is ordinary recovery, including when
+        # close runs during cancellation. Unexpected failures remain visible.
+        with suppress(ConnectionClosed, OSError):
+            await socket.close()
+
+    def response(self, value: dict[str, Any]) -> None:
+        pending = self.pending
+        if (
+            pending is None
+            or pending[4].done()
+            or (value["type"], value["payload"]["command_id"], value["payload"]["execution_id"])
+            != pending[:3]
+            or value["payload"].get("request_message_id") != pending[3]
+        ):
+            raise CloudError("invalid_cloud_response", 502)
+        pending[4].set_result(value)
+
+    def _frame(self, kind: str, payload: dict[str, Any], *, message_id: str | None = None) -> str:
         value: dict[str, Any] = {
             "protocol_version": 1,
-            "message_id": str(uuid4()),
+            "message_id": message_id or str(uuid4()),
             "type": kind,
             "sent_at": datetime.fromtimestamp(self.client.now(), UTC).isoformat(),
             "payload": payload,
@@ -65,6 +122,7 @@ class DeviceTransport:
     async def connection(self, token: str) -> None:
         client = self.client
         self.accepted = False
+        self.command_active = False
         credentials = client.journal.credentials
         assert credentials is not None
         binding = client.storage.snapshot().registration
@@ -92,6 +150,7 @@ class DeviceTransport:
         ) as socket:
             self.socket = socket
             synchronization: asyncio.Task[None] | None = None
+            execution: asyncio.Task[None] | None = None
             try:
                 client.check(generation)
                 if socket.subprotocol != SUBPROTOCOL:
@@ -104,7 +163,7 @@ class DeviceTransport:
                                 "device_id": credentials.device_id,
                                 "software_version": "0.1.0",
                                 "supported_protocol_versions": [1],
-                                "capabilities": [],
+                                "capabilities": ["command_response_ids"] if self.commands else [],
                                 "last_received_seq": binding.delivery_cursor,
                             },
                         )
@@ -121,6 +180,10 @@ class DeviceTransport:
                 client.storage.set_generation(binding.epoch, self.generation)
                 client.status = "connected"
                 self.accepted = True
+                if self.commands is not None and ack["payload"].get("command_response_ids") is True:
+                    self.command_active = True
+                    self.commands.begin(ack)
+                    execution = client.start(self.commands.run())
                 if client.recovery is not None:
                     synchronization = client.start(client.recovery.run())
                 heartbeat = self.monotonic() + 15
@@ -129,6 +192,8 @@ class DeviceTransport:
                     client.check(generation)
                     if synchronization is not None and synchronization.done():
                         synchronization.result()
+                    if execution is not None and execution.done():
+                        execution.result()
                     now = self.monotonic()
                     if now - last_ack >= 45:
                         raise CloudError()
@@ -165,9 +230,28 @@ class DeviceTransport:
                         raise CloudError("invalid_cloud_response", 502)
                     if value["type"] == "heartbeat_ack":
                         last_ack = self.monotonic()
+                        if self.commands is not None and self.command_active:
+                            self.commands.sample(value)
                     elif value["type"] == "error":
                         client.stop()
                         raise CloudError("authorization_refused", 403)
+                    elif (
+                        self.commands is not None
+                        and self.command_active
+                        and value["type"] == "command"
+                    ):
+                        self.commands.receive(value)
+                    elif (
+                        self.commands is not None
+                        and self.command_active
+                        and value["type"]
+                        in {
+                            "command_start_result",
+                            "command_status_ack",
+                        }
+                    ):
+                        self.commands.sample(value)
+                        self.response(value)
                     elif client.recovery is not None:
                         if value["type"] in {"session_started", "session_revoked"}:
                             client.recovery.session_hint(
@@ -180,6 +264,12 @@ class DeviceTransport:
                     # Frame payloads are hints. Only a fully authorized page set
                     # replaces state; old speech is never auto-played.
             finally:
+                if execution is not None:
+                    execution.cancel()
+                    await asyncio.gather(execution, return_exceptions=True)
+                if self.commands is not None:
+                    self.commands.clear()
+                self.pending = None
                 if synchronization is not None:
                     synchronization.cancel()
                     await asyncio.gather(synchronization, return_exceptions=True)

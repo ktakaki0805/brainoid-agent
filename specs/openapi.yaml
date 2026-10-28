@@ -3064,6 +3064,37 @@ paths:
         required: true
         schema: *id001
       - *id007
+  /tenants/{tenant_id}/commands/{command_id}/target:
+    get:
+      operationId: getDeviceCommandTarget
+      summary: 家電commandの許可済み操作対象を解決
+      description: home.controlで現在のcommand・元actor・target fingerprintを再検査し、exact HA external referenceだけを返す。一般のentity読取権限や実行grantは付与しない。
+      security:
+      - userBearer: []
+      - deviceBearer: []
+      responses:
+        '200':
+          description: 現在認可された操作対象
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandTarget'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: command_id
+        in: path
+        required: true
+        schema: *id001
+      - *id007
   /tenants/{tenant_id}/commands/{command_id}:cancel:
     post:
       operationId: cancelDeviceCommand
@@ -5579,6 +5610,36 @@ components:
       - device_id
       - target_entity_id
       - operation
+      additionalProperties: false
+    CommandTarget:
+      type: object
+      properties:
+        tenant_id: *id001
+        device_id: *id001
+        command_id: *id001
+        target_entity_id: *id001
+        reference:
+          type: object
+          properties:
+            provider:
+              type: string
+              const: home_assistant
+            integration_id: *id001
+            external_id:
+              type: string
+              minLength: 1
+              maxLength: 255
+          required:
+          - provider
+          - integration_id
+          - external_id
+          additionalProperties: false
+      required:
+      - tenant_id
+      - device_id
+      - command_id
+      - target_entity_id
+      - reference
       additionalProperties: false
     Command:
       type: object

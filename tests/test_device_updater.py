@@ -763,7 +763,8 @@ def main():
         updater = self.engine()
         updater.daemon = daemon
         self.install(updater, 1)
-        daemon.health_seconds = 0.5
+        candidate_seconds = 0.5
+        startup_seconds = daemon.health_seconds
 
         def sockets() -> set[str]:
             values = set()
@@ -810,16 +811,23 @@ def main():
                         version, extra={"lib/brainoid_device/__main__.py": source.encode()}
                     )
                 )
-                observed: list[tuple[bool, float]] = []
+                observed: list[tuple[bool, float, float]] = []
                 healthy = daemon.healthy
 
                 def timed_health(
                     probe: Callable[[], bool] = healthy,
-                    samples: list[tuple[bool, float]] = observed,
+                    samples: list[tuple[bool, float, float]] = observed,
+                    candidate_tree: Path = self.root / "releases" / release.name / "tree",
                 ) -> bool:
+                    # Only the synthetic slow candidate gets the shortened
+                    # deadline. Rollback starts the real app (including imports)
+                    # and must keep its normal, independently bounded budget.
+                    candidate = daemon._tree == candidate_tree
+                    budget = candidate_seconds if candidate else startup_seconds
                     started = time.monotonic()
-                    result = probe()
-                    samples.append((result, time.monotonic() - started))
+                    with patch.object(daemon, "health_seconds", budget):
+                        result = probe()
+                    samples.append((result, time.monotonic() - started, budget))
                     return result
 
                 before_sockets = sockets()
@@ -832,9 +840,15 @@ def main():
                 owned = json.loads(marker.read_bytes())
                 self.assertIsNone(OwnedDaemon.identity(owned["pid"]))
                 self.assertEqual(observed[0][0], False)
-                self.assertLess(observed[0][1], daemon.health_seconds + 0.25)
+                self.assertEqual(observed[0][2], candidate_seconds)
+                self.assertLess(observed[0][1], candidate_seconds + 0.25)
                 self.assertTrue(observed[-1][0], "last good passed its separate health check")
-                self.assertLess(elapsed, 3)
+                self.assertEqual(observed[-1][2], startup_seconds)
+                self.assertLess(observed[-1][1], startup_seconds + 0.25)
+                self.assertLess(
+                    elapsed, candidate_seconds + startup_seconds + 2 * daemon.stop_seconds
+                )
+                self.assertEqual(daemon.health_seconds, startup_seconds)
                 self.assertEqual(updater.state["good"]["version"], 1)
                 self.assertEqual(sockets(), before_sockets, "no timed-out reader socket survived")
                 self.assertEqual(signal.getsignal(signal.SIGALRM), previous_alarm)
@@ -843,7 +857,8 @@ def main():
                     json.dumps(
                         {
                             "health_deadline_case": phase,
-                            "deadline_seconds": daemon.health_seconds,
+                            "candidate_deadline_seconds": candidate_seconds,
+                            "rollback_startup_deadline_seconds": startup_seconds,
                             "health_results_seconds": observed,
                             "activation_seconds": elapsed,
                             "candidate_pid": owned["pid"],

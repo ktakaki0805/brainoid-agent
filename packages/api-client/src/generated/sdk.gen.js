@@ -1523,6 +1523,24 @@ export const getDeviceCommand = (options) => (options.client ?? client).get({
     ...options
 });
 /**
+ * 家電commandの許可済み操作対象を解決
+ *
+ * home.controlで現在のcommand・元actor・target fingerprintを再検査し、exact HA external referenceだけを返す。一般のentity読取権限や実行grantは付与しない。
+ */
+export const getDeviceCommandTarget = (options) => (options.client ?? client).get({
+    security: [{
+            key: 'userBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'deviceBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/tenants/{tenant_id}/commands/{command_id}/target',
+    ...options
+});
+/**
  * 未実行家電操作を取り消す
  *
  * 元のactorだけがqueued/delivered/acceptedかつstart claim前に取消し可。claimと同じ文書をtransactionで検査する。claim済みは409 conflict、期限切れは410。任意If-Matchの古い版は412。同keyで取消しを再取得できる。

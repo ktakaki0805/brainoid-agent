@@ -8,8 +8,10 @@ from uuid import uuid4
 
 from brainoid_api.app import create_app
 from brainoid_api.common.firestore import FirestoreTransactions
+from brainoid_api.device_command_watch import CommandWatch
 from brainoid_api.device_commands import DeviceCommands
 from brainoid_api.device_leases import DeviceLeases
+from brainoid_api.device_notifications import DeviceNotifications
 from brainoid_api.device_protocol import SUBPROTOCOL
 from brainoid_api.errors import APIError, ErrorCode
 from brainoid_api.repositories.commands import CommandRequests
@@ -238,7 +240,9 @@ class DeviceCommandsIntegrationTests(MemoryIntegrationFixture):
 
         with TestClient(app) as client:
             gateway = app.state.auth_services.device_gateway
-            self.assertEqual(len(gateway.hooks), 1)
+            self.assertEqual(
+                tuple(type(hook) for hook in gateway.hooks), (CommandWatch, DeviceNotifications)
+            )
             with client.websocket_connect(
                 f"/v1/devices/{self.command_body.device_id}/connect",
                 headers={"Authorization": "Bearer " + self.token},

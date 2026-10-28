@@ -1,6 +1,6 @@
 # Home Assistant adapter と inventory
 
-BA-DEV-06 / FR-011 は Pi の保護領域から固定 HA origin へ接続し、照明・空調の候補を canonical entity と command target に同期する。DEV07 の grant・重複排除・実行台帳への接続は未提供であり、会話・local HTTP から直接操作する経路はない。
+BA-DEV-06 / FR-011 は Pi の保護領域から固定 HA origin へ接続し、照明・空調の候補を canonical entity と command target に同期する。[DEV07実行器](device-commands.md) がgrant・重複排除・実行台帳へ接続する。会話・local HTTP から直接操作する経路はない。
 
 ## 導入と秘密
 

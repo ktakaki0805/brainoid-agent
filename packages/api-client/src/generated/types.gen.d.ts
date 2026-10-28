@@ -735,6 +735,17 @@ export type CommandCreate = {
     target_entity_id: ResourceId;
     operation: HomeAction;
 };
+export type CommandTarget = {
+    tenant_id: ResourceId;
+    device_id: ResourceId;
+    command_id: ResourceId;
+    target_entity_id: ResourceId;
+    reference: {
+        provider: 'home_assistant';
+        integration_id: ResourceId;
+        external_id: string;
+    };
+};
 export type Command = unknown & {
     id: ResourceId;
     tenant_id: ResourceId;
@@ -3404,6 +3415,35 @@ export type GetDeviceCommandResponses = {
     200: Command;
 };
 export type GetDeviceCommandResponse = GetDeviceCommandResponses[keyof GetDeviceCommandResponses];
+export type GetDeviceCommandTargetData = {
+    body?: never;
+    headers?: {
+        /**
+         * device bearerに追加するセッション参照。単独では認証しない。
+         */
+        'X-Private-Session'?: ResourceId;
+    };
+    path: {
+        tenant_id: ResourceId;
+        command_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/commands/{command_id}/target';
+};
+export type GetDeviceCommandTargetErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type GetDeviceCommandTargetError = GetDeviceCommandTargetErrors[keyof GetDeviceCommandTargetErrors];
+export type GetDeviceCommandTargetResponses = {
+    /**
+     * 現在認可された操作対象
+     */
+    200: CommandTarget;
+};
+export type GetDeviceCommandTargetResponse = GetDeviceCommandTargetResponses[keyof GetDeviceCommandTargetResponses];
 export type CancelDeviceCommandData = {
     body?: never;
     headers: {

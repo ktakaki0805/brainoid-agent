@@ -170,6 +170,7 @@ class DeviceCommandFixture(NotesFixture):
         )
         ack = ws.receive_json()
         self.assertEqual(ack["type"], "hello_ack")
+        self.assertNotIn("command_response_ids", ack["payload"])
         return ack["connection_generation"]
 
 
@@ -333,9 +334,11 @@ class DeviceCommandTests(DeviceCommandFixture):
                     observed_at=self.now.isoformat(),
                 )
             )
-            self.assertEqual(ws.receive_json()["payload"]["result"], "recorded")
+            self.assertEqual(ws.receive_json()["payload"], {**payload, "result": "recorded"})
             ws.send_json(self.frame("command_start", generation, **payload))
-            self.assertEqual(ws.receive_json()["payload"]["result"], "granted")
+            grant = ws.receive_json()["payload"]
+            self.assertEqual(grant["result"], "granted")
+            self.assertNotIn("request_message_id", grant)
             ws.send_json(
                 self.frame(
                     "command_status",

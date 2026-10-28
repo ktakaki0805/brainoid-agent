@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from brainoid_api.auth.runtime import AuthServices, get_auth_services
 from brainoid_api.common.versioning import etag
 from brainoid_api.errors import APIError, ErrorCode, ErrorResponse
-from brainoid_api.repositories.commands import CommandRequests
+from brainoid_api.repositories.commands import CommandRequests, CommandTarget
 from brainoid_api.routes.agents import Reader, Session
 from brainoid_api.routes.tenants import _header
 
@@ -68,6 +68,22 @@ async def get_command(
     result = await run_in_threadpool(commands.get, identity, tenant_id, command_id, session)
     response.headers["ETag"] = etag(result.version)
     return result
+
+
+@router.get(
+    "/tenants/{tenant_id}/commands/{command_id}/target",
+    response_model=CommandTarget,
+    operation_id="getDeviceCommandTarget",
+    responses={"default": {"model": ErrorResponse}},
+)
+async def get_command_target(
+    tenant_id: ResourceId,
+    command_id: ResourceId,
+    identity: Reader,
+    commands: Repository,
+    session: Session,
+) -> CommandTarget:
+    return await run_in_threadpool(commands.target, identity, tenant_id, command_id, session)
 
 
 @router.post(

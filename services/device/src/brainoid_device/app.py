@@ -15,6 +15,7 @@ from starlette.types import ASGIApp
 
 from brainoid_device.assets import load_assets
 from brainoid_device.cloud_client import CloudClient
+from brainoid_device.command_executor import CommandExecutor
 from brainoid_device.config import Settings
 from brainoid_device.device_transport import DeviceTransport
 from brainoid_device.diagnostics import local_diagnostics
@@ -68,6 +69,13 @@ class DeviceApplication:
             if not resumed_reset
             else None
         )
+        self.command_executor = (
+            CommandExecutor(self.transport, self.home_assistant)
+            if self.transport is not None and self.home_assistant is not None
+            else None
+        )
+        if self.transport is not None:
+            self.transport.commands = self.command_executor
 
         @asynccontextmanager
         async def lifespan(app: Starlette) -> AsyncIterator[None]:

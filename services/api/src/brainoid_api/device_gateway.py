@@ -80,6 +80,7 @@ class DeviceConnection:
         self._send_lock = asyncio.Lock()
         self._pending: set[asyncio.Task[Any]] = set()
         self.closed = False
+        self.command_response_ids = False
         self._overflow = asyncio.Event()
         self._failure_code = 1013
 
@@ -136,13 +137,15 @@ class DeviceConnection:
             raise ProtocolError()
         await self._queue.put(delivery)
 
-    async def _transmit(self, delivery: Delivery) -> None:
+    async def _transmit(self, delivery: Delivery, request_id: str | None = None) -> None:
         async with self._send_lock:
 
             def prepare(tx: Transaction) -> Any:
                 payload = delivery.load(tx, self.binding)
                 if payload is None:
                     return None, release_guard(tx)
+                if request_id is not None:
+                    payload = {**payload, "request_message_id": request_id}
                 text = encode(
                     envelope(
                         delivery.kind,
@@ -191,7 +194,13 @@ class DeviceConnection:
                 handler = self._gateway.handlers.get(frame["type"])
                 if handler is None:
                     raise ProtocolError()
-                await self._transmit(handler(frame["payload"]))
+                await self._transmit(
+                    handler(frame["payload"]),
+                    frame["message_id"]
+                    if self.command_response_ids
+                    and frame["type"] in {"command_start", "command_status"}
+                    else None,
+                )
                 continue
             # The optional session ID is telemetry, never a watch selector or idle renewal.
             expires = await self._io(
@@ -317,6 +326,9 @@ class DeviceGateway:
             peer.cancel()
             await asyncio.gather(peer, return_exceptions=True)
             connection = DeviceConnection(self, socket, binding)
+            connection.command_response_ids = (
+                "command_response_ids" in hello["payload"]["capabilities"]
+            )
             expires = await connection.io(lambda: self.leases.check(binding))
             await connection.send(
                 "hello_ack",
@@ -325,6 +337,7 @@ class DeviceGateway:
                     "lease_expires_at": expires.isoformat(),
                     "server_time": self.leases.now().isoformat(),
                     "snapshot_required": True,
+                    **({"command_response_ids": True} if connection.command_response_ids else {}),
                 },
             )
             tasks = [

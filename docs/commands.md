@@ -1,12 +1,14 @@
 # 家電 command の受付
 
-BA-APP-06 は FR-011 / AC-011、T-018 / T-036 の API 側を実装する。[共有サービス](../packages/memory/src/brainoid_memory/commands.py)を HTTP と既定 `home.set_state` が使う。BA-DEV-05 が永続配送・start grant・結果ACKを接続する（[gateway契約](device-gateway.md#durable-command-boundary-ba-dev-05)）。HA呼出し・Pi実行はDEV-07、inventory連携はDEV-06で接続する。
+BA-APP-06 は FR-011 / AC-011、T-018 / T-036 の API 側を実装する。[共有サービス](../packages/memory/src/brainoid_memory/commands.py)を HTTP と既定 `home.set_state` が使う。BA-DEV-05 が永続配送・start grant・結果ACKを接続する（[gateway契約](device-gateway.md#durable-command-boundary-ba-dev-05)）。HA呼出し・Pi実行は[DEV-07](device-commands.md)、inventory連携は[DEV-06](home-assistant.md)が接続する。
 
 ## HTTP と状態
 
 `/v1/tenants/{tenant_id}/commands` の POST は `Idempotency-Key` と `device_id`、`target_entity_id`、`operation` を受け、202 と ETag を返す。actor は現在の本人または検証済み端末資格情報から保存する。作成時刻から30秒の期限を固定し、初期状態は `queued`。同keyの24時間以内の再送は同じcommandの現在状態を返し、期限を延長しない。異なる本文は409。端末・会員・台帳・対象の現在認可は再送でも検査する。
 
 GET `/commands/{id}` は現在の状態と ETag を返す。未claimのまま期限へ達した文書はtransactionで `expired` に進め、versionとupdated_atを更新する。clockだけで公開statusを変え、ETagを固定することはしない。期限遷移はlazyであり、将来の配送/claim consumerはGETの実施に依存せず自分のtransactionでも `now < expires_at` を検査する。
+
+GET `/commands/{id}/target` はDEV-07が使う限定control read。同じ現在command・元actor・target fingerprintを検査し、tenant/device/command/entity IDとexact HA external referenceだけを返す。通常entity readのmemory.readを要求・付与せず、実行grantにもならない。
 
 POST `/commands/{id}:cancel` は元のactor、現在の権限、`queued/delivered/accepted`、execution IDなし、未期限切れを同じtransactionで検査する。Idempotency-Keyは必須、If-Matchは任意。指定した古い版は412、claim済みや取消済みの別要求は409 `conflict`、未claimの期限切れはGETや作成再送によるexpired保存の前後を問わず410（古いIf-Matchより優先）。claim済みは期限後も409。同keyの取消し再送は現在認可で同じ結果を取得する。claim側も同じcommand文書をtransactionで読み更新することで競合を直列化する。取消しが先ならgrantを出せず、claimが先なら取消しは409になる。
 

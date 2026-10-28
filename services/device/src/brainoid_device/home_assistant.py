@@ -1,6 +1,7 @@
 """Protected, fixed-origin HA primitives. Only DEV07 may connect these to commands."""
 
 import asyncio
+import inspect
 import ipaddress
 import json
 import logging
@@ -399,7 +400,11 @@ class HomeAssistant:
             return Result(status="failed", code=error.code)
 
     async def set_state(
-        self, external_id: str, operation: object, *, authorize: Callable[[], None]
+        self,
+        external_id: str,
+        operation: object,
+        *,
+        authorize: Callable[[], None | Awaitable[None]],
     ) -> Result:
         """Internal primitive; DEV07 must supply its live grant fence before send.
 
@@ -476,7 +481,10 @@ class HomeAssistant:
                 if "hvac_mode" in params and params["hvac_mode"] not in attrs.get("hvac_modes", []):
                     raise HomeError("home_operation_unsupported")
                 self.check()
-                authorize()
+                authorization = authorize()
+                if inspect.isawaitable(authorization):
+                    await authorization
+                self._entity(external_id)
                 self.check()
                 body = {"entity_id": external_id, **params}
                 if "temperature_c" in body:

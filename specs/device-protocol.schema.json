@@ -158,6 +158,10 @@
             },
             "snapshot_required": {
               "const": true
+            },
+            "command_response_ids": {
+              "const": true,
+              "description": "Present only when the server supports the offered command_response_ids capability. Without it Pi command execution remains disabled."
             }
           },
           "required": [
@@ -531,6 +535,11 @@
             "reason_code": {
               "type": "string",
               "maxLength": 80
+            },
+            "request_message_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Echo of the request envelope message_id when hello advertises command_response_ids; omitted for legacy clients."
             }
           },
           "required": [
@@ -651,6 +660,11 @@
             "reason_code": {
               "type": "string",
               "maxLength": 80
+            },
+            "request_message_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Echo of the request envelope message_id when hello advertises command_response_ids; omitted for legacy clients."
             }
           },
           "required": [
