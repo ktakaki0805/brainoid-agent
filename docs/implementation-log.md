@@ -13524,3 +13524,138 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 総完了数64/96。実Google/nativeの公開前条件は上記のとおり未検証として保持し、完了記録検査後に記録コミットを作成する。
 - `parent-post-done-check`: `mise run check`、2026-10-28T13:12:32.718985+00:00→2026-10-28T13:12:38.439199+00:00、exit 0、5.720214s、unittest/counts []、Node []。metadata SHA-256 `fef6f4a509db9d7b8625d647d680dae24833890a12bec02688e86f0b0b8defc5`、raw SHA-256 `052df8c4c4e225cdfb775d41a15f7c3c9ea5c1d3d1433efb77d1193af37d9593`。
 - 完了台帳を含めた親post-done checkも実child/tool0。親所有session45936の実終了を回収し、凍結source736/index不変、所有child/listener終了を確認。raw SHA-256 `052df8c4c4e225cdfb775d41a15f7c3c9ea5c1d3d1433efb77d1193af37d9593`。記録差分は台帳と本ログだけ。
+
+## ba-ui-09-20261028t131612z
+
+- チケット: BA-UI-09 Piペアリング・許可設定・失効画面
+- 状態: in_progress。開始: 2026-10-28T13:16:12.184138+00:00。branch main / base `e4aa7535aa390ff190711c60a44e1ea50054969b`、既存変更なし。依存UI02/IAM07/IAM08はdoneかつ実装commitが現在履歴にあることを確認。
+- 実装担当: `/root/ui09_implementation`（新規独立context、単独writer予定）。親は選択・台帳/log・レビュー委譲・index/commitを担当し、製品編集は委譲する。
+- 受入範囲: tenantを明示確認した手入力codeによるpairing、owner/admin限定の端末metadata・許可設定・失効、期限/再利用/越境/API拒否/競合/応答不明の表示。クラウド失効とoffline端末の物理消去を区別し、スマホにPi資格情報を受け渡さない。
+- 検証予定: T003/T004 fake/controller/Chromium、実API/公式Firestoreと既存の同等device serviceによる一度のpairing操作。実Pi・hostへのsystemd導入や実cloud変更は行わず、実施環境と限界を明記する。
+- 関連仕様: docs/device-pairing.md、devices.md、device-cloud.md、device-service.md、device-setup.md、actual routes/services/DTO/generated SDKを正本にする。仕様のPiまたは同等device serviceの条件を満たすローカル経路を検証する。
+- 開始時736source。UI08の最終証跡1685filesのSHAを照合し不変を確認。全件完了まで依存順に継続する。
+- `writer-types-v1`: `mise exec -- pnpm --filter @brainoid-internal/ui typecheck`、2026-10-28T13:25:00.805490+00:00→2026-10-28T13:25:01.947181+00:00、exit 0、1.141691s、unittest/counts []、Node []。metadata SHA-256 `12dcabc243d1a62851c45a934f153f934f4c94fa4738d877513a979de97cf11f`、raw SHA-256 `5ab2254a8fc792807b32a862227e4ed6e33f0ecbcfa9e9c595bf199636cd71ec`。
+- `writer-unit-v1`: `mise exec -- node --test tests/test_ui_devices.mjs`、2026-10-28T13:26:51.025420+00:00→2026-10-28T13:26:51.551936+00:00、exit 0、0.526516s、unittest/counts []、Node ['ℹ tests 1']。metadata SHA-256 `2067e1c4d195579e4629319b603159827ef28e08b24c8affd88c15240298becd`、raw SHA-256 `e6adbd93fb418dcdedc74f468ac665457aeba1d71bcbd6011efd65b6f689e4a6`。
+- `writer-browser-v1`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T13:30:15.755273+00:00→2026-10-28T13:30:48.212757+00:00、exit 1、32.457484s、unittest/counts []、Node []。metadata SHA-256 `4bd9b2dfc33e55ebb3eee77dcafb3ef1cf840401297e12d2a8142d8811fc4f6a`、raw SHA-256 `f202eb15a9536b4c32e7ed662d14468bb7ff7d674b76638635e80f003db6992a`。
+- `writer-unit-direct-v1`: `mise exec -- node tests/test_ui_devices.mjs`、2026-10-28T13:30:02.434632+00:00→2026-10-28T13:30:02.857803+00:00、exit 0、0.423171s、unittest/counts []、Node ['ℹ tests 27']。metadata SHA-256 `25fb0790fdb364a8ddd8f5e804d3492c9ca7a707b52100993932465e082e1d1a`、raw SHA-256 `c818cf8c530e304aacc1e60e115cf2c0c488b209d8c0916208803a8900eb46b1`。
+- `writer-browser-v2`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T13:32:38.393884+00:00→2026-10-28T13:33:15.203668+00:00、exit 1、36.809784s、unittest/counts []、Node []。metadata SHA-256 `d57cd4d019c33f2e6ab5144d6b804b8b61a877b5595c880fefc9756639d12a90`、raw SHA-256 `63542efae22c9aadd89aef5fbfff56ed66510e6a4aeb4b86504a53b8e30b4ee1`。
+- `writer-browser-v3`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T13:36:16.717107+00:00→2026-10-28T13:36:23.811141+00:00、exit 0、7.094034s、unittest/counts []、Node []。metadata SHA-256 `40a5212c60a47eb56ffd59234e312a2e978eb113ca831ec071f25849548f0cc6`、raw SHA-256 `ab98352e330be0657844a0381bf2e5da476cf4505075da834d13f3653d54769c`。
+- `writer-check-v1`: `mise run check`、2026-10-28T13:32:47.316230+00:00→2026-10-28T13:33:19.639544+00:00、exit 0、32.323314s、unittest/counts []、Node []。metadata SHA-256 `0ccf7f7c0400ba17360bbaf3c80f402ea890c66f15b825c8c408aa28401ba32b`、raw SHA-256 `3d991f1924c688f51529462f3d02ee6626c55a248b8af6772ffe0d7057ee6fb0`。
+- `writer-check-v2`: `mise run check`、2026-10-28T13:35:28.588983+00:00→2026-10-28T13:36:01.021585+00:00、exit 0、32.432602s、unittest/counts []、Node []。metadata SHA-256 `a8df456285205b4b33651483dd72abcf2ae7f02b2f12cc31803f353eff170b90`、raw SHA-256 `f69c74f63ba0ecbcc8d00c87e72085673385c6ab0788ccffc3f1ff6c9b1e2f62`。
+- `writer-equivalent-v1`: `bash /tmp/ba-ui-09-writer-emulator-command.sh`、2026-10-28T13:35:27.394143+00:00→2026-10-28T13:35:43.331860+00:00、exit 0、15.937717s、unittest/counts ['Ran 1 test in 7.556s']、Node []。metadata SHA-256 `d396204b315c2944114ca28bdb0cb89721b50e505c222ccfe470bb6fb6783ba5`、raw SHA-256 `4f5d3a89267917140389fd274fa077aeda2e69d31bee740ce9ce3d0172b912d5`。
+- `writer-unit-direct-v2`: `mise exec -- node tests/test_ui_devices.mjs`、2026-10-28T13:32:48.494590+00:00→2026-10-28T13:32:49.029375+00:00、exit 0、0.534785s、unittest/counts []、Node ['ℹ tests 27']。metadata SHA-256 `0e3ebffacc9bc6d02b5301acc55c0f14c527f9da264d8fa8205a80b44ad22546`、raw SHA-256 `214c73dc99a0c6c25900de77991b0b56e653a7c9072173c938f4a12b00991d52`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui09_review_r1`（新規独立context）。base commit: `e4aa7535aa390ff190711c60a44e1ea50054969b`。
+- 未追跡を含む最新全15files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/device-ui.md` | `2c6ec16feea87a3745116e721f48b4f530462d4dbf0cc29a65ee3cc904039174` |
+| `docs/devices.md` | `c5867bafda83946c40a86f1f50e98a7e784c11ab47d0426db75ef1247f0fd498` |
+| `mise.toml` | `db262de01858aa990b2e735bd7e53c4891a527dea8970ffd65b9e5f0a4d20f23` |
+| `packages/ui/src/devices/contracts.ts` | `68386b804beaadf3acaf52c46baf37c2951ead5735150da9f29d259a909eba01` |
+| `packages/ui/src/devices/controller.ts` | `69d552ce448eb1c76d0cb1ee99271414ccf93cce4803b24c5de6be7fd9916620` |
+| `packages/ui/src/devices/fixture.ts` | `6e024ca82252d506aacc0e31b7dea1a6f2afe5954a44a2ed417a2e2b38383e78` |
+| `packages/ui/src/devices/view.tsx` | `cbd5ab06907f86c1ef1539e533bf5d150727ada5ee0fdd2ed20176520f59866d` |
+| `packages/ui/src/session-fake.tsx` | `e6db68859db7a2ce5c683312c4e2a2ee8bc3f97165dabc531801b93a4d98eade` |
+| `packages/ui/src/session-fixture.ts` | `759aa2f1f0aca2bad68d4faaef87a71d11d84669df4df1dfd8234e74a89f2731` |
+| `packages/ui/src/session-view.tsx` | `90afebaece221b6d324f07a7ce043cd6b5e1a307c97921a75dfa7d59443a6a4f` |
+| `packages/ui/src/styles.css` | `2e05324976b4e8672b5e0484ac14f42fd8116e95de88630c11fc54cc6f04b08a` |
+| `tests/emulator/test_ui_devices_integration.py` | `db6dffeef1d76384640985e9b7b513241af4d5311010df3a2458ac5984cc636a` |
+| `tests/test_ui_devices.mjs` | `b89be1bfbca742d354ce77c7a816dbe78eaab6d02847faf785ea78cc3cb0db1f` |
+| `tests/ui/devices_browser.mjs` | `4e91ab450fdac9d3e65a7b04fb8471bd2b993721e3d06db9f9ad735efccfbff6` |
+| `tests/ui/devices_emulator.mjs` | `18af3fd59adbe717f7c53285223298fe532cda41dddd2283a2282a44ddf1443b` |
+- `review-r1-unit-direct`: `mise exec -- node tests/test_ui_devices.mjs`、2026-10-28T13:42:50.653895+00:00→2026-10-28T13:42:51.144888+00:00、exit 0、0.490993s、unittest/counts []、Node ['ℹ tests 27']。metadata SHA-256 `1a482e354b81563f07477de01f25329595909198ed2db2e95f56be95ac38bff8`、raw SHA-256 `753742e8ad864b9f4c956fc43d5dc136a0aeff8283fd9e1354092c2f1182f81d`。
+- `writer-full-test-v1`: `mise run test`、2026-10-28T13:36:28.918924+00:00→2026-10-28T13:44:16.640868+00:00、exit 0、467.721944s、unittest/counts ['Ran 1306 tests in 433.893s', 'Ran 18 tests in 0.062s']、Node ['ℹ tests 347']。metadata SHA-256 `4186f03f13f66a173d5db7e16b693f4ab1105d05b8f072c3784eeba40366fbe8`、raw SHA-256 `6e9bfe5c6ce3c908cc73d9ba90a660f292602a242447fdda5201a1f43c287d7b`。
+- `writer-regression-calendar-v1`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T13:41:32.524670+00:00→2026-10-28T13:41:52.324808+00:00、exit 0、19.800138s、unittest/counts []、Node []。metadata SHA-256 `7029b1f7f81fa87f06d1707b44cb397f80144337f246b9be9e9f3524b6a6326f`、raw SHA-256 `5d96d0fe338890446f38b79bb84d92fdeb4135c328ad7246e9e4395f71fdae73`。
+- `writer-regression-chat-v1`: `mise exec -- node tests/ui/chat_browser.mjs`、2026-10-28T13:39:06.699697+00:00→2026-10-28T13:41:03.159941+00:00、exit 0、116.460244s、unittest/counts []、Node []。metadata SHA-256 `5efe2251e4a3229b2d0768efcf6701585078eab465e45f7c1b9043f5c4af17f2`、raw SHA-256 `8a7254241b04042b650e97cf37a867854d87f85d5fee194131d5c69f82791b90`。
+- `writer-regression-memories-v1`: `mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T13:41:03.227310+00:00→2026-10-28T13:41:09.472147+00:00、exit 0、6.244837s、unittest/counts []、Node []。metadata SHA-256 `695f412319322f4043dce82c43494a8b3d03f53d32f4078d6a4fbf53f411761e`、raw SHA-256 `d0caba658b9472ab1d87c0efc5e01e949737c9a3157f2d827587de5a8b7b8ad4`。
+- `writer-regression-notes-v1`: `mise exec -- node tests/ui/notes_browser.mjs`、2026-10-28T13:41:09.540323+00:00→2026-10-28T13:41:16.231971+00:00、exit 0、6.691648s、unittest/counts []、Node []。metadata SHA-256 `f670b1d3a8c0f359aa8e9380c2516e3a5f848e6070f1fb7730796040a70d6003`、raw SHA-256 `ef7aebf2d4730003b9cec47ac5eb21a998374933ad501afc938b8e9223c5a214`。
+- `writer-regression-reminders-v1`: `mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T13:41:24.254291+00:00→2026-10-28T13:41:32.442107+00:00、exit 0、8.187816s、unittest/counts []、Node []。metadata SHA-256 `2531763c2daa28cd9041bdcbe048aa0abe54a33c9a4384e1ee3b72eac7884156`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-regression-session-v1`: `mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T13:38:58.045516+00:00→2026-10-28T13:39:06.650148+00:00、exit 0、8.604632s、unittest/counts []、Node []。metadata SHA-256 `9a0b866d5e8851024b8b7be9e2385a78c29d1434f66046f45023271cef2ab33c`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+- `writer-regression-tasks-v1`: `mise exec -- node tests/ui/tasks_browser.mjs`、2026-10-28T13:41:16.301763+00:00→2026-10-28T13:41:24.188684+00:00、exit 0、7.886921s、unittest/counts []、Node []。metadata SHA-256 `1d1416cdfd72625f09db065aa351ebc325b5f056042292b9dbd9adcab815d849`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+
+### 独立レビュー ラウンド1 結果・正式終了
+
+- 2026-10-28T14:01:52.943288+00:00 `/root/ui09_review_r1` を正式close。全15path/745sourceとraw/logical indexの不変、所有資源終了を親が照合。`request_changes`、必須P2 3件、任意1件。
+- `/tmp/ba-ui-09-review-r1-report.md` SHA-256 `cbfb3c862b92b0e98f405b42230de21adee7233f27ccdc7a872e8bf7d9c2828a`。
+- `/tmp/ba-ui-09-review-r1-result.json` SHA-256 `4e68ce24fd38116bff0c3c8d9673b3a3f8a32e643c2231c4a824719088b3bfaf`。
+- `/tmp/ba-ui-09-review-r1-closure.json` SHA-256 `5b35cfb50b19df2e065037a65f016c2bd3abfeeac5e6018b7100ebee64d42ebe`。
+- `/tmp/ba-ui-09-review-r1-final-source.json` SHA-256 `dc85104c93338382f2550b35d4baf6305a05198b3ecef749b60c18d7f9148bea`。
+- UI09-R1-01: 台帳intentによる正当な同一versionのsuspendedを拒否し、旧activeを残す。通常versionと現在認可状態を区別し、古い応答・越境・不正DTO拒否を維持して修正する。
+- UI09-R1-02: 応答不明後のretry429で元の要求/keyを失う。以前の受付は未確定なので、同一body/keyを維持し、待機と安全な照合を案内する。
+- UI09-R1-03: 同じuser/tenantのowner→adminまたはtenant metadata変更で応答不明要求/keyを失う。初回確認のやり直しと送信済み操作の照合を区別し、member降格・tenant/UID切替・dispose消去を維持する。
+- 任意O1: 後継pairing成功時に旧revokedIdを消して重複再登録導線を整理する。元実装担当へ対応または見送り理由を依頼。204後の旧行除去は未知versionを捏造しない設計として必須指摘にしない。
+- 独立27case成功。追加3controller probeと実repository/DTO probeは不具合を再現する観測assertionの成功であり、修正後の期待動作合格ではない。初回backend probeはTestClient起動待ちを所有者が終了してchild143、成功と区別する。
+- 既存通常検証Python1306+Skill18+Node347、check、UI09 Chromium14状態、既存UI02..08 7suite、実API/Auth/Firestore＋同等device serviceの1caseは成功。UI09固有の同等service条件を充足、物理Pi・スマホ・systemd/Cage・媒体消去は未検証。
+- 元担当で修正後、新しい独立R2が最新差分全体を確認する。UIのみ変更なら不変Python/Skill範囲の成功は再利用し、最新Node全件・check・影響画面・同等serviceを再検証する。
+- `review-r1-actual-dto-probe`: `mise exec -- node /tmp/ba-ui-09-review-r1-actual-dto-probe.mjs`、2026-10-28T13:49:05.929650+00:00→2026-10-28T13:49:06.059611+00:00、exit 0、0.129961s、unittest/counts []、Node []。metadata SHA-256 `eccfe26f1a349423f95859b7b23e93b4ad215a94e13b385abfd608b539b383a3`、raw SHA-256 `51270604b7e5cc844cae07367d3e23904ae66a35997a2357bc996922d4ea3e5d`。
+- `review-r1-backend-pair-probe`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-ui-09-review-r1-backend-pair-probe.py`、2026-10-28T13:49:06.059762+00:00→2026-10-28T13:49:06.968196+00:00、exit 0、0.908434s、unittest/counts []、Node []。metadata SHA-256 `f639d937361b7ee827b1db641e1d65974efe9185e07102a17721568212112c8f`、raw SHA-256 `d9e707e6ea5f074ecc170e7e0c8a3c9ca7503dcb273e728bb3be7abf2736578c`。
+- `review-r1-backend-probe-v2`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-ui-09-review-r1-backend-probe-v2.py`、2026-10-28T13:47:37.117218+00:00→2026-10-28T13:47:37.990088+00:00、exit 0、0.87287s、unittest/counts []、Node []。metadata SHA-256 `e812317d176b80d850c999cb696299e1b92ac5529432603513e6eac5233b0bc1`、raw SHA-256 `d69728a4e55c116d82b1c16e339988a113aad068c1a3a098f6b0a2bb195c2810`。
+- `review-r1-backend-probe`: `mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-ui-09-review-r1-backend-probe.py`、2026-10-28T13:45:05.649516+00:00→2026-10-28T13:47:20.161925+00:00、exit 143、134.512409s、unittest/counts []、Node []。metadata SHA-256 `6213ff23c87e49ec0805a68839248170442f4c711f9a8a2a519c04a9f5150175`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- `review-r1-probes`: `mise exec -- node /tmp/ba-ui-09-review-r1-probes.mjs`、2026-10-28T13:47:20.162087+00:00→2026-10-28T13:47:20.338291+00:00、exit 0、0.176204s、unittest/counts []、Node []。metadata SHA-256 `7d55045a29ed490c7d43281ffb54719750d701c2e587f84709d1af663164db00`、raw SHA-256 `567f84aa8ca010cceb1f0ad720bd2b35776bf121c28065999221da73797a88b1`。
+- `writer-r2-unit-v1`: `mise exec -- node tests/test_ui_devices.mjs`、2026-10-28T14:12:06.805153+00:00→2026-10-28T14:12:08.753020+00:00、exit 1、1.947867s、unittest/counts []、Node ['ℹ tests 47']。metadata SHA-256 `e29147f44132a58d0d202a6b36fdeb25cea707d1c5f8877849a2b7bf7848252b`、raw SHA-256 `6b51176c76dcec6bb7668d3100fb2d6f01e8b6330dd4e6195c29ccfde177ea08`。
+- `writer-r2-browser-v1`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T14:15:03.019789+00:00→2026-10-28T14:15:11.713598+00:00、exit 0、8.693809s、unittest/counts []、Node []。metadata SHA-256 `d92f534f0deb6adf8dcbec569f99d89164bce4cb1c13b930693776bd15277f57`、raw SHA-256 `ab98352e330be0657844a0381bf2e5da476cf4505075da834d13f3653d54769c`。
+- `writer-r2-check-v1`: `mise run check`、2026-10-28T14:14:54.716666+00:00→2026-10-28T14:15:27.380426+00:00、exit 0、32.66376s、unittest/counts []、Node []。metadata SHA-256 `cc0f48706e9e062bb72b3db87c8465f4f25ea70c7198db9022e1081a17ccf346`、raw SHA-256 `c3719e020e86590c776d22f3e63cea785df35b12c411c00d383022f2ccd536d1`。
+- `writer-r2-node-v1`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs`、2026-10-28T14:14:24.150989+00:00→2026-10-28T14:14:41.024161+00:00、exit 0、16.873172s、unittest/counts []、Node ['ℹ tests 367']。metadata SHA-256 `87f256f5474af0151211a753883805d1ae5a7fd65821720096afcb4d88d779e5`、raw SHA-256 `7d4c9056afc83a0c7a778e2d7f25e21bd22601183549a06c16e087cb631e1cb8`。
+- `writer-r2-types-v1`: `mise exec -- pnpm --filter @brainoid-internal/ui typecheck`、2026-10-28T14:13:58.427968+00:00→2026-10-28T14:13:59.567717+00:00、exit 0、1.139749s、unittest/counts []、Node []。metadata SHA-256 `8bbb5e974080f0b821623335168be55111c34d56be6d9cddd721d88d9ac2cef1`、raw SHA-256 `5ab2254a8fc792807b32a862227e4ed6e33f0ecbcfa9e9c595bf199636cd71ec`。
+- `writer-r2-equivalent-v1`: `bash /tmp/ba-ui-09-writer-emulator-command.sh`、2026-10-28T14:16:13.875369+00:00→2026-10-28T14:16:29.150665+00:00、exit 0、15.275296s、unittest/counts ['Ran 1 test in 7.003s']、Node []。metadata SHA-256 `ca6c81e4645081729dbdfc3e09ecaacbd69ba85f46527377a7dd9132fd584bff`、raw SHA-256 `353d92369eea3519513fcc9d4bfecdb498fce314dc5379711d2ad9fc96e50ef2`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui09_review_r2`（新規独立context）。base commit: `e4aa7535aa390ff190711c60a44e1ea50054969b`。
+- 未追跡を含む最新全15files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `docs/device-ui.md` | `2e2415babdb5c8351f188bdc1901b3b7eb36d75ba5a79bfa36e6b82bc329c8ad` |
+| `docs/devices.md` | `c5867bafda83946c40a86f1f50e98a7e784c11ab47d0426db75ef1247f0fd498` |
+| `mise.toml` | `db262de01858aa990b2e735bd7e53c4891a527dea8970ffd65b9e5f0a4d20f23` |
+| `packages/ui/src/devices/contracts.ts` | `68386b804beaadf3acaf52c46baf37c2951ead5735150da9f29d259a909eba01` |
+| `packages/ui/src/devices/controller.ts` | `faa6b26fd9493ace2b3a40c2d6c09a08a69bf3b4ffb934f07946f2c27b46ab7a` |
+| `packages/ui/src/devices/fixture.ts` | `3f417fafe6de3f8bf0202c4ab64cc961564dcb227ce5eeb05de8162c37572463` |
+| `packages/ui/src/devices/view.tsx` | `6be061d2d88216fe35fc7ae62cf9d3971c38dc5ff569fd6497b84f08cff9b646` |
+| `packages/ui/src/session-fake.tsx` | `e6db68859db7a2ce5c683312c4e2a2ee8bc3f97165dabc531801b93a4d98eade` |
+| `packages/ui/src/session-fixture.ts` | `759aa2f1f0aca2bad68d4faaef87a71d11d84669df4df1dfd8234e74a89f2731` |
+| `packages/ui/src/session-view.tsx` | `90afebaece221b6d324f07a7ce043cd6b5e1a307c97921a75dfa7d59443a6a4f` |
+| `packages/ui/src/styles.css` | `2e05324976b4e8672b5e0484ac14f42fd8116e95de88630c11fc54cc6f04b08a` |
+| `tests/emulator/test_ui_devices_integration.py` | `db6dffeef1d76384640985e9b7b513241af4d5311010df3a2458ac5984cc636a` |
+| `tests/test_ui_devices.mjs` | `35097f370ea0788d3e88ac5178aa7cb60953d43b70524e63751e16cf5456b15d` |
+| `tests/ui/devices_browser.mjs` | `4e91ab450fdac9d3e65a7b04fb8471bd2b993721e3d06db9f9ad735efccfbff6` |
+| `tests/ui/devices_emulator.mjs` | `8ef9c546ec9e663c21b17f45ca42fdee3303fac9cdc614063ceb832a54913ccd` |
+- `writer-r2-browser-v2`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T14:19:29.435214+00:00→2026-10-28T14:19:37.614668+00:00、exit 0、8.179454s、unittest/counts []、Node []。metadata SHA-256 `8b4af8af7649669fffd56caae4c8b8101f5fa047e6ae43ca296a1cb0d904ba0c`、raw SHA-256 `ab98352e330be0657844a0381bf2e5da476cf4505075da834d13f3653d54769c`。
+- `writer-r2-check-v2`: `mise run check`、2026-10-28T14:19:21.621618+00:00→2026-10-28T14:19:54.064152+00:00、exit 0、32.442534s、unittest/counts []、Node []。metadata SHA-256 `76cc406e2e2034e236ed4ad840e9c9e94807df31ad74014ab2a497b9a5b2cf03`、raw SHA-256 `1a06e868327c787ab6a807f34310fde2f82ca68bd46cc7127f2616798270c670`。
+- `writer-r2-node-v2`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs`、2026-10-28T14:18:29.848541+00:00→2026-10-28T14:18:46.752960+00:00、exit 0、16.904419s、unittest/counts []、Node ['ℹ tests 368']。metadata SHA-256 `ec0c850c591914ad536ec3f0279eb394efd828bd9196fcff5d3bf224c6abfcc5`、raw SHA-256 `b7259593d9485dd748b3e8433ada7f701d65b067fa1659bbf63b307711de905c`。
+- `writer-r2-equivalent-v2`: `bash /tmp/ba-ui-09-writer-emulator-command.sh`、2026-10-28T14:20:37.801637+00:00→2026-10-28T14:20:52.308545+00:00、exit 0、14.506908s、unittest/counts ['Ran 1 test in 6.812s']、Node []。metadata SHA-256 `15c3a32e990bef82115e929a8d7e821295736db525f64905e3c01711ebed15b7`、raw SHA-256 `9af5ae6bb3932eab4190d2c862534ebe44a47ab6023fbfab8af79b7e39533000`。
+
+### R2修正・最終検証の固定
+
+- 2026-10-28T14:26:37.627982+00:00 元実装担当の修正・検証終了。R1必須3件と任意O1の対応表 `/tmp/ba-ui-09-writer-r2-handoff.json` SHA-256 `e517645a258fe023aa6fbfb27922bd8ee263923a357ca041df4a480d46ff5452`。製品を凍結し新規 `/root/ui09_review_r2` が全15pathをレビュー中。
+- 変更はR1から6path: UI09 controller/view/fixture、Node回帰、実同等service用Chromium、device-ui文書。739sourceは不変。認可台帳のintent/commit失敗から実DTOを生成し、同一metadata versionの停止、認可版/gen進行、旧active拒否、復旧と部分page後続失敗を追加検証。
+- 応答不明後429/409/410は元の操作とkeyを保持し、待機または明示的照合を案内。現在still-managerの場合は同user/tenantの既存要求を照合し、初回未送信の確認無効化・member降格・UID/tenant切替消去を区別する。replacement成功で一致する旧revokedIdを解除。
+- 最終同一745sourceで全Node368（UI09 48）、mise checkと両production build、Chromium14状態、実API/Auth/Firestore＋同等device service1caseすべてexit0。最終4runのbefore/after、index、raw SHAを親audit `/tmp/ba-ui-09-parent-validation-audit-r2.json` SHA-256 `c3af04868f5b7559775bdf023e41cacd639419e38b0ebe61f97ff1b598dd4150` で照合。所有session実終了回収済み、host全試験ports閉鎖、所有PID/listener残存0。
+- 実同等serviceでは実201応答を喪失させ、次の429だけbrowser境界で注入してから同key/bodyで実APIのreceiptを再取得。実rate limiterの実行とは呼ばず、R1の実repository rate probeと区別。親は最終429待機・登録完了画像2枚をoriginalで閲覧。
+- Python1306＋Skill18と既存7画面回帰はR1成功を不変scopeに限定再利用。Python全file・dependency/task・sharedSession/style・他ドメインcontrollerと回帰scripts不変。以前の通常testがR2全体mapで実行されたとは扱わない。
+- R2初回47caseの失敗はfake許可変更応答が認可版/genを増やさない不整合2件とsandbox子process EPERMを含む。fixtureを実契約へ合わせ、EPERMをtestで握り潰さずhostで最終成功を確認。失敗記録は保持。
+- `review-r2-probes`: `mise exec -- node /tmp/ba-ui-09-review-r2-probes.mjs`、2026-10-28T14:26:51.241254+00:00→2026-10-28T14:26:51.455971+00:00、exit 0、0.214717s、unittest/counts []、Node ['ℹ tests 5']。metadata SHA-256 `ef75da9d514357e4f32008276bc946978929e06eebaaef156d0cad7c4f1e2b05`、raw SHA-256 `e7bdfa6251e624997ee8e4e1f3c4d56153d4c055d7a7b901bbeac0697c5a7612`。
+- `review-r2-unit`: `mise exec -- node tests/test_ui_devices.mjs`、2026-10-28T14:23:36.853492+00:00→2026-10-28T14:23:38.320579+00:00、exit 0、1.467087s、unittest/counts []、Node ['ℹ tests 48']。metadata SHA-256 `6f32b7891503c41ddd964411df78ab56b74561516c743b3d4394ddecc53bd2e0`、raw SHA-256 `385818b33da30c18000b7a49bea146e36cd64f88e4f16d5e2df3956479a489e9`。
+
+### 独立レビュー ラウンド2 結果・正式終了
+
+- 2026-10-28T14:34:26.592512+00:00 `/root/ui09_review_r2` の全15path/745sourceレビューを親が正式close。`approve`、必須0・任意0。R1必須3件とO1はすべてresolved。製品・index不変、全所有実行終了を照合。
+- `/tmp/ba-ui-09-review-r2-report.md` SHA-256 `f2fe05845370c62f9ee568765464341869e2ca6cfd192f6696681caab1a7cd2f`。
+- `/tmp/ba-ui-09-review-r2-result.json` SHA-256 `ef241aa0796562fe847a7c7fda8067d7061d037ab8b9401cc3b580f8418989ca`。
+- `/tmp/ba-ui-09-review-r2-closure.json` SHA-256 `86d68b886019aa3b9ee906159d588973476db5d09cc4636e15b3bfdc753b09cb`。
+- `/tmp/ba-ui-09-review-r2-final-source.json` SHA-256 `15ea95e5ff7f45f169727e54ac141dfe44a69e36ddfa3f9f1e391e4c7e556d8f`。
+- 独立実行48case＋追加5probe成功。role/name/version変更と429の複合、tenant切替後の遅延receipt、部分page503/不正DTO/旧active重複と復旧を確認。最新供給4runと不変範囲のPython/Skill/既存7画面回帰を独立に照合し、最新19画像をoriginalで確認。
+- 登録先の明示確認、owner/admin管理、期限切れ・再使用・越境拒否、current認可と消去、quoted If-Match/同一key再確認、再登録、秘密非露出、クラウド失効と物理消去の区別を承認。UI09自身の同等device service条件での完了範囲とし、実Pi・物理スマホ・systemd/Cage・実電源断/媒体消去・実cloud/providerは未検証のまま保持。
+
+### 完了・実装コミット
+
+- 2026-10-28T14:34:49.470417+00:00 BA-UI-09をローカル実装範囲でdoneへ更新。独立レビュー2回、最終approve、未解決必須指摘0。
+- 実装コミット: `347cbafb8da308d92b52fd714b808412fbec44ff`（`feat(ui): BA-UI-09 add device pairing and permission management`）。全15pathのcommit内容が承認manifestとbyte一致し、hook等の追加変更なし。
+- 総完了数65/96。物理Pi/スマホ・実cloud/providerは未検証のgateとして保持。完了台帳を含むcheck後に記録コミットを作成する。
+- `parent-post-done-check`: `mise run check`、2026-10-28T14:34:54.312711+00:00→2026-10-28T14:34:58.809736+00:00、exit 0、4.497025s、unittest/counts []、Node []。metadata SHA-256 `70d6c8f007f2dc7a64c60e22dbe6da4e91aae46fdd26fe74bef7e71135862feb`、raw SHA-256 `003300a3b55fd8aaed430de822709ac15577ad19d8d23dc3261b8d0d16006433`。
+- 完了台帳を含む親post-done checkも実child/tool0。親所有session9559の終了を回収し、承認source745/index不変、所有child/listener終了を確認。raw SHA-256 `003300a3b55fd8aaed430de822709ac15577ad19d8d23dc3261b8d0d16006433`。記録差分は台帳と本ログだけ。
