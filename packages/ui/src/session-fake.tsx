@@ -1,3 +1,4 @@
+import type { ChatScenario } from "./chat/fixture.ts";
 import { useState } from "react";
 import { type SessionContext, SessionController } from "./session.ts";
 import { createSessionFixture } from "./session-fixture.ts";
@@ -22,6 +23,30 @@ export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            会話イベント
+            <select
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.chat.controls.scenario = event.target.value as ChatScenario;
+              }}
+            >
+              <option value="normal">通常の回答</option>
+              <option value="reconnect">切断と重複再開</option>
+              <option value="expired">履歴期限切れ 410</option>
+              <option value="gap">seq 欠番</option>
+              <option value="waiting">確認待ち</option>
+              <option value="failed">run 失敗</option>
+              <option value="unknown">家電の結果不明</option>
+              <option value="tools">操作の受付・成功・失敗</option>
+              <option value="revoked">表示権限の失効</option>
+              <option value="fast_tools">worker先行完了・操作結果</option>
+              <option value="fast_unknown">worker先行失敗・結果不明</option>
+              <option value="disconnect_tools">切断中に完了・操作結果</option>
+              <option value="read_failure">切断後の状態取得503</option>
+              <option value="message_failure">切断後の履歴取得503</option>
+            </select>
+          </label>
           <label className="checkbox-label">
             <input
               type="checkbox"

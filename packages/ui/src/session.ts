@@ -66,10 +66,11 @@ export class SessionContext {
           cache: "no-store",
           redirect: "error",
         });
+        request.signal.throwIfAborted();
         // Keep the request body for the one authorized retry, including its idempotency key.
         const retry = request.clone();
         let response = await transport(request);
-        await this.checkResponse(response);
+        await this.checkResponse(response, request.signal);
         if (response.status === 401) {
           await response.body?.cancel();
           let token: string;
@@ -77,13 +78,15 @@ export class SessionContext {
             token = await options.token(true);
           } catch (error) {
             this.assertCurrent();
+            request.signal.throwIfAborted();
             options.denied(401);
             throw error;
           }
           this.assertCurrent();
+          request.signal.throwIfAborted();
           retry.headers.set("Authorization", `Bearer ${token}`);
           response = await transport(retry);
-          await this.checkResponse(response);
+          await this.checkResponse(response, request.signal);
         }
         if ([401, 403, 404].includes(response.status)) options.denied(response.status);
         return response;
@@ -91,9 +94,10 @@ export class SessionContext {
     });
   }
 
-  private async checkResponse(response: Response): Promise<void> {
+  private async checkResponse(response: Response, signal: AbortSignal): Promise<void> {
     try {
       this.assertCurrent();
+      signal.throwIfAborted();
     } catch (error) {
       await response.body?.cancel().catch(() => {});
       throw error;

@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
+import { Chat } from "./chat/view.tsx";
 import { Frame, StateCard } from "./components.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
 
@@ -58,6 +59,9 @@ export function SessionApp({
         <p className="card" role="alert">
           {state.message}
         </p>
+      )}
+      {state.context && (
+        <Chat key={state.context.generation} context={state.context} surface={surface} />
       )}
       {state.phase === "starting" ? (
         <StateCard state="loading" title="認証を確認しています">

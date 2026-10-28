@@ -16,6 +16,14 @@ export type StreamRunEventsOptions = Omit<
   "onRequest" | "sseDefaultRetryDelay" | "sseMaxRetryAttempts" | "sseMaxRetryDelay"
 >;
 
+export class RunEventsFailure extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(`SSE failed: ${status}`);
+    this.status = status;
+  }
+}
+
 /** One connection per call; failure rejects the iterator so callers can reauthenticate. */
 export async function streamRunEvents(
   options: StreamRunEventsOptions,
@@ -35,7 +43,7 @@ export async function streamRunEvents(
       });
       if (!result.response) throw result.error;
       if (!result.response.ok) {
-        throw new Error(`SSE failed: ${result.response.status} ${result.response.statusText}`);
+        throw new RunEventsFailure(result.response.status);
       }
       if (result.error !== undefined) throw result.error;
       if (!result.response.body) throw new Error("No body in SSE response");

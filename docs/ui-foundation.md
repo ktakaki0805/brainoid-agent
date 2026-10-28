@@ -1,6 +1,6 @@
 # 共有UIとモバイル・ディスプレイの起動
 
-BA-UI-01 / FR-004 の画面基盤。Reactの状態・エラー・確認カードは `packages/ui`、独立したVite entryは `apps/mobile` と `apps/display` にある。認証・tenant選択は [BA-UI-02](ui-authentication.md) が提供する。会話、録音、個人／共有の表示、SSE再接続は後続チケットであり、この基盤はそれらの完了を表さない。AC-004全体の受入には後続機能の検証が必要。
+BA-UI-01 / FR-004 の画面基盤。Reactの状態・エラー・確認カードは `packages/ui`、独立したVite entryは `apps/mobile` と `apps/display` にある。認証・tenant選択は [BA-UI-02](ui-authentication.md) が提供する。文字会話・個人／共有の表示・SSE再接続・2D状態表示は [BA-UI-03](ui-conversations.md) が提供する。録音・音声操作・実Piへの接続は後続チケットであり、Web UIの検証はそれらの実機受入を表さない。
 
 ## 起動とビルド
 
@@ -19,7 +19,7 @@ BA-UI-01 / FR-004 の画面基盤。Reactの状態・エラー・確認カード
 
 開発サーバーはCtrl-Cで終了する。buildは型検査を兼ねないため、変更後は `mise run check` も実行する。fake bundleをローカル確認する場合は、対象packageで `preview --outDir dist-fake --port 4173`（displayは4174）を実行する。fake成果物を配布用 `dist` へコピーしない。
 
-BA-UI-01時点の通常buildは接続先未設定の画面で停止する。現在のmobile通常entryは [認証設定](ui-authentication.md#設定と実接続)を使用し、display通常entryは復旧画面を提供する。`--mode fake` の場合だけ体験画面とfake transportを取り込む。tokenやfake切替をquery stringから読まない。現在のfake entryは [認証と切替の検証画面](ui-authentication.md)であり、以下の旧状態プレビュー部品も `/preview` として保持する。画面の「表示の確認」から空・読み込み・エラー、長い確認内容を操作できる。読み込みは10秒でエラーに移り、再試行できる。体験画面の確認ボタンはローカル表示だけを変え、業務データの保存や送信はしない。
+BA-UI-01時点の通常buildは接続先未設定の画面で停止する。現在のmobile通常entryは [認証設定](ui-authentication.md#設定と実接続)を使用し、display通常entryは復旧画面を提供する。`--mode fake` の場合だけ体験画面とfake transportを取り込む。tokenやfake切替をquery stringから読まない。現在のfake entryは [認証と切替](ui-authentication.md)および[会話イベントの検証画面](ui-conversations.md)であり、以下の旧状態プレビュー部品も `/preview` として保持する。画面の「表示の確認」から空・読み込み・エラー、長い確認内容を操作できる。読み込みは10秒でエラーに移り、再試行できる。体験画面の確認ボタンはローカル表示だけを変え、業務データの保存や送信はしない。
 
 ## 接続と端末の境界
 
