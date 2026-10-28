@@ -13917,3 +13917,161 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 受入FR-012/AC-012とT-020/T-021/T-035は上記の現行・不変scope再利用検証および独立レビューで確認。実機/native/audio/外部provider未実施の範囲は前節どおり。記録更新後の親checkと記録commitを続ける。
 
 - 記録前親検証 `2026-10-28T17:19:14.865040+00:00`–`2026-10-28T17:19:20.348786+00:00`: `mise run check` child/tool exit0（session54593回収済み）。758source=承認freeze、raw/logical index実行前後同一、所有子プロセス・listener残留0。raw `/tmp/ba-ui-10-parent-done-check.log` SHA-256 `fc6f46476eea0a7db4068ac57a18b0fd15ae58c429c04818177d252cf646c714`。既知warning3件を除きcheck成功、記録差分確認後に記録commit。
+
+## ba-ui-11-20261028t172041z
+
+- チケット: BA-UI-11 会員・招待・role・利用量の管理画面
+- 状態: in_progress
+- 開始: 2026-10-28T17:20:41.350563+00:00
+- ブランチ: main / base commit: `4d8c90401991737039559ed452dc1c6aa980d7bd`。開始時clean。依存4件doneと実装commitの現履歴を確認。
+- 実装担当予定: `/root/ui11_implementation`（独立context、sole writer）。親は台帳/log/commit、各回新規独立レビューを担当。
+- 対応: FR-002/015、T-002/033/034。招待・会員・role・owner移譲、最後owner案内、role別利用量。管理権限と他人private閲覧を分離、旧権限画面の失効、確認/競合/結果不明/再認証の境界を検証。
+- 外部前提なし。UI11自身のrole別fixture/fake/emulator許容に従う。UI07の実機release gate例外は他ticketへ拡張しない。権限台帳・利用量計算は既存APIを使用、push/PR/deploy・実外部書込なし。
+
+### 実装中の検証記録（初回）
+
+- types1 `2026-10-28T17:27:32.303327+00:00`–`2026-10-28T17:27:33.988382+00:00`: `mise exec -- pnpm run typecheck` writer記録child exit 1。raw `/tmp/ba-ui-11-writer-types1/stdout.log` SHA-256 `5b9f47e1a45a95d0099ff3e7625ed61b484e1a4adacee9ed45ae5c54aacdcaea`。
+- types2 `2026-10-28T17:29:05.267886+00:00`–`2026-10-28T17:29:07.826108+00:00`: `mise exec -- pnpm run typecheck` writer記録child exit 0。raw `/tmp/ba-ui-11-writer-types2/stdout.log` SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+- unit1 `2026-10-28T17:30:39.040307+00:00`–`2026-10-28T17:30:39.344029+00:00`: `mise exec -- node --test tests/test_ui_tenant_settings.mjs` writer記録child exit 0。raw `/tmp/ba-ui-11-writer-unit1/stdout.log` SHA-256 `0e7216546e122809de3e09ec3d954ad6581a7638bdd9f1190f31f9ae894d10bf`。
+- browser1 `2026-10-28T17:32:38.637127+00:00`–`2026-10-28T17:32:39.365121+00:00`: `mise exec -- node tests/ui/tenant_settings_browser.mjs` writer記録child exit 1。raw `/tmp/ba-ui-11-writer-browser1/stdout.log` SHA-256 `21d89bc54b69ffc86562b1cea9b44c518879f23e0b03dbd8b2cfd181e6d58b5b`。
+- types1のunion generic型エラーは修正しtypes2成功。unit1はsandboxの1 testfile出力であり実case数は未採用。browser1失敗は修正・再検証待ち。実tool session回収・source一致・所有資源終了は最終handoffで照合し、途中結果を最終承認と扱わない。
+
+- browser1のexit1はsandbox localhost起動制限。writerによる同実装のhost scope再実行browser2 `2026-10-28T17:32:49.970906+00:00`–`2026-10-28T17:32:52.995313+00:00` `mise exec -- node tests/ui/tenant_settings_browser.mjs` child exit0。raw `/tmp/ba-ui-11-writer-browser2/stdout.log` SHA-256 `f5e61b34a2cebc9725bcef0c843f083bb68805ee2463c6973d5699b4842cbbbf`。owner招待/admin境界/member上限/再認証revoke/lost transfer後memberでexact replay/tenant未選択招待受諾の6シナリオ。実API・Auth/Firestore結合は次工程であり、このfake browser成功とは区別する。
+- 実装中の親観測: reauthがSession SDK queue外だったため、並行signout後のcredential復活を防ぐ直列化と世代境界をwriterへ連絡。writerも同懸念を確認し修正・回帰検証へ。これは正式独立review roundには数えない。
+
+### 全体check・初回emulator結合（途中結果）
+
+- check1 `2026-10-28T17:35:00.599487+00:00`–`2026-10-28T17:35:33.013476+00:00`: `mise run check` writer記録child exit 0。raw `/tmp/ba-ui-11-writer-check1/stdout.log` SHA-256 `58631be9477df23044b6733cd1e80dbd72e78c2a9c59ad6d7ebbea7923fdcdc1`。
+- emulator1 `2026-10-28T17:34:59.413200+00:00`–`2026-10-28T17:35:41.545774+00:00`: `/usr/bin/python3 /tmp/ba-ui-11-writer-emulator.py` writer記録child exit 1。raw `/tmp/ba-ui-11-writer-emulator1/stdout.log` SHA-256 `4d522ec39353473f1382dc008e426ce7d6d5d292de4cb3b175291b9fc03d8648`。
+- emulator2 `2026-10-28T17:36:41.152815+00:00`–`2026-10-28T17:36:56.123659+00:00`: `/usr/bin/python3 /tmp/ba-ui-11-writer-emulator.py` writer記録child exit 1。raw `/tmp/ba-ui-11-writer-emulator2/stdout.log` SHA-256 `15febe350df0599737e8c1e52f5f920045546e8c904744d036c33382cd48f35e`。
+- check1成功。emulator1はcontroller/browserの2試験失敗。emulator2は実Auth/Firestore/APIを使うproduction mobile browser3シナリオ成功、controller tenant-list境界が失敗し全体exit1。成功した一部だけで結合全体を成功とは扱わない。最終修正/再実行と実tool回収は後続に記録する。
+
+- emulator途中失敗のwriter切分け: 初回production mobileのランダムAPI portは既存auth-configのemulator固定8000契約に反し準備画面へ留まった。harnessを8000へ修正後browser成功。controllerはsignInが非同期開始するloadTenants完了前のassertionで、明示loadTenants待機へ修正。別途製品self-checkではA→B→Aの遅いmutation/reauth結果を選択世代で拒否し、native再認証の最終await後も世代再確認を追加。最終check/Node/結合を変更後mapで確認する。
+
+- 親はbrowser4のowner-settings/member-settings/lost-transfer/reauthenticationの4section画像を実際に閲覧。role別集計・移譲後memberのexact回復・再認証フォームを確認。390pxで会員操作4ボタンが圧縮され英字が縦に折れるため、UI11 scoped配置の修正をwriterへ連絡。修正後画像/browserとcheckを再確認する。
+
+### 最終実装・検証とfreeze（独立R1前）
+
+- check4 `2026-10-28T17:46:12.982903+00:00`–`2026-10-28T17:46:45.145544+00:00`: `mise run check` child/tool実exit0（writer全yield回収報告）。raw `/tmp/ba-ui-11-writer-check4/stdout.log` SHA-256 `8d9b888cd36710a422221eef6d306e3488c4917e1a51dfbec0226e9485cb4212`。実行前後source一致。
+- browser5 `2026-10-28T17:46:15.127581+00:00`–`2026-10-28T17:46:18.901771+00:00`: `mise exec -- node tests/ui/tenant_settings_browser.mjs` child/tool実exit0（writer全yield回収報告）。raw `/tmp/ba-ui-11-writer-browser5/stdout.log` SHA-256 `17be058b79ab9a8a73c696176625218aa4a1b1edfca8365ccb6897700b0e2eb8`。実行前後source一致。
+- node-final2 `2026-10-28T17:44:14.070466+00:00`–`2026-10-28T17:44:31.416609+00:00`: `mise exec -- node --test --test-reporter=tap tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs tests/test_ui_private_sessions.mjs tests/test_ui_tenant_settings.mjs` child/tool実exit0（writer全yield回収報告）。raw `/tmp/ba-ui-11-writer-node-final2/stdout.log` SHA-256 `8453315aa4a046be2cf52e2079f2a3a4ae4725237314a9a020681771f115ec53`。実行前後source一致。
+- emulator4 `2026-10-28T17:44:59.133762+00:00`–`2026-10-28T17:45:25.059566+00:00`: `/usr/bin/python3 /tmp/ba-ui-11-writer-emulator.py` child/tool実exit0（writer全yield回収報告）。raw `/tmp/ba-ui-11-writer-emulator4/stdout.log` SHA-256 `8abbbb267b41a947a1c8cb0fc62dc11930a8a81010ee83f2345953c110f82b65`。実行前後source一致。
+- session-browser `2026-10-28T17:42:37.469693+00:00`–`2026-10-28T17:42:46.790118+00:00`: `mise exec -- node tests/ui/session_browser.mjs` child/tool実exit0（writer全yield回収報告）。raw `/tmp/ba-ui-11-writer-session-browser/stdout.log` SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。実行前後source一致。
+- devices-browser `2026-10-28T17:42:38.555339+00:00`–`2026-10-28T17:42:46.395370+00:00`: `mise exec -- node tests/ui/devices_browser.mjs` child/tool実exit0（writer全yield回収報告）。raw `/tmp/ba-ui-11-writer-devices-browser/stdout.log` SHA-256 `ab98352e330be0657844a0381bf2e5da476cf4505075da834d13f3653d54769c`。実行前後source一致。
+- check4とbrowser5は最終全766source一致。全Node471（UI11は36）、実Auth/Firestore/API結合2件（production mobile browser3段階を含む）は最終差がUI11 scoped CSSのみ。変更後browser5の6fixtureシナリオと画像で配置を検証。Session両surface/bfcacheとDevices14状態は後続差がUI11 last-owner判定/専用tests/CSSのみ、共有Session/Authは不変。
+- 通常Python1320/Skill18は旧正常実行の467入力とmise先頭2コマンド・通常Python集合の不変を親も照合してscope限定再利用。新emulator Pythonは通常discover対象外で明示結合2件で検証。現全mise test実行とは記録しない。
+- browser3失敗はharness見出しselectorが2見出しへ一致したため。h3へ限定しbrowser4/5成功。最後ownerは全page取得後に降格を止め、移譲を残す境界を追加。親はbrowser5 owner-settings画像でスマホのボタン配置改善を確認。
+- `/tmp/ba-ui-11-writer-handoff.txt` SHA-256 `401c6cedf9b002d93cc9606e5340c4eb43a708e13a103ebd2385988d6200b76e`。
+- `/tmp/ba-ui-11-writer-final-sources.json` SHA-256 `13dc5c79d9a667c016d2fa982dd2d33b25e27e3dc30dad77859fcd5b2b10e862`。
+- `/tmp/ba-ui-11-writer-validation-summary.json` SHA-256 `b49e272bf0c1890c7f48402fbbd9470274c05f799cb935d87cee425e622d81f8`。
+- `/tmp/ba-ui-11-writer-reused-scopes.json` SHA-256 `0e79e94bf0c22f11af413e05ccce79a9351a8429e93c592dec6342aa9d9a385a`。
+- `/tmp/ba-ui-11-parent-python-skill-reuse.json` SHA-256 `8dc84234ac9d70cf0a725c849ec6525678928b81407feb7e7f19e1c40885fd45`。
+- writer `/root/ui11_implementation` は編集/検証停止。全所有PID/birth終了、host listener一覧で試験用残留なし、全yielded tool実exit回収を確認。追加dependency/API/schemaなし。実cloud/native端末/provider未実施、UI11自身のfake/emulator受入範囲。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui11_review_r1`（新規独立context）。base commit: `4d8c90401991737039559ed452dc1c6aa980d7bd`。
+- 未追跡を含む最新全20files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/src/firebase-browser.ts` | `9b457b012acdb24b75e489b64aff97a7d0f77ba0a779dad99c25fee996aacebd` |
+| `apps/mobile/src/firebase-native.ts` | `f301ac662c81ae0e8a963470e4a49742ddc929468ee9e58809a71b2b9e69bb07` |
+| `docs/invitations.md` | `e123313554beb1f9fcea9ce978a5899ac717bebd14646984cc5cc792544d8495` |
+| `docs/memberships.md` | `8a3c30d00cb9a06c9e161f532cb6cb500121e7a7d5fb990be9cfc8ffe04881e1` |
+| `docs/ui-tenant-settings.md` | `9f125d36b57b46d2e0a554f2fdd85d9972b523e2b4a34cb4e172c271bddabedc` |
+| `docs/usage.md` | `4ae2a67b0c870bd6cfc9505a1072b0330621dd16032eae497e2b2f5805eeb05d` |
+| `mise.toml` | `a6057426e5b0a945f6d90bdf84a6e86f9692e96b6ff5187468884d1bc4f4661c` |
+| `packages/ui/platform/auth.ts` | `33f3a02463ebe299286c4f965b48f22df4ff94fcc99d380f594dc29f097ac005` |
+| `packages/ui/src/session-fake.tsx` | `528bbc98a51084076be71aaaeae95786d90703f16df0961af021f018ca5be753` |
+| `packages/ui/src/session-fixture.ts` | `e3f0e5fcfa99c08a05e44256bef1e88ae87e1df69771e9d8a92b239c80633209` |
+| `packages/ui/src/session-view.tsx` | `5ca570307de0197eff34c30763bb69a01775c3bcfe93dab3cae4a94346fc2c74` |
+| `packages/ui/src/session.ts` | `47a4ff6832ed3f01d0920803b41de39a61214df6170e39faae32bde5c5832168` |
+| `packages/ui/src/styles.css` | `3d1cb344eca70c4f8fe0991884f545de57370f5ca136ff16a50fa15eca897476` |
+| `packages/ui/src/tenant-settings/controller.ts` | `3e999b64992e7ebf46762d27759fd8b46bee7e6cdeea3478a66e6cc2b3bee5c8` |
+| `packages/ui/src/tenant-settings/fixture.ts` | `e7755b76a53f48b5345dc75037b639d8e4b5f38efef4baf928f44d2f9a773ad9` |
+| `packages/ui/src/tenant-settings/view.tsx` | `e6d1ff2ec152b7fab1e1dfd2be20a32a7e79ac1c592e3742f65376725f311b24` |
+| `tests/emulator/test_ui_tenant_settings_integration.py` | `b11e85cb2800d8ac63918117ef409f2d71ffa0f255a66d49ccbb9e9deef0e15e` |
+| `tests/test_ui_tenant_settings.mjs` | `c52e1ff1bc799ee21631f16f530a7099a05f87ea1cd11e9c40c09d137be1bfaf` |
+| `tests/ui/tenant_settings_browser.mjs` | `33e28e2ff2af8d4d7eb0c52dd2943def2a1febbad52fae32f13ab349d9eb8450` |
+| `tests/ui/tenant_settings_emulator.mjs` | `174abae8e07680f6ee929b5c48019a3fd46c59527c4704f77a3a5214e8984780` |
+
+- 親のreview準備helper初回はwriter `index_sha256` をraw indexと誤解してassertionで停止（台帳/log/manifest変更前）。実際は改行区切り `git ls-files --stage` のSHAであり保存済みfinal-index.txtと現在値が一致。v2でlogical比較を正し、raw/NUL-logicalを別に保存して成功。製品変更や検証失敗ではない。
+
+### 独立レビュー ラウンド1 結果・正式終了
+
+- 2026-10-28T18:03:01.646379+00:00 `/root/ui11_review_r1` の全20paths（新規8）レビューを親が正式close。`request_changes`、必須P2 1件、任意0。全766source/base/main/raw・logical index不変、owned tool53729 actual0回収/owned process group終了を照合。
+- `/tmp/ba-ui-11-review-r1-report.md` SHA-256 `19650614f2432e07958e38d98cb3482321fe62a350d04b0cc5939f6b0d67bdf0`。
+- `/tmp/ba-ui-11-review-r1-result.json` SHA-256 `208a9b03471219d2f94f02c9e21bf2fd51f3c7e7a64f3fc03c30646e74ff5dc9`。
+- `/tmp/ba-ui-11-review-r1-closure.json` SHA-256 `038690be40dc6bcb53a18c128e574e503a5282b5358b1cb9766f7597e854154c`。
+- UI11-R1-001: owner/admin GET usageはuser=Noneでtenant集計だけを返すが、画面とdocs/ui-tenant-settings.md/docs/usage.mdは全roleに本人/tenant最小枠・現在利用可能と説明していた。実API/UsageLedgerの独立3probeでuser.turns=0時にowner/admin GET available・残10000でも同本人POSTturn429、memberは0/exhaustedを再現。probe成功は不具合の存在を証明し、修正成功ではない。
+- 必須修正はrole別集計範囲に沿った表示と2文書整合、owner/admin本人枠到達/tenant余裕とmember対照の描画検証。API計算や個人明細APIの拡張不要。その他受入境界は実装・提供証跡・6画像で確認。
+- 独立担当は広範suiteを再実行せず、提供6runのraw/hash/source差とPython/Skill467入力不変を独立照合。元writerで修正・影響検証後、新規R2担当が最新全差分を再レビューする。
+
+### R1指摘の修正中・追加描画試験
+
+- r2-node1 `2026-10-28T18:06:15.079607+00:00`–`2026-10-28T18:06:16.378823+00:00`: `mise exec -- node --test --test-reporter=tap tests/test_ui_tenant_settings.mjs tests/test_ui_tenant_usage.mjs` writer記録exit1。raw `/tmp/ba-ui-11-writer-r2-node1/stdout.log` SHA-256 `dd66641419e2a6b36a9c6e18e8b7791ed0d09bc2040f579ed80bcceb2f53f68c`。
+- r2-node2 `2026-10-28T18:06:32.806457+00:00`–`2026-10-28T18:06:34.087175+00:00`: `mise exec -- node --test --test-reporter=tap tests/test_ui_tenant_settings.mjs tests/test_ui_tenant_usage.mjs` writer記録exit1。raw `/tmp/ba-ui-11-writer-r2-node2/stdout.log` SHA-256 `9606f07b54742493a7ad008e6d875a28929d1ad6f80557840414b7bf9a9d332d`。
+- 新規React描画テストへ実APIからrole別・本人月次/同時枠到達の入力を渡すfixtureを追加。node2はroot scripts importの参照パス不足で新規15件hook失敗、既存36件成功。修正・最終再実行待ちであり、新規境界の成功とは扱わない。
+
+### R1指摘対応・R2最終検証
+
+- UI11-R1-001対応: UsageCardでmemberの本人/tenant枠とowner/adminのtenantのみの枠を分け、quota3状態の説明を各scopeへ整合。管理者の本人利用可否を断定しない。関連2文書も実routeへ修正。controller/Auth/API/利用量計算はR1から不変。
+- r2-node3 `2026-10-28T18:07:12.479190+00:00`–`2026-10-28T18:07:14.492172+00:00`: `mise exec -- node --test --test-reporter=tap tests/test_ui_tenant_settings.mjs tests/test_ui_tenant_usage.mjs` child/tool実exit0。全768sourceの実行前後とfreeze一致。raw `/tmp/ba-ui-11-writer-r2-node3/stdout.log` SHA-256 `077615ceb2e2000a966f4dad0727d44ff8e79a390d1b41092145db522d62b99f`。
+- r2-browser1 `2026-10-28T18:07:31.147755+00:00`–`2026-10-28T18:07:36.151005+00:00`: `mise exec -- node tests/ui/tenant_settings_browser.mjs` child/tool実exit0。全768sourceの実行前後とfreeze一致。raw `/tmp/ba-ui-11-writer-r2-browser1/stdout.log` SHA-256 `be534509d3d76d2bb553b70c964dd0f3c3d033be43fce3192d1203e0ce4e990c`。
+- r2-check1 `2026-10-28T18:07:27.959712+00:00`–`2026-10-28T18:08:00.160330+00:00`: `mise run check` child/tool実exit0。全768sourceの実行前後とfreeze一致。raw `/tmp/ba-ui-11-writer-r2-check1/stdout.log` SHA-256 `2881fd6dde6a13ac3bb3f456fd275b5ff4b1eb7367526715224484990317bcbc`。
+- 現Node51=既存controller36+新React描画15。role×quota9と実API入力6（3role×本人月次/同時枠到達）で表示を確認。browserは既存6フロー+9表示状態、390px横overflowなし。親はowner available/admin exhausted/member limitedの3画像でscope文言と配置を確認。check全成功。
+- 旧Node471のうち435不変scopeを再利用、UI11の36は現行で再実行。旧emulator2は不変server/auth/receipt動作の証跡とし、変更表示は現実API入力6+React/browserで確認。現全486 Nodeや現production emulatorを実行したとは扱わない。Python1320/Skill18は467入力・先頭2argv・通常discover集合不変を親が再照合。新standalone Python fixtureは現Nodeから実行。
+- `/tmp/ba-ui-11-writer-r2-handoff.txt` SHA-256 `bf486d7f057fcb71f3f6e4e594e7b0f3e66694b663572aee48035033cd80c0fd`。
+- `/tmp/ba-ui-11-writer-r2-final-sources.json` SHA-256 `2aded14fe5a7f1b5cd4621dac278db8554dc5b778c16151010537b379ce121b2`。
+- `/tmp/ba-ui-11-writer-r2-closure.json` SHA-256 `817e493cb236e0d9bb1706f649f9c7ddbb0b9a08c14beaaf75209d467c9a6a8f`。
+- `/tmp/ba-ui-11-writer-r2-reused-scopes.json` SHA-256 `106203b505b4f0a42b3062434f204b7ed652f1a0cac4ddfbd2810de34250d994`。
+- `/tmp/ba-ui-11-parent-python-skill-reuse-r2.json` SHA-256 `e30d5af33f1e7a10a2f13a117ea35f41edec9274094ede89194bb017635b2308`。
+- 全22paths（新規10）/768sourceをfreeze。R1から7paths差分。writer所有PID/birth・tool・host試験listenerすべて終了、以後停止。fresh R2で修正箇所に限定せず全差分レビューする。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui11_review_r2`（新規独立context）。base commit: `4d8c90401991737039559ed452dc1c6aa980d7bd`。
+- 未追跡を含む最新全22files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/src/firebase-browser.ts` | `9b457b012acdb24b75e489b64aff97a7d0f77ba0a779dad99c25fee996aacebd` |
+| `apps/mobile/src/firebase-native.ts` | `f301ac662c81ae0e8a963470e4a49742ddc929468ee9e58809a71b2b9e69bb07` |
+| `docs/invitations.md` | `e123313554beb1f9fcea9ce978a5899ac717bebd14646984cc5cc792544d8495` |
+| `docs/memberships.md` | `8a3c30d00cb9a06c9e161f532cb6cb500121e7a7d5fb990be9cfc8ffe04881e1` |
+| `docs/ui-tenant-settings.md` | `c06cbd3eea45a1fc6125c97101b009c9b26675e60236f309d51ba5ca003d3efe` |
+| `docs/usage.md` | `8a9b955c7d52efc214d866264f7e01eaf9dfa1c57a112c32338cf4588b1a2623` |
+| `mise.toml` | `87234c797cbe35fbc559aee1aa7bdfd26eaa06a820e19bf1be1824959230ab17` |
+| `packages/ui/platform/auth.ts` | `33f3a02463ebe299286c4f965b48f22df4ff94fcc99d380f594dc29f097ac005` |
+| `packages/ui/src/session-fake.tsx` | `528bbc98a51084076be71aaaeae95786d90703f16df0961af021f018ca5be753` |
+| `packages/ui/src/session-fixture.ts` | `e3f0e5fcfa99c08a05e44256bef1e88ae87e1df69771e9d8a92b239c80633209` |
+| `packages/ui/src/session-view.tsx` | `5ca570307de0197eff34c30763bb69a01775c3bcfe93dab3cae4a94346fc2c74` |
+| `packages/ui/src/session.ts` | `47a4ff6832ed3f01d0920803b41de39a61214df6170e39faae32bde5c5832168` |
+| `packages/ui/src/styles.css` | `3d1cb344eca70c4f8fe0991884f545de57370f5ca136ff16a50fa15eca897476` |
+| `packages/ui/src/tenant-settings/controller.ts` | `3e999b64992e7ebf46762d27759fd8b46bee7e6cdeea3478a66e6cc2b3bee5c8` |
+| `packages/ui/src/tenant-settings/fixture.ts` | `e7755b76a53f48b5345dc75037b639d8e4b5f38efef4baf928f44d2f9a773ad9` |
+| `packages/ui/src/tenant-settings/view.tsx` | `a98ffc01d3302e4930193ec23b1509fdbc7a066a820870fb9e9a221ea80160ea` |
+| `tests/emulator/test_ui_tenant_settings_integration.py` | `b11e85cb2800d8ac63918117ef409f2d71ffa0f255a66d49ccbb9e9deef0e15e` |
+| `tests/test_ui_tenant_settings.mjs` | `c52e1ff1bc799ee21631f16f530a7099a05f87ea1cd11e9c40c09d137be1bfaf` |
+| `tests/test_ui_tenant_usage.mjs` | `71cf8ca90ba5419a17c7b9283b94f557ee1b1f9e16104968d7c52d861cd9a131` |
+| `tests/ui/tenant_settings_browser.mjs` | `8ca1c3e6ca3581af3942c1f6267c02cc358db12c5e5eb8534df6214f3b8928d0` |
+| `tests/ui/tenant_settings_emulator.mjs` | `174abae8e07680f6ee929b5c48019a3fd46c59527c4704f77a3a5214e8984780` |
+| `tests/ui/usage_scope_fixture.py` | `3101db843f110caf9b6278a810eafa406666e61b60146fd32563e8f9facf8124` |
+
+### 独立レビュー ラウンド2 結果・正式終了
+
+- 2026-10-28T18:25:23.411105+00:00 `/root/ui11_review_r2` の最新全22paths/768sourceを親が正式close。`approve`、必須0・任意1、UI11-R1-001解消。source/manifest/raw・logical index/base/main不変、全所有tool/PID/listener終了を照合。
+- `/tmp/ba-ui-11-review-r2-report.md` SHA-256 `a4312a8e211cffd547a4afb3bd3d6ff57c298910554889b5606981a5a7c24a40`。
+- `/tmp/ba-ui-11-review-r2-result.json` SHA-256 `a214cd09c4f2f42c99e2b41d537e327120c962d3fc3e838238bffb4ce769429a`。
+- `/tmp/ba-ui-11-review-r2-closure.json` SHA-256 `d1c821147844e4a4205eac6c6411c9df6e92e49a0ab4f0b623e2704d607a3e47`。
+- 独立actualAPI→React probe12件成功。本人枠到達に加えtenant月次/token/同時枠到達を3roleで検証。host child/tool0、raw SHA-256 `ada55e20ec9202bbccf394af0a59d943028e919e64059fab38fee225c21fcff0`。初回sandbox120秒timeout/exit1は失敗として保持し、namespace終了後のhost確認で残留0。現15画像を独立担当が実際に確認。
+- 現Node51/browser6+9/checkと、435 Node・Python1320/Skill18・実emulator2・Session/Devicesの不変scope再利用を独立照合。現在全mise test/全486 Node/production emulatorを一括実行したとの表現はしない。実機/cloud/providerの未実施範囲は上記どおり。
+- 任意UI11-R2-O1/P3は見送り: 変更外のspecs/openapi.yaml:3290と生成SDKコメントの既存min(user,tenant)説明はmanager tenant-onlyを区別していない。UI/今回の2文書と実動作は一致しruntime/wire回帰はないため、今回の承認済み機能とは分けて後続の契約説明整備へ残す。整備時は生成clientとcontracts/client・usage境界も確認する。
+
+### 完了結果
+
+- 2026-10-28T18:25:45.202203+00:00 実装コミット `306c68812e67f4ab9721ccf21979431f1722f036`。全22pathのindex/commit blobと承認SHAの一致を確認。独立レビュー2回、最終approve、未解決必須0。
+- 会員・招待・owner移譲・role別利用量、現在権限に基づく画面消去、再認証・exact未確定要求回復を実装。T-002/033/034、FR-002/015を上記現検証/不変scope再利用/独立12境界で確認。任意OpenAPI説明整備は前節の理由で後続に残す。記録更新後の親checkを続ける。
+
+- 記録前親検証 `2026-10-28T18:25:45.246792+00:00`–`2026-10-28T18:25:49.900718+00:00`: `mise run check` child/tool exit0（session96190回収済み）。768source=承認freeze、raw/logical index実行前後同一、所有子プロセス・listener残留0。raw `/tmp/ba-ui-11-parent-done-check.log` SHA-256 `aa8c2bec3b6ef3db06944df56af953eeb5e2c0eaa992eff0c6957a0590f69d46`。既知warning3件を除きcheck成功、記録差分確認後に記録commit。
