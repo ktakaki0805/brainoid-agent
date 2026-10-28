@@ -819,3 +819,27 @@ textarea:focus-visible {
 .note-body {
   white-space: pre-wrap;
 }
+
+.tasks {
+  margin-top: 28px;
+}
+.tasks fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.tasks label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.tasks input,
+.tasks select {
+  width: 100%;
+  min-width: 0;
+}
+.tasks .button {
+  margin-top: 8px;
+}

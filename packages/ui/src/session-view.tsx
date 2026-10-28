@@ -5,6 +5,7 @@ import { Frame, StateCard } from "./components.tsx";
 import { Memories } from "./memories/view.tsx";
 import { Notes } from "./notes/view.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
+import { Tasks } from "./tasks/view.tsx";
 
 export function browserNavigation() {
   return {
@@ -75,6 +76,13 @@ export function SessionApp({
       {state.context && (
         <Notes
           key={`notes:${state.context.generation}`}
+          context={state.context}
+          surface={surface}
+        />
+      )}
+      {state.context && (
+        <Tasks
+          key={`tasks:${state.context.generation}`}
           context={state.context}
           surface={surface}
         />

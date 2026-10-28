@@ -1,6 +1,6 @@
 # タスクの API と会話 tool
 
-BA-APP-02 / FR-008 / AC-008 は [Tasks](../packages/memory/src/brainoid_memory/tasks.py) を HTTP と既定会話 tool から使う。ノートと共有する transaction・現在認可・冪等性の境界は [DirectResources](../packages/memory/src/brainoid_memory/direct_resources.py)、run・結果証拠の境界は [DirectRuntime](../services/worker/src/brainoid_worker/direct_resources.py) に置く。新規 package・依存・外部接続は増やさない。UI、通知、スヌーズは後続チケットで扱う。
+BA-APP-02 / FR-008 / AC-008 は [Tasks](../packages/memory/src/brainoid_memory/tasks.py) を HTTP と既定会話 tool から使う。ノートと共有する transaction・現在認可・冪等性の境界は [DirectResources](../packages/memory/src/brainoid_memory/direct_resources.py)、run・結果証拠の境界は [DirectRuntime](../services/worker/src/brainoid_worker/direct_resources.py) に置く。新規 package・依存・外部接続は増やさない。[タスク画面](ui-tasks.md)はBA-UI-06で提供する。通知、スヌーズは後続チケットで扱う。
 
 ## HTTP と正本
 

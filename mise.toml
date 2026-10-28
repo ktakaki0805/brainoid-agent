@@ -102,7 +102,7 @@ description = "Run API, contract, document-link and workspace regression tests w
 run = [
   "uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p 'test_*.py'",
   "uv run --all-packages --locked --offline python -B -m unittest discover -s .agents/skills/implement-ticket/scripts -p 'test_*.py'",
-  "node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs",
+  "node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs",
 ]
 
 [tasks.dev-api]

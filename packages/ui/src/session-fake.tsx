@@ -5,6 +5,7 @@ import type { NoteScenario } from "./notes/fixture.ts";
 import { type SessionContext, SessionController } from "./session.ts";
 import { createSessionFixture } from "./session-fixture.ts";
 import { browserNavigation, SessionApp } from "./session-view.tsx";
+import type { TaskScenario } from "./tasks/fixture.ts";
 
 export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
   const [fixture] = useState(createSessionFixture);
@@ -25,6 +26,26 @@ export function SessionPreview({ surface }: { surface: "mobile" | "display" }) {
       <details className="preview-tools">
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
+          <label>
+            タスクの動作
+            <select
+              aria-label="タスクの動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.tasks.controls.scenario = event.target.value as TaskScenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="empty">空の一覧</option>
+              <option value="reject">入力のAPI拒否</option>
+              <option value="denied">権限拒否</option>
+              <option value="conflict">編集の競合</option>
+              <option value="conflict_status">状態変更の競合</option>
+              <option value="changed_selection">選択直前に別の端末で状態変更</option>
+              <option value="lost_save">保存の応答喪失</option>
+              <option value="failed">保存の通信失敗</option>
+            </select>
+          </label>
           <label>
             ノートの動作
             <select
