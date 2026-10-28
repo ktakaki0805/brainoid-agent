@@ -13270,3 +13270,257 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 最終検証: Node280、skill18、checkと両build、UI07ブラウザー19状態・session回帰、実HTTP/Firestore1件。変更のないPython1306/公式Auth等は記載の範囲で再利用。実FCM/APNs・署名build・OS実機成功とは扱わない。
 
 - done反映後の必須`mise run check`: 2026-10-28T11:14:18.527129+00:00→2026-10-28T11:14:23.016502+00:00、親所有session91888の実tool/child exit0を回収。全721source・raw/logical index不変、所有PID/listener終了。raw SHA-256 `b0baeedc064f45d169c95c3b75ee276d7354d3bd58a2d0da2a5183b03720a040`、tool結果保存SHA-256 `f7dae210980dca6e4e19593709c8b8e38d33d2ccb51110b6ae5eb6bd266198c6`。全check/両build成功、既存CSS specificity警告2件は情報として保持。
+
+## ba-ui-08-20261028t111807z
+
+- チケット: BA-UI-08 Calendar連携・予定・確認カード。状態in_progress。
+- 開始: 2026-10-28T11:18:07.501467+00:00、branch `main`、base `848f97843f2c164e00a65d124da50740290a6128`。開始時clean、63/96done。
+- 親 `/root`、実装担当は新規 `/root/ui08_implementation`（sole writer）、各ラウンドのレビューは新規独立context。
+- `ticket_plan.py check` 成功、ID指定なしnextで選択、未完了依存なし。全依存の実装commitは現履歴の祖先。
+- 依存 `BA-UI-02`: `cafdaa7aa668248518ff14cf1a93748d50455078`。
+- 依存 `BA-CAL-02`: `eb9eb72bc209686bf9bf00a1777989f6a83965b1`。
+- 依存 `BA-CAL-03`: `f0c98a9ddc8283fdd1e24bbddc819a72809da617`。
+- 依存 `BA-CAL-04`: `1f53279650386b8c96d2f96b69e28e9be711845a`。
+- 依存 `BA-CAL-05`: `44f80f05c7d8cf94940fffb30f8fe2762fd79ef9`。
+- 開始時全source721pathを `/tmp/ba-ui-08-start.json` へ記録。先行UI07実装 `452b167eb459060dcf27f1230a0d17bdd5a5306a`・記録 `848f97843f2c164e00a65d124da50740290a6128` は完了、UI07 seal1472件をhash再照合し以後変更しない。
+- 予定範囲: system browser OAuth/固定許可callback、本人integration一覧・calendar選択・解除/再認可状態、直近予定の日付/終日/zone、固定proposal生成/確認/拒否とoperation再取得。T-015/016/037の改変/期限/二重確認/応答喪失/失効をfakeと必要なHTTP/Firestoreで検証し、通常test/check・実Chromium・独立レビューを行う。
+- Piは本人の書込確認を代行しない。API受付202・実行中・成功・失敗・結果不明、解除停止・秘密消去完了・Google側失効未実施を区別する。
+- 外部前提: 開発OAuth client/固定callback/Universal-App Link/テストcalendarは未構成。チケットのfake検証範囲と実provider/端末疎通を区別し、実Google・cloud・配布・hostSDK導入・push/PRは行わない。UI07で承認した実機releasegate移管を他チケットへ一括適用しない。
+
+- 初期設計: 現行SessionContextのUID/tenant/generationへ全Calendar状態を束縛し、実付与write scopeをUIで推定しない。固定許可callbackは連携成功の証明にせず現在本人の一覧を再取得する。
+- 依存追加はBrowser8.0.5/App8.1.2（MIT、core>=8）。実装担当が一次資料/registry/導入型を確認。初回導入の前後wrapper記録はなく、開始時mapと差分・最終frozen-lock検証で確認する限界を記録する。初期sandbox DNS失敗とhost照会結果の実exitは担当の引継ぎ証跡で確定する。
+- `writer-initial-verify`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise exec -- pnpm run typecheck`、2026-10-28T11:32:17.848656+00:00→2026-10-28T11:32:21.201183+00:00、exit 0、3.352527s、unittest/counts []、Node []。metadata SHA-256 `7d5655b51299375c40252419540a110c21cf651085f57df10ea087dc5fa56461`、raw SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+- `writer-node-second`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise exec -- node --test tests/test_ui_calendar.mjs`、2026-10-28T11:33:59.923291+00:00→2026-10-28T11:34:00.454263+00:00、exit 0、0.530972s、unittest/counts []、Node ['ℹ tests 21']。metadata SHA-256 `78aa7339aae203b6684cf2d5a862399981f6cbd0c2e2003e0cb92beb143a4e72`、raw SHA-256 `fbdd1f704404ae0c6c6a32c04a14d91b6bfe7fabc7b9ce66ffbbd852f1a4be8a`。
+
+- 担当が初期metadata照会session93458の実exit1（sandbox DNS EAI_AGAIN）を回収。host照会25165/依存導入40089は実exit0との引継ぎ。初回Calendar Nodeは20/21で期限テスト前提が不正（受付済みproposalの再確認と初回期限切れを混同）、新規別proposalの初回期限に直して21/21成功。初回失敗ログは保持し、製品側の期限延長で回避していない。
+- `writer-browser-initial`: `env UI_ARTIFACTS=/tmp/ba-ui-08-writer-browser-initial-images UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T11:35:52.327427+00:00→2026-10-28T11:36:01.299305+00:00、exit 0、8.971878s、unittest/counts []、Node []。metadata SHA-256 `c47941a7d8958ec39724358038ed721a4c3ffcd2b0b6658bf6747d224524db7c`、raw SHA-256 `6ab41d1c7c0d9f3d3a1f4895280e69695f15384813bfcc21ed1369ab8f2ee9ad`。
+
+- 初回ブラウザー19状態が成功。親は19画像中2枚（削除対象・結果不明）を表示して確認。一致する対象版の題名/終日日付を確認し、狭い画面での操作配置と、operation既知後に古い確認待ち表示が残る点を正式レビュー前の修正候補として担当へ伝えた。最終版の検証とは分ける。
+- `/tmp/ba-ui-08-writer-browser-initial-images/mobile-delete-target.png` SHA-256 `54c53d203447621fc51edcc434251259f82a71e5eed92880a0d574f5a40eabc5`。
+- `/tmp/ba-ui-08-writer-browser-initial-images/mobile-outcome-unknown.png` SHA-256 `0d34a50265c7041590f9231ad70bf7c56c0b8c40af59d06aa97cea49cd440b0a`。
+- `writer-emu-second`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=disabled GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T11:41:07.424947+00:00→2026-10-28T11:41:15.368029+00:00、exit 1、7.943082s、unittest/counts ['Ran 1 test in 0.001s']、Node []。metadata SHA-256 `96dc402ad60a2f7e6c592b654a7e9b54c7785088fc6a5cf0e8e821cfd3782bd9`、raw SHA-256 `75db70b6bee71bee312039d58b84aef769e748b4e73b25a9db43adeeca4fe0ce`。
+- `writer-emu-third`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-emu-third-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T11:42:08.560115+00:00→2026-10-28T11:42:21.274414+00:00、exit 0、12.714299s、unittest/counts ['Ran 1 test in 5.193s']、Node []。metadata SHA-256 `6b5765a4af020a90f776cf936d7939ffdffb4d30982f78608993af415b7474f2`、raw SHA-256 `1ffdb32399bb02e749d154d5bea9b514739237383c8a4a2240bb0c160fc2c4c6`。
+- `writer-initial-emu`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T11:40:33.040537+00:00→2026-10-28T11:40:40.784892+00:00、exit 1、7.744355s、unittest/counts ['Ran 1 test in 0.001s']、Node []。metadata SHA-256 `7eddc262878f360001aa159d76e7e4a2795f8e73c03ab6fc03e83cf6bfb7f791`、raw SHA-256 `38112fb930e64fcd52c977dc11f8b12c26302a1f9229ef5aadd14c23598704c1`。
+- `writer-node-third`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise exec -- node --test --test-reporter=tap tests/test_ui_calendar.mjs`、2026-10-28T11:43:59.280523+00:00→2026-10-28T11:43:59.915530+00:00、exit 0、0.635007s、unittest/counts []、Node ['# tests 25']。metadata SHA-256 `cd681bfed936e066f1707a2b359d985033147a24f955b735012048ca6dc96c89`、raw SHA-256 `629fb2b64c61fc8345657e3190de3ae5aa71092580d45981650590e0fe4c8676`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui08_review_r1`（新規独立context）。base commit: `848f97843f2c164e00a65d124da50740290a6128`。
+- 未追跡を含む最新全27files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/LICENSE.capacitor-app` | `e8f989836e88732576472006444b65fd3d7d3c2455becdaaa4d82cd0dd43110f` |
+| `apps/mobile/LICENSE.capacitor-browser` | `eb99a0d61b507ad0182e18e9d2a91537c1d9025c94e098e4e7603a53b4b5218a` |
+| `apps/mobile/calendar/preview.tsx` | `9081fad0adc0a58103af817ad3de765b6603186f5b58a77df039bf439957bc00` |
+| `apps/mobile/package.json` | `4aeb2a3c833ca130b02952ab54c4e79d8ea1977454f62f14daf6195ad7ea3c00` |
+| `apps/mobile/platform/oauth-fixture.ts` | `fb4f51a30be37d1bbc6704940b3819949c77e89f056bb40e204daaf24aab44d7` |
+| `apps/mobile/platform/oauth.ts` | `736167d79be827828408ee8e0b4dcbed2ac23b5b6eb8b2500dff733615675859` |
+| `apps/mobile/src/main.tsx` | `8fa09dd440d46df1340fd7fa969e50b74a47457b83787bc27dc9d73f3a12a002` |
+| `docs/04-interfaces.md` | `e402c89116f02e2ab22ebbaa0a9d0512a39e8ebb5239b43aaf81cf09ecdac4ba` |
+| `docs/toolchain.md` | `2f3254f192c1798d17dc4d79ecb92bb9c8bc75c7d06b513a5c2263a9dbe7ad5d` |
+| `docs/ui-calendar.md` | `686088532397135f77b79e756cec8ed8a8031c7f29aa3bd8238c597aa14d9d1b` |
+| `mise.toml` | `abac1cd00bfc808dbc98bf56f3b8491bab65ac00afdb0a0d7420901693b1a1e0` |
+| `packages/ui/package.json` | `8e226c488e55e950c2f303576b91cb2ea96900123c9c9b61aa0f1519cf32b5b0` |
+| `packages/ui/src/calendar/contracts.ts` | `408c3d5cde72ef6296201bdb57a84c7f98e5b15be87450fdaafef9ed3f50834b` |
+| `packages/ui/src/calendar/controller.ts` | `32b4436d1a3e79b13f0cebc3b85b1cfee129d402f591487a4c31dfffb6cffbde` |
+| `packages/ui/src/calendar/fixture.ts` | `5f738082d01c965a794be12c112ae4f451060dc704b7dfc06831093d83c87b62` |
+| `packages/ui/src/calendar/view.tsx` | `edf8a8753c2d8e7018db5f333112e022d00cc1725292ac7b0e728f932860f800` |
+| `packages/ui/src/chat/fixture.ts` | `04dc76ec40be3a18801bb0b504b262f7817329a10878a855d67201deace55947` |
+| `packages/ui/src/chat/view.tsx` | `f87ddfe388e220ef0a0a2fd07cef4e19cb9754859bb6d41e870bdb6d8d06eda1` |
+| `packages/ui/src/session-fake.tsx` | `e7a0f52c21fb83e9842a5fc56b5dc38fe8017f4c9d5ff4bb505072ead5c5df58` |
+| `packages/ui/src/session-fixture.ts` | `f5e6048ffaee82fbde38b683b68d86268aca7ef710737a854cd5967340562dd7` |
+| `packages/ui/src/session-view.tsx` | `526aa01f84ec7d4dadd32aecd45b99441d6f4d420bfbb32dce50f8a52ca5c5f3` |
+| `packages/ui/src/styles.css` | `60d14c25795b3d0d414a541c40059a02074d6f593d768bbb85fafcb4d076a629` |
+| `pnpm-lock.yaml` | `db9cfc69d9a2a235005d9e82d2f416331bb1f7c8ac106db305331d6c985c8e00` |
+| `tests/emulator/test_ui_calendar_integration.py` | `8d734f1266c264ba841767096d809d85686ee395800be2003816f17d589dc549` |
+| `tests/test_ui_calendar.mjs` | `e7eb0345664df4cdc18f9c9d533b87b662d668bc0f11f5844d82175966028393` |
+| `tests/ui/calendar_browser.mjs` | `c5749599303b2fffe9adfb5f4d73f81a838308a1f6297093993f8e14f9cf9285` |
+| `tests/ui/calendar_emulator.mjs` | `a9b261ce2e43ffb8ba48f6629f3fa53da9a52f891f356aa5ee4e0d4218945c65` |
+- `review-r1-node`: `node tests/test_ui_calendar.mjs`、2026-10-28T11:50:01.353925+00:00→2026-10-28T11:50:02.098535+00:00、exit 0、0.74461s、unittest/counts []、Node ['ℹ tests 25']。metadata SHA-256 `4771a0cd0aec8977a8f02341ba52f4bdc51bd1f8cc974fac5059ede98aa8417c`、raw SHA-256 `8fbfb02db6fa907c2f7dd7ed581c6e71d74e20418df269e9b6babcb9b73223c8`。
+- `writer-browser-second`: `env UI_ARTIFACTS=/tmp/ba-ui-08-writer-browser-second-images UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T11:45:14.847691+00:00→2026-10-28T11:45:25.177499+00:00、exit 0、10.329808s、unittest/counts []、Node []。metadata SHA-256 `c8dd01bf0434c848e7e7228ee24607c0ba1a189b5d21000e3dcafac3107abe9a`、raw SHA-256 `1af2e9805c6b2a7cb0824e76a3c2953816ab128af8a561da1e84d163370b57b3`。
+- `writer-final-check`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent mise run check`、2026-10-28T11:47:49.927532+00:00→2026-10-28T11:47:55.241062+00:00、exit 0、5.31353s、unittest/counts []、Node []。metadata SHA-256 `8a5f812fadb40687bac756063c21744794dcf27fd666f7186bb7eb6552ad22ef`、raw SHA-256 `4f792efd8c1d1c563c5709ddf0be5c3ce8d4ff7fb8eb66e1d664e75732bbaa08`。
+- `writer-regression-chat`: `mise exec -- node tests/ui/chat_browser.mjs`、2026-10-28T11:48:44.888316+00:00→2026-10-28T11:50:44.783115+00:00、exit 0、119.894799s、unittest/counts []、Node []。metadata SHA-256 `6c2e69345da09c73a3c631accd234df55dff0b486cd4a412ca894642f481ec64`、raw SHA-256 `8a7254241b04042b650e97cf37a867854d87f85d5fee194131d5c69f82791b90`。
+- `writer-regression-session`: `mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T11:48:34.713161+00:00→2026-10-28T11:48:44.888011+00:00、exit 0、10.17485s、unittest/counts []、Node []。metadata SHA-256 `a221f718009a5639efd6e2c42ee753bacfad99ebd09044b31ad1039b453fb6d0`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+
+- 最終候補browser-second全23画像中2枚（削除対象・結果不明）を親が実際に表示。狭い画面のボタン縦積み、検証済operationに基づく「確認:受付済み」/「書込処理:結果不明」の区別を確認。after source735mapは凍結版と一致。
+- `/tmp/ba-ui-08-writer-browser-second-images/mobile-delete-target.png` SHA-256 `86efa583ba67444be7d81f13405d00c66efedd18b05c55c99b1259541678a30c`。
+- `/tmp/ba-ui-08-writer-browser-second-images/mobile-outcome-unknown.png` SHA-256 `d4793fb81d1645b241a026a37730c7da0bc62d68b721696ecefb4764c6cf459e`。
+
+- 凍結後browser回帰はUI02/03成功後、UI04で新Calendar fake panelと既存認証panelの`details.preview-tools`重複によりstrict locator失敗。以後UI05/06/07はこのbatchで未実行。修正は正式レビュー終了後に行う。
+- 担当所有normal test session51552が予期せずtool exit143、wrapper最終metadataなし。担当が同host namespaceでwrapper消失・mise/Python子がPPID1下で継続中と確認。親は他所有sessionへ操作しない。原ログ/実際に回収できた終了状態を保持し、正常終了と推定せず、修正後に正式な通常testを再実行する。
+- `review-r1-repro`: `node /tmp/ba-ui-08-review-r1-repro.mjs`、2026-10-28T11:51:58.702676+00:00→2026-10-28T11:51:59.029634+00:00、exit 1、0.326958s、unittest/counts []、Node ['ℹ tests 4']。metadata SHA-256 `c12ef636f0ed666f450917da79a5368e700be6b2914792c9a340aba3624ba428`、raw SHA-256 `5b82f161d5f2f44c85da98b5acb86f228453cd33c6d666e78b23afd33fd3185b`。
+- `writer-final-browser-regressions`: `/usr/bin/python3 /tmp/ba-ui-08-writer-regression-browsers.py`、2026-10-28T11:48:34.673987+00:00→2026-10-28T11:50:47.668173+00:00、exit 1、132.994186s、unittest/counts []、Node []。metadata SHA-256 `6c27b155e8999eb8a08fb84b155239e670262ee663a4008675208d217bd03a9c`、raw SHA-256 `6557a7bd2fbb481279e47a59ee820336ca6f230a826d87a2521b48e9f99d6907`。
+- `writer-frozen-lock`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent CI=true mise exec -- pnpm install --frozen-lockfile --offline --ignore-scripts`、2026-10-28T11:55:19.643304+00:00→2026-10-28T11:55:21.022217+00:00、exit 0、1.378913s、unittest/counts []、Node []。metadata SHA-256 `862db4b7af92db41186fb6209a2bbc464a742ac08983bceb0777f79164353af7`、raw SHA-256 `a3628fb97347a318adb407926404114e315e9f363081191d6c8cbec96d58d0e6`。
+- `writer-regression-memories`: `mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T11:50:44.783342+00:00→2026-10-28T11:50:47.556988+00:00、exit 1、2.773646s、unittest/counts []、Node []。metadata SHA-256 `d141ae205b1256fa43044b11a849ffa1f0865bef58bc878f38102d62ada4fe02`、raw SHA-256 `ca6865ed383c1fdcff18f574f81455700501390bae5835a43bd9fe2b44fa3e5e`。
+
+### 独立レビューR1終了・修正へ
+
+- 2026-10-28T12:01:40.934945+00:00 `/root/ui08_review_r1` を正式close。全27path（新規14）/735sourceを確認し、`request_changes`。必須2件、任意0件。製品/index不変、レビュー担当の全所有実行終了。
+- `/tmp/ba-ui-08-review-r1-report.md` SHA-256 `6b7586e1ccb42f34849d49554a885a52a538b72fcb2a29e01837643ada4704f8`。
+- `/tmp/ba-ui-08-review-r1-result.json` SHA-256 `bbaa8e7a42e024005b77c35b4449d5f4675ba1130496b2a5aa87a8becda84bc5`。
+- `/tmp/ba-ui-08-review-r1-closure.json` SHA-256 `f50c6e4e45fe397cfea7e2dc6e5a8e972031bcbf7ecf310858617b929f67e7b8`。
+- BA-UI-08-R1-01/P1: 解除、calendar選択解除、再認可必須、整合しない連携版の観測時に、複数Calendar controller（会話確認カードを含む）へ権限変更を伝え、対象proposal/operation/draft/eventと旧再試行権限を消す。遅延応答が復元しない世代検査、無関係な連携と未確定要求の保持を検証する。backend書込迂回ではなく、現在認可では返らない私的内容がclientに残る問題。
+- BA-UI-08-R1-02/P2: 新fake Calendar panelのpreview-tools衝突を解消し、memories/notes/tasks/remindersの既存browser回帰を完走させる。停止後のsuiteを成功扱いしない。
+- 独立Calendar Node25/25成功。R1-01の独立期待動作4caseは全失敗し再現。最終候補画像23/23を確認し、解除後にも内容が残ることを画像でも確認。
+- 最新検証状態はレビュー作成時から更新: normaltest tool143の残子は担当が11:58:11Z/11:58:43Zに同hostで終了確認。ログにPython1306+skill18+Node305の成功要約はあるがactualchildexit不明で正式成功にはしない。原raw SHA-256 `b54742b9b68bbd65a57cadacccd434a3806cd0948b738ed32401b7c1a5fab360`、interruption記録を保持し、修正後にdurable終了記録付きで再実行する。
+- fullEmu担当session79637は継続中。正式レビューはcloseしたが、元担当がその所有検証を終了/安全に閉鎖してから製品修正を始める。親は他担当のsessionを操作しない。
+- `writer-final-emu`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-final-emu-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_calendar_oauth_integration test_calendar_events_integration test_calendar_proposals_integration test_calendar_write_integration test_calendar_disconnect_integration test_ui_calendar_integration test_ui_session_integration test_ui_chat_integration test_ui_reminders_integration'`、2026-10-28T11:47:53.187483+00:00→2026-10-28T12:05:23.841482+00:00、exit 0、1050.653999s、unittest/counts ['Ran 167 tests in 1040.424s']、Node []。metadata SHA-256 `059437d83a13002874fbbf0393d628b13abe6890ebd4f6344834302ab010a6fc`、raw SHA-256 `0adb83ccad23e4e051ce7142ca589555dbc27f38de5aa1c090d8d1d83df8aba1`。
+- `writer-r1-fix-node-first`: `mise exec -- node tests/test_ui_calendar.mjs`、2026-10-28T12:19:48.604028+00:00→2026-10-28T12:19:49.344566+00:00、exit 1、0.740538s、unittest/counts []、Node ['ℹ tests 32']。metadata SHA-256 `7e66b3b9ae10cf3c0c25a36f2fcc2d1adc7f3996ce44379f6d038ffceaff392d`、raw SHA-256 `c7f70f792953a0cd5c52098520aa44e7e0f227e4703a6bb20e669e2f34a96b62`。
+- `writer-r1-fix-types-first`: `mise exec -- pnpm typecheck`、2026-10-28T12:19:48.385029+00:00→2026-10-28T12:19:51.100849+00:00、exit 0、2.71582s、unittest/counts []、Node []。metadata SHA-256 `a3cac08410f7e1ad9f242cb7e01dd2719cfafa6f65ce048d7c43b409a42a0e31`、raw SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+- `writer-r1-fix-browser-first`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T12:21:50.566427+00:00→2026-10-28T12:22:23.325149+00:00、exit 1、32.758722s、unittest/counts []、Node []。metadata SHA-256 `3bcdb731530c23505ba72d58e752e48daeb4b5a3a701ca6f824a654104fe6044`、raw SHA-256 `2e69cd8bb097cd4135341ba659c3c6bea62767d7f94ba01cfc074e1656c9b48d`。
+- `writer-r1-fix-browser-second`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T12:23:02.831818+00:00→2026-10-28T12:23:16.172225+00:00、exit 0、13.340407s、unittest/counts []、Node []。metadata SHA-256 `ef1702e5c538544d3962d0b7fce547ad1dcdb5e26e8b1c49ed1426daacc2fff0`、raw SHA-256 `f094b42760f0df4f5eee5c609a24fcb780616b911365e0690ad1f3596aedd982`。
+- `writer-r1-fix-node-second`: `mise exec -- node tests/test_ui_calendar.mjs`、2026-10-28T12:21:47.930283+00:00→2026-10-28T12:21:48.666030+00:00、exit 0、0.735747s、unittest/counts []、Node ['ℹ tests 32']。metadata SHA-256 `2a2a301942093ad9a0e6f88bb3b52cb5d471d3d4106792fa411e5e2df246ee71`、raw SHA-256 `2289155cba5a1cda173cd378e712c31d8f308fd1c55eb28fa07171f3eab19746`。
+- `writer-r1-fix-node-third`: `mise exec -- node tests/test_ui_calendar.mjs`、2026-10-28T12:22:59.351495+00:00→2026-10-28T12:23:00.089316+00:00、exit 0、0.737821s、unittest/counts []、Node ['ℹ tests 33']。metadata SHA-256 `fb59a12727918839569c18718e8da527a9e9b146732c3523c240b8697dea1f4b`、raw SHA-256 `bb71bef09cfc00aa7191fa4fc96cfdb3391126ce33d8302edf7efb9fd2c2c718`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui08_review_r2`（新規独立context）。base commit: `848f97843f2c164e00a65d124da50740290a6128`。
+- 未追跡を含む最新全28files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/LICENSE.capacitor-app` | `e8f989836e88732576472006444b65fd3d7d3c2455becdaaa4d82cd0dd43110f` |
+| `apps/mobile/LICENSE.capacitor-browser` | `eb99a0d61b507ad0182e18e9d2a91537c1d9025c94e098e4e7603a53b4b5218a` |
+| `apps/mobile/calendar/preview.tsx` | `a1ebc595d120153c148d221d6c7be568fc923adda592e5188153260c5a0c4434` |
+| `apps/mobile/package.json` | `4aeb2a3c833ca130b02952ab54c4e79d8ea1977454f62f14daf6195ad7ea3c00` |
+| `apps/mobile/platform/oauth-fixture.ts` | `fb4f51a30be37d1bbc6704940b3819949c77e89f056bb40e204daaf24aab44d7` |
+| `apps/mobile/platform/oauth.ts` | `736167d79be827828408ee8e0b4dcbed2ac23b5b6eb8b2500dff733615675859` |
+| `apps/mobile/src/main.tsx` | `8fa09dd440d46df1340fd7fa969e50b74a47457b83787bc27dc9d73f3a12a002` |
+| `docs/04-interfaces.md` | `e402c89116f02e2ab22ebbaa0a9d0512a39e8ebb5239b43aaf81cf09ecdac4ba` |
+| `docs/toolchain.md` | `2f3254f192c1798d17dc4d79ecb92bb9c8bc75c7d06b513a5c2263a9dbe7ad5d` |
+| `docs/ui-calendar.md` | `3cd67c78ad9cc5d416842ee22e7470fe3adb356cec17c9f5962061868bf02f26` |
+| `mise.toml` | `abac1cd00bfc808dbc98bf56f3b8491bab65ac00afdb0a0d7420901693b1a1e0` |
+| `packages/ui/package.json` | `8e226c488e55e950c2f303576b91cb2ea96900123c9c9b61aa0f1519cf32b5b0` |
+| `packages/ui/src/calendar/authority.ts` | `46c82219cc3335806d27dfcb93d806df257f85673fbe984e6a0cd2797f0005c6` |
+| `packages/ui/src/calendar/contracts.ts` | `408c3d5cde72ef6296201bdb57a84c7f98e5b15be87450fdaafef9ed3f50834b` |
+| `packages/ui/src/calendar/controller.ts` | `b3fbebc5163b47b45be3ca940f80bc9561b2284f2da07bbfd6a6fd772abc4d7d` |
+| `packages/ui/src/calendar/fixture.ts` | `5f738082d01c965a794be12c112ae4f451060dc704b7dfc06831093d83c87b62` |
+| `packages/ui/src/calendar/view.tsx` | `edf8a8753c2d8e7018db5f333112e022d00cc1725292ac7b0e728f932860f800` |
+| `packages/ui/src/chat/fixture.ts` | `04dc76ec40be3a18801bb0b504b262f7817329a10878a855d67201deace55947` |
+| `packages/ui/src/chat/view.tsx` | `f87ddfe388e220ef0a0a2fd07cef4e19cb9754859bb6d41e870bdb6d8d06eda1` |
+| `packages/ui/src/session-fake.tsx` | `e7a0f52c21fb83e9842a5fc56b5dc38fe8017f4c9d5ff4bb505072ead5c5df58` |
+| `packages/ui/src/session-fixture.ts` | `f5e6048ffaee82fbde38b683b68d86268aca7ef710737a854cd5967340562dd7` |
+| `packages/ui/src/session-view.tsx` | `526aa01f84ec7d4dadd32aecd45b99441d6f4d420bfbb32dce50f8a52ca5c5f3` |
+| `packages/ui/src/styles.css` | `f165f5a1278f42d9d1f050003ed5937154646424c47a5f973e272a12b2b254ce` |
+| `pnpm-lock.yaml` | `db9cfc69d9a2a235005d9e82d2f416331bb1f7c8ac106db305331d6c985c8e00` |
+| `tests/emulator/test_ui_calendar_integration.py` | `8d734f1266c264ba841767096d809d85686ee395800be2003816f17d589dc549` |
+| `tests/test_ui_calendar.mjs` | `97d410eacb93478cf916fcf93a0ea163f7ef2221e56b902c1d7011ba487e5cd8` |
+| `tests/ui/calendar_browser.mjs` | `d1d6c96895e28c0bbbc56a4215a803bb69f6bc9aa676b20dbc43d69b87ad1401` |
+| `tests/ui/calendar_emulator.mjs` | `e45938028aa2a6338ee5fb3881578df1ee9fd8b795e870aa12c76e774dd18cb2` |
+- `writer-r1-fix-node-fourth`: `mise exec -- node tests/test_ui_calendar.mjs`、2026-10-28T12:25:45.742941+00:00→2026-10-28T12:25:46.480627+00:00、exit 0、0.737686s、unittest/counts []、Node ['ℹ tests 35']。metadata SHA-256 `8ded2fa0580ea1a3f1e890b794561f31839973c79de067fcde0365caec0a92e0`、raw SHA-256 `33ef1ed1198426765cfb7c8875b115936cb784499623240cdc0d6cc93b706e70`。
+- `writer-r2-browser-regressions`: `/usr/bin/python3 /tmp/ba-ui-08-writer-r2-regression-browsers.py`、2026-10-28T12:27:09.317624+00:00→2026-10-28T12:27:40.199270+00:00、exit 0、30.881646s、unittest/counts []、Node []。metadata SHA-256 `23271227625c0fe728f480f65c46371572ea4909485036dfa6d345c5ac59ba7c`、raw SHA-256 `b80b149e81048cd360c176d368f4087a89252907ea98e3a9f7b95cde4efed6ab`。
+- `writer-r2-final-browser`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T12:27:08.874432+00:00→2026-10-28T12:27:27.247200+00:00、exit 0、18.372768s、unittest/counts []、Node []。metadata SHA-256 `f4aa4227f44f040f018f69aaf77336c7f18570a95d19f5a73046600a5e68283e`、raw SHA-256 `f094b42760f0df4f5eee5c609a24fcb780616b911365e0690ad1f3596aedd982`。
+- `writer-r2-final-check`: `mise run check`、2026-10-28T12:27:08.936208+00:00→2026-10-28T12:27:15.866416+00:00、exit 0、6.930208s、unittest/counts []、Node []。metadata SHA-256 `6b53543205f12368bc4a5da0067fb7b7ebca76b3c9d2a6f1e548954faec06557`、raw SHA-256 `a2227c1949f903c17b99bc82fc1930a7f91ee91e4dc469c45dcbaa42419ade2e`。
+- `writer-r2-final-http`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-r2-http-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T12:27:57.165325+00:00→2026-10-28T12:28:14.337559+00:00、exit 0、17.172234s、unittest/counts ['Ran 1 test in 6.887s']、Node []。metadata SHA-256 `c51a5bff2ca91c5bb2322e73e2638821674767e988a72816ef213a1a31d999a3`、raw SHA-256 `6ede0d34a1624318e520dab15e7b7976f729adf3d2331398be0e68440d714003`。
+- `writer-r2-r1-repro`: `mise exec -- node /tmp/ba-ui-08-review-r1-repro.mjs`、2026-10-28T12:27:10.830482+00:00→2026-10-28T12:27:11.560620+00:00、exit 0、0.730138s、unittest/counts []、Node ['ℹ tests 4']。metadata SHA-256 `d46e474effe91e30447e9415a90c581d050ad75dd167933352f0560e4fd126fd`、raw SHA-256 `55ebb19f575ae02c74d96e0368c6c85db5f1471ef98d7d27261327f276d1d402`。
+- `writer-r2-regression-memories`: `mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T12:27:09.443254+00:00→2026-10-28T12:27:18.200138+00:00、exit 0、8.756884s、unittest/counts []、Node []。metadata SHA-256 `4ae52e6c167ea895203892d3195c08354db023f2d353c331b1ee7f38d73f6297`、raw SHA-256 `d0caba658b9472ab1d87c0efc5e01e949737c9a3157f2d827587de5a8b7b8ad4`。
+- `writer-r2-regression-notes`: `mise exec -- node tests/ui/notes_browser.mjs`、2026-10-28T12:27:18.200489+00:00→2026-10-28T12:27:25.149548+00:00、exit 0、6.949059s、unittest/counts []、Node []。metadata SHA-256 `b32cd411f73aa914541d1817725c435ea0f87cdb1b64c9115c971a39111e61ce`、raw SHA-256 `ef7aebf2d4730003b9cec47ac5eb21a998374933ad501afc938b8e9223c5a214`。
+- `writer-r2-regression-reminders`: `mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T12:27:33.172793+00:00→2026-10-28T12:27:40.146587+00:00、exit 0、6.973794s、unittest/counts []、Node []。metadata SHA-256 `54a88aa9729adae64fa3a6d3a0935c2c3cd37745f8382fa865e271d9c5842bd2`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-r2-regression-tasks`: `mise exec -- node tests/ui/tasks_browser.mjs`、2026-10-28T12:27:25.149821+00:00→2026-10-28T12:27:33.171996+00:00、exit 0、8.022175s、unittest/counts []、Node []。metadata SHA-256 `e42ec11835f5043264d9364f1958bf814e3b2217e0768751c74cde2d6bb82fdc`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+
+- R2親照合 2026-10-28T12:32:00.936896+00:00: 完了済みcheck/Calendar browser/affected HTTP/既存4browser batch/前回再現の5記録について、before=after=凍結736source、raw/logical index一致、raw SHA、所有child/listener終了を確認。audit SHA-256 `efb2514833ececbc5b96c41becff56d1e70f283831da6b27d2acf0dc2aea5a09`。R1→R2は8pathのみ（`apps/mobile/calendar/preview.tsx`, `docs/ui-calendar.md`, `packages/ui/src/calendar/authority.ts`, `packages/ui/src/calendar/controller.ts`, `packages/ui/src/styles.css`, `tests/test_ui_calendar.mjs`, `tests/ui/calendar_browser.mjs`, `tests/ui/calendar_emulator.mjs`）。backend/Pythonは不変のため167caseの既存成功を再利用し、変更されたCalendar HTTPクライアント検証は今回再実行済み。通常testは継続中で未判定。checkには既存CSS警告2件とoptional-chain提案2件があり、errorは0。
+- `review-r2-node`: `node tests/test_ui_calendar.mjs`、2026-10-28T12:31:09.765035+00:00→2026-10-28T12:31:10.603131+00:00、exit 0、0.838096s、unittest/counts []、Node ['ℹ tests 35']。metadata SHA-256 `20a518de8b3df10b521ebe39fe339fe03859819d420268d0d4280907e6b12719`、raw SHA-256 `dbd32d6eb3021f85d8ed15502b1b2ac85feb30403e204cb7cc450ea510888d68`。
+- `review-r2-prior-repro`: `node /tmp/ba-ui-08-review-r1-repro.mjs`、2026-10-28T12:33:01.943649+00:00→2026-10-28T12:33:02.270614+00:00、exit 0、0.326965s、unittest/counts []、Node ['ℹ tests 4']。metadata SHA-256 `65f03e8cd67d89b396099dacc686f2819120e65f4a9fb5ec4a28514450957b60`、raw SHA-256 `a3a9a410a20d2393a7ed59e9e4e946d1311dcf2909e5b0f097a96a9b3abc7480`。
+- `review-r2-repro`: `node /tmp/ba-ui-08-review-r2-repro.mjs`、2026-10-28T12:32:49.762353+00:00→2026-10-28T12:32:50.088479+00:00、exit 1、0.326126s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `7da61f5cb1485723633f3de77aeb314ccb58f011d9c74b0939ea8200f490ede7`、raw SHA-256 `2423bce4ab8e7f16f30a3c40997e6dc3da2e6bd22a4ab49a9257410f16c1cfd3`。
+- `writer-r2-final-test`: `mise run test`、2026-10-28T12:27:05.187797+00:00→2026-10-28T12:34:46.254121+00:00、exit 0、461.066324s、unittest/counts ['Ran 1306 tests in 427.733s', 'Ran 18 tests in 0.062s']、Node ['ℹ tests 315']。metadata SHA-256 `06985c41efa6c3edc5a718e5b997d9565a905dbddcbbfba1b984dd9cf3f67995`、raw SHA-256 `c50140707960163f02c02e2dad9c242a79b1d5cfb7acf94c5232445022875b7c`。
+- `writer-r2-image-inspection`: `mise exec -- node /tmp/ba-ui-08-writer-r2-inspect-images.mjs`、2026-10-28T12:30:29.104700+00:00→2026-10-28T12:30:30.580730+00:00、exit 0、1.47603s、unittest/counts []、Node []。metadata SHA-256 `62a8d7cc8572b2a515ac837b5b19a2e8bc9e1a5460b0cb78608bc0acc635874b`、raw SHA-256 `aa9398c98c97189b1f2b08b5584f3f5876210e840c4ab62d7fa39a680f2e9c5c`。
+
+### 独立レビュー ラウンド2 結果・正式終了
+
+- 2026-10-28T12:41:52.257461+00:00 `/root/ui08_review_r2` の全28path/736sourceレビューを正式close。`request_changes`、必須1、任意0。製品/index不変、所有実行は終了。
+- `/tmp/ba-ui-08-review-r2-report.md` SHA-256 `eb9cdb56928402f210918e5aecc2f6ccef453d73be029d4ff9ba09b4050eb442`。
+- `/tmp/ba-ui-08-review-r2-result.json` SHA-256 `d49a5753dc60ff95ec1d8a40823dd7863ef9b5a4ddd7bafe67e0afb0f4f597ab`。
+- `/tmp/ba-ui-08-review-r2-closure.json` SHA-256 `f0f42c443776e5dc44e86433a2f9bce00f44ff6dfff76b2a3fd4a0513e198d00`。
+- BA-UI-08-R2-01/P1: metadata未取得の会話proposalに対し、後続の完全な連携一覧のabsenceが届かず、表示済みカードが残る/先に始めたGETの遅延応答で再表示される。独立2再現は全失敗。proposalからIntegration DTOを捏造せず、依存IDと完全collectionの現在観測を追跡して全consumerとin-flight処理を失効させる。逆順stale-list、無関係連携、未確定exact retryを保つ。
+- R1-01の旧独立4再現は解消したが上記境界が残るため全体では未解消。R1-02は既存4browser完走で解消。独立Node35/35と旧4/4成功、最新26PNG直接確認済み。
+- R2通常testは正式child0/durable marker0、Python1306/skill18/Node315。親も凍結source/index/rawhashとowner closureを確認。writer最終closure SHA-256 `07028ffeb586362c3dcd4e42bdc276e79b4381b54fce7c95c360717a83f300e6`。全旧writer実行終了済み。
+- 元担当へ修正を戻す。server/Python/skill不変なら成功済み1306+18/167backendを範囲限定再利用し、全Node/check/影響browser/HTTPは修正版で再実行する。新規R3担当が最新差分全体と全必須指摘を再確認する。
+- `writer-r2-fix-browser-first`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T12:51:06.109827+00:00→2026-10-28T12:51:23.490105+00:00、exit 0、17.380278s、unittest/counts []、Node []。metadata SHA-256 `e09c2739fd5f9bf2cd6ea5dcc97fc56a34dddae7805a386ea5e7f6b303c6e247`、raw SHA-256 `5d96d0fe338890446f38b79bb84d92fdeb4135c328ad7246e9e4395f71fdae73`。
+- `writer-r2-fix-http-first`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-r2-fix-http-first-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T12:51:05.131695+00:00→2026-10-28T12:51:21.747652+00:00、exit 1、16.615957s、unittest/counts ['Ran 1 test in 7.102s']、Node []。metadata SHA-256 `54f4aea8ba4d8a7a1a1d75c25afc6b890a743d4bf516281d1e01575dfeec0d55`、raw SHA-256 `cd7890651fa1b9e5c0cd98418f75b1c996dc85b4c90eb34845dea022f98bd62a`。
+- `writer-r2-fix-node-first`: `mise exec -- node tests/test_ui_calendar.mjs`、2026-10-28T12:48:31.780214+00:00→2026-10-28T12:48:32.619288+00:00、exit 0、0.839074s、unittest/counts []、Node ['ℹ tests 40']。metadata SHA-256 `feb45115a630c3aeb37855e55b6741f7de03d01de4927cb27297f7f24a12292e`、raw SHA-256 `9e51ab1a5729c510d3f197d8251edbd960e6f81e5ae70e1dcbfffe7bf152b418`。
+- `writer-r2-fix-review-repros`: `mise exec -- node --test /tmp/ba-ui-08-review-r1-repro.mjs /tmp/ba-ui-08-review-r2-repro.mjs`、2026-10-28T12:51:06.254363+00:00→2026-10-28T12:51:06.706244+00:00、exit 0、0.451881s、unittest/counts []、Node ['ℹ tests 6']。metadata SHA-256 `8005647a903d6ee24640fa2910c14aa22983f3e5cc81634754b6dde3dd3a7de6`、raw SHA-256 `1954c6ca734301666aafd8b14c1a516162928d00bf867c72c0148acac8cbd5ba`。
+- `writer-r2-fix-types-first`: `mise exec -- pnpm typecheck`、2026-10-28T12:48:36.670939+00:00→2026-10-28T12:48:39.295535+00:00、exit 0、2.624596s、unittest/counts []、Node []。metadata SHA-256 `4ffb2743ee2ba7472916d2e82c0a435e2558161a9d4dc48229b037745d88e541`、raw SHA-256 `7c31236c03860f014e33cd6f586514863a55d38aa2bda83b5d994841036a6c82`。
+- `writer-r2-fix-http-second`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-r2-fix-http-second-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T12:52:43.757876+00:00→2026-10-28T12:52:57.755988+00:00、exit 1、13.998112s、unittest/counts ['Ran 1 test in 6.053s']、Node []。metadata SHA-256 `c081803cf1e58a6dfee71624dcf7e024524aa48a4acbb80e385703a1c3845913`、raw SHA-256 `2ea62977b9e87581860ba25a13e3c3eed008919f09b7b53d201e471cc77beb30`。
+- `writer-r2-fix-http-third`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-r2-fix-http-third-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T12:54:04.698438+00:00→2026-10-28T12:54:18.156713+00:00、exit 0、13.458275s、unittest/counts ['Ran 1 test in 5.800s']、Node []。metadata SHA-256 `b99bc48eea31fe2cf6c7aa0b4a286a3fab718ec3c328fc62b90a7d28a75af2d6`、raw SHA-256 `e04bcfb832c7d21d7e1ae761cf7612d9f847d5ce61d83fbb1b69d32047e4b4a8`。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/ui08_review_r3`（新規独立context）。base commit: `848f97843f2c164e00a65d124da50740290a6128`。
+- 未追跡を含む最新全28files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/LICENSE.capacitor-app` | `e8f989836e88732576472006444b65fd3d7d3c2455becdaaa4d82cd0dd43110f` |
+| `apps/mobile/LICENSE.capacitor-browser` | `eb99a0d61b507ad0182e18e9d2a91537c1d9025c94e098e4e7603a53b4b5218a` |
+| `apps/mobile/calendar/preview.tsx` | `a1ebc595d120153c148d221d6c7be568fc923adda592e5188153260c5a0c4434` |
+| `apps/mobile/package.json` | `4aeb2a3c833ca130b02952ab54c4e79d8ea1977454f62f14daf6195ad7ea3c00` |
+| `apps/mobile/platform/oauth-fixture.ts` | `fb4f51a30be37d1bbc6704940b3819949c77e89f056bb40e204daaf24aab44d7` |
+| `apps/mobile/platform/oauth.ts` | `736167d79be827828408ee8e0b4dcbed2ac23b5b6eb8b2500dff733615675859` |
+| `apps/mobile/src/main.tsx` | `8fa09dd440d46df1340fd7fa969e50b74a47457b83787bc27dc9d73f3a12a002` |
+| `docs/04-interfaces.md` | `e402c89116f02e2ab22ebbaa0a9d0512a39e8ebb5239b43aaf81cf09ecdac4ba` |
+| `docs/toolchain.md` | `2f3254f192c1798d17dc4d79ecb92bb9c8bc75c7d06b513a5c2263a9dbe7ad5d` |
+| `docs/ui-calendar.md` | `ec728244e672d1c0853d8d05b7904e46e7a88697fb2b486d600e2275f4b4febd` |
+| `mise.toml` | `abac1cd00bfc808dbc98bf56f3b8491bab65ac00afdb0a0d7420901693b1a1e0` |
+| `packages/ui/package.json` | `8e226c488e55e950c2f303576b91cb2ea96900123c9c9b61aa0f1519cf32b5b0` |
+| `packages/ui/src/calendar/authority.ts` | `aaee41f45b7dc618044efacfdc55e2afd37a1b35424bf6bc0a42f37f07f4fe21` |
+| `packages/ui/src/calendar/contracts.ts` | `408c3d5cde72ef6296201bdb57a84c7f98e5b15be87450fdaafef9ed3f50834b` |
+| `packages/ui/src/calendar/controller.ts` | `b6b719ceacb4811791fcb30af31e8abc8f6bd9dec860b44c50c426d30ca44bf8` |
+| `packages/ui/src/calendar/fixture.ts` | `5f738082d01c965a794be12c112ae4f451060dc704b7dfc06831093d83c87b62` |
+| `packages/ui/src/calendar/view.tsx` | `edf8a8753c2d8e7018db5f333112e022d00cc1725292ac7b0e728f932860f800` |
+| `packages/ui/src/chat/fixture.ts` | `04dc76ec40be3a18801bb0b504b262f7817329a10878a855d67201deace55947` |
+| `packages/ui/src/chat/view.tsx` | `f87ddfe388e220ef0a0a2fd07cef4e19cb9754859bb6d41e870bdb6d8d06eda1` |
+| `packages/ui/src/session-fake.tsx` | `e7a0f52c21fb83e9842a5fc56b5dc38fe8017f4c9d5ff4bb505072ead5c5df58` |
+| `packages/ui/src/session-fixture.ts` | `f5e6048ffaee82fbde38b683b68d86268aca7ef710737a854cd5967340562dd7` |
+| `packages/ui/src/session-view.tsx` | `526aa01f84ec7d4dadd32aecd45b99441d6f4d420bfbb32dce50f8a52ca5c5f3` |
+| `packages/ui/src/styles.css` | `f165f5a1278f42d9d1f050003ed5937154646424c47a5f973e272a12b2b254ce` |
+| `pnpm-lock.yaml` | `db9cfc69d9a2a235005d9e82d2f416331bb1f7c8ac106db305331d6c985c8e00` |
+| `tests/emulator/test_ui_calendar_integration.py` | `8d734f1266c264ba841767096d809d85686ee395800be2003816f17d589dc549` |
+| `tests/test_ui_calendar.mjs` | `4294f3352830fe742a6fc3d81cec1044392f3b54bb0bc7ac6d6e1e307ae3ddb7` |
+| `tests/ui/calendar_browser.mjs` | `98dad20852da42d70345cf06810e25d2045cbe9e94b2751d7e798d961f029e69` |
+| `tests/ui/calendar_emulator.mjs` | `abbf47d6eb2f3924bde7854233584f36a3fcc5d9c7418153156daa339f2f4195` |
+- `writer-r3-all-node`: `mise exec -- node --test tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs`、2026-10-28T12:57:27.314374+00:00→2026-10-28T12:57:48.681484+00:00、exit 0、21.36711s、unittest/counts []、Node ['ℹ tests 320']。metadata SHA-256 `d0ec9a546011b1cc1364616e0ebd718eda4891c1bf8e002df225429697da1395`、raw SHA-256 `c1e3a6430a086d26e82ff3ae0884045338f00b9dc39312f1ee24d6cd1722404e`。
+- `writer-r3-final-browser`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T12:57:20.378894+00:00→2026-10-28T12:57:44.309822+00:00、exit 0、23.930928s、unittest/counts []、Node []。metadata SHA-256 `946c3f147f825a59d6d536503caaf5944748ddbf4b202b4da611b0cf3220faef`、raw SHA-256 `5d96d0fe338890446f38b79bb84d92fdeb4135c328ad7246e9e4395f71fdae73`。
+- `writer-r3-final-check`: `mise run check`、2026-10-28T12:57:20.387791+00:00→2026-10-28T12:57:27.092044+00:00、exit 0、6.704253s、unittest/counts []、Node []。metadata SHA-256 `9e182bb5db27eecd877a5b28ff04b854f3be898ff340d101947d249fb55897bd`、raw SHA-256 `3794c1d99cf989375c1cd47fc2d1a2a6e3b2b84c5d49b257f2d2e72fde563f3d`。
+- `writer-r3-final-http`: `env MISE_TRUSTED_CONFIG_PATHS=/home/takaki/workspace/brainoid/agent FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 APP_ENV=local-emulator AUTH_PROVIDER=firebase MODEL_PROVIDER=fake MODEL_ID=fake-model DEVICE_TOKEN_PROVIDER=local-test DEVICE_TOKEN_KEYRING_FILE=/home/takaki/workspace/brainoid/agent/tests/fixtures/device_tokens/local-keyring.json DEVICE_CREDENTIAL_EPOCH=00000000-0000-0000-0000-000000000001 CURSOR_SIGNING_KEY=synthetic-cursor-signing-key-for-tests-only AUTHZ_LEDGER_DIRECTORY=/tmp/ba-ui-08-writer-r3-http-ledger GCP_PROJECT_ID=demo-brainoid GCP_REGION=asia-northeast1 'FIRESTORE_DATABASE_ID=(default)' FIREBASE_CLI_DISABLE_MOTD=true CI=true mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive 'uv run --all-packages --locked --offline python -B -m unittest test_ui_calendar_integration'`、2026-10-28T12:57:21.181627+00:00→2026-10-28T12:57:46.916773+00:00、exit 0、25.735146s、unittest/counts ['Ran 1 test in 9.989s']、Node []。metadata SHA-256 `9898769cbd53aefb61ede99b45b94dbbee3de245bc3054b60c97706ec036580f`、raw SHA-256 `1466befe901f1bd49af7fe4a3f81213ee685aef32daeb4761dad16d65fcac65d`。
+- `writer-r3-regression-session`: `mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T12:57:21.000312+00:00→2026-10-28T12:57:34.420889+00:00、exit 0、13.420577s、unittest/counts []、Node []。metadata SHA-256 `11f848bbdfb51cfa2cc9bf50bc6e2a17c4f3087c57b2bb3036fde8ce1227c32a`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+- `writer-r3-review-repros`: `mise exec -- node --test /tmp/ba-ui-08-review-r1-repro.mjs /tmp/ba-ui-08-review-r2-repro.mjs`、2026-10-28T12:57:28.075751+00:00→2026-10-28T12:57:28.958266+00:00、exit 0、0.882515s、unittest/counts []、Node ['ℹ tests 6']。metadata SHA-256 `ca4958cd7107f413bbbaa98a4ac586863a2c8c833dc6bff5f394bf145a17c3c9`、raw SHA-256 `329ce8dd5a0f6f7bb5ec071826c854eeca810fba7e549b3613fe5fd83f390697`。
+- `review-r3-node`: `node tests/test_ui_calendar.mjs`、2026-10-28T12:59:46.239910+00:00→2026-10-28T12:59:46.250086+00:00、exit 1、0.01018133497564122s、unittest/counts []、Node []。metadata SHA-256 `6f1f330a1c7ff8504efdbd58888c605c2bf1f8026048b5cf20e3d49489bfb5b9`、raw SHA-256 `cdfe75d19bd5eb99573adda2c7c867c49cf1537a5a61f8757eac208a008b510f`。
+- `review-r3-r1-repro`: `node /tmp/ba-ui-08-review-r1-repro.mjs`、2026-10-28T12:59:46.289441+00:00→2026-10-28T12:59:46.295744+00:00、exit 1、0.006304917042143643s、unittest/counts []、Node []。metadata SHA-256 `3c81135b6d32248e6fcd95317d2adc9b8420984852bfc3e6652a57a86324e41a`、raw SHA-256 `cdfe75d19bd5eb99573adda2c7c867c49cf1537a5a61f8757eac208a008b510f`。
+- `review-r3-r2-repro`: `node /tmp/ba-ui-08-review-r2-repro.mjs`、2026-10-28T12:59:46.334400+00:00→2026-10-28T12:59:46.342231+00:00、exit 1、0.007818426995072514s、unittest/counts []、Node []。metadata SHA-256 `62aed11a4a3afbf7ee1cb807ad96a6c5680f22e19463b1f9e7fa2d6514dd8640`、raw SHA-256 `cdfe75d19bd5eb99573adda2c7c867c49cf1537a5a61f8757eac208a008b510f`。
+- `writer-r3-browser-regressions`: `/usr/bin/python3 /tmp/ba-ui-08-writer-r3-regression-browsers.py`、2026-10-28T12:57:20.882933+00:00→2026-10-28T12:59:54.606443+00:00、exit 0、153.72351s、unittest/counts []、Node []。metadata SHA-256 `024c6266910b96bcf1fe47a71ec0304c884e7e267264a7b7f617c0830b650c21`、raw SHA-256 `22791fafee6675e7f2c2e9b000c3b9f66bd08fc048b43b111d9035625971ce14`。
+- `writer-r3-regression-chat`: `mise exec -- node tests/ui/chat_browser.mjs`、2026-10-28T12:57:34.421289+00:00→2026-10-28T12:59:30.397765+00:00、exit 0、115.976476s、unittest/counts []、Node []。metadata SHA-256 `3b77744016b0028d8f78d364217b9c4b1abb31789fe477a81376fcf3cd791efd`、raw SHA-256 `8a7254241b04042b650e97cf37a867854d87f85d5fee194131d5c69f82791b90`。
+- `writer-r3-regression-memories`: `mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T12:59:30.397964+00:00→2026-10-28T12:59:35.656522+00:00、exit 0、5.258558s、unittest/counts []、Node []。metadata SHA-256 `d86efbebcdd0cb0b4e6e343d19996e14c6b9a6f53962761f01f292eb206bc055`、raw SHA-256 `d0caba658b9472ab1d87c0efc5e01e949737c9a3157f2d827587de5a8b7b8ad4`。
+- `writer-r3-regression-notes`: `mise exec -- node tests/ui/notes_browser.mjs`、2026-10-28T12:59:35.656728+00:00→2026-10-28T12:59:41.460581+00:00、exit 0、5.803853s、unittest/counts []、Node []。metadata SHA-256 `eeded11e96d8377fca385163819990db971eac6597b0a19fb5d1d6e179ae9db1`、raw SHA-256 `ef7aebf2d4730003b9cec47ac5eb21a998374933ad501afc938b8e9223c5a214`。
+- `writer-r3-regression-reminders`: `mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T12:59:48.272746+00:00→2026-10-28T12:59:54.525080+00:00、exit 0、6.252334s、unittest/counts []、Node []。metadata SHA-256 `4fe1bc69bdcecedd12ae4fdcac019d78080222f7dc70d7ed5747f795fd7cdf0c`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-r3-regression-tasks`: `mise exec -- node tests/ui/tasks_browser.mjs`、2026-10-28T12:59:41.460844+00:00→2026-10-28T12:59:48.272558+00:00、exit 0、6.811714s、unittest/counts []、Node []。metadata SHA-256 `21bb9e2979eaa71d294d6ea5f12bc6bd0fa4d59be9cc68355ef21327406d4dfb`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+- `writer-r3-review-repros-clean`: `mise exec -- node --test /tmp/ba-ui-08-review-r1-repro.mjs /tmp/ba-ui-08-review-r2-repro.mjs`、2026-10-28T12:58:46.883637+00:00→2026-10-28T12:58:47.210829+00:00、exit 0、0.327192s、unittest/counts []、Node ['ℹ tests 6']。metadata SHA-256 `f4b5b2ee97c60a41e8e2fda4cd9f9b43e7c912c06f65294c88df2b32633594b2`、raw SHA-256 `76a51f489dd37f1c543bcd13dc1ac6533ecb2e95ca82285c3f04a2f45ffa11b9`。
+- `review-r3-node-rerun`: `node tests/test_ui_calendar.mjs`、2026-10-28T13:00:03.010528+00:00→2026-10-28T13:00:03.804882+00:00、exit 0、0.7943396779592149s、unittest/counts []、Node ['ℹ tests 40']。metadata SHA-256 `93ab218cdbf0735981aa58c7252aa737794a0a7125bc2140c8ccc702029bfef0`、raw SHA-256 `7da870e287d5aa8d8899ca6dabdc60ab13b54394ad65ac70a9520dbc08023923`。
+- `review-r3-r1-repro-rerun`: `node /tmp/ba-ui-08-review-r1-repro.mjs`、2026-10-28T13:00:03.833459+00:00→2026-10-28T13:00:04.056247+00:00、exit 0、0.2227890079957433s、unittest/counts []、Node ['ℹ tests 4']。metadata SHA-256 `30ae74e776b907ca351af0e4a8900ba3b1a5e6e55740ff1591035c8a0275c4d4`、raw SHA-256 `e9f5deb6935149c3224a7b1a1f04b7a216ea0ab7fd5d0f63d5412cc05e57e8cd`。
+- `review-r3-r2-repro-rerun`: `node /tmp/ba-ui-08-review-r2-repro.mjs`、2026-10-28T13:00:04.084902+00:00→2026-10-28T13:00:04.269780+00:00、exit 0、0.1848794449470006s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `1963d4c9c434b6f944dad8e20f8303d04abdb33278d7e2b0f8721f72128f132b`、raw SHA-256 `977eabe77bb11f3f2ef601a40df1d7ec096d660e8215c08b1f23056d18ced907`。
+- `writer-r3-image-inspection`: `mise exec -- node /tmp/ba-ui-08-writer-r3-inspect-images.mjs`、2026-10-28T13:00:41.386631+00:00→2026-10-28T13:00:43.169289+00:00、exit 0、1.782658s、unittest/counts []、Node []。metadata SHA-256 `2abf0a24428d5ce258ab99c6e359916db427c0b9556a66a8b1b1318731e244c6`、raw SHA-256 `d94088625b65a9e2ebd3703b1e39e956476b622e74a0c2fe5a99b04b1d9d2724`。
+
+### 独立レビュー ラウンド3 結果・正式終了
+
+- 2026-10-28T13:11:40.908390+00:00 `/root/ui08_review_r3` の全28path（新規15）/736sourceレビューを正式close。`approve`、必須0、任意0。R1-01/R1-02/R2-01の全必須指摘が解消。製品/index不変、全所有実行終了。
+- `/tmp/ba-ui-08-review-r3-report.md` SHA-256 `0e5f10c0787d244f0f5d9fec408f54bde603096299a48db4c8b509b7d7730579`。
+- `/tmp/ba-ui-08-review-r3-result.json` SHA-256 `e152eb1329c4d6294168cd955a5fdebbd7872eb1c7c66b09b73907fbff9b2a43`。
+- `/tmp/ba-ui-08-review-r3-closure.json` SHA-256 `02944d4a74981749185c8eed6777900af9792392b830c8b7d0dcd49d78c28a0b`。
+- 独立Node40+旧再現4+2の46case成功。最終30画像と12診断cropを確認。初回独立実行はmise trust環境の指定不足でtest前にexit1、再実行の成功と区別して保持。
+- 最終検証: 全Node320、mise checkとmobile/display両build、Calendar Chromium30状態、既存session/chat/memories/notes/tasks/reminders全6suite、実API/Firestore HTTP1、過去指摘再現6が成功。親最終検証audit SHA-256 `8ac6fe974276ab3b8b7f55677305716d97374f34b575fbf050d938db966a8f2a`。writer closure SHA-256 `d7a635200ddb21691ebab519f045d896728d8f20f5dcfc28646d116ffd202f0e`。
+- R2→R3は6 UI/JS/docだけの変更。Python1306+skill18のR2正式成功とbackend167のR1成功は不変scopeに限定して再利用。R3全体mapで以前のmise testが走ったとは扱わず、変更されたNode/UI/HTTPは今回再検証。
+- 並列reproがPR負例の一時Markdown2件を観測したsource差分は説明記録を保持し、全Node終了後のclean reproで736map一致を確認。HTTP試行の403/空一覧の誤前提、旧normal tool143/child不明、初回依存導入の計測不足も成功に置換しない。
+
+### 受入条件・最終変更内容
+
+- 本人スマホのOAuth、連携選択・解除・再接続、日付/終日/timezone付き予定、固定proposalの確認/拒否とaccepted/unknownを実装。変更内容は新proposal、二重tap/応答喪失は同一key/body、Piは本人確認を代行しない。T015/T016/T037をcontroller/browser/実HTTPで確認。
+- 連携metadata未取得の会話カードを含め、最新の権限変更・完全一覧からの欠落が私的内容と旧要求を消去する。逆順stale一覧、遅延応答、無関係な連携、未確定exact retryを区別する。
+- 実Google client/callback/test calendar、HTTPS Universal/App Link、native sync/build/signing、iOS/Android実機OAuthと実providerは未検証の公開前条件としてdocs/ui-calendar.mdへ残す。UI08固有fake検証範囲の承認であり、UI07実機延期の一括適用ではない。API/schema/workerの変更・実配備・push/PRは行っていない。
+
+### 完了・実装コミット
+
+- 2026-10-28T13:12:30.375598+00:00 BA-UI-08をローカル実装範囲でdoneへ更新。独立レビュー3回、最終approve、未解決必須指摘0。
+- 実装コミット: `2d126a6a697e1024367c74b986833a70057d8418`（`feat(ui): BA-UI-08 add calendar integration and confirmation cards`）。28pathのcommit内容が承認manifestとbyte一致し、hook等の追加変更なし。
+- 総完了数64/96。実Google/nativeの公開前条件は上記のとおり未検証として保持し、完了記録検査後に記録コミットを作成する。
+- `parent-post-done-check`: `mise run check`、2026-10-28T13:12:32.718985+00:00→2026-10-28T13:12:38.439199+00:00、exit 0、5.720214s、unittest/counts []、Node []。metadata SHA-256 `fef6f4a509db9d7b8625d647d680dae24833890a12bec02688e86f0b0b8defc5`、raw SHA-256 `052df8c4c4e225cdfb775d41a15f7c3c9ea5c1d3d1433efb77d1193af37d9593`。
+- 完了台帳を含めた親post-done checkも実child/tool0。親所有session45936の実終了を回収し、凍結source736/index不変、所有child/listener終了を確認。raw SHA-256 `052df8c4c4e225cdfb775d41a15f7c3c9ea5c1d3d1433efb77d1193af37d9593`。記録差分は台帳と本ログだけ。
