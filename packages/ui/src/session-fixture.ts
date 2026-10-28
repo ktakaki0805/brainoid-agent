@@ -1,5 +1,6 @@
 import type { Tenant } from "@brainoid-internal/api-client";
 import type { AuthenticationAdapter, AuthIdentity } from "../platform/auth.ts";
+import { createTenantSettingsFixture } from "./tenant-settings/fixture.ts";
 import { createChatFixture } from "./chat/fixture.ts";
 import { createDevicesFixture } from "./devices/fixture.ts";
 import { createCalendarFixture } from "./calendar/fixture.ts";
@@ -29,6 +30,7 @@ export function createSessionFixture() {
   const privateSessions = createPrivateSessionFixture();
   const calendar = createCalendarFixture();
   const devices = createDevicesFixture();
+  const settings = createTenantSettingsFixture(devices.controls);
   const chat = createChatFixture((tenant, uid, proposal, run) =>
     calendar.seedProposal(tenant, uid, proposal, run),
   );
@@ -55,6 +57,10 @@ export function createSessionFixture() {
     },
     signIn: async (email) => emit({ uid: email }),
     signOut: async () => emit(null),
+    reauthenticate: async (uid, email) => {
+      if (user?.uid !== uid || email !== uid) throw new Error("Identity changed");
+      settings.controls.scenario = "normal";
+    },
     token: async (uid) => {
       if (user?.uid !== uid) throw new Error("Identity changed");
       return "fixture-token";
@@ -75,6 +81,8 @@ export function createSessionFixture() {
       throw new Error("Fixture refuses external transport");
     controls.calls.push(`${request.method} ${url.pathname}`);
     if (!user) return Response.json({}, { status: 401 });
+    const settingsResponse = await settings.handle(request, user.uid);
+    if (settingsResponse) return settingsResponse;
     const privateResponse = await privateSessions.handle(request, user.uid);
     if (privateResponse) return privateResponse;
     const deviceResponse = await devices.handle(request);
@@ -132,5 +140,6 @@ export function createSessionFixture() {
     calendar,
     devices,
     privateSessions,
+    settings,
   };
 }

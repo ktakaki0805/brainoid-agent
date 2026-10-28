@@ -2,6 +2,8 @@ import type { AuthenticationAdapter } from "@brainoid-internal/ui/auth";
 import { type FirebaseOptions, initializeApp } from "firebase/app";
 import {
   connectAuthEmulator,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   initializeAuth,
   inMemoryPersistence,
   onAuthStateChanged,
@@ -28,6 +30,12 @@ export function createBrowserAuthentication(
       onAuthStateChanged(auth, (user) => listener(user ? { uid: user.uid } : null)),
     signIn: async (email, password) => {
       await signInWithEmailAndPassword(auth, email, password);
+    },
+    reauthenticate: async (uid, email, password) => {
+      const user = auth.currentUser;
+      if (!user || user.uid !== uid || user.tenantId !== null) throw new Error("Identity changed");
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(email, password));
+      if (auth.currentUser !== user) throw new Error("Identity changed");
     },
     token: async (uid, forceRefresh) => {
       const user = auth.currentUser;

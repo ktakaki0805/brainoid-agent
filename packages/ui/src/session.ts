@@ -167,6 +167,48 @@ export class SessionController {
   private endHooks = new Set<(closing: SessionContext) => Promise<void>>();
   private ending?: Promise<void> | undefined;
   globalContext = () => this.userContext;
+  private selectedId: string | undefined;
+  selectedTenantId = () => this.selectedId;
+  canReauthenticate = () => !!this.options.auth.reauthenticate;
+  /** Clear tenant caches while retaining only user-bound operation recovery. */
+  invalidateTenant(): void {
+    this.tenantContext?.dispose();
+    this.tenantContext = undefined;
+    this.publish({ phase: "selecting", uid: this.state.uid, tenants: this.state.tenants });
+  }
+  async reauthenticate(email: string, password: string): Promise<boolean> {
+    const scope = this.userContext,
+      uid = this.state.uid,
+      tenant = this.selectedId,
+      selection = this.selection;
+    if (!scope || !uid || !this.options.auth.reauthenticate || this.ending) return false;
+    this.invalidateTenant();
+    const action = this.queue.then(async () => {
+      scope.assertCurrent();
+      if (this.selectedId !== tenant || this.selection !== selection) return false;
+      await this.options.auth.reauthenticate?.(uid, email.trim(), password);
+      scope.assertCurrent();
+      if ((await this.options.auth.current())?.uid !== uid) throw new StaleContext();
+      scope.assertCurrent();
+      if (this.selectedId !== tenant || this.selection !== selection) return false;
+      if (tenant) await this.selectTenant(tenant, false);
+      return true;
+    });
+    this.queue = action.catch(() => {});
+    try {
+      return await action;
+    } catch {
+      if (
+        !scope.signal.aborted &&
+        this.selectedId === tenant &&
+        this.selection === selection &&
+        tenant
+      )
+        await this.selectTenant(tenant, false);
+      return false;
+    }
+  }
+
   beforeSignOut(callback: (closing: SessionContext) => Promise<void>) {
     this.endHooks.add(callback);
     return () => {
@@ -237,6 +279,7 @@ export class SessionController {
     this.listing++;
     this.creation = undefined;
     this.refresh = undefined;
+    this.selectedId = undefined;
   }
   private identityChanged(identity: AuthIdentity | null): void {
     if (identity?.uid === this.state.uid && this.userContext) return;
@@ -434,6 +477,7 @@ export class SessionController {
   async selectTenant(id: string | undefined, navigate = true): Promise<void> {
     if (this.ending) return;
     this.selection++;
+    this.selectedId = id;
     this.tenantContext?.dispose();
     this.tenantContext = undefined;
     if (!this.userContext || !this.state.uid) return;

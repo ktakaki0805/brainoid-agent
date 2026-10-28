@@ -55,3 +55,5 @@ local directory と cloud bucket の同時指定・別環境への流用は起�
 [HTTP・障害行列](../tests/test_invitations.py)は権限、owner 注入、秘密非保存、期限と window 境界、再送・別コード、失効前の未使用コード、再招待、台帳/DB の各段階の失敗、旧受諾、最新 grant の復元、キー rotation、ローカル台帳の再起動を検証する。[emulator 結合](../tests/emulator/test_invitations_integration.py)は実 Firebase HTTP と Firestore の同時受諾、異なる本人/コード、残り1回の並行照合、失効後の pending grant、claim commit 応答喪失を確認する。
 
 実行は `mise run setup`、`mise run check`、`mise run test`、`.env.emulator.example` を明示的に load した `mise run test-emulator`。外部 API・実 credential・本番データは不要。実 GCS 配備、staging index/負荷、メール、コード共有画面は本チケットの検証対象に含めない。
+
+BA-UI-11 の[会員・招待・利用量の画面](ui-tenant-settings.md)は、上記APIの現在権限・版・固定要求の再送契約を利用する。

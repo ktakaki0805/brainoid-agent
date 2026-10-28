@@ -39,8 +39,10 @@ next_cursor = reconciler.recover(tenant_id, pages, after=cursor, limit=100)
 
 ## 利用量APIと検証
 
-`GET /v1/tenants/{tenant_id}/usage`はuser bearer専用。現在account・membership・認可台帳を検査し、memberへ本人の集計、owner/adminへtenant総量を返す。query selectorは拒否し、他人の明細APIは提供しない。既存OpenAPIの`period/turns/voice_seconds/remaining_turns/quota_state`を維持する。音声秒は未確定の予約も含む保守的な使用量。`remaining_turns`は本人枠とtenant枠の小さい方、`quota_state`は月次枠到達でexhausted、同時枠到達でlimited、それ以外available。本文・個別UID・token内訳は公開しない。
+`GET /v1/tenants/{tenant_id}/usage`はuser bearer専用。現在account・membership・認可台帳を検査し、memberへ本人の集計、owner/adminへtenant総量を返す。query selectorは拒否し、他人の明細APIは提供しない。既存OpenAPIの`period/turns/voice_seconds/remaining_turns/quota_state`を維持する。音声秒は未確定の予約も含む保守的な使用量。memberの`remaining_turns`は本人枠とtenant枠の小さい方で、`quota_state`は両方の枠を評価する。owner/adminは`user=None`でtenant枠だけを評価し、残り回数と状態は本人の枠を含まない。各集計範囲の月次枠到達でexhausted、同時枠到達でlimited、それ以外availableを返す。管理者のtenant集計がavailableでも、本人の月次枠・同時実行枠に達していれば同じ本人のturn要求は429となる。本文・個別UID・token内訳は公開しない。
 
 [fake試験](../tests/test_usage_limits.py)、[確認後の次段予算](../tests/test_run_checkpoint.py)、[Firestore試験](../tests/emulator/test_usage_limits_integration.py)で競合予約、429、queue期限、provider不明量、音声精算、月跨ぎ、取消・再開、workerプロセスの強制終了、再照合と遅延結果、本人/admin/別tenantを検証する。実provider・本番負荷・請求照合はこのチケットの検証範囲外。
 
 新memberは既存固定版Pydanticとcontractsだけに依存し、framework/SDKの依存を持たない。既存distributionの更新はない。導入前は旧workerへの配送を止め、既存active runを完了または停止してから再開する。利用量予約がない旧active runを新workerが実行することは拒否する。過去利用量の遡及推定は行わない。切戻しでもledgerを保持し、旧workerへ未処理runを渡さず、unknownを削除して枠を戻さない。shared databaseで新旧workerを同時に動かすローリング移行は未対応。
+
+BA-UI-11 の[会員・招待・利用量の画面](ui-tenant-settings.md)は、上記APIの現在権限・版・固定要求の再送契約を利用する。

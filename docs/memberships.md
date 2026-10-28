@@ -63,3 +63,5 @@ IAM-10 の本人退出・アカウント削除など、今後 active membership 
 [fake テスト](../tests/test_memberships.py)は T-033/T-034、自己降格後の再送、最終 owner、先行記録前の競合、opaque UID、一覧 cursor、監査の allowlist、transfer の両主体の各台帳書込み前後と各 DB transaction 前後の失敗を確認する。[生成 SDK の実 Request](../tests/fixtures/memberships/sdk_requests.mjs)の URL・method・headers・body を変更せず API に投入し、上表の UID の更新・失効と既存 path API との再送互換も確認する。[emulator テスト](../tests/emulator/test_memberships_integration.py)でも同じ実 Request を投入して対象の更新・失効を確認し、公式 Firestore transaction の同時降格・異なる owner の同時移譲、部分失敗、予約/完了 commit の応答喪失、実 Firebase token を再利用した tenant 限定失効を確認する。
 
 `mise run setup`、`mise run check`、`mise run test`、`.env.emulator.example` を明示 load した `mise run test-emulator` を実行する。外部の実 credential/bucket や本番データは使わない。実 IAM/retention、実 backup 復元、worker/端末 session の失効反映は後続チケットで検証する。
+
+BA-UI-11 の[会員・招待・利用量の画面](ui-tenant-settings.md)は、上記APIの現在権限・版・固定要求の再送契約を利用する。

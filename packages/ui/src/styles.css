@@ -927,3 +927,10 @@ textarea:focus-visible {
 .output-target input[type="checkbox"] {
   width: auto;
 }
+
+.tenant-settings .button-row .button {
+  flex: 1 1 9rem;
+  min-width: min(9rem, 100%);
+  width: auto;
+  overflow-wrap: normal;
+}

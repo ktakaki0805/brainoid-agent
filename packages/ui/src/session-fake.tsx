@@ -43,6 +43,39 @@ export function SessionPreview({
         <summary>認証・切替の確認</summary>
         <div className="preview-controls">
           <label>
+            会員管理の動作
+            <select
+              aria-label="会員管理の動作"
+              defaultValue="normal"
+              onChange={(event) => {
+                fixture.settings.controls.scenario = event.target
+                  .value as typeof fixture.settings.controls.scenario;
+              }}
+            >
+              <option value="normal">通常</option>
+              <option value="lost">応答喪失</option>
+              <option value="conflict">版競合</option>
+              <option value="recent">再認証が必要</option>
+              <option value="rate">試行制限</option>
+              <option value="denied">権限拒否</option>
+            </select>
+          </label>
+          <label>
+            利用量の状態
+            <select
+              aria-label="利用量の状態"
+              defaultValue="available"
+              onChange={(event) => {
+                fixture.settings.controls.quota = event.target
+                  .value as typeof fixture.settings.controls.quota;
+              }}
+            >
+              <option value="available">利用可</option>
+              <option value="limited">同時上限</option>
+              <option value="exhausted">月次上限</option>
+            </select>
+          </label>
+          <label>
             Pi管理の動作
             <select
               aria-label="Pi管理の動作"

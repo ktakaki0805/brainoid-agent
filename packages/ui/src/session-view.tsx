@@ -9,6 +9,7 @@ import { Notes } from "./notes/view.tsx";
 import { Reminders } from "./reminders/view.tsx";
 import type { SessionContext, SessionController } from "./session.ts";
 import { Devices } from "./devices/view.tsx";
+import { InvitationAcceptance, TenantSettings } from "./tenant-settings/view.tsx";
 import { Tasks } from "./tasks/view.tsx";
 
 export function browserNavigation() {
@@ -68,6 +69,19 @@ export function SessionApp({
         <p className="card" role="alert">
           {state.message}
         </p>
+      )}
+      {controller.globalContext() && surface === "mobile" && (
+        <InvitationAcceptance
+          key={`invite:${controller.globalContext()?.generation}`}
+          session={controller}
+        />
+      )}
+      {controller.globalContext() && (
+        <TenantSettings
+          key={`settings:${controller.globalContext()?.generation}`}
+          session={controller}
+          surface={surface}
+        />
       )}
       {state.context && (
         <Chat key={state.context.generation} context={state.context} surface={surface} />

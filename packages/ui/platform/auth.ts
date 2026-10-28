@@ -7,6 +7,7 @@ export interface AuthenticationAdapter {
   current(): Promise<AuthIdentity | null>;
   subscribe(listener: (identity: AuthIdentity | null) => void): () => void;
   signIn(email: string, password: string): Promise<void>;
+  reauthenticate?(uid: string, email: string, password: string): Promise<void>;
   token(uid: string, forceRefresh: boolean): Promise<string>;
   signOut(): Promise<void>;
 }
