@@ -13659,3 +13659,261 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 - 総完了数65/96。物理Pi/スマホ・実cloud/providerは未検証のgateとして保持。完了台帳を含むcheck後に記録コミットを作成する。
 - `parent-post-done-check`: `mise run check`、2026-10-28T14:34:54.312711+00:00→2026-10-28T14:34:58.809736+00:00、exit 0、4.497025s、unittest/counts []、Node []。metadata SHA-256 `70d6c8f007f2dc7a64c60e22dbe6da4e91aae46fdd26fe74bef7e71135862feb`、raw SHA-256 `003300a3b55fd8aaed430de822709ac15577ad19d8d23dc3261b8d0d16006433`。
 - 完了台帳を含む親post-done checkも実child/tool0。親所有session9559の終了を回収し、承認source745/index不変、所有child/listener終了を確認。raw SHA-256 `003300a3b55fd8aaed430de822709ac15577ad19d8d23dc3261b8d0d16006433`。記録差分は台帳と本ログだけ。
+
+## ba-ui-10-20261028t143816z
+
+- チケット: BA-UI-10 Pi個人sessionと会話引継ぎUI
+- 状態: in_progress。開始: 2026-10-28T14:38:16.483828+00:00。main / base `50833edf847732d4ad7fbdd4835efe4fb6a48993`、既存変更なし。依存UI03/UI09/IAM09/DEV04のdoneと実装commit祖先を確認。
+- 実装担当: `/root/ui10_implementation`（新規独立context、sole writer予定）。親は選択・台帳/log・レビュー委譲・index/commitを担当する。
+- 範囲: 本人スマホの対象Pi・共有空間・scope明示同意、5分/idle60秒、現在snapshotとgenerationに束縛したrun出力先、終了/失効/offline期限/遅延応答のprivate表示・queue・一時内容消去。Piにuser bearerやdevice credentialを渡さず、既存IAM09/DEV04の認可・配送を使う。
+- 検証計画: T020/T021/T035の仮想時計・遅延/逆順・切断/再接続・対象違い・session終端、通常check/test、mobile/displayの実Chromium、必要な実API/同等device service境界。チケット固有のfake/emulator範囲で実施し、実機/音声hardware/実providerの検証とは区別する。追加外部前提なし。
+- 実契約: docs/private-sessions.md、device-snapshot.md、公開private-session API/TurnCreate.output_device_id、device local typed operations/SSE/current snapshot。phoneの明示選択とlocal停止/クラウド終了を区別し、勝手なheartbeat延長やPiへの管理権限追加をしない。
+- 開始全745source。前チケットUI09のsealed証跡1564filesを照合済み。全件完了まで依存順に継続する。
+- `writer-types-01`: `mise run check:types`、2026-10-28T14:51:00.301793+00:00→2026-10-28T14:51:24.166150+00:00、exit 0、23.864357s、unittest/counts []、Node []。metadata SHA-256 `9ed4d8249fe1d9be91ecf0e4e4eb28e7efe82c8ede27e89b2a079f54f97dd6bd`、raw SHA-256 `fc19801900a49ac4bea6dfcc8aab2ebf54511116f13c171a5a065e7db30cb800`。
+- `writer-focused-01`: `mise exec -- node --test tests/test_ui_private_sessions.mjs tests/test_ui_chat.mjs`、2026-10-28T14:55:32.857093+00:00→2026-10-28T14:55:33.080735+00:00、exit 1、0.223642s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `8f0dadb4f0f85d2ef840c97a92bf9ec0c9da17b4152d9c839063abb5a09b2602`、raw SHA-256 `52fdf4f028691d01194f4b50be1b6c8e5ba619f817aff770049507a1131101d9`。
+- `writer-focused-02`: `mise exec -- node --test tests/test_ui_private_sessions.mjs tests/test_ui_chat.mjs`、2026-10-28T14:55:46.187524+00:00→2026-10-28T14:55:47.631356+00:00、exit 0、1.443832s、unittest/counts []、Node ['ℹ tests 2']。metadata SHA-256 `7ebb307830b389b5b157f4e93fe47256cb913fc86b70530898d5a5adffe5ac66`、raw SHA-256 `88b943b7e0d30ba70ed296fc0cf5adb12007e8d66aafce0d671d81250dad88a4`。
+- `writer-focused-03`: `mise exec -- node --test --test-reporter=tap tests/test_ui_private_sessions.mjs tests/test_ui_chat.mjs`、2026-10-28T14:56:15.969070+00:00→2026-10-28T14:56:17.424818+00:00、exit 0、1.455748s、unittest/counts []、Node ['# tests 69']。metadata SHA-256 `17773b230cfad657d6a8aaf82d7b25c10fdccd794090e3e817dc8103195c7b07`、raw SHA-256 `9761453eb8345483ee435ea3ddfe20250c105bf5bbcb43eb8d6ce1fe361e489b`。
+
+### 実装中に確認した契約境界
+
+- 2026-10-28T15:04:27.755670+00:00 phoneで旧session向けに送ったturn要求の初回到達が新session開始後になる場合、従来のcurrent slotだけの出力選択では新sessionへ割り当たる可能性をsourceから確認。responseを画面で破棄するだけではPiの新snapshotへの出力を防げない。実repository再現と回帰を追加する。
+- 受入条件に必要な最小修正として正式TurnCreateのoptional `expected_output_private_session_id`を追加する。明示output_device_id・非null・user本人・現在slot一致を同じ認可transactionで検査し、既存grantを強化する前提条件とする。新UIのPi出力は必須送信、device主体は拒否、body fingerprintに含める。既存省略clientは互換、旧APIのextra=forbidは新fieldを拒否する。model/OpenAPI/SDK/docsと現在Python検証を含める。
+- Piの表示終了はlocal CSRF入口とbinding/固定期限付き最小journalへ保存し、別tab/browser/service再起動でも同sessionを再表示しない設計。クラウドsession終了とは区別し、登録credentialや共有出力を通常停止で消去しない。
+- `writer-device-01`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_ui_private_sessions.py -v`、2026-10-28T14:58:02.509924+00:00→2026-10-28T14:58:04.785413+00:00、exit 1、2.275489s、unittest/counts ['Ran 6 tests in 0.786s']、Node []。metadata SHA-256 `8514470242fd4ce43151a15096fb7e16335c283d082898b6a3d54ffbaa8e31d6`、raw SHA-256 `20ffa464b7047293fd3f7def8057cf5cbb81f36eaa354a61e7c272ed8570f6d4`。
+- `writer-device-02`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_ui_private_sessions.py -v`、2026-10-28T14:58:50.752865+00:00→2026-10-28T14:58:52.925490+00:00、exit 0、2.172625s、unittest/counts ['Ran 6 tests in 1.134s']、Node []。metadata SHA-256 `796bee29313ede7c2e59e2d39208fef44603debd36120fc73e4409c75158de14`、raw SHA-256 `a2186f2e7eab6a438bee017f916b71beb87841cd04bed9a3d602ef491bf764ce`。
+- `writer-guard-01`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_ui_private_sessions.py -v`、2026-10-28T15:05:58.912383+00:00→2026-10-28T15:06:01.803462+00:00、exit 1、2.891079s、unittest/counts ['Ran 11 tests in 1.765s']、Node []。metadata SHA-256 `874ef239dfeed00115a0f564f3903a79ef15aa4625626f669cee892b738a3f36`、raw SHA-256 `1adc7424929d4aec1d9a9312c9a9b58be5c29f17144e4bc1f58ba99d4e6e2730`。
+- `writer-guard-02`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_ui_private_sessions.py -v`、2026-10-28T15:06:36.580752+00:00→2026-10-28T15:06:39.471919+00:00、exit 1、2.891167s、unittest/counts ['Ran 11 tests in 1.769s']、Node []。metadata SHA-256 `c53ef1da54adf400bf00e32eeb9d96940220d4c830fe3943be43f46b8c7ea2ca`、raw SHA-256 `ee4cf5825b507a3dbcaedfb2857f17bddab6109fe21a0542666ed128bcb7b559`。
+- `writer-browser-01`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:07:53.577299+00:00→2026-10-28T15:08:27.856938+00:00、exit 1、34.279639s、unittest/counts ['Ran 1 test in 33.301s']、Node []。metadata SHA-256 `0f4977924922c157754ebdb7cead02f19cdab88bacd24a006152000c5e5a8956`、raw SHA-256 `5204feb678491528477a6560ac36d1b1162a8e2a80824158768a19dc42ff286e`。
+- `writer-browser-02`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:09:33.928538+00:00→2026-10-28T15:10:07.931172+00:00、exit 1、34.002634s、unittest/counts ['Ran 1 test in 33.043s']、Node []。metadata SHA-256 `ee3f47a0d0dc8d5d3baebbfb1f022602eeb18a81e961977f82e46c6f01cecad0`、raw SHA-256 `a694b48389b32b1a6207c91631697731ed2296df4d55fb4280f5ba511d08e7ef`。
+- `writer-browser-03`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:11:22.211757+00:00→2026-10-28T15:11:56.202077+00:00、exit 1、33.99032s、unittest/counts ['Ran 1 test in 32.991s']、Node []。metadata SHA-256 `997bee20a9fa7b3acb72a2d94bc805f59adcc59e8fb072cc8257aa2f459e1a45`、raw SHA-256 `70c5be94a6ba4336e8d1b33307f839c2bb076bc6549310e71e040bba61cf21c5`。
+- `writer-browser-04`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:13:29.391840+00:00→2026-10-28T15:14:04.460158+00:00、exit 1、35.068318s、unittest/counts ['Ran 1 test in 33.902s']、Node []。metadata SHA-256 `4bb7805aa73d2e808d7ebd81586786bf26a133004e1cd67c51110acb1bd1238a`、raw SHA-256 `9f0c09793cb6158eb657eecf09980d81f7c9c2a58c0b44d90ec34cba4a7480f7`。
+- `writer-browser-05`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:17:03.275338+00:00→2026-10-28T15:17:09.825464+00:00、exit 1、6.550126s、unittest/counts ['Ran 1 test in 5.482s']、Node []。metadata SHA-256 `c0b270df239acdc913a903a93cff4ad6e0afe53a538829139894fb5ba854c001`、raw SHA-256 `47e9597ac9ffcb7d9e0730cfab69b89474410577c24c22f01af8155565ca2b17`。
+- `writer-browser-06`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:19:56.449684+00:00→2026-10-28T15:20:30.338013+00:00、exit 1、33.888329s、unittest/counts ['Ran 1 test in 32.900s']、Node []。metadata SHA-256 `d14988201550ad9bcc0c5827110e9f6c454c422d918b2780773179f8c9d5253d`、raw SHA-256 `4446bae00485ad396eaf86ad07fe61ac7c8178bac2a68a35121a3b6097daa1f5`。
+- `writer-browser-07`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:21:23.241516+00:00→2026-10-28T15:21:59.948611+00:00、exit 1、36.707095s、unittest/counts ['Ran 1 test in 35.656s']、Node []。metadata SHA-256 `af6fc7a52010307f23a85497b3e17eed24ade006b11ec1f87f867532f1cec41c`、raw SHA-256 `5149976611d2bc12c8d96f86581297882ceec448956adfec988cce00708dbc03`。
+- `writer-browser-08`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:23:43.679330+00:00→2026-10-28T15:23:50.537443+00:00、exit 0、6.858113s、unittest/counts ['Ran 1 test in 5.795s']、Node []。metadata SHA-256 `a21f2cce452fe7bb2a9fb55e702ca82577d4c386335b47596239300134b691fc`、raw SHA-256 `64142379396ed37dd7aa680d6df5491f7375ca84a67a77f80ec49dd9dd71aee3`。
+- `writer-check-01`: `mise run check`、2026-10-28T15:27:56.369739+00:00→2026-10-28T15:27:59.686319+00:00、exit 1、3.31658s、unittest/counts []、Node []。metadata SHA-256 `faf77aa89bc8bbd4382126be20cf0796ed61239aa4d2817652a44e60b615cf48`、raw SHA-256 `2d33149d5b18b433432b9cb62c183677465a51e90cb6668df1633a749b988f43`。
+- `writer-check-02`: `mise run check`、2026-10-28T15:30:56.985846+00:00→2026-10-28T15:31:01.915636+00:00、exit 1、4.92979s、unittest/counts []、Node []。metadata SHA-256 `9462de9b263a776be63223052b81b149b56e859efe0e63624fd3c58947c173fc`、raw SHA-256 `2219c7de5de7788f9a9630f6a2ba0ca8d640a333e9e8caf3da505f876a21a6ec`。
+- `writer-check-03`: `mise run check`、2026-10-28T15:32:04.875680+00:00→2026-10-28T15:32:09.685302+00:00、exit 1、4.809622s、unittest/counts []、Node []。metadata SHA-256 `1484cfcfd7af4407950f077b95d11de04151a86277256dd5aa28740e1c74e9d7`、raw SHA-256 `5fcc11e1537737445d7efeb5131550355cf29750357a5ff4276f88202b60d633`。
+- `writer-check-04`: `mise run check`、2026-10-28T15:34:06.717773+00:00→2026-10-28T15:34:13.094280+00:00、exit 1、6.376507s、unittest/counts []、Node []。metadata SHA-256 `e29c624fb3d4ce1e931685a19086047fa3b0903be952d6eab1e9cb924bc674d9`、raw SHA-256 `6f2969a43a89c0c7d797bf7ef46c3558f21f28f7d2571f4c8951971b06849512`。
+- `writer-check-05`: `mise run check`、2026-10-28T15:34:36.210207+00:00→2026-10-28T15:34:41.322248+00:00、exit 0、5.112041s、unittest/counts []、Node []。metadata SHA-256 `bc61fbb099ba5aad99a042031e7593058de5604e30f9d87eae59507eaafda16a`、raw SHA-256 `4067ce28c4bfab500c70f39e28c2132a9527796eed1022cd7cf4950f47c07d2e`。
+- `writer-node-all-01`: `mise exec -- node --test --test-reporter=tap tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs tests/test_ui_private_sessions.mjs`、2026-10-28T15:35:52.103174+00:00→2026-10-28T15:36:10.799101+00:00、exit 0、18.695927s、unittest/counts []、Node ['# tests 400']。metadata SHA-256 `a1b00a92b80bef19a4b6180045812276c61e0417c87ca1ab7f1ced4ee7d850d0`、raw SHA-256 `455415ebc84bb87a2629a8b81b93294ab47b9f5ec95dff5e7703a1401e26434b`。
+- `writer-python-focused-01`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest test_ui_private_sessions test_private_sessions test_turn_run test_device_snapshot test_device_snapshot_local test_device_snapshot_transport test_device_cloud -v`、2026-10-28T15:32:06.576807+00:00→2026-10-28T15:33:20.229632+00:00、exit 0、73.652825s、unittest/counts ['Ran 96 tests in 68.524s']、Node []。metadata SHA-256 `042bb975706bf6f5d9968d481396f23f0dc8330f480ae063a870bcbb0a2fdd39`、raw SHA-256 `0e565df16f488073c78281c0a9b2f1200ea1916997763dda295abb8861fa27f5`。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/ui10_review_r1`（新規独立context）。base commit: `50833edf847732d4ad7fbdd4835efe4fb6a48993`。
+- 未追跡を含む最新全33files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `ff604b29f3e4a74dc98ac29ad2051974a6e137da0817653616a54fb0c98cb604` |
+| `apps/display/session/controller.ts` | `6a95179a288b999057ff8d48e97e166bf513ad619db44fcff67f4402286028d2` |
+| `apps/display/session/view.tsx` | `fe481d3d44a729931ac7e6fc7bbf7982554d26d32806cecafa79a4a36e01ec0b` |
+| `apps/display/src/main.tsx` | `588511362c2b4f262013800dc5a6060d63176774f059186e5aec8dd6c47fa3e8` |
+| `apps/display/src/recovery/client.ts` | `1b243b002f33ec48c6710735bca24ad8314d68f1fdaf2622b3b903bd22006dc8` |
+| `apps/display/src/recovery/index.tsx` | `77d9fe0a6e1596c332f3303ba911b272c9bf20409d7be71f68394e4569873ec7` |
+| `apps/display/src/recovery/local-session.ts` | `390276f41e67bd6ea708f197e2893a037a152c5ca0a981e3552b1e1698dd2071` |
+| `docs/device-cloud.md` | `21a36c00776bb4fd8431a7545755cde643a478552305ceb5b7c9b2c440a3d8a8` |
+| `docs/device-snapshot.md` | `c03b6546bcc7e81f18b881c3c9a203f2eef5c4109231fd244ad9ec0e6198db57` |
+| `docs/private-sessions.md` | `f7f91f28de4195157188916ffc982a9a5822493aa96a0c41480e479db3abb0d6` |
+| `docs/ui-private-sessions.md` | `305dea8d3623af2295b34a906e72278515d4f3987adf59f76026e674c3aee0ea` |
+| `mise.toml` | `2ce2c70ef43dace9c61f148cec3c940ee1ea0b81fde788d71218bab65acd0c7f` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `7e254f0478d08e93efb1e9c49dcc7ec1599fd421da7a4c496f752ba1a22fb9af` |
+| `packages/runs/src/brainoid_runs/models.py` | `f3900f0a56d9961d78865d38b7b92c655f6282fba262acd2bd755f1a6cf6435f` |
+| `packages/ui/package.json` | `fe21949b9736c99b1f3f73a36e526631f8fc3ebc0cf9ac43b9886cf78eb85440` |
+| `packages/ui/src/chat/controller.ts` | `1559b1b43fe33824f5ba51fe53cd5f916bf6e86a587f5fd7d311a964331551a0` |
+| `packages/ui/src/chat/events.ts` | `4f7ad52cfb44d84c4dd7cfae7a923b5f95fc0d6bbd5b705a21e9632dbcdaaed1` |
+| `packages/ui/src/chat/fixture.ts` | `1f5ce4c95395ef385b5b895f1b41ff20bd879a32981ea984853d5c4d215f805d` |
+| `packages/ui/src/chat/view.tsx` | `b9a399ea81c49b6a89ecb5df4c433183902145afd44b754a736a39b153f4e0d3` |
+| `packages/ui/src/output-target/controller.ts` | `8071768d72d29f6cb09f3f0933a82f93452ece2df2b231b5b44ec6dc96306304` |
+| `packages/ui/src/output-target/fixture.ts` | `b594a0ccf64b1b507c9119203cc70f9036236432402fe2dda998c46f4e3daa75` |
+| `packages/ui/src/output-target/lifetime.ts` | `e1e9d165d7e4ffc762ec26b106300100fcecfb15fc9c27fec5518bcc50c5496e` |
+| `packages/ui/src/output-target/view.tsx` | `6c4c6799f138bfbaba5b1089e7f1bf0e3e40299614572ec8e8699cc2907c2224` |
+| `packages/ui/src/session-fixture.ts` | `0658b8bdb5d2b4180da693187811bdf5043c0489cbcb3281905d6c7f5510710b` |
+| `packages/ui/src/styles.css` | `f34ad7444d177835d45bd7831e24fec1128c8db8419b35e4e227a77db10415c6` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `070372e16ebdb294cc60d6233c7236b2df06c96519c7a13e141ac225dfdc061a` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `886fa56afd98808580a11f442935ef82ff5132d45efffa4f6da41714c0d0018c` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `151b3a71bdef867c28353bd53604d8db7f989fb2e2de711c323255912f740015` |
+| `specs/openapi.yaml` | `5d6175595751d4e9c1e4f01cd9c47227b4c98730943e99729ffdecea55e99bd5` |
+| `tests/test_ui_private_sessions.mjs` | `04a9eb9434fa9732bd6d6844fc921bfae1ff3ce29e059f27d902cfd980022456` |
+| `tests/test_ui_private_sessions.py` | `310f1599759b3270a2ad105d02995d1a3cff76e0a660b4e13774f2e564b47ac4` |
+| `tests/ui/private_sessions_browser.mjs` | `e93435f3340d9fbf898f53fc7efe1fad19f6c8f91212bbdd23ec8b3e9ce4ac41` |
+| `tests/ui/private_sessions_service.py` | `7cbdc01ddca54188c8c9f329602c940037d4bbe6cb8864f8db01de3a1853c289` |
+- `review-r1-expiry-probe`: `mise exec -- node /tmp/ba-ui-10-review-r1-expiry-probe.mjs`、2026-10-28T15:45:42.153923+00:00→2026-10-28T15:45:42.336328+00:00、exit 0、0.182405s、unittest/counts []、Node []。metadata SHA-256 `cf8f7aca97542dd377fd5a6123c6f9605e2b82f8be81a900bee9c2cd2ab3c109`、raw SHA-256 `1eb1d5d8d65c19e43d14eb08ae1712382d8f45971de4566e1f74501310be661a`。
+- `review-r1-probes`: `mise exec -- node /tmp/ba-ui-10-review-r1-probes.mjs`、2026-10-28T15:43:24.250654+00:00→2026-10-28T15:43:24.725616+00:00、exit 0、0.474962s、unittest/counts []、Node []。metadata SHA-256 `6b5b723abdd2d8b11be3b15919cd8c673dba1e69d7f43a5939f77bec6057c995`、raw SHA-256 `c2e24b4c9a760b0dbc391fde6a725a1263c86ac4f81ba05213c067bbffeef776`。
+- `review-r1-sse-probe`: `mise exec -- node /tmp/ba-ui-10-review-r1-sse-probe.mjs`、2026-10-28T15:44:56.736559+00:00→2026-10-28T15:44:56.906169+00:00、exit 0、0.16961s、unittest/counts []、Node []。metadata SHA-256 `46fe2d9512f85b4d0ee4f5f989a7edcbe0209993d4650291045c26eceb8431da`、raw SHA-256 `818dec7b90bdeaf31a01d2a37fd0a585a64977e9ade842c70bbba026f5441833`。
+- `writer-regression-calendar`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T15:46:36.798589+00:00→2026-10-28T15:46:59.176212+00:00、exit 0、22.377623s、unittest/counts []、Node []。metadata SHA-256 `5577e8ffbb2f144300fc4f365b1764434dbde85895b80d9be7193c7d41d4a9bd`、raw SHA-256 `5d96d0fe338890446f38b79bb84d92fdeb4135c328ad7246e9e4395f71fdae73`。
+- `writer-regression-chat`: `mise exec -- node tests/ui/chat_browser.mjs`、2026-10-28T15:44:02.026302+00:00→2026-10-28T15:46:02.302509+00:00、exit 0、120.276207s、unittest/counts []、Node []。metadata SHA-256 `5d19b6f694f5b90f86cf79c01b4dc9593e8e60fdb71724192acc9a2fc19a0a18`、raw SHA-256 `8a7254241b04042b650e97cf37a867854d87f85d5fee194131d5c69f82791b90`。
+- `writer-regression-devices`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T15:46:59.246786+00:00→2026-10-28T15:47:09.589970+00:00、exit 0、10.343184s、unittest/counts []、Node []。metadata SHA-256 `8bf8bafc9791287ff65c05461dcb6b7aedabb71840cb57b5da7c6ad5965bdb9f`、raw SHA-256 `ab98352e330be0657844a0381bf2e5da476cf4505075da834d13f3653d54769c`。
+- `writer-regression-memories`: `mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T15:46:02.370775+00:00→2026-10-28T15:46:09.098271+00:00、exit 0、6.727496s、unittest/counts []、Node []。metadata SHA-256 `1072918a09ae34fb895f6dcd9c9f8e1ecf77bd98efb0adf95939a28587298551`、raw SHA-256 `d0caba658b9472ab1d87c0efc5e01e949737c9a3157f2d827587de5a8b7b8ad4`。
+- `writer-regression-notes`: `mise exec -- node tests/ui/notes_browser.mjs`、2026-10-28T15:46:09.189125+00:00→2026-10-28T15:46:17.731337+00:00、exit 0、8.542212s、unittest/counts []、Node []。metadata SHA-256 `ee07aa2a9f70531469083ed2d1141abb69f5bbdf2e518da52fd571ef38c1ad23`、raw SHA-256 `ef7aebf2d4730003b9cec47ac5eb21a998374933ad501afc938b8e9223c5a214`。
+- `writer-regression-reminders`: `mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T15:46:27.678807+00:00→2026-10-28T15:46:36.712488+00:00、exit 0、9.033681s、unittest/counts []、Node []。metadata SHA-256 `d766a72bc6e315ca3d5405a651c8450b47b335ef924a7d4f1bb04520a9c22e38`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-regression-session`: `mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T15:43:51.648520+00:00→2026-10-28T15:44:01.952281+00:00、exit 0、10.303761s、unittest/counts []、Node []。metadata SHA-256 `e5249c4b3370f695c380d3832b0b229e66b4ac71886d4a8c10e49f78b496121e`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+- `writer-regression-tasks`: `mise exec -- node tests/ui/tasks_browser.mjs`、2026-10-28T15:46:17.817855+00:00→2026-10-28T15:46:27.557793+00:00、exit 0、9.739938s、unittest/counts []、Node []。metadata SHA-256 `3a2a6e699b13f7e2488e18dae9a4a96bc42f5eabd0b2262485700be1040594c2`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+
+### 独立レビュー ラウンド1 結果・正式終了
+
+- 2026-10-28T15:52:52.577761+00:00 `/root/ui10_review_r1` の全33path（新規13）/758sourceレビューを親が正式close。`request_changes`、必須3件（P1 1件・P2 2件）、任意0。source/raw・logical index/base/main不変、レビュー担当の全所有実行終了を照合。
+- `/tmp/ba-ui-10-review-r1-report.md` SHA-256 `b1c4e0236db5d6a367f14a8dc8140ab4e3bd46893c6c28e8cb9d9bfd64061347`。
+- `/tmp/ba-ui-10-review-r1-result.json` SHA-256 `0bfa7ccb7f17a26968f9db8781fe7bde328fea843149b59b7011b8223360be43`。
+- `/tmp/ba-ui-10-review-r1-closure.json` SHA-256 `a7fc4c946888b5f2e22adc083111c985d06e6fc092adc8c19c2d1399abe59c28`。
+- R1-01 (P2): 表示許可PATCHのcommit後応答喪失で、会話再選択後にexact retry導線が消え、未確認policyが全会話の送信を止める。元のconversation/body/key/If-Matchで照合する導線と選択変更後の安全な復旧を実装する。
+- R1-02 (P1): 同じsession/idle metadataの再取得でmonotonic期限を作り直し、wall時計が遅れると既知期限を延長する。同じaccept内でtick失効直後のDTOを再installする問題も再現。固定最大期限と不変idleのmonotonic上限を保持し、正当な同version idle更新と区別、失効後の同session再活性化を拒否する。
+- R1-03 (P2): running runの再接続でserviceが返すhistoryをselectへ渡し、SSEをabort/reopenし続ける。現在stream上で置換履歴を検証・反映し、その後のlive/terminalを受信、期限切れでは停止する。実serviceのnonzero cursorを使う回帰を追加する。
+- 独自Node probe 3本のactual exit0は問題再現assertionの成功であり、製品の修正完了ではない。check05・Node400・既存8browser回帰は同じ758sourceで成功しraw/index/closureを照合。旧focused Python96とbrowser08は非最終mapとして区別。旧browser08画像3枚を独立担当が確認した。
+- 正式close時点でwriter所有normal-r1（tool11077）は進行中。final UI10 local HTTP/browserも後続予定で未完了。これらの結果と所有資源終了を回収してから元担当が修正し、新規独立R2が最新差分全体を確認する。検証中のsourceは変更しない。
+- `writer-browser-final-r1`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T15:57:00.885324+00:00→2026-10-28T15:57:12.740934+00:00、exit 0、11.85561s、unittest/counts ['Ran 1 test in 9.134s']、Node []。metadata SHA-256 `4b03b13b1a509dcf00c732bcf9e26e837ee98e918acff531ab72d5c6a2c412c1`、raw SHA-256 `5cdd243af4e12be64c9ae23392df40452c558c602653053d798b2f73ccb10d6d`。
+- `writer-normal-r1`: `mise run test`、2026-10-28T15:43:47.936038+00:00→2026-10-28T15:56:42.667788+00:00、exit 0、774.73175s、unittest/counts ['Ran 1320 tests in 721.067s', 'Ran 18 tests in 0.200s']、Node ['ℹ tests 400']。metadata SHA-256 `ec465fa208a8253a4edb5bbbd69133efddc6572318c8c3657fc1682cf23ed5ec`、raw SHA-256 `b08bf9696a95e1fbee1683a39890a3269fa30cfc822cc364b4c6eaab48aa8390`。
+- `writer-r2-focused-01`: `mise exec -- node --test --test-reporter=tap tests/test_ui_private_sessions.mjs tests/test_ui_chat.mjs`、2026-10-28T16:01:22.036463+00:00→2026-10-28T16:01:23.494021+00:00、exit 0、1.457558s、unittest/counts []、Node ['# tests 83']。metadata SHA-256 `9bec20d8a27a3cec5987c75c50630d94611698aaefe47bc25603c0e2c73bfe5c`、raw SHA-256 `54e6e891fd3d9fe441f9c8089061aaa9039885c02aa21f95ab8f8d96ce19b838`。
+- `writer-r2-browser-01`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:08:02.893904+00:00→2026-10-28T16:08:36.736615+00:00、exit 1、33.842711s、unittest/counts ['Ran 1 test in 32.847s']、Node []。metadata SHA-256 `273b93b049b72469ada715611613c203806ef2721ac4063f9627c94c211bf73f`、raw SHA-256 `78278f8864557c5662398172dcac3cc1aae3791bfa52842cd43736d9d92c0ab7`。
+- `writer-r2-check-01`: `mise run check`、2026-10-28T16:08:05.980846+00:00→2026-10-28T16:08:09.469398+00:00、exit 1、3.488552s、unittest/counts []、Node []。metadata SHA-256 `8b536fdbdf393da068d16aac61a5199e1bb83c86e12b0e864189cc70ef0f6ec9`、raw SHA-256 `66b69a92d133c16976d7e932beb2f47b117b7af51a368b6bc029b6ca50e9bf1c`。
+- `writer-r2-focused-02`: `mise exec -- node --test --test-reporter=tap tests/test_ui_private_sessions.mjs tests/test_ui_chat.mjs`、2026-10-28T16:09:55.623806+00:00→2026-10-28T16:09:57.083320+00:00、exit 0、1.459514s、unittest/counts []、Node ['# tests 87']。metadata SHA-256 `6555872583e15768aafa3c3c738eb9019f6518217b3427d47d3ea38915d23b4a`、raw SHA-256 `ee2b0c8523784099a59678c85bc1c274a8360c332f863a2b6473bfae095c06ed`。
+- `writer-r2-browser-02`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:09:48.402712+00:00→2026-10-28T16:10:24.229681+00:00、exit 1、35.826969s、unittest/counts ['Ran 1 test in 34.853s']、Node []。metadata SHA-256 `13646fdaaf6863ac55a73eaa31901d09a418efed78952274fae7d2c0abaa18a7`、raw SHA-256 `81f76e927a7b50edf3a041d624d4f55a5e4be1201714d1cd05231021cb763d93`。
+- `writer-r2-browser-03`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:11:23.709468+00:00→2026-10-28T16:12:00.322552+00:00、exit 1、36.613084s、unittest/counts ['Ran 1 test in 35.627s']、Node []。metadata SHA-256 `9a9e0ae9808807f9f86091af22bf53ce10455edfe1c9202ed1c3e9cc3f53788a`、raw SHA-256 `7a5347bd8be83f2618f8caeee5ebab1e0694ceb353242f29b65c6c59dccc3ed4`。
+- `writer-r2-browser-04`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:14:09.996989+00:00→2026-10-28T16:14:46.449806+00:00、exit 1、36.452817s、unittest/counts ['Ran 1 test in 35.466s']、Node []。metadata SHA-256 `8a09099d39d59cfdb145825ce0318cce44803e3a7a726e12e8794ec7ba602cf5`、raw SHA-256 `e00256d6f68410a32be056aa407946da841db8d0c501a0a45de278e4ee9435ba`。
+- `writer-r2-browser-05`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:16:27.143479+00:00→2026-10-28T16:17:03.723654+00:00、exit 1、36.580175s、unittest/counts ['Ran 1 test in 35.618s']、Node []。metadata SHA-256 `7314a9ea86f519a9ab0a8926e233501a09bd70b94fa1a0541ce93311c1505e89`、raw SHA-256 `48b889b9d31bde214b70e71d159a3396143a7d7d82935ab990e161ec62d345d3`。
+- `writer-r2-browser-06`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:18:06.851839+00:00→2026-10-28T16:18:16.317577+00:00、exit 0、9.465738s、unittest/counts ['Ran 1 test in 8.426s']、Node []。metadata SHA-256 `1c2328ac8a735501094a677ae45335f4b2a1a5e2fbb96859576e1453a973678e`、raw SHA-256 `5a1ab20dab90167e707f5d08286a0eebdc8c908872f1e664118c9f56021c5b7f`。
+- `writer-r2-browser-final`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:20:44.112870+00:00→2026-10-28T16:20:54.882433+00:00、exit 0、10.769563s、unittest/counts ['Ran 1 test in 9.703s']、Node []。metadata SHA-256 `5118a3efa2b48c5f448794e121bfa442fd4c9c9acccaf32b21b86474774bc4d5`、raw SHA-256 `82538d1e53aadda74120eb2a7ff133ef8f0c47774dd024e46ae5fe2b0984e9a2`。
+- `writer-r2-check-02`: `mise run check`、2026-10-28T16:11:27.124955+00:00→2026-10-28T16:11:30.464987+00:00、exit 1、3.340032s、unittest/counts []、Node []。metadata SHA-256 `3cd4ecb3d4f4afaf961de9a9b5de19d8be260cfabd78e542500c4494aff0d923`、raw SHA-256 `586a485cc24aabc2419edacd1007cb8914842d2e8fd61b95b4a12439f1719cb7`。
+- `writer-r2-check-final-02`: `mise run check`、2026-10-28T16:22:06.813809+00:00→2026-10-28T16:22:11.224219+00:00、exit 0、4.41041s、unittest/counts []、Node []。metadata SHA-256 `3df3ed09adc7903b58f8e0d4a30e36a54409b2bd9af8ee1c2807b25d6898de82`、raw SHA-256 `1cbb50bfaf13c2e8ed818f35fe80a979bbe1013798d5633667a3a83fe4c511ab`。
+- `writer-r2-check-final`: `mise run check`、2026-10-28T16:20:47.116039+00:00→2026-10-28T16:20:51.023782+00:00、exit 1、3.907743s、unittest/counts []、Node []。metadata SHA-256 `0b8e9a2124a976a794125894459424f94310bd1b37b8d10403d9b5e8077f0ca7`、raw SHA-256 `b2baa27eac9fd75030ff0c9aa549854cc0de36c897c9a99d75dde46e81725969`。
+- `writer-r2-node-all-final`: `mise exec -- node --test --test-reporter=tap tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs tests/test_ui_private_sessions.mjs`、2026-10-28T16:20:50.568431+00:00→2026-10-28T16:21:07.990183+00:00、exit 0、17.421752s、unittest/counts []、Node ['# tests 412']。metadata SHA-256 `262a2df9061ed4fb24aece64fe581189d5c0fc4801c9bb075803604630cc699c`、raw SHA-256 `f55fc67c5d83a050ac59336b5fd750fd28a2c74f4eb901ae2ed9cbd1bf72e363`。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/ui10_review_r2`（新規独立context）。base commit: `50833edf847732d4ad7fbdd4835efe4fb6a48993`。
+- 未追跡を含む最新全34files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `e1ce8cc2fda230a2fb5936055f13d0563f0ac3cbcbee7bc30f7308c4b1602806` |
+| `apps/display/session/controller.ts` | `903ee339adf9af0d726261f4e65bdfd0bde95f8e5d98f14cdbbde77f202714d1` |
+| `apps/display/session/view.tsx` | `fe481d3d44a729931ac7e6fc7bbf7982554d26d32806cecafa79a4a36e01ec0b` |
+| `apps/display/src/main.tsx` | `588511362c2b4f262013800dc5a6060d63176774f059186e5aec8dd6c47fa3e8` |
+| `apps/display/src/recovery/client.ts` | `1b243b002f33ec48c6710735bca24ad8314d68f1fdaf2622b3b903bd22006dc8` |
+| `apps/display/src/recovery/index.tsx` | `77d9fe0a6e1596c332f3303ba911b272c9bf20409d7be71f68394e4569873ec7` |
+| `apps/display/src/recovery/local-session.ts` | `390276f41e67bd6ea708f197e2893a037a152c5ca0a981e3552b1e1698dd2071` |
+| `docs/device-cloud.md` | `21a36c00776bb4fd8431a7545755cde643a478552305ceb5b7c9b2c440a3d8a8` |
+| `docs/device-snapshot.md` | `c03b6546bcc7e81f18b881c3c9a203f2eef5c4109231fd244ad9ec0e6198db57` |
+| `docs/private-sessions.md` | `f7f91f28de4195157188916ffc982a9a5822493aa96a0c41480e479db3abb0d6` |
+| `docs/ui-private-sessions.md` | `fefbb8443a14da9be7759761cabc04c99f0e2eb96d47da7b2d1b6b6be011e46b` |
+| `mise.toml` | `2ce2c70ef43dace9c61f148cec3c940ee1ea0b81fde788d71218bab65acd0c7f` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `7e254f0478d08e93efb1e9c49dcc7ec1599fd421da7a4c496f752ba1a22fb9af` |
+| `packages/runs/src/brainoid_runs/models.py` | `f3900f0a56d9961d78865d38b7b92c655f6282fba262acd2bd755f1a6cf6435f` |
+| `packages/ui/package.json` | `fe21949b9736c99b1f3f73a36e526631f8fc3ebc0cf9ac43b9886cf78eb85440` |
+| `packages/ui/src/chat/controller.ts` | `b6e9faf8869ecaf1dfe8c1d257472cf03517b8ff36a4c22b4b42bbfa8df35d5a` |
+| `packages/ui/src/chat/events.ts` | `4f7ad52cfb44d84c4dd7cfae7a923b5f95fc0d6bbd5b705a21e9632dbcdaaed1` |
+| `packages/ui/src/chat/fixture.ts` | `5f3c680fe411f1673ac66b2ab4196600439b79658c3cbc7c513c643f3fd2ffcb` |
+| `packages/ui/src/chat/view.tsx` | `cb08a2084125149ca933c1748aae9e4c1bcc1e2f42ce125fd0913c572994eb7a` |
+| `packages/ui/src/output-target/controller.ts` | `8071768d72d29f6cb09f3f0933a82f93452ece2df2b231b5b44ec6dc96306304` |
+| `packages/ui/src/output-target/fixture.ts` | `b594a0ccf64b1b507c9119203cc70f9036236432402fe2dda998c46f4e3daa75` |
+| `packages/ui/src/output-target/lifetime.ts` | `13041a4412da27cfff4a7b9d7e70aed7a049ec83dc8e78abe7484cbf5f918ce8` |
+| `packages/ui/src/output-target/view.tsx` | `6c4c6799f138bfbaba5b1089e7f1bf0e3e40299614572ec8e8699cc2907c2224` |
+| `packages/ui/src/session-fake.tsx` | `c25a8d8ba85a7108d9d96d877fb37add872f23d502a7679074bac09a42826bdf` |
+| `packages/ui/src/session-fixture.ts` | `0658b8bdb5d2b4180da693187811bdf5043c0489cbcb3281905d6c7f5510710b` |
+| `packages/ui/src/styles.css` | `f34ad7444d177835d45bd7831e24fec1128c8db8419b35e4e227a77db10415c6` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `070372e16ebdb294cc60d6233c7236b2df06c96519c7a13e141ac225dfdc061a` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `886fa56afd98808580a11f442935ef82ff5132d45efffa4f6da41714c0d0018c` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `151b3a71bdef867c28353bd53604d8db7f989fb2e2de711c323255912f740015` |
+| `specs/openapi.yaml` | `5d6175595751d4e9c1e4f01cd9c47227b4c98730943e99729ffdecea55e99bd5` |
+| `tests/test_ui_private_sessions.mjs` | `c127e8dd94f1414722f8c978c34146d1eef06bc91b503afb336e3fcbf44efbc6` |
+| `tests/test_ui_private_sessions.py` | `310f1599759b3270a2ad105d02995d1a3cff76e0a660b4e13774f2e564b47ac4` |
+| `tests/ui/private_sessions_browser.mjs` | `ae184326eb815ff230f1fbe1d67631e067a6e77347cd3791210bf404ff98552c` |
+| `tests/ui/private_sessions_service.py` | `0b447590ac5ac5331671afce799a9df53c5aed64a8286955ff80d93821d7046f` |
+- `writer-r2-browser-final-02`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:23:43.548778+00:00→2026-10-28T16:23:54.019337+00:00、exit 0、10.470559s、unittest/counts ['Ran 1 test in 9.383s']、Node []。metadata SHA-256 `103147d904e02313e50eef8a7dd4ed062e12cc07cf552235746417048e7792cd`、raw SHA-256 `9204ace2a4ff207a882ddc33e26148e4f88c72e6b1b9c94a09bb463b24860277`。
+- `writer-r2-node-all-final-02`: `mise exec -- node --test --test-reporter=tap tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs tests/test_ui_private_sessions.mjs`、2026-10-28T16:23:47.814609+00:00→2026-10-28T16:24:04.930422+00:00、exit 0、17.115813s、unittest/counts []、Node ['# tests 412']。metadata SHA-256 `c700339beed0a48fec57d94904317c5145ce5bcbc6aa0bb49a9f763abb08c39e`、raw SHA-256 `36e7e8140861dcd855ebdfa8a2a5bcdb73324b590f3e638ca40cb05f27903f55`。
+- `writer-r2-regression-calendar`: `mise exec -- node tests/ui/calendar_browser.mjs`、2026-10-28T16:24:41.501588+00:00→2026-10-28T16:24:58.016392+00:00、exit 0、16.514804s、unittest/counts []、Node []。metadata SHA-256 `c74f185be81b4db34493178549b936af26b6a29f43f006323ecc30411027ef01`、raw SHA-256 `5d96d0fe338890446f38b79bb84d92fdeb4135c328ad7246e9e4395f71fdae73`。
+- `writer-r2-regression-chat`: `mise exec -- node tests/ui/chat_browser.mjs`、2026-10-28T16:22:22.336679+00:00→2026-10-28T16:24:16.984856+00:00、exit 0、114.648177s、unittest/counts []、Node []。metadata SHA-256 `db53042e6e7cfafe36e99a0975af4d148ba787ef907dc90e164c411961a7dec4`、raw SHA-256 `8a7254241b04042b650e97cf37a867854d87f85d5fee194131d5c69f82791b90`。
+- `writer-r2-regression-devices`: `mise exec -- node tests/ui/devices_browser.mjs`、2026-10-28T16:24:58.064803+00:00→2026-10-28T16:25:05.401307+00:00、exit 0、7.336504s、unittest/counts []、Node []。metadata SHA-256 `5d6e575ffda9f6e6952b4627634b9770f74bdb6ef16e3ddc1931a378d7c52dcf`、raw SHA-256 `ab98352e330be0657844a0381bf2e5da476cf4505075da834d13f3653d54769c`。
+- `writer-r2-regression-memories`: `mise exec -- node tests/ui/memories_browser.mjs`、2026-10-28T16:24:17.032938+00:00→2026-10-28T16:24:22.361923+00:00、exit 0、5.328985s、unittest/counts []、Node []。metadata SHA-256 `0f14dae1556a7000175d851ee980d1fd67284b282a3fbd0d2fbf320c2c563056`、raw SHA-256 `d0caba658b9472ab1d87c0efc5e01e949737c9a3157f2d827587de5a8b7b8ad4`。
+- `writer-r2-regression-notes`: `mise exec -- node tests/ui/notes_browser.mjs`、2026-10-28T16:24:22.411201+00:00→2026-10-28T16:24:28.282856+00:00、exit 0、5.871655s、unittest/counts []、Node []。metadata SHA-256 `e93b66843cbb21c2ec48526918ef792be37d8b12d53ad12ba7a9b68bfbfa18dc`、raw SHA-256 `ef7aebf2d4730003b9cec47ac5eb21a998374933ad501afc938b8e9223c5a214`。
+- `writer-r2-regression-reminders`: `mise exec -- node tests/ui/reminders_browser.mjs`、2026-10-28T16:24:35.179599+00:00→2026-10-28T16:24:41.441841+00:00、exit 0、6.262242s、unittest/counts []、Node []。metadata SHA-256 `159a0a431ffd37366ea3058b07e23d7a83e8987c81d40f16c1205ee8d8994694`、raw SHA-256 `99e5f87b50e01a6dad376fb396eaf3aa75c2c5a2ab66a63351423ee5f07c4bc5`。
+- `writer-r2-regression-session`: `mise exec -- node tests/ui/session_browser.mjs`、2026-10-28T16:22:13.737950+00:00→2026-10-28T16:22:22.289704+00:00、exit 0、8.551754s、unittest/counts []、Node []。metadata SHA-256 `020d1b64d99540c4802c106c8a25b6698fa36822a9d8a76a24bcc5b9fa99ce51`、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。
+- `writer-r2-regression-tasks`: `mise exec -- node tests/ui/tasks_browser.mjs`、2026-10-28T16:24:28.331965+00:00→2026-10-28T16:24:35.129452+00:00、exit 0、6.797487s、unittest/counts []、Node []。metadata SHA-256 `cc455d06c576dbba4387c3309e2de1b6a418137a2f387a58f6ac30c8a899e5ad`、raw SHA-256 `a04aa90fc3c8598661eada5bfb46a2735ce8385e0c6af365790aef7e4b707b5a`。
+
+### 独立レビュー ラウンド2 結果・正式終了
+
+- 2026-10-28T16:42:21.191769+00:00 `/root/ui10_review_r2` を親が正式close。全34paths（新規13）/758sourceとraw・logical index/base/main不変、全writer/reviewer所有実行終了を照合。`request_changes`、必須P2 2件・任意0。
+- `/tmp/ba-ui-10-review-r2-report.md` SHA-256 `794d107f24c10fd00d35db5924dd6ffd6d8363caa7b287a0ecbda8359c7bfd24`。
+- `/tmp/ba-ui-10-review-r2-result.json` SHA-256 `ad98f6d20e73dd54eea0263bbb1ba1250c934ce813185d92f38628dfc1cf96a6`。
+- `/tmp/ba-ui-10-review-r2-closure.json` SHA-256 `71bee3d98ee7c54338e4611b63b169a37167984a3f76746853f7ddf32d8d8f03`。
+- `/tmp/ba-ui-10-review-r2-provided-evidence.json` SHA-256 `8c25ed8d01cc30b535dbc249bf2c2c6ba7eff0eb23a7042707777c168b338a36`。
+- R1-01のexact policy再確認、R1-02の既知monotonic期限は解消。R1-03のhistory→abort/reopenループも解消したが、初回runの実DTO境界がR2-01として残る。新しい根拠と修正進展があり、同一指摘の進展なし反復には該当しない。
+- R2-01 (P2): 実UIBridgeは末頁next_cursor:nullをexclude_noneで省略する。初回running run/message1件の実history DTOを現UIへ渡すと拒否、nullを加えたcontrolではlive継続する。欠落/nullの終端を実契約どおり扱い、不正cursor拒否・現run/session/seqの検査を維持する。
+- R2-02 (P2): 実local message pageはlimit1・sequence昇順。finalが101件目以降では100頁で毎回先頭からやり直し、永久に本文へ届かない。100件controlは成功、101件は再試行後累積200readsで空を独自probe再現。現在run/session/credential/assignmentへ束縛した有界continuationで前進し、部分private履歴は表示しない。
+- 独立5観測probeはpolicy/lifetime/同stream処理を確認。実API/worker/UIBridge history probe1件0.554s成功。2不具合のNode probe exit0は再現assertionの成功であり修正完了ではない。PYTHONPATH不足exit1、sandboxで停止したown probeは確認済PID/birthで終了してactual143、その後host repeat0を区別して保存。
+- 最終現758sourceのcheck・Node412・UI10実localHTTP1件9.383s・既存8browser全成功を独立照合。R1normalのPython1320/Skill18は不変scopeのみ再利用し、旧Node400は412で置換。最新6画像を独立担当が確認。実Pi/native/cloud/provider/音声の検証とは区別する。
+- 元実装担当で必須2件の修正・境界回帰を行い、新規独立R3で最新全差分をレビューする。現行成功suiteを未対応2件の代替にしない。
+- `writer-r3-focused-01`: `mise exec -- node --test --test-reporter=tap tests/test_ui_private_sessions.mjs tests/test_ui_chat.mjs`、2026-10-28T16:51:03.347365+00:00→2026-10-28T16:51:04.807914+00:00、exit 0、1.460549s、unittest/counts []、Node ['# tests 110']。metadata SHA-256 `5232b94dd72f99d9880a5cd8a8be5d60b326f30539f5b6a41e21c91145299273`、raw SHA-256 `712714ccb626182fc36bcfca4e1fe557d1bde838f975e64951876706ebd218ee`。
+- `writer-r3-browser-01`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:52:50.455165+00:00→2026-10-28T16:53:00.386969+00:00、exit 0、9.931804s、unittest/counts ['Ran 1 test in 8.740s']、Node []。metadata SHA-256 `436c2fd54e7a1b0706499bd4ddced2fe66473431a6ceaa009c01e7a96856d2ab`、raw SHA-256 `699c6480924257de1e5a467f89cb3a9216b6229418f544a7ff09af7806ea10ee`。
+- `writer-r3-check-01`: `mise run check`、2026-10-28T16:52:59.318305+00:00→2026-10-28T16:53:02.785735+00:00、exit 1、3.46743s、unittest/counts []、Node []。metadata SHA-256 `a69ef184e2c2a2a73f19271ac74538e9a149665b74ee7808f9d43bbc51cec452`、raw SHA-256 `e8e0fe5cb613c8fcc73ae6980ece4dc49c2b77343c915cc67734a85de5a24488`。
+- `writer-r3-check-final`: `mise run check`、2026-10-28T16:54:33.805309+00:00→2026-10-28T16:54:38.240458+00:00、exit 0、4.435149s、unittest/counts []、Node []。metadata SHA-256 `5dca97145c776e9f3a1b78b4f06a63afb4edf05c932a699f25f4bbf21a843e5f`、raw SHA-256 `2af52cb2baf6abb53ca5886aae0007aaaa56b8228de56931b818ce2eae0081e7`。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/ui10_review_r3`（新規独立context）。base commit: `50833edf847732d4ad7fbdd4835efe4fb6a48993`。
+- 未追跡を含む最新全34files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `e18924159a0ff78b46202f7cb38db5827bd1bb439de8ce2a27f98f92f9b9f675` |
+| `apps/display/session/controller.ts` | `ef274613f86825e506a7780f5cc7f4ad632b0f1d2e0f356810d735c92660da64` |
+| `apps/display/session/view.tsx` | `fe481d3d44a729931ac7e6fc7bbf7982554d26d32806cecafa79a4a36e01ec0b` |
+| `apps/display/src/main.tsx` | `588511362c2b4f262013800dc5a6060d63176774f059186e5aec8dd6c47fa3e8` |
+| `apps/display/src/recovery/client.ts` | `1b243b002f33ec48c6710735bca24ad8314d68f1fdaf2622b3b903bd22006dc8` |
+| `apps/display/src/recovery/index.tsx` | `77d9fe0a6e1596c332f3303ba911b272c9bf20409d7be71f68394e4569873ec7` |
+| `apps/display/src/recovery/local-session.ts` | `390276f41e67bd6ea708f197e2893a037a152c5ca0a981e3552b1e1698dd2071` |
+| `docs/device-cloud.md` | `21a36c00776bb4fd8431a7545755cde643a478552305ceb5b7c9b2c440a3d8a8` |
+| `docs/device-snapshot.md` | `c03b6546bcc7e81f18b881c3c9a203f2eef5c4109231fd244ad9ec0e6198db57` |
+| `docs/private-sessions.md` | `f7f91f28de4195157188916ffc982a9a5822493aa96a0c41480e479db3abb0d6` |
+| `docs/ui-private-sessions.md` | `bc336865a43ff35a7d81094e374a974a923485ca23b679b97770fcf354cb459b` |
+| `mise.toml` | `2ce2c70ef43dace9c61f148cec3c940ee1ea0b81fde788d71218bab65acd0c7f` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `7e254f0478d08e93efb1e9c49dcc7ec1599fd421da7a4c496f752ba1a22fb9af` |
+| `packages/runs/src/brainoid_runs/models.py` | `f3900f0a56d9961d78865d38b7b92c655f6282fba262acd2bd755f1a6cf6435f` |
+| `packages/ui/package.json` | `fe21949b9736c99b1f3f73a36e526631f8fc3ebc0cf9ac43b9886cf78eb85440` |
+| `packages/ui/src/chat/controller.ts` | `b6e9faf8869ecaf1dfe8c1d257472cf03517b8ff36a4c22b4b42bbfa8df35d5a` |
+| `packages/ui/src/chat/events.ts` | `4f7ad52cfb44d84c4dd7cfae7a923b5f95fc0d6bbd5b705a21e9632dbcdaaed1` |
+| `packages/ui/src/chat/fixture.ts` | `5f3c680fe411f1673ac66b2ab4196600439b79658c3cbc7c513c643f3fd2ffcb` |
+| `packages/ui/src/chat/view.tsx` | `cb08a2084125149ca933c1748aae9e4c1bcc1e2f42ce125fd0913c572994eb7a` |
+| `packages/ui/src/output-target/controller.ts` | `8071768d72d29f6cb09f3f0933a82f93452ece2df2b231b5b44ec6dc96306304` |
+| `packages/ui/src/output-target/fixture.ts` | `b594a0ccf64b1b507c9119203cc70f9036236432402fe2dda998c46f4e3daa75` |
+| `packages/ui/src/output-target/lifetime.ts` | `13041a4412da27cfff4a7b9d7e70aed7a049ec83dc8e78abe7484cbf5f918ce8` |
+| `packages/ui/src/output-target/view.tsx` | `6c4c6799f138bfbaba5b1089e7f1bf0e3e40299614572ec8e8699cc2907c2224` |
+| `packages/ui/src/session-fake.tsx` | `c25a8d8ba85a7108d9d96d877fb37add872f23d502a7679074bac09a42826bdf` |
+| `packages/ui/src/session-fixture.ts` | `0658b8bdb5d2b4180da693187811bdf5043c0489cbcb3281905d6c7f5510710b` |
+| `packages/ui/src/styles.css` | `f34ad7444d177835d45bd7831e24fec1128c8db8419b35e4e227a77db10415c6` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `070372e16ebdb294cc60d6233c7236b2df06c96519c7a13e141ac225dfdc061a` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `886fa56afd98808580a11f442935ef82ff5132d45efffa4f6da41714c0d0018c` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `151b3a71bdef867c28353bd53604d8db7f989fb2e2de711c323255912f740015` |
+| `specs/openapi.yaml` | `5d6175595751d4e9c1e4f01cd9c47227b4c98730943e99729ffdecea55e99bd5` |
+| `tests/test_ui_private_sessions.mjs` | `16307934562cf4d7e0e8d74ccf1e3894de9615c95fe8a8f602cf3389029856b4` |
+| `tests/test_ui_private_sessions.py` | `310f1599759b3270a2ad105d02995d1a3cff76e0a660b4e13774f2e564b47ac4` |
+| `tests/ui/private_sessions_browser.mjs` | `ae184326eb815ff230f1fbe1d67631e067a6e77347cd3791210bf404ff98552c` |
+| `tests/ui/private_sessions_service.py` | `06faf074f720095332d4acdb45979ec0da20537fab23eb4e9f57024eb93784a5` |
+- `writer-r3-browser-final`: `mise exec -- uv run --all-packages --locked --offline python -B tests/ui/private_sessions_service.py`、2026-10-28T16:55:43.088339+00:00→2026-10-28T16:55:53.581423+00:00、exit 0、10.493084s、unittest/counts ['Ran 1 test in 9.470s']、Node []。metadata SHA-256 `54cddd11663be3083f3382c9ef22213f59081f423f0a5af034e029acc1b0b000`、raw SHA-256 `e67e79669eb624993d01e304b340012b7d7a52837e7cd7d6639e9a1b1d52a65f`。
+- `writer-r3-node-all-final`: `mise exec -- node --test --test-reporter=tap tests/test_api_contracts.mjs tests/test_pr_checks.mjs tests/test_ui.mjs tests/test_ui_session.mjs tests/test_ui_chat.mjs tests/test_ui_memories.mjs tests/test_ui_notes.mjs tests/test_ui_tasks.mjs tests/test_ui_reminders.mjs tests/test_ui_push.mjs tests/test_ui_calendar.mjs tests/test_ui_devices.mjs tests/test_ui_private_sessions.mjs`、2026-10-28T16:55:46.188603+00:00→2026-10-28T16:56:03.351363+00:00、exit 0、17.16276s、unittest/counts []、Node ['# tests 435']。metadata SHA-256 `0844fd6605c84b1504fb23d7e42e0aa4e32bd66fb972c95688f9117589fcedaa`、raw SHA-256 `ce6d2c81e9a870f8f6405f38973504bbec62c4f55c31e8effc2fb48959152903`。
+
+### R3レビュー中のindex cache観測
+
+- 2026-10-28T17:11:24.389496+00:00 raw index SHAが`733abcf32a3487c8bbfcd4672264bf293d4cbf312316d45884bd811ee05ea541`から`9f7eb262b94df102f3bb8deca0d5f6c16d14123e771a14013d543ada44dafb10`へ変化。独立担当と親がbinaryを解析し、生成SDK31entryのctime/mtime/inodeだけの更新と確認。object ID・mode・flags・uid/gid/size/dev・extensions・logical indexは不変、staged差分なし、製品758sourceはfreeze一致。実行者は断定せず、indexの復元操作は行わない。raw不変とは記載しない。
+- 親binary照合 `/tmp/ba-ui-10-parent-index-cache-audit-r3.json` SHA-256 `e9538cb9600be8731626d8113c177acb90524ec82fa8c84b89fdd99bcdccfe5d`、独立観測 `/tmp/ba-ui-10-review-r3-index-observation.json`。内容・stage状態の変更ではなくstat cache更新なので、製品差分の再レビュー対象追加とは扱わない。
+
+### 独立レビュー ラウンド3 結果・正式終了
+
+- 2026-10-28T17:18:34.545369+00:00 `/root/ui10_review_r3` を親が正式close。最新全34 paths（新規13）・758 source、base/main、logical indexを照合。判定 `approve`、要修正0・任意0。所有実行・listenerは全終了。raw indexの31 SDK entry stat cache差のみは前節の別監査どおりで、コード・staged内容に変更なし。
+- `/tmp/ba-ui-10-review-r3-report.md` SHA-256 `b496d9283d0492ef77b22ef7d6628d119dc1abf966ab9eaa2bdd51bd3f411ba5`。
+- `/tmp/ba-ui-10-review-r3-result.json` SHA-256 `bea0e6ee5a51fc7af20820bdd9e7fec7232fa7e5dd51bdf459e1ef874757482f`。
+- `/tmp/ba-ui-10-review-r3-closure.json` SHA-256 `ba4418397fbc71bde1873691db37b64cfb2d3d8e6507e3adfa68199129e2b412`。
+- `/tmp/ba-ui-10-review-r3-provided-audit.json` SHA-256 `412511f4a48fa80a7184299fe38a6a682b9a427bc490a4456f7cdbead50ddbeb`。
+- R2-01: 初回/terminal実historyの省略cursorを受理し、不正cursorを拒否。R2-02: 本文を保持しない現在binding依存の有界continuationで100ページごとに前進し、停止・失効・別run/session/credential/assignmentで破棄。両指摘を独立担当が解消確認。R1全3件の回帰も解消を維持。
+- 独立検証: 境界37ケース、Node110ケース、Python14ケースが各actual exit0。初回probeのbatch数不足によるexit1と修正、sandbox Python終了143→host成功、sandbox Nodeのtestfile数とhost実case数を区別し、rawを保持。
+- 現R3検証: check/両production build、全Node435、実local HTTP Chromium1ケース9.470秒成功。不変468入力のR1 Python1320/Skill18および不変125入力のR2既存8browser suiteをscope限定で再利用。レビュー担当が8画像・実history DTO/SSE記録を確認。旧whole-map実行を現whole-map実行と扱わない。
+- 実DeviceApplication/local HTTP/API/worker/Uvicorn SSEを使用するが、認証/store/modelはsynthetic、mobileは別fixture。実ネット101message E2E、実Pi/スマホ/native/audio/cloud/provider/配備は未実施。UI10の仮想時計・fake/同等service許容範囲で承認。UI07の実機release gate例外は流用しない。
+
+### 完了結果
+
+- 2026-10-28T17:19:14.819786+00:00 実装コミット `925f9aa082462023e2c3588d3d4a5f297f1a03db`。承認対象全34 pathsのindex/commit blobと作業tree SHA-256を一致確認。状態done、独立レビュー3回、最終approve・未解決0。
+- 本人確認済みPiへの明示的な会話引継ぎ、両画面の期限・出力先・終了表示、失効/停止時の遅い出力破棄を実装。Piローカル停止はcloud委任終了と区別し、再起動でも同一sessionを復活させない。追加expected session契約は旧省略要求を維持する。
+- 受入FR-012/AC-012とT-020/T-021/T-035は上記の現行・不変scope再利用検証および独立レビューで確認。実機/native/audio/外部provider未実施の範囲は前節どおり。記録更新後の親checkと記録commitを続ける。
+
+- 記録前親検証 `2026-10-28T17:19:14.865040+00:00`–`2026-10-28T17:19:20.348786+00:00`: `mise run check` child/tool exit0（session54593回収済み）。758source=承認freeze、raw/logical index実行前後同一、所有子プロセス・listener残留0。raw `/tmp/ba-ui-10-parent-done-check.log` SHA-256 `fc6f46476eea0a7db4068ac57a18b0fd15ae58c429c04818177d252cf646c714`。既知warning3件を除きcheck成功、記録差分確認後に記録commit。
