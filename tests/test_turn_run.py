@@ -59,6 +59,10 @@ class StrictTransaction(MemoryTransaction):
         assert not self.wrote, "read after write"
         return super().find(collection, field, value)
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        assert not self.wrote, "read after write"
+        return super().find_array(collection, field, value)
+
     def set(self, path: str, document: Document) -> None:
         self.wrote = True
         super().set(path, document)

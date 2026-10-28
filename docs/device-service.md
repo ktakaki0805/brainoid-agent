@@ -105,3 +105,5 @@ Linux x86_64 での HTTP 再読込み検証を、実 GUI browser、Raspberry Pi�
 この変更は cloud API/永続層・Firestore transaction・認可 repository を変更しない。従って device の受入に Emulator は不要で、ローカル OS process/socket と fixture で独立検証する。device/cloud bridge の追加境界と Emulator 検証は [BA-DEV-10](device-cloud.md) を参照する。
 
 設計確認の一次資料（2026-10-27）: [Starlette lifespan](https://starlette.dev/lifespan/)、[response/Cookie](https://starlette.dev/responses/)、[Uvicorn 設定](https://uvicorn.dev/settings/)、[固定版 server source](https://github.com/Kludex/uvicorn/blob/0.54.0/uvicorn/server.py)、[systemd process 終了](https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html)、[Python event loop の Unix signal](https://docs.python.org/3.13/library/asyncio-eventloop.html#asyncio.loop.add_signal_handler)。依存の条件は[ツール台帳](toolchain.md)に記録する。
+
+HA origin/token の daemon 停止中の保護設定、inventory 同期と lifecycle は [Home Assistant adapter](home-assistant.md) を参照する。

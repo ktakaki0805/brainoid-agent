@@ -64,6 +64,9 @@ class _ReadHook:
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         return self.tx.find(collection, field, value)
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        return self.tx.find_array(collection, field, value)
+
     def query_page(
         self, path: str, filters: dict[str, str], *, after: str | None, limit: int
     ) -> list[tuple[str, Document]]:

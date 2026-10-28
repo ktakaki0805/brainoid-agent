@@ -97,6 +97,7 @@ class FirestoreTransactionTests(unittest.TestCase):
             ("collection", ("resources",)),
             ("query", ("resources", {"owner": "test"})),
             ("find", ("resources", "owner", "test")),
+            ("find_array", ("resources", "external_refs", {"external_id": "light.first"})),
             ("memberships", ("test",)),
         ):
             with self.subTest(method=method):
@@ -169,3 +170,26 @@ class FirestoreTransactionTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 self.store.run(invalid)
+
+    def test_external_reference_lookup_is_exact_bounded_and_transactional(self) -> None:
+        query = Mock()
+        query.where.return_value = query
+        query.limit.return_value = query
+        self.client.collection.return_value = query
+        query.stream.return_value = iter((self.snapshot,))
+        reference = {
+            "provider": "home_assistant",
+            "integration_id": "synthetic",
+            "external_id": "light.first",
+        }
+        result = self.store.run(
+            lambda tx: tx.find_array("tenants/test/entities", "external_refs", reference)
+        )
+        self.assertEqual(result, [{"version": 1}])
+        predicate = query.where.call_args.kwargs["filter"]
+        self.assertEqual(
+            (predicate.field_path, predicate.op_string, predicate.value),
+            ("external_refs", "array_contains", reference),
+        )
+        query.limit.assert_called_once_with(2)
+        query.stream.assert_called_once_with(transaction=self.transactions[0])

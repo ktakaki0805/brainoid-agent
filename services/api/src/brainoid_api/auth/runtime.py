@@ -37,6 +37,7 @@ from brainoid_api.device_leases import DeviceLeases
 from brainoid_api.device_notifications import DeviceNotifications
 from brainoid_api.device_snapshot import DeviceSnapshots
 from brainoid_api.errors import APIError, ErrorCode
+from brainoid_api.home_assistant_entities import HomeAssistantEntities
 from brainoid_api.repositories.agents import Agents
 from brainoid_api.repositories.conversations import Conversations
 from brainoid_api.repositories.device_credentials import DeviceCredentialRepository
@@ -77,6 +78,7 @@ class AuthServices:
     calendar_disconnect: CalendarDisconnect | None = None
     device_gateway: DeviceGateway | None = None
     device_snapshots: DeviceSnapshots | None = None
+    home_assistant: HomeAssistantEntities | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]
@@ -134,6 +136,8 @@ async def authentication_lifespan(
         store = FirestoreTransactions(client)
         tenants = Tenants(store, cursors, ledger=ledger)
         devices = DeviceCredentialRepository(store, tenants, ledger, device_tokens)
+        management = Devices(store, tenants, ledger, cursors)
+        home_assistant = HomeAssistantEntities(store, management, devices, ledger=ledger)
         sessions = PrivateSessions(store, tenants, ledger, devices)
         memories = Memories(
             store,
@@ -172,7 +176,7 @@ async def authentication_lifespan(
             ),
             Memberships(store, tenants, ledger, cursors),
             devices,
-            Devices(store, tenants, ledger, cursors),
+            management,
             sessions,
             Agents(store, tenants, cursors, ledger=ledger, credentials=devices),
             conversations,
@@ -182,6 +186,7 @@ async def authentication_lifespan(
                 cursors,
                 ledger=ledger,
                 credentials=devices,
+                inventory=home_assistant.inventory,
                 # Tenants.create/pairing bootstrap records are server-owned and
                 # initially untracked, as in the other HTTP repositories. Tracked
                 # records and pending ledger denies still require their fence.
@@ -195,6 +200,7 @@ async def authentication_lifespan(
             else None,
             device_gateway=gateway,
             device_snapshots=snapshots,
+            home_assistant=home_assistant,
         )
     finally:
         try:

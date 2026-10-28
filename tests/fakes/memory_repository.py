@@ -84,6 +84,16 @@ class GraphTransaction:
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         return [d for _, d in self.collection(collection) if d.get(field) == value][:2]
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        self._read()
+        result = []
+        for path, document in self.data.items():
+            if path.rsplit("/", 1)[0] == collection and value in document.get(field, []):
+                result.append(copy.deepcopy(document))
+                if len(result) == 2:
+                    break
+        return result
+
     def query_page(
         self, path: str, filters: dict[str, str], *, after: str | None, limit: int
     ) -> list[tuple[str, Document]]:

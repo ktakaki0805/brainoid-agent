@@ -37,14 +37,24 @@ function expectExit(result, code) {
   assert.equal(result.status, code, `${result.stdout}\n${result.stderr}`);
 }
 
-test("all 91 business operations and two health operations have generated methods", () => {
+test("all 93 business operations and two health operations have generated methods", () => {
   const operations = Object.values(spec.paths)
     .flatMap((path) => Object.values(path))
     .filter((operation) => operation.operationId);
-  assert.equal(operations.length, 93);
+  assert.equal(operations.length, 95);
   assert.equal(
     spec.paths["/devices/{device_id}/snapshot:validate"].post.operationId,
     "validateDeviceSnapshot",
+  );
+  const home = spec.paths["/tenants/{tenant_id}/integrations/{integration_id}/home-assistant"];
+  assert.equal(home.get.operationId, "getHomeAssistantIntegration");
+  assert.equal(home.delete.operationId, "revokeHomeAssistantIntegration");
+  assert.deepEqual(home.get.security, [{ userBearer: [] }]);
+  assert.deepEqual(home.delete.security, [{ userBearer: [] }]);
+  assert.deepEqual(
+    spec.paths["/tenants/{tenant_id}/integrations/{integration_id}/home-assistant/entities:sync"]
+      .post.security,
+    [{ deviceBearer: [] }],
   );
   for (const operation of operations) {
     // biome-ignore lint/performance/noDynamicNamespaceImportAccess: contract-wide export coverage.

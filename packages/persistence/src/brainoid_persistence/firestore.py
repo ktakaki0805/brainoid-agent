@@ -92,6 +92,18 @@ class _Transaction:
             ]
         )
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        query = (
+            self._client.collection(collection)
+            .where(filter=FieldFilter(field, "array_contains", value))
+            .limit(2)
+        )
+        return _read(
+            lambda: [
+                snapshot.to_dict() or {} for snapshot in query.stream(transaction=self._transaction)
+            ]
+        )
+
     def create(self, path: str, document: Document) -> None:
         self._transaction.create(self._client.document(path), document)
 

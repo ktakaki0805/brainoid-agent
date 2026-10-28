@@ -18,6 +18,7 @@ from brainoid_device.cloud_client import CloudClient
 from brainoid_device.config import Settings
 from brainoid_device.device_transport import DeviceTransport
 from brainoid_device.diagnostics import local_diagnostics
+from brainoid_device.home_assistant import HomeAssistant
 from brainoid_device.ledger import DeviceStorage
 from brainoid_device.local_api import LocalBoundary, Sessions, error
 from brainoid_device.reset_command import ResetCommand
@@ -62,6 +63,11 @@ class DeviceApplication:
         self.snapshot_sync = SnapshotSync(self.cloud) if self.cloud else None
         self.transport = DeviceTransport(self.cloud) if self.cloud else None
         self.bridge = UIBridge(self.cloud, sessions) if self.cloud else None
+        self.home_assistant = (
+            HomeAssistant(self.runtime, self.storage, self.credentials, cloud=self.cloud)
+            if not resumed_reset
+            else None
+        )
 
         @asynccontextmanager
         async def lifespan(app: Starlette) -> AsyncIterator[None]:
@@ -75,6 +81,8 @@ class DeviceApplication:
                     self.cloud.start(self.transport.run())
                 if startup is not None and not resumed_reset:
                     await self._run_startup(startup)
+                if self.home_assistant is not None and self.home_assistant.config is not None:
+                    self.runtime.start_task(self.home_assistant.synchronize())
                 self._check_startup_stop()
                 yield
             finally:
@@ -82,6 +90,8 @@ class DeviceApplication:
                 try:
                     await self.reset.finish()
                     await self.runtime.close()
+                    if self.home_assistant is not None:
+                        await self.home_assistant.close()
                     if self.cloud is not None:
                         await self.cloud.close()
                 except Exception:

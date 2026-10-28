@@ -1289,7 +1289,7 @@ export const completeGoogleCalendarAuthorization = (options) => (options.client 
 /**
  * PiローカルHA連携の登録
  *
- * PiローカルHA連携の登録
+ * owner/adminがactiveなPiへshared HA連携を登録。URLとtokenはPiのみで管理する。
  */
 export const createHomeAssistantIntegration = (options) => (options.client ?? client).post({
     security: [{
@@ -1321,6 +1321,34 @@ export const syncHomeAssistantEntities = (options) => (options.client ?? client)
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+/**
+ * owner/adminがHA連携を失効
+ *
+ * HA専用の管理経路。秘密はPiのみで保持し、失効後は同期とcommand受付を拒否する。
+ */
+export const revokeHomeAssistantIntegration = (options) => (options.client ?? client).delete({
+    security: [{
+            key: 'userBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/tenants/{tenant_id}/integrations/{integration_id}/home-assistant',
+    ...options
+});
+/**
+ * owner/adminがHA連携metadataを取得
+ *
+ * HA専用の管理経路。秘密はPiのみで保持し、失効後は同期とcommand受付を拒否する。
+ */
+export const getHomeAssistantIntegration = (options) => (options.client ?? client).get({
+    security: [{
+            key: 'userBearer',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/tenants/{tenant_id}/integrations/{integration_id}/home-assistant',
+    ...options
 });
 /**
  * 連携失効と資格情報削除

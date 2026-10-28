@@ -2575,12 +2575,12 @@ paths:
     post:
       operationId: createHomeAssistantIntegration
       summary: PiローカルHA連携の登録
-      description: PiローカルHA連携の登録
+      description: owner/adminがactiveなPiへshared HA連携を登録。URLとtokenはPiのみで管理する。
       security:
       - userBearer: []
       responses:
         '201':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 認可済みHA metadata
           content:
             application/json:
               schema:
@@ -2612,7 +2612,7 @@ paths:
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 認可済みHA metadata
           content:
             application/json:
               schema:
@@ -2639,6 +2639,64 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/HomeInventorySync'
+  /tenants/{tenant_id}/integrations/{integration_id}/home-assistant:
+    get:
+      operationId: getHomeAssistantIntegration
+      summary: owner/adminがHA連携metadataを取得
+      description: HA専用の管理経路。秘密はPiのみで保持し、失効後は同期とcommand受付を拒否する。
+      security:
+      - userBearer: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: 秘密を含まないHA連携metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: revokeHomeAssistantIntegration
+      summary: owner/adminがHA連携を失効
+      description: HA専用の管理経路。秘密はPiのみで保持し、失効後は同期とcommand受付を拒否する。
+      security:
+      - userBearer: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema: *id001
+      - name: integration_id
+        in: path
+        required: true
+        schema: *id001
+      - *id002
+      responses:
+        '200':
+          description: 秘密を含まないHA連携metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+        default:
+          description: 共通エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tenants/{tenant_id}/integrations/{integration_id}:
     get:
       operationId: getIntegration
@@ -5220,6 +5278,7 @@ components:
                 type: string
                 minLength: 1
                 maxLength: 255
+                description: Exact Home Assistant ID; runtime accepts ^(light|climate)\.[a-z0-9_]+$.
               label: *id009
               domain:
                 type: string
@@ -5248,7 +5307,7 @@ components:
       required:
       - entities
       additionalProperties: false
-      description: そのintegrationに束縛されたPiだけが送信。新規家電はadminがallowlistへ追加するまで実行不可。
+      description: そのintegrationに束縛されたPiだけが完全snapshotを送信。external_idはlightまたはclimateのHA entity ID。同名でもIDで区別し、欠落targetは失効する。新規家電はadminがallowlistへ追加するまで実行不可。1連携の生涯IDは100件まで。
     CalendarTime:
       oneOf:
       - type: object

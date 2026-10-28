@@ -57,6 +57,9 @@ class GuardedTransaction:
     def find(self, collection: str, field: str, value: str) -> list[Document]:
         return self.transaction.find(collection, field, value)
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        return self.transaction.find_array(collection, field, value)
+
     def memberships(self, user_id: str) -> list[tuple[str, Document]]:
         return self.transaction.memberships(user_id)
 

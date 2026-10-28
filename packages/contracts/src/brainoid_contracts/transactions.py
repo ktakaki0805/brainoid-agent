@@ -39,6 +39,14 @@ class Transaction(Protocol):
         """
         ...
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        """Exact array-member lookup, capped at two matches before materialization.
+
+        Used for opaque external-reference collision checks, including private and
+        deleted records. Reads and query phantoms belong to this transaction.
+        """
+        ...
+
     def create(self, path: str, document: Document) -> None: ...
 
     def memberships(self, user_id: str) -> list[tuple[str, Document]]:

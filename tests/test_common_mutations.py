@@ -101,6 +101,15 @@ class MemoryTransaction:
                     break
         return result
 
+    def find_array(self, collection: str, field: str, value: Document) -> list[Document]:
+        result = []
+        for path, document in self.data.items():
+            if path.rsplit("/", 1)[0] == collection and value in document.get(field, []):
+                result.append(copy.deepcopy(document))
+                if len(result) == 2:
+                    break
+        return result
+
     def create(self, path: str, document: Document) -> None:
         if path in self.data:
             raise AssertionError("Duplicate creation")

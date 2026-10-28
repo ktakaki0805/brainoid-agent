@@ -636,10 +636,13 @@ export type HomeIntegrationCreate = {
     name: string;
 };
 /**
- * そのintegrationに束縛されたPiだけが送信。新規家電はadminがallowlistへ追加するまで実行不可。
+ * そのintegrationに束縛されたPiだけが完全snapshotを送信。external_idはlightまたはclimateのHA entity ID。同名でもIDで区別し、欠落targetは失効する。新規家電はadminがallowlistへ追加するまで実行不可。1連携の生涯IDは100件まで。
  */
 export type HomeInventorySync = {
     entities: Array<{
+        /**
+         * Exact Home Assistant ID; runtime accepts ^(light|climate)\.[a-z0-9_]+$.
+         */
         external_id: string;
         label: string;
         domain: 'light' | 'climate';
@@ -3012,7 +3015,7 @@ export type CreateHomeAssistantIntegrationErrors = {
 export type CreateHomeAssistantIntegrationError = CreateHomeAssistantIntegrationErrors[keyof CreateHomeAssistantIntegrationErrors];
 export type CreateHomeAssistantIntegrationResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 認可済みHA metadata
      */
     201: Integration;
 };
@@ -3041,11 +3044,63 @@ export type SyncHomeAssistantEntitiesErrors = {
 export type SyncHomeAssistantEntitiesError = SyncHomeAssistantEntitiesErrors[keyof SyncHomeAssistantEntitiesErrors];
 export type SyncHomeAssistantEntitiesResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 認可済みHA metadata
      */
     200: EntityPage;
 };
 export type SyncHomeAssistantEntitiesResponse = SyncHomeAssistantEntitiesResponses[keyof SyncHomeAssistantEntitiesResponses];
+export type RevokeHomeAssistantIntegrationData = {
+    body?: never;
+    headers: {
+        /**
+         * 同一scopeで24時間。同一keyの異なるbodyは409。
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        tenant_id: ResourceId;
+        integration_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/integrations/{integration_id}/home-assistant';
+};
+export type RevokeHomeAssistantIntegrationErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type RevokeHomeAssistantIntegrationError = RevokeHomeAssistantIntegrationErrors[keyof RevokeHomeAssistantIntegrationErrors];
+export type RevokeHomeAssistantIntegrationResponses = {
+    /**
+     * 秘密を含まないHA連携metadata
+     */
+    200: Integration;
+};
+export type RevokeHomeAssistantIntegrationResponse = RevokeHomeAssistantIntegrationResponses[keyof RevokeHomeAssistantIntegrationResponses];
+export type GetHomeAssistantIntegrationData = {
+    body?: never;
+    path: {
+        tenant_id: ResourceId;
+        integration_id: ResourceId;
+    };
+    query?: never;
+    url: '/tenants/{tenant_id}/integrations/{integration_id}/home-assistant';
+};
+export type GetHomeAssistantIntegrationErrors = {
+    /**
+     * 共通エラー
+     */
+    default: Error;
+};
+export type GetHomeAssistantIntegrationError = GetHomeAssistantIntegrationErrors[keyof GetHomeAssistantIntegrationErrors];
+export type GetHomeAssistantIntegrationResponses = {
+    /**
+     * 秘密を含まないHA連携metadata
+     */
+    200: Integration;
+};
+export type GetHomeAssistantIntegrationResponse = GetHomeAssistantIntegrationResponses[keyof GetHomeAssistantIntegrationResponses];
 export type RevokeIntegrationData = {
     body?: never;
     headers: {
