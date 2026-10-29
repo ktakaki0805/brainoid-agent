@@ -14737,3 +14737,133 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 
 - done後の親 `mise run check`: 2026-10-29T11:56:07.114377+00:00–2026-10-29T11:56:12.318145+00:00、exit0、session2796回収済み。format/lint/types/contracts/client/互換性/docs/workflow/3entrybuild/台帳(71/96 done)成功。raw SHA-256 `c3a74c87d6a1fee90f40e03237a278ad848d30346b36501bd67ab3a3e74c7228`。全810sourceはR2承認版不変、index不変、自己子process/listener残存0。既知UI lint/schema timezone警告は失敗と区別。
 - 台帳と本ログだけを完了記録commitに含める。実provider/実機/配備gateは残存。
+
+## ba-voice-03-20261029t115730z
+
+- チケット: BA-VOICE-03 スマホ録音・PCM変換・再生adapter
+- 状態: in_progress、開始 2026-10-29T11:57:30.879326+00:00。
+- branch main / base commit `615fd6b47d141fb37bd307a18b340aff23e59191`。開始時worktree/stagedは空。selector選択、依存UI01/VOICE01/VOICE02のdoneと実装commit祖先関係を確認。
+- 親は台帳/log/commit、独立writerは製品変更、新規独立reviewerは各回最新全差分を確認。
+
+### 範囲と検証予定
+
+- タップ起点のマイク許可/録音開始/停止/破棄、16kHz・16bit・mono PCM WAVへの変換、60秒/5MiB上限と確実な停止、文単位の順序付き再生と停止/背景/session終了での破棄を実装する。マイク拒否後の文字入力継続と再許可案内、録音破棄時upload0、古い音声の再生拒否を検証。
+- raw音声を永続storageに置かないplugin/backendを一次資料/実装で選定し、端末権限・割込み・OS制約を文書化。T006/T007のfake/native境界と変換fixture、関連UI確認、全check/test、独立レビューを行う。全体音声UIはVOICE05、署名配布はOPS09/10へ分ける。
+- ユーザー利用可能環境はiPhoneのみ、Macなし。現環境でのAndroid/iOS実機検証は未実施として保持し、docs08共通fake/emulator独立完了方針に従い、公開前に両OSでWAV形式/長さ・権限/停止/割込みを実確認する条件を記録する。UI07の個別承認を一律流用せず共通方針を根拠とする。実機成功・署名build成功は実行証拠なしに主張しない。
+
+- 独立実装担当 `/root/voice03_implementation` へ委譲。原音声をファイルへ落とさないnative memory capture/playbackを持つlocal Capacitor pluginと後続UI向けadapterの構成を検討中。Android/Apple SDKの利用可否と検証範囲を確認し、選定根拠を記録する。現時点で実装/実機検証済みを意味しない。
+
+### 候補固定と検証・独立レビュー開始
+
+- writer `/root/voice03_implementation` が製品編集停止、全826sourceのfreeze `/tmp/ba-voice-03-writer-freeze.json`。親が現在sourceとの一致を確認。source SHA-256 `d147f8f58185ff6e5b42dc7c0760082cf017a4819942345ec198c411a9973cf5`。
+- `full-check`: `timeout 1200 mise run check`、exit0、raw SHA-256 `7081ec838e41c187ddb9a8f6242cb1f42de26582ec2e1f0924b9b711cff88161`。前後source一致、最終版との差分 []、[]。原本 `/tmp/ba-voice-03-writer-full-check.json` / `.log`。
+- `final-targeted`: `mise exec -- node --test --test-isolation=none --test-reporter=tap tests/test_mobile_audio.mjs`、exit0、raw SHA-256 `5d26fa97f048e2d3c38376df85a94472a6b79e1f7a3b3dad333a625f69945e29`。前後source一致、最終版との差分 []、['# tests 28', '# pass 28', '# fail 0', '# skipped 0']。原本 `/tmp/ba-voice-03-writer-final-targeted.json` / `.log`。
+- `browser`: `env UI_ARTIFACTS=/tmp/ba-voice-03-writer-browser-artifacts UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome timeout 180 mise exec -- node tests/ui/session_browser.mjs`、exit0、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。前後source一致、最終版との差分 ['apps/mobile/native-audio-config/android/BrainoidAudioPlugin.java', 'apps/mobile/native-audio-config/ios/BrainoidAudioPlugin.swift']、[]。原本 `/tmp/ba-voice-03-writer-browser.json` / `.log`。
+- Java PCMの実compiler/実行、Android pluginのjavac構文parse、fake bridge・変換・世代競合とmobile/display既存browser smokeを実施。Android SDK/Swift/Xcode不在のため両OS framework build/実機/Swift fixtureは未実施。rawをfile保存しないlocal pluginと手動組込み/公開前gateを文書化。
+- 通常全testはwriter所有session64517で固定候補を実行中(1200秒上限)。製品書込みを止めたまま新規R1の静的確認を並行する。全test完了/最終source一致/資源終了確認が揃うまで最終approve/commitを確定しない。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/voice03_review_r1`（新規独立context）。base commit: `615fd6b47d141fb37bd307a18b340aff23e59191`。
+- 未追跡を含む最新全21files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/capacitor.config.json` | `8ae2089cb506aa3e65554b0672c30e838fb7eec0261b58bd23641a61502a50ba` |
+| `apps/mobile/native-audio-config/README.md` | `f7b1d3375ae61cdfd9db8b406beee0c131dfe63b8b304314ef5fcc5fd3303a1c` |
+| `apps/mobile/native-audio-config/android/AndroidManifest.xml` | `87dcfc84902b25ed35bd20f98dd0217d8983fb45ca4b19f10f8c223303e7563e` |
+| `apps/mobile/native-audio-config/android/BrainoidAudioPlugin.java` | `3291ef0acc1d7606398dcb74b3b69c6eebbed5999348eac54cc749fc74f0774d` |
+| `apps/mobile/native-audio-config/android/PcmWav.java` | `1d0ae62836a0ccf1688f34a3ccac2e978f7b7f819325f8b4d415c4dd6ed9ded0` |
+| `apps/mobile/native-audio-config/ios/BrainoidAudioPlugin.swift` | `b10c22128e2da1b50a67c893722cd1b129b5379b692958823d26a9b734acb319` |
+| `apps/mobile/native-audio-config/ios/Info-audio.plist` | `a4d3cf461918830ad55af1d11cd088577bbd73860c04d63a0638823c04e44a9d` |
+| `apps/mobile/native-audio-config/ios/PcmCapture.swift` | `c6fcb5be043d4f499b7a2199bfe4c03561876ad3e95f6cf56736594f75095fc8` |
+| `apps/mobile/platform/audio-native.ts` | `b5b1af8d2cdc57d1f76e60a03523a48afb78e20c145ced868d8878adf842ecaa` |
+| `apps/mobile/platform/audio-transport.ts` | `445cb46bdedb072e12a3465504fcb02118527b76fcbfded027949246dcb580b9` |
+| `apps/mobile/platform/audio.ts` | `ed7a9054dd16c4324775d64d3d67388f23f45c41e52eed4607f0607b1da064c0` |
+| `apps/mobile/platform/pcm.ts` | `4cbea1f0c4680b422be817f5924e9ef4ec28fcc74527246b890b9f3151e97b35` |
+| `apps/mobile/tsconfig.json` | `17191335a80891ae2917169c1f36f49b821e053638ae1a4ed3d5d8e787990677` |
+| `docs/audio-inputs.md` | `63cbb00afce12091616622ef4bd0eb7a9139f6db56f4fe33b5ec96d73d6e3a34` |
+| `docs/mobile-audio.md` | `62789af4ba1ddd4e41ddd6e2d93c1c2cc439bd565072b48a6e6cfb32126269fb` |
+| `docs/speech-outputs.md` | `0fd834e9aad3fa38a9aee71b95df87c03e3c4a74a2a7e052f89d92b9dd0090ea` |
+| `mise.toml` | `3786270410e3575a98ba92a13d2b8363b7738768dcdef4b3486ebc88d821f869` |
+| `tests/mobile/audio-fixtures/ParseJava.java` | `a7cb0f0aac03fc066429316521ca428e72c948e223c69fdcf3eb700bb883c7a1` |
+| `tests/mobile/audio-fixtures/PcmCaptureFixture.swift` | `46193ea9c4f0467aa2d91b6ccc7d00fe827891071c385ba2a5b3668f08bc0f75` |
+| `tests/mobile/audio-fixtures/PcmWavFixture.java` | `30aacfa3f5b8b5ae704e922ed28c6e4689596abdfa02d2c314cc45de7ed41aa3` |
+| `tests/test_mobile_audio.mjs` | `0712153819ebf4a86af00fedf2ad06f87a8dbaeeff034426bdeba75ac8b3a0c9` |
+
+- R1静的レビュー並行中にwriterの全testが完了。`timeout 1200 mise run test` exit0、['Ran 1399 tests in 425.295s', 'Ran 18 tests in 0.064s', '# tests 586', '# pass 586', '# fail 0', '# skipped 0']。原本 `/tmp/ba-voice-03-writer-full-test.json` / `.log`、raw SHA-256 `290ae983f9dc4cdfb6a3dd81f61edc8cdf52f4976ddfa298a180be9076f663fb`、前後全826source=R1凍結版を親照合。session64517回収済み。native framework build/実機未実施は変わらない。R1の構成変更通知に関する指摘準備中のため、この成功を承認と混同しない。
+
+- writerが開始済みの最終browserを完走: `/tmp/ba-voice-03-writer-final-browser.json` exit0、8画面、前後全826=R1freeze、raw SHA-256 `e22dd7968487205e1fd9bb7c6899c81b5a9185cd7725d88b133b39eb3e165df4`。resource-closure-final.json/logも同source一致・exit0、関連processと5173/5174 listener残存なし。writer session97674を含め全終了、編集停止handoff `/tmp/ba-voice-03-writer-handoff.md` を受領。
+
+### 独立レビュー ラウンド1 終了と修正差戻し
+
+- `/root/voice03_review_r1` が全21pathsと周辺認可/adapter/native/API契約を確認し **request_changes**。必須2件(P1/P2)、任意0。親も全826source・HEAD/main/index実bytes/stage/flagsが凍結版不変と確認。レビュー回数1を記録しin_progressへ戻す。
+- `/tmp/ba-voice-03-review-r1-report.md` SHA-256 `78fcaadc3dd70c4e337d966045c9d2c8261e4fdebb70b184f4e912e1a6e9cef7`。
+- `/tmp/ba-voice-03-review-r1-result.json` SHA-256 `925e1c18e1c80a5bce4f44c241f72b1363ff9f7f306cce7eece266f271aaeccd`。
+- `/tmp/ba-voice-03-review-r1-closure.json` SHA-256 `aa111372633677f56c7f562f9f5c80ada1cb24636bec758fc5fca7c9df6d728e`。
+- `/tmp/ba-voice-03-review-r1-evidence.json` SHA-256 `0596db36d47d54ddeb1f368ee1bc656217a429587ae4e6d92b4447d098bd6f18`。
+- **R1-01 / P1** `apps/mobile/native-audio-config/ios/BrainoidAudioPlugin.swift:31`: Handle active AVAudioEngine configuration changes as interruption。影響: A sample-rate/channel-count change stops the engine without updating recording state; partial audio can be returned as ready and uploaded. 必要修正: Observe configuration changes; asynchronously stop/discard on the main queue with generation and engine identity fences; test active and stale engine notifications. 根拠: static control-flow review plus Apple primary documentation; not device reproduction。
+- **R1-02 / P2** `apps/mobile/native-audio-config/ios/PcmCapture.swift:18`: Distinguish invalid capture input from normal recording limit。影響: Invalid input metadata or a changed sample rate seals but preserves PCM; bridge converts the failure to limit and finish exposes a successful partial WAV. 必要修正: Separate continue/limit/invalid outcomes; invalidate and discard PCM on conversion failure, reject finish, and map to native error; add invalid-after-valid fixtures and upload0 coverage. 根拠: static deterministic branch trace; Swift execution unavailable。
+- R1-01はApple一次資料と制御フローに基づく構成変更通知の欠落。R1-02は不正metadata/rate変更→sealed=true/true→limit→部分WAV成功という確定分岐。実機再現やSwift実行済みという主張ではない。独自test/server起動なし。通常fulltest(1399/18/586)・check/対象28・提供source/rawも照合。実機不在自体をrequest_changes理由にしていない。
+- 初回の読取りpython3はmise未trustで失敗し/usr/bin/python3で再確認、製品試験失敗とは別。自己session/process/listenerなし、レビュー停止済み。writer最終closure/browserは正式報告直後に親照合済み（上記）。元writerに2件を返し、新規R2で最新全差分と対応を再確認する。
+
+### R1修正候補と検証・新規レビュー開始
+
+- 元writerが7pathsを修正し製品編集を停止。R1-01は対象engineの構成変更通知でPCMを即時無効化し、main queueへ非同期に渡して世代/engine identityを再検査して中断。R1-02はcontinuing/limit/invalidを分離し、不正形式では保持PCM破棄/finish拒否。Swift Foundation通知と正常入力後の不正/rate/channel変化fixtureを追加（Swift実行は未実施）。
+- 新候補全827source SHA-256 `68930dfd36f096dd8a2d65e18129ef5c0776b9e04a96c5d6647826eeb531915f`。親がcheck/対象31/docsの全before/after/current一致とrawSHA/exit0を照合。
+- `/tmp/ba-voice-03-writer-r1fix-full-check.json`: `timeout 1200 mise run check` exit0、raw SHA-256 `e97d2df42cac48bf3a58eaa863e9f064f507ff3a10194a3b4aa917a1af17a233`、[]。
+- `/tmp/ba-voice-03-writer-r1fix-targeted.json`: `mise exec -- node --test --test-isolation=none --test-reporter=tap tests/test_mobile_audio.mjs` exit0、raw SHA-256 `4f23b974ad46b56812eee38aeccbc13e0efa6eefea1d4dc23d626c156e5b93e7`、['# tests 31', '# pass 31', '# fail 0', '# skipped 0']。
+- `/tmp/ba-voice-03-writer-r1fix-docs.json`: `mise exec -- scripts/check_markdown_links` exit0、raw SHA-256 `35c8c4cf9a0534954a6203e891e236b104917a46dc6b0649ba6075f31854138b`、[]。
+- 変更はnative/fixture/tests/docsで製品JS/UI変更なし。既存最終browser証拠はweb回帰として再利用しnative実行済みとしない。全testはwriter session57130、1200秒上限で固定候補を実行中。新規R2の静的レビューを並行し、全test完了とsource/資源終了を受領するまでapprove/commitしない。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/voice03_review_r2`（新規独立context）。base commit: `615fd6b47d141fb37bd307a18b340aff23e59191`。
+- 未追跡を含む最新全22files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/mobile/capacitor.config.json` | `8ae2089cb506aa3e65554b0672c30e838fb7eec0261b58bd23641a61502a50ba` |
+| `apps/mobile/native-audio-config/README.md` | `1044746873b15a74c9aad5dd35bd6f08f7d0f4cda899799abd896eb6259e32fa` |
+| `apps/mobile/native-audio-config/android/AndroidManifest.xml` | `87dcfc84902b25ed35bd20f98dd0217d8983fb45ca4b19f10f8c223303e7563e` |
+| `apps/mobile/native-audio-config/android/BrainoidAudioPlugin.java` | `3291ef0acc1d7606398dcb74b3b69c6eebbed5999348eac54cc749fc74f0774d` |
+| `apps/mobile/native-audio-config/android/PcmWav.java` | `1d0ae62836a0ccf1688f34a3ccac2e978f7b7f819325f8b4d415c4dd6ed9ded0` |
+| `apps/mobile/native-audio-config/ios/BrainoidAudioPlugin.swift` | `7cf119f63755e967769779cd20e375b94c73566614d8f997fc7bd6c58b93e19b` |
+| `apps/mobile/native-audio-config/ios/CaptureConfigurationObserver.swift` | `71891f56413f14d093132e03e6dccb8dc5eb0f15a8206c56305d2d827c617df6` |
+| `apps/mobile/native-audio-config/ios/Info-audio.plist` | `a4d3cf461918830ad55af1d11cd088577bbd73860c04d63a0638823c04e44a9d` |
+| `apps/mobile/native-audio-config/ios/PcmCapture.swift` | `e092aa083779be4cff339e795f809908ef43d407013567b8b65133008349ce67` |
+| `apps/mobile/platform/audio-native.ts` | `b5b1af8d2cdc57d1f76e60a03523a48afb78e20c145ced868d8878adf842ecaa` |
+| `apps/mobile/platform/audio-transport.ts` | `445cb46bdedb072e12a3465504fcb02118527b76fcbfded027949246dcb580b9` |
+| `apps/mobile/platform/audio.ts` | `ed7a9054dd16c4324775d64d3d67388f23f45c41e52eed4607f0607b1da064c0` |
+| `apps/mobile/platform/pcm.ts` | `4cbea1f0c4680b422be817f5924e9ef4ec28fcc74527246b890b9f3151e97b35` |
+| `apps/mobile/tsconfig.json` | `17191335a80891ae2917169c1f36f49b821e053638ae1a4ed3d5d8e787990677` |
+| `docs/audio-inputs.md` | `63cbb00afce12091616622ef4bd0eb7a9139f6db56f4fe33b5ec96d73d6e3a34` |
+| `docs/mobile-audio.md` | `93351e62aa313cb429ab4791cae0115bd2f6241f0fcba5c98f6dd9c106af7110` |
+| `docs/speech-outputs.md` | `0fd834e9aad3fa38a9aee71b95df87c03e3c4a74a2a7e052f89d92b9dd0090ea` |
+| `mise.toml` | `3786270410e3575a98ba92a13d2b8363b7738768dcdef4b3486ebc88d821f869` |
+| `tests/mobile/audio-fixtures/ParseJava.java` | `a7cb0f0aac03fc066429316521ca428e72c948e223c69fdcf3eb700bb883c7a1` |
+| `tests/mobile/audio-fixtures/PcmCaptureFixture.swift` | `53557bdd546034a4cd3869460912bb72158b67c85180e7e8e3dc06dff5dd1ec7` |
+| `tests/mobile/audio-fixtures/PcmWavFixture.java` | `30aacfa3f5b8b5ae704e922ed28c6e4689596abdfa02d2c314cc45de7ed41aa3` |
+| `tests/test_mobile_audio.mjs` | `53c135ae6672a375498d4063ce5c28edbd15d2d9c310715d250ac9006dfd6e15` |
+
+- R2静的レビュー並行中にR1修正版fulltest完了。`timeout 1200 mise run test` exit0、Python1399/Skill18/Node589全成功、raw SHA-256 `5ced0f6f06fe6dfcbe92e34f80f9d375641a415db260137f551aebb041e3bce4`。親がfull-check/対象31/docs/full-test/resource-closureの全827before/after/current一致とrawSHA/exit0を照合。集約 `/tmp/ba-voice-03-parent-evidence-r2-final.json`。
+- writer session57130/40305/45067すべて回収済み。resource-closure raw SHA-256 `460f272f38c95f1bb8d850e3727e4dedba6ecf3b76c64f70156bb6668962b87a`、関連process/5173・5174listener残存0。編集検証停止handoffと機械結果を受領。Swift/framework/実機は未実施、旧browserは不変web回帰に限定して再利用。R2へ最終証拠を渡す。
+
+### 独立レビュー ラウンド2 終了
+
+- 新規 `/root/voice03_review_r2` が最新全22pathsと周辺契約/native/API/sessionを確認し **approve**。R1-01/R1-02解消、必須指摘0・任意0。全827source/HEAD/main/index実bytes/stage/flagsを親も照合し凍結版不変。レビュー回数2。
+- `/tmp/ba-voice-03-review-r2-report.md` SHA-256 `ba8723f8f54eba06fb2c6ac34954cc23fb4775e83ee3fd80ed140fbe0ef6270c`。
+- `/tmp/ba-voice-03-review-r2-result.json` SHA-256 `694ca1a3c3e8f295cc986127cc92dc1d81f1f179784cdd232fc05e42c8760572`。
+- `/tmp/ba-voice-03-review-r2-closure.json` SHA-256 `f64c73972d651010584a2de1aa59de1167715d72d181ff6d4ae9c63e34dc8cb1`。
+- `/tmp/ba-voice-03-review-r2-evidence.json` SHA-256 `cf084420f3bacb5472c0df49cc53bf876719f441a1da05fa1f1b43cc773754e9`。
+- R2はApple通知仕様/Capacitor一次資料、全差分と周辺制御フローを直接照合。対象31/check/docs/fulltest(1399/18/589)/resource closureのrawSHA・前後827mapを独立照合。独自テスト/サーバーを重複起動せず、提供証拠と静的レビューを区別。自己資源なし、編集検証停止。
+- browserは製品JS/UI不変の既存web回帰に限定。Swift fixture・Android/iOS framework build/typecheck・実機通知/可聴/録音は未実施、docs08共通方針と未公開entry/両OS公開前gateに基づくローカル承認。実機成功・配布可の承認ではない。
+
+### 完了と実装コミット
+
+- 2026-10-29T12:54:02.795934+00:00: BA-VOICE-03をdone（ローカル実装完了）へ更新。mainの実装コミット `d51f9713cb488480f11fb0ed705cff48861d2e68`、全22承認paths/blobをcommit後照合。独立レビュー2回、未解決必須指摘0。
+- タップ録音/許可/破棄、PCM変換と960000frame/60秒停止、順序付き再生と世代/期限/背景停止、file保存なしの両OS native adapterを実装。R1の構成通知/不正PCM2件を修正しR2で解消確認。
+- 対象31/check/Python1399/Skill18/Node589、JavaPCMcompile/run・Android構文parse、既存mobile/display web回帰成功。Swift/runtime/両OS framework/実機試験は公開前必須として未実施のまま。現entryで音声を公開しない。done後の親checkと台帳/log記録commitを続ける。
+
+- done後の親 `mise run check`: 2026-10-29T12:54:04.941616+00:00–2026-10-29T12:54:10.244570+00:00、exit0、session73110回収済み。format/lint/types/contracts/client/互換性/docs/workflow/3entrybuild/台帳(72/96 done)成功。raw SHA-256 `094bfa73baeb0fd4ad6c08a710aba548b6b3d6b5735069a4eb10f84d5ac1c3c2`。全827sourceはR2承認版不変、index不変、自己子process/listener残存0。既知UI lint/schema timezone警告は失敗と区別。
+- 台帳/logのみを完了記録commitへ含め、実機/Swift/framework/配布前gateは残存。
