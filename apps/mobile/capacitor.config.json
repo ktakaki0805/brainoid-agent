@@ -10,5 +10,6 @@
     "FirebaseMessaging": {
       "presentationOptions": []
     }
-  }
+  },
+  "loggingBehavior": "none"
 }

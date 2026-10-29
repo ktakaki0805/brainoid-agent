@@ -30,3 +30,5 @@ transcript は受付時から15分。所有文脈、状態、`expires_at` と Fi
 2. 個人情報を含まない日本語「こんにちは」等を5秒以内の16kHz/16bit/mono WAVにし、認証済みuserから1回だけ送る。retryせず、10秒・1呼出しの上限を守る。原音声・bearer・transcript全文を通常ログや証跡へ残さない。
 3. status=201、期待した日本語と意味が一致、同一key再送で追加provider呼出しなし、text出力の通常turn完了、音声秒の予約/最終値を本文なしで照合する。失敗時は自動再試行せずprovider呼出し上限の扱いを確認する。
 4. `STT_PROVIDER=disabled`へ戻し、15分後の参照拒否とsweep/TTLによる消去、usage枠回収を確認する。artifact digest、時刻、設定識別子、合否・未実施を記録する。これが済むまで実provider受入完了やMVP音声全体の公開可とは扱わない。
+
+スマホ側の録音・変換・破棄と公開前の両OS検証は [mobile audio](mobile-audio.md)を参照。

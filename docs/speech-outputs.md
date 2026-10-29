@@ -30,3 +30,5 @@ BA-VOICE-02 / FR-005・FR-012 は `output_mode=speech` の turn から確定文�
 4. disabledへ戻し、参照sweep/TTLと独立usage recoveryで残留物/枠を確認する。artifact digest、日時、設定識別子、call数、合否/未実施だけ記録する。実機のキュー/停止/音響評価はVOICE-03/04/05とQAのrelease gateで別に実施する。
 
 切戻しは `TTS_PROVIDER=disabled` と旧artifactへ戻す。保存済みspeech参照は再生させず5分期限で拒否し、sweep/TTLとusage recoveryを維持する。schema変更は既存のspeech.ready/GET契約の実装と説明更新で、既存text clientは影響を受けない。
+
+スマホの順序付きqueue・native停止・遅い結果の拒否は [mobile audio](mobile-audio.md)を参照。
