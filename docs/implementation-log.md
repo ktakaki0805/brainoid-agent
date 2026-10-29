@@ -14581,3 +14581,159 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 
 - done後の親 `mise run check`: 2026-10-29T10:37:46.458765+00:00–2026-10-29T10:37:52.718422+00:00、exit0、session99161回収済み。format/lint/types/contracts/client/互換性/docs/workflow/3entrybuild/台帳(70/96 done)成功。raw SHA-256 `3398bf7c2d169e2163f91e6d45aa13afc045c86920566da17b52e4c77f6da147`。全803sourceはR1承認版不変、index不変、自己子process/listener残存0。既知UI lint警告/schema timezone警告は失敗と区別。
 - 台帳と本ログのみを完了記録commitへ含める。実provider/OPS配備gateは未実施のまま維持。
+
+## ba-voice-02-20261029t103907z
+
+- チケット: BA-VOICE-02 文単位TTSと認可付き音声取得
+- 状態: in_progress、開始 2026-10-29T10:39:07.484683+00:00。
+- branch main / base commit `67fbbf82ceba3071b576c9dd0294e827f6634a5a`。開始時worktree/stagedは空。selectorで選択し、依存RUN05/IAM09/RUN08のdoneと実装commit祖先関係を確認。
+- 親は台帳/log/commit、独立writerは製品変更、新規独立reviewerは最新全差分を確認する。
+
+### 範囲と検証予定
+
+- 確定文ごとにspeech_outputs参照と永続speech.readyを作り、最終応答全体を待たず最初の文を取得可能にする。初期5分期限、run/session/display_policyの現在認可、利用量/rate制限を取得時に適用する。
+- 合成bytesは永続化せず、run取消・session終了後の遅い結果を公開しない。T007/T021、順序付き2文、再取得・失敗・期限・認可競合をfake/adapter transport/emulatorで検証し、check/testと独立レビューを行う。端末queue/UIはVOICE03/04/05の範囲。
+- OPEN005 TTS音声/region/provider設定は未確定。docs08共通方針のfake/emulator独立完了を適用し、採用設定を推測せず既定disabledを維持する。実provider結合は未実施の公開前必須として手順を記録。実有料API/クラウド設定変更は本フローに含めない。
+
+- 実装担当 `/root/voice02_implementation`（新規独立context）へ委譲済み。製品書込みは同担当のみ。初文の永続speech.readyと最終remainder、再開/重複防止、指定出力deviceとprivate sessionの同一文脈を確認対象とする。
+
+### 実装検証とレビュー開始
+
+- 実装担当 `/root/voice02_implementation` は全32製品pathsの編集を停止。親が全810sourceと最終4runのbefore/after/現在版、raw SHA/exitを照合。source SHA-256 `80600520efb1b2cd68ae661a4aa4128be8f2deb8a84812e2ff73ad3152ef4cd5`。
+- `check-final`: `mise run check`、exit0、2026-10-29T11:06:57.176363+00:00–2026-10-29T11:07:41.227092+00:00、raw SHA-256 `e059da77c8e1e697a9763d3dde514032490f20f62bb9b6bf87fa8f11930d3beb`、全check成功。原本 `/tmp/ba-voice-02-writer-check-final.json` / `.log`。
+- `fulltest-final`: `mise run test`、exit0、2026-10-29T11:06:59.213631+00:00–2026-10-29T11:14:53.842897+00:00、raw SHA-256 `42dde720859b051bddae9864b7e84a629da736bfdf50e2ccf56f8d7416085c16`、Ran 1392 tests in 437.958s; Ran 18 tests in 0.069s; # tests 558; # pass 558; # fail 0。原本 `/tmp/ba-voice-02-writer-fulltest-final.json` / `.log`。
+- `emulator-final`: `bash -c set -a; source .env.emulator.example; set +a; export CI=true FIREBASE_CLI_DISABLE_MOTD=true; exec mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive "PYTHONPATH=tests:tests/emulator uv run --all-packages --locked --offline python -B -m unittest test_speech_outputs_integration test_audio_inputs_integration test_usage_limits_integration"`、exit0、2026-10-29T11:07:01.131450+00:00–2026-10-29T11:07:54.498758+00:00、raw SHA-256 `ab16786241ae3b867b8e1fbb4026772f2e20477a8378e21032eb50d80d232682`、Ran 15 tests in 44.263s。原本 `/tmp/ba-voice-02-writer-emulator-final.json` / `.log`。
+- `focused-host-5`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_speech_outputs.py`、exit0、2026-10-29T11:06:08.311086+00:00–2026-10-29T11:06:14.242815+00:00、raw SHA-256 `6c8dfa8d137962ac305462c80d921fd1e6ccfef69c5c70d1c611fa07200e35f2`、Ran 22 tests in 4.691s。原本 `/tmp/ba-voice-02-writer-focused-host-5.json` / `.log`。
+- 初期の失敗は上書きせず保存: sandbox AnyIO45秒timeout、host初回の日本語offset期待値、checkのtest型注釈、emulator setupの旧disabled拒否guardとrunner module名を修正。全test初回240秒timeoutは未完走、2回目は句読点修正のため自己PID/argv/開始時刻確認後停止し残留0を後続照合。最終版の全testのみを完了証拠とする。
+- 文末閉じ括弧/連続記号のみを別合成にしない調整、1文4,000bytes/64文の境界と実workerの最終文前の先行取得を検証。speech ready/offset参照を同時保存し、現認可/出力subject/5分期限、最大2attempt/同時1、usage未知精算/回収、原音声memory限定と削除inventoryを接続。
+- 同時枠は親runとTTSで2必要。concurrent_runs=1の実行中GET429と2枠での初文取得成功を検証・文書化し、quotaを迂回しない。
+- writer資源終了 `/tmp/ba-voice-02-writer-resources-closure.json` は所有group/listener残存0、全session終了。実TTS/実機/OPEN005設定/TTLと周期実行配備は未実施。docs/speech-outputs.mdでdisabledと公開前の上限付き確認手順を維持。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/voice02_review_r1`（新規独立context）。base commit: `67fbbf82ceba3071b576c9dd0294e827f6634a5a`。
+- 未追跡を含む最新全32files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.emulator.example` | `881c86ca28ef53d17e76fd7c6ad78a1bbaaa4c2e1f96e97887f05d7d14dc95b6` |
+| `.env.example` | `1f3e0bde4fa417478b6235d099f6a2af4f0e824bdab9b75b12526a4ddf6dc459` |
+| `docs/04-interfaces.md` | `6af0f4bbc6789dcdee655a98f3200708636b922b4aa0f7f4e50ecbaad3e49807` |
+| `docs/audio-inputs.md` | `1eedfcd378ce56f803e7735593a78ca661830ac332c888506b4689491e1e422d` |
+| `docs/speech-outputs.md` | `dba0cf4c9e69462f8d919bb60ed4971b80fd4a2c579b90f37e73668430942089` |
+| `docs/usage.md` | `504e45ce99a5a091cdd8ca7681f4272bb25d5c79cd0a8a314ff2ca27d082994b` |
+| `packages/agent_core/src/brainoid_agent_core/types/speech.py` | `a6bad2adca734b8610a2c0a3430b35c95d1fa421735eeaeabf7f2799843b038d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `7fd5004acb822951d97ff15476e4e8aef256071e5386bb3cb2f97883d044daad` |
+| `packages/api-client/src/generated/sdk.gen.js` | `e63946f338d80f8ea219eae45e4ed9ac7d2d0a98e1709254c6b55c5ba9dbd7d8` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `7783f9cbe41b96df25acca41425440b034a7af9436bbb08d0153b1bfd9ca799a` |
+| `packages/runs/src/brainoid_runs/events.py` | `897ecd610ac08479c3a7fd0acff83ede3ed490106edb02f95fe2c86104c06fe6` |
+| `packages/runs/src/brainoid_runs/models.py` | `146978aa7276f0b3a07066e306395a0fbc241f2dcf5c3c0d9d347e731beda829` |
+| `packages/runs/src/brainoid_runs/speech.py` | `7f2541943cbd189074584625fce4a9dcaa294d7be5f18df4929b7db4e79c67c2` |
+| `packages/usage/src/brainoid_usage/ledger.py` | `89eb33fb09c64811b33727773a8c4c85e9a981f48cd2fdaf53f20a869939abe9` |
+| `scripts/demo_emulator.py` | `d7f9d58f957fa666dcfa30cb9c072a4b2d00899eb4bc9784fa5ab70529994389` |
+| `services/api/src/brainoid_api/adapters/google_tts.py` | `39948fd8675870335c9d69ce6fd21a83bd56f309659a0b48ec35b5ceaefb4655` |
+| `services/api/src/brainoid_api/app.py` | `95306dfddbc887c1c3f7433b2b4fe89bdb3bced37c3ae524fe85f2074e8ec23d` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `08fdc8d957ee879aafe2de405354b0cfa106a4d2d906ec3828dd68eab72bff9a` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `c55fa4718a55978c69328fc9ab07da36a64ce07e3005ff1f169c33a9f1db52de` |
+| `services/api/src/brainoid_api/routes/speech_outputs.py` | `4458258b72fac03f9187b659adefda166a772e90fa358cb4fe41c11073f2bbd7` |
+| `services/api/src/brainoid_api/settings.py` | `558ec547b9334e25c21993c6d9c16e8185286aed2f870ee73e7b6ff3e822e2fd` |
+| `services/api/src/brainoid_api/speech_outputs.py` | `17db74f8d5746efbece2d4148ab2253f0169f9d9b1167c80cf1c3d6bd83115b7` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `47b4941f26ad54d5f752998d1a3ccb53225e371326c2b62727ea307b9c90547e` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `2e4e138a74d2c2d1e0f8c46b367f1d61317b8324bcb02c7f6dc90a9f8da7a8f4` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `d50e71eb25adda9687b014072e05c79da04f6fa0f1336bd9b35bb19c16f6cb2e` |
+| `services/worker/src/brainoid_worker/usage_reconciler.py` | `8d176246b4fdd4683d1b9c23d3256638739c992678aae7f623714ac610dfbd4c` |
+| `specs/openapi.yaml` | `ba6ffa5703fde98b8cafd746a2ae199022f934c0c17f35bd52c8acd5489fd98d` |
+| `tests/emulator/test_speech_outputs_integration.py` | `8e811f8f7a2a389ae13752a5653aa138fd92b272e50016f365f308039e0ad04f` |
+| `tests/test_conversation_deletion.py` | `8f7828349ddcb3af25dfb80576a3e35669b8dfc615a3d71573ba0a8e01d449c0` |
+| `tests/test_demo_emulator.py` | `424f39af8efb26daa39e01c55b8fcdab7269b415cc11bffe4c203a35fd1bcdb1` |
+| `tests/test_speech_outputs.py` | `8304d8993202eb229464efbbbfb84d8a4c27d38d51c2923bb6e1259d47f4f9cc` |
+| `tests/test_turn_run.py` | `43c75dc200a92f397ed1e78d6246d6f3fb7c918f6fff42427ef8dc11b6124dab` |
+
+### 独立レビュー ラウンド1 終了と修正差戻し
+
+- `/root/voice02_review_r1` は最新全32pathsと周辺契約を確認し **request_changes**。必須P2指摘2、任意0。全810source/HEAD/main/index実bytes・stage・flags不変を親も再照合。レビュー1回を記録してin_progressへ戻す。
+- `/tmp/ba-voice-02-review-r1-report.md` SHA-256 `96b90cc5073e50b6e05c35c76fc97ff910a9d0407050300cdefb4805243047f5`。
+- `/tmp/ba-voice-02-review-r1-result.json` SHA-256 `e3e9d39401b02e409be31569f7e1c25e02688ba5f272daa95dc47b2ffe7cd876`。
+- `/tmp/ba-voice-02-review-r1-closure.json` SHA-256 `8d2707389b38d58e6ce5bfaaa5e0c5d4d7f449701f15174c6e17b3ff1fa9927f`。
+- `/tmp/ba-voice-02-review-r1-probe-host.log` SHA-256 `32d8a06dda4fa26db70ddde5610b9106564d785df431fc8e1b97706a7c653742`。
+- `/tmp/ba-voice-02-review-r1-probe.py` SHA-256 `ba464a213c5c1429a3cb9fbfa8569795f2b94010acc17a4c08b826d3180c118f`。
+- `/tmp/ba-voice-02-review-r1-probe-observations.json` SHA-256 `273589abfdeca2b21aa34ab935a25511f95ec2e45eafa530472cc54eb2f1359b`。
+- **VOICE02-R1-001 / P2** `services/api/src/brainoid_api/speech_outputs.py:286`: attemptを指定した最後のsaved()の後に精算・releaseを行い、最終authorizeはattemptを指定しない。releaseでactive_attemptを消した後は60秒のusage期限を検査する証拠がなく、精算/thread handoffで期限に達しても200/WAVを返す。 修正要件: 合成attemptの固定deadlineをadmissionからHTTP最終releaseまで保持し、期限と等号でも音声を破棄する。正常な精算後はactive=falseになるため、最終段でlive_run(active)を単純再要求せず、固定期限と現在認可を別々に検査する。精算遅延と最終thread handoff遅延の回帰テストを追加する。消費事実の精算は返却拒否とは独立に維持する。
+- **VOICE02-R1-002 / P2** `services/api/src/brainoid_api/speech_outputs.py:72`: saved()はfailed_projectionのstatusだけを判定し、running/waiting_confirmationの親usage_runのactive状態・絶対期限を検査しない。failed_projectionはjobがfailed/obsoleteになった時だけ反映するため、worker停止後でreconciler未実行の期限切れrunを許可する。 修正要件: running/waiting_confirmationでは親usage_runがliveであることと固定deadlineを合成前・遅い結果の返却前に検査する。正常completed runは親の終了枠を要求せず、speech参照5分期限内の取得を維持する。reconciler未実行のrunning/waiting expiry負例とcompleted取得正例を追加する。
+- 独自host probe2件（0.658秒）は非200期待が両方失敗し、期限切れでも200/WAVとprovider1callを再現（exit1、合格ではない）。初回import設定失敗、sandbox AnyIO35秒timeout(exit124)も保存。対象session/process/listenerは終了、reviewer編集検証停止済み。
+- 提供4runの全raw SHA・810source前後一致を独立照合したが、上記2件は既存testが未検出。保存grantstamp候補は契約/到達性の裏付けなしとして指摘に採用せず。原writerへ2件を返し、修正版全差分は新規reviewerで再確認する。
+
+### R1修正と最終再検証
+
+- 元writer `/root/voice02_implementation` が5filesを修正し編集停止。票全体32paths。R1-001はadmissionの固定attempt期限をSpeechAudioに保持して精算後とHTTP最終releaseまで検査、終了済みactive枠とは分離し、消費実績を保持。R1-002は未完了親runのusage live/固定期限を現在認可guardへ追加し、completedの有効な参照取得は維持。
+- 精算/最終handoff/worker停止snapshot/provider待機中の期限・等号・inactive枠・completed正例を追加。元R1probeの変更は観測出力先のみで、親期限失効429/provider0、精算中期限失効410/provider1/slot0を確認。元R1証拠は保存。
+- 修正handoff `/tmp/ba-voice-02-writer-r1fix-handoff.json` SHA-256 `d099ffa06fdda741bd774e6c0cb1b09e0af507cd1163d90fe5efba13b08887da`。全810source SHA-256 `5e43660d49c1bd5c22cae6d6a7ecaafd276d7abcd46ebbd34c1ee7a5b2f14190`、親が最終6runのbefore/after/current一致とrawSHA/exit0を照合。
+- `/tmp/ba-voice-02-writer-r1fix-check-final.json`: `mise run check`、2026-10-29T11:36:50.665295+00:00–2026-10-29T11:37:34.763565+00:00、exit0、check/types成功、raw SHA-256 `1f8edf756b0407d9336150b3f0c200258222a18cdde4f9d0f280aa5447c73ecf`。
+- `/tmp/ba-voice-02-writer-r1fix-fulltest-final.json`: `mise run test`、2026-10-29T11:36:52.807107+00:00–2026-10-29T11:44:48.997962+00:00、exit0、Ran 1399 tests in 439.696s; Ran 18 tests in 0.060s; # tests 558; # pass 558; # fail 0、raw SHA-256 `e5232accbbdd011d775db534d03ff36cebc2b07975845acdc657301928e0ba52`。
+- `/tmp/ba-voice-02-writer-r1fix-emulator-final.json`: `bash -c set -a; source .env.emulator.example; set +a; export CI=true FIREBASE_CLI_DISABLE_MOTD=true; exec mise exec -- pnpm exec firebase emulators:exec --only auth,firestore --project demo-brainoid --config firebase.json --non-interactive "PYTHONPATH=tests:tests/emulator uv run --all-packages --locked --offline python -B -m unittest test_speech_outputs_integration test_audio_inputs_integration test_usage_limits_integration"`、2026-10-29T11:36:54.550920+00:00–2026-10-29T11:37:52.851718+00:00、exit0、Ran 17 tests in 48.663s、raw SHA-256 `03a1dffad898afe99f83ae1c847b41649fed700d607ca31777c1787729d54202`。
+- `/tmp/ba-voice-02-writer-r1fix-focused-final.json`: `mise exec -- uv run --all-packages --locked --offline python -B -m unittest discover -s tests -p test_speech_outputs.py`、2026-10-29T11:35:38.391745+00:00–2026-10-29T11:35:46.579381+00:00、exit0、Ran 29 tests in 6.878s、raw SHA-256 `263ffdf7428861a606894b1fdce1e0e2a69b0e05364e47afc1250076337806f6`。
+- `/tmp/ba-voice-02-writer-r1fix-types-final.json`: `mise exec -- uv run --all-packages --locked --offline mypy`、2026-10-29T11:35:39.578792+00:00–2026-10-29T11:35:40.145978+00:00、exit0、check/types成功、raw SHA-256 `a728079fcae0ffaf45406a239fada3cd6def99769fad96d053259b592d5d10e2`。
+- `/tmp/ba-voice-02-writer-r1fix-probe-candidate.json`: `env PYTHONPATH=.:tests mise exec -- uv run --all-packages --locked --offline python -B /tmp/ba-voice-02-writer-r1fix-probe-candidate.py`、2026-10-29T11:36:30.686669+00:00–2026-10-29T11:36:32.257424+00:00、exit0、Ran 2 tests in 0.633s、raw SHA-256 `a1afcae10ef8b99318b124dc34bd5b85921e2a91636400e193eee42e3989f9c1`。
+- 初期probeのPYTHONPATH不足は試験開始前失敗、snapshot lockの型注釈を修正し最終mypy476成功。型注釈前のprobe-finalは保持し、最終候補で再実行したprobe-candidateを採用。上記最終suite前に候補固定し、検証中の製品変更なし。
+- writer-r1fix-resources-closure.jsonで全session終了、自己process/listener残存0。実provider・実機・公開配備gateは未実施のまま。新規R2で最新全差分とR1両件を確認する。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/voice02_review_r2`（新規独立context）。base commit: `67fbbf82ceba3071b576c9dd0294e827f6634a5a`。
+- 未追跡を含む最新全32files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.emulator.example` | `881c86ca28ef53d17e76fd7c6ad78a1bbaaa4c2e1f96e97887f05d7d14dc95b6` |
+| `.env.example` | `1f3e0bde4fa417478b6235d099f6a2af4f0e824bdab9b75b12526a4ddf6dc459` |
+| `docs/04-interfaces.md` | `6af0f4bbc6789dcdee655a98f3200708636b922b4aa0f7f4e50ecbaad3e49807` |
+| `docs/audio-inputs.md` | `1eedfcd378ce56f803e7735593a78ca661830ac332c888506b4689491e1e422d` |
+| `docs/speech-outputs.md` | `e44f5bcf254d1482e74530e34b6cec02f7f377108071cef49dbfe20b0b078ca7` |
+| `docs/usage.md` | `504e45ce99a5a091cdd8ca7681f4272bb25d5c79cd0a8a314ff2ca27d082994b` |
+| `packages/agent_core/src/brainoid_agent_core/types/speech.py` | `a6bad2adca734b8610a2c0a3430b35c95d1fa421735eeaeabf7f2799843b038d` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `7fd5004acb822951d97ff15476e4e8aef256071e5386bb3cb2f97883d044daad` |
+| `packages/api-client/src/generated/sdk.gen.js` | `e63946f338d80f8ea219eae45e4ed9ac7d2d0a98e1709254c6b55c5ba9dbd7d8` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `7783f9cbe41b96df25acca41425440b034a7af9436bbb08d0153b1bfd9ca799a` |
+| `packages/runs/src/brainoid_runs/events.py` | `897ecd610ac08479c3a7fd0acff83ede3ed490106edb02f95fe2c86104c06fe6` |
+| `packages/runs/src/brainoid_runs/models.py` | `146978aa7276f0b3a07066e306395a0fbc241f2dcf5c3c0d9d347e731beda829` |
+| `packages/runs/src/brainoid_runs/speech.py` | `7f2541943cbd189074584625fce4a9dcaa294d7be5f18df4929b7db4e79c67c2` |
+| `packages/usage/src/brainoid_usage/ledger.py` | `89eb33fb09c64811b33727773a8c4c85e9a981f48cd2fdaf53f20a869939abe9` |
+| `scripts/demo_emulator.py` | `d7f9d58f957fa666dcfa30cb9c072a4b2d00899eb4bc9784fa5ab70529994389` |
+| `services/api/src/brainoid_api/adapters/google_tts.py` | `39948fd8675870335c9d69ce6fd21a83bd56f309659a0b48ec35b5ceaefb4655` |
+| `services/api/src/brainoid_api/app.py` | `95306dfddbc887c1c3f7433b2b4fe89bdb3bced37c3ae524fe85f2074e8ec23d` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `08fdc8d957ee879aafe2de405354b0cfa106a4d2d906ec3828dd68eab72bff9a` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `c55fa4718a55978c69328fc9ab07da36a64ce07e3005ff1f169c33a9f1db52de` |
+| `services/api/src/brainoid_api/routes/speech_outputs.py` | `a38aebbaea9a0de73f78bf9335923f9e59409c1038cc0934032b7898cf2570d2` |
+| `services/api/src/brainoid_api/settings.py` | `558ec547b9334e25c21993c6d9c16e8185286aed2f870ee73e7b6ff3e822e2fd` |
+| `services/api/src/brainoid_api/speech_outputs.py` | `7d0dbc3a647c252c15ac80420e25b0bdb9eac9d27c007d7d243e40c843aa872a` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `47b4941f26ad54d5f752998d1a3ccb53225e371326c2b62727ea307b9c90547e` |
+| `services/worker/src/brainoid_worker/purge_handlers.py` | `2e4e138a74d2c2d1e0f8c46b367f1d61317b8324bcb02c7f6dc90a9f8da7a8f4` |
+| `services/worker/src/brainoid_worker/run_turn.py` | `d50e71eb25adda9687b014072e05c79da04f6fa0f1336bd9b35bb19c16f6cb2e` |
+| `services/worker/src/brainoid_worker/usage_reconciler.py` | `8d176246b4fdd4683d1b9c23d3256638739c992678aae7f623714ac610dfbd4c` |
+| `specs/openapi.yaml` | `ba6ffa5703fde98b8cafd746a2ae199022f934c0c17f35bd52c8acd5489fd98d` |
+| `tests/emulator/test_speech_outputs_integration.py` | `7e8e06852f043d73274e12c6c70a4b0024324bc470e209ccd94c6722b7834fb1` |
+| `tests/test_conversation_deletion.py` | `8f7828349ddcb3af25dfb80576a3e35669b8dfc615a3d71573ba0a8e01d449c0` |
+| `tests/test_demo_emulator.py` | `424f39af8efb26daa39e01c55b8fcdab7269b415cc11bffe4c203a35fd1bcdb1` |
+| `tests/test_speech_outputs.py` | `b3e6eec4de73e28ef60aa7ee3d957a144d078e3e8126ca4b4c1431741eba3825` |
+| `tests/test_turn_run.py` | `43c75dc200a92f397ed1e78d6246d6f3fb7c918f6fff42427ef8dc11b6124dab` |
+
+### 独立レビュー ラウンド2 終了
+
+- 新規 `/root/voice02_review_r2` が最新全32pathsと周辺認可/worker/usage/削除を確認し **approve**。R1-001/R1-002解消、必須指摘0・任意0、レビュー回数2。親が全810source/main/base/index実bytes/stage/flagsを再照合し凍結版不変。
+- `/tmp/ba-voice-02-review-r2-report.md` SHA-256 `351c517ade9bc39c233f84cb06176bbed624c96ac1897565f8a17f50f6d0c006`。
+- `/tmp/ba-voice-02-review-r2-result.json` SHA-256 `84e79a26fb4bba85424b902f1b712ff771e291377fa5f23ef32909eb2c8b6ec3`。
+- `/tmp/ba-voice-02-review-r2-closure.json` SHA-256 `d921d35676c5d0a7c147467e936c44e2eb5d1f54adab5e62f16690d8f53c948b`。
+- `/tmp/ba-voice-02-review-r2-probe-run.json` SHA-256 `8f5ed8597811b2039155514ec15226eb79ca4059d0ca002f222db1c1ee809322`。
+- `/tmp/ba-voice-02-review-r2-probe.log` SHA-256 `da4757b0a419ca4ec05d643d2658fc00fc5f5f7bd7aa153778e1b45e4c7cb5d2`。
+- R2独自7件pass(2.100秒): 元R1再現2件、共有Piへの合成中origin退会/出力generation更新、取消を握り潰す遅いprovider、account/tenant参照削除。親期限切れはprovider0、精算中期限超過は消費済み1秒を保持してslot0、HTTP拒否。提供最終6runの全810source前後とrawSHA/exitも独立照合し、fullsuite再実行なし。
+- 初回probeのaccount削除anchor誤指定(6pass/1fixture失敗)は/tmp fixtureのみ修正し7pass、初回証跡保持。証拠照合初回のmise trust未指定も実行前失敗として保持。製品不具合と区別。自己process/session/listener残存0、編集検証停止済み。
+- 実provider/実機/公開配備gateは未実施のまま、既定disabledと上限付き公開前手順を維持するローカル承認。
+
+### 完了と実装コミット
+
+- 2026-10-29T11:56:05.083135+00:00: BA-VOICE-02をdone（ローカル実装完了）へ更新。mainの実装コミット `6092543cc8cc472a43b36511c79b2f08b36ef537`、全32承認paths/blobをcommit後照合。独立レビュー2回、未解決必須指摘0。
+- 確定文ごとの参照と永続speech.ready、先行取得と順序、認可付きmemory-only合成、5分参照/固定実行期限、再取得とusage制限・回収・削除を実装。R1の期限2件を修正し全検証と新規R2で解消確認。
+- check/Python1399/Skill18/Node558/Emulator17/音声29/元probe2/R2独自7が成功。実provider/実機/OPS配備は上記の公開前条件として残す。done後の親checkと台帳/logのみの記録commitを続ける。
+
+- done後の親 `mise run check`: 2026-10-29T11:56:07.114377+00:00–2026-10-29T11:56:12.318145+00:00、exit0、session2796回収済み。format/lint/types/contracts/client/互換性/docs/workflow/3entrybuild/台帳(71/96 done)成功。raw SHA-256 `c3a74c87d6a1fee90f40e03237a278ad848d30346b36501bd67ab3a3e74c7228`。全810sourceはR2承認版不変、index不変、自己子process/listener残存0。既知UI lint/schema timezone警告は失敗と区別。
+- 台帳と本ログだけを完了記録commitに含める。実provider/実機/配備gateは残存。
