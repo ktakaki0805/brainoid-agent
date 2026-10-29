@@ -14867,3 +14867,202 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 
 - done後の親 `mise run check`: 2026-10-29T12:54:04.941616+00:00–2026-10-29T12:54:10.244570+00:00、exit0、session73110回収済み。format/lint/types/contracts/client/互換性/docs/workflow/3entrybuild/台帳(72/96 done)成功。raw SHA-256 `094bfa73baeb0fd4ad6c08a710aba548b6b3d6b5735069a4eb10f84d5ac1c3c2`。全827sourceはR2承認版不変、index不変、自己子process/listener残存0。既知UI lint/schema timezone警告は失敗と区別。
 - 台帳/logのみを完了記録commitへ含め、実機/Swift/framework/配布前gateは残存。
+
+## ba-voice-04-20261029t125916z
+
+- チケット: BA-VOICE-04
+- 状態: in_progress
+- 開始: 2026-10-29T12:59:16.597894+00:00
+- ブランチ / base commit: main / `e884319d611fe2c00bc9016e5cf5b46558043117`
+- 開始時の変更: staged / unstaged / untracked ともなし。依存4件のdoneと実装commitのHEAD祖先関係を確認。
+- 選択: IDなしのticket_plan.py next。72/96 done、未完了依存なし。
+- 親担当: /root。製品の唯一の書き手は新規の独立実装担当、各レビューは別の新規担当。
+
+### 変更範囲と検証計画
+
+Piサービスが所有する録音・再生adapterを実装する。音声backendの選定と入力/出力機器の列挙・設定、上限付き契約WAV、送信/破棄、run/session/generation付きqueue、停止・期限切れ・失効時の消去、無音・抜去・再生失敗の通知を対象とする。UI状態機械はVOICE05、機器対応範囲の評価はGOV04へ分ける。
+
+| 受入条件 | 検証計画 | 状態 |
+| --- | --- | --- |
+| 停止後に取り込まない、送信と破棄の区別 | fake backendでcapture停止、上限、無音、明示upload/破棄、late callback | 未実施 |
+| 古いsession/run音声を持ち越さない | queue順序、run/session/generation、期限、失効・reset/update cleanup、T-007/T-021 | 未実施 |
+| 機器抜去で無限待機しない | bounded open/read/write/close、異常系、T-006 | 未実施 |
+| 既存契約と回帰 | targeted tests、mise run check、mise run test、最新差分全体の独立レビュー | 未実施 |
+
+### 外部前提・未実施の扱い
+
+基準Pi5 8GBと候補マイク/スピーカーによる短い録音・再生は、この環境で利用可能と確認されていない。docs/08 §1のfake/emulatorで独立merge可能とする共通方針に従い、ローカル実装・fake検証と実機の公開前確認を区別する。実機成功を推測しない。実provider設定・有料呼出し・公開配備・pushは実施しない。
+
+- 実装担当: `/root/voice04_implementation`（fork_turns none）。親の台帳/log以外の唯一の書き手。外部公開・実provider呼出しなし。
+
+### 初期検証（最終候補の検証ではない）
+
+- `types-initial`: `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'mypy']`; 2026-10-29T13:14:36.623184+00:00〜2026-10-29T13:14:37.762680+00:00; exit 1; counts `[]`; 検証前後source不変 `True`; raw SHA-256 `b74932cc0a54d9563008974852373fca5c0f53f007fa3ea0787fb6e58d230339`。
+- `targeted-initial`: `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', '-v', 'test_device_audio']`; 2026-10-29T13:14:47.078490+00:00〜2026-10-29T13:14:47.503873+00:00; exit 1; counts `['Ran 23 tests in 0.019s']`; 検証前後source不変 `True`; raw SHA-256 `99c492def76dad3238d947a06c14d49cb0af618ad97feb4f07547b8a8fb7e526`。
+- `targeted-unsandboxed-initial`: `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', '-v', 'test_device_audio']`; 2026-10-29T13:14:58.178612+00:00〜2026-10-29T13:15:01.688267+00:00; exit 0; counts `['Ran 23 tests in 3.099s']`; 検証前後source不変 `True`; raw SHA-256 `9d96a1b58fd8e3d375dcd85874e00164445f2741f00c821cc4e310105c5f58ae`。
+- 初回mypyはtest fixtureでunittestのrunメソッド名とID属性が衝突し10件の型エラー。修正中。sandbox対象試験はcredential directoryの所有/アクセス検査とnative socket実行制限で21 errors、2件成功。host対象試験は23/23成功。初回失敗は成功へ置換せず保存。製品はまだ編集中のため最終sourceでcheck/testを実施予定。
+
+### 統合後の初回検証と範囲確認
+
+- `targeted-r2`: `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', '-v', 'test_device_audio']`; 2026-10-29T13:23:13.038528+00:00〜2026-10-29T13:23:23.639164+00:00; exit 1; `['Ran 28 tests in 10.165s']`; source前後一致 `True`; raw SHA-256 `6f5c399c39f24465e8e9391516cecabbca5e1f3cb2da67e08e2726b075b525e8`。
+- `check-initial`: `['mise', 'run', 'check']`; 2026-10-29T13:23:58.291106+00:00〜2026-10-29T13:24:42.085005+00:00; exit 0; `[]`; source前後一致 `True`; raw SHA-256 `328c533f86b00184176d4bc75343e16cc1383fe58e2dfb997d809a892bd1d7fc`。
+- 追加対象28件のうち期限/時計fixtureに1 failure・1 error。実装担当はfake clockのmicrosecond丸めで期限未到達と特定し、整数秒へ修正して再確認中。初回全体checkは成功したが、修正後の最終候補で再検証する。
+- 今回はPi daemonの録音→STT→local create_turn→live speech queueのadapterを提供する。スマホからPiへ割り当てたspeech runのsnapshotは文字復元まで。明示attachと停止済みrunの復活抑止を伴うUI結合はBA-VOICE-05で扱う。スマホ→Pi可聴経路完成や実機成功は主張せず、既定disabledを維持する。独立レビューで今回の受入範囲との整合も確認する。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/voice04_review_r1`（新規独立context）。base commit: `e884319d611fe2c00bc9016e5cf5b46558043117`。
+- 未追跡を含む最新全29files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/controller.ts` | `7aad80c1f340683fe6aafa48610d6f0562e63289b8354117be78a45a1efd0ee0` |
+| `docs/audio-inputs.md` | `64f0cbd81293aa9de25625157585cfeffd5331c7c6cdec61d457d5c116bd7dc3` |
+| `docs/device-audio.md` | `ebe0956f024bca1d76b31be3510bb0960ae070b5693cb0cc1f44e80f214779cd` |
+| `docs/device-service.md` | `1833bbc492a9e765c0ea68372dc26b935ac400eb9d2d2e3aa4f55707293d00ff` |
+| `docs/speech-outputs.md` | `e8f5c3c2cadbfbb845ee07cfd5029116447526fd0acc5dffdf1ea630640f70d0` |
+| `docs/toolchain.md` | `807c0a506974831bfd4a388ecc9f81950697325915f756562c99b6b6efbdde9e` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `ba6bfd1cebeec88f8886022dd446d1c39d9a5db5956a2a198c6027d8ff4ac49c` |
+| `packaging/systemd/audio.conf.example` | `62447a9d18d887cdb1d2fec381ace2b9288f268b65816091f7055a92581ac7a6` |
+| `packaging/systemd/device.env.example` | `68da6253555d104f90f88d869fc6510e8d9e364fde573ba88f3f91fae400a4c9` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `ab363ed48436399629a2fc2ad6d22f2dba0abd92ecd76a3f63cd0b8f0d27057a` |
+| `services/device/src/brainoid_device/app.py` | `6c32fdf75c2653b13c780746b951b05a2cb5dd0eb33ff8c6567e0ac616f2c70f` |
+| `services/device/src/brainoid_device/audio_backend.py` | `2a229e3a3241edbfcda6c9ffa79c5fd029cd9a59638ef7daa9d49739999811ed` |
+| `services/device/src/brainoid_device/audio_capture.py` | `93d040767295879057b9a40a02ed2412aeb1179bc1a3f9b832ba9af3a2fb874d` |
+| `services/device/src/brainoid_device/audio_cloud.py` | `7e0c783b146bd2755352c1c4dd6425e5a9c423cb63767036cf05a9d2afdf45b4` |
+| `services/device/src/brainoid_device/audio_native.py` | `43b297337843384956cc026dfc078c3260abd958574ba622fcbdaa43634146f8` |
+| `services/device/src/brainoid_device/audio_playback.py` | `da99a7ba170d5aca443b761e18dd277be17f7602532df8a10063cea9a0be8df8` |
+| `services/device/src/brainoid_device/audio_routes.py` | `e4f21437f7a4096d87b55ede011b08acd82cf3b3ba57d5dceae111379111b0ca` |
+| `services/device/src/brainoid_device/audio_service.py` | `10aa080b2b21ba0c876f0cac3e08463b8c7bc2e555ac2445ac72d8dc3ec89612` |
+| `services/device/src/brainoid_device/cloud_client.py` | `8e884274168acd78cc3bc6078433de2af49f8404bddfc53b4b55373978c14c7c` |
+| `services/device/src/brainoid_device/config.py` | `cc4e5c0326a3e2180790b0528adca4b7a1f9c91d46a3fea9997b29dfad2487ed` |
+| `services/device/src/brainoid_device/device_transport.py` | `353206bc4a502121ce782e2a2533d1bdd3059c05a557506621ce6ece223e132f` |
+| `services/device/src/brainoid_device/local_api.py` | `ddaa51a5e0e8afddf24b2f82f8306c86e52f1f3aa8f1b942b0ef467b13d63a7b` |
+| `services/device/src/brainoid_device/runtime.py` | `1c3555190132911c31a7ef92b7463a315d2973ebefa222e76c7a30619107784b` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `109c883eebe4ccd1263da8b6af8d525b056811e83b684f4debbed8491aa9cad9` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `196f0ddacf4ca852b2ff4e3eb5a91aad949d1f1174fe59e8a642d138b2c5690a` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `cb942e21634ab44676aa274976d1ecc563ffde2903a362f70658fd84808e5322` |
+| `tests/test_device_audio.py` | `43e134b2b3e689568eaa5a6fac7aa998b9a26681f77594fc4784e069a6de7a23` |
+| `tests/test_device_snapshot.py` | `321d7af29d2717b41749df92f68c0936025467ddd2196b396dba615d0603b86e` |
+| `tests/test_ui_private_sessions.mjs` | `5abf3a859d6478025b7d6b3f0cd51ed55b0f08df6b9b3973555fe9fc8c95a3c6` |
+
+### 最終候補固定・R1開始
+
+- 実装担当から全製品source/indexの編集停止を受領。R1担当 `/root/voice04_review_r1` は新規fork none、最新29paths全体を確認。全837sourceのSHA mapとraw/logical/flags indexを `/tmp/ba-voice-04-parent-freeze-r1.json` と付随fileへ固定。source aggregate SHA-256 `bf09c4f325c92fbe8645f56fa76bdeae0f4008a21284c48f56241bb43425294a`。
+- 対象33/33 pass（audio28、snapshot speech1、upgrade parity1、resetprocess3）、2026-10-29T13:28:02.483543+00:00〜13:28:16.357357+00:00。`/tmp/ba-voice-04-writer-targeted-r3.log` raw SHA-256 `f784c60c56a270a5ecbf0317a834217e3ac0f86467804d2ccf2891b1c2c1cbd9`。before=after=親freeze全837を親が直接照合。
+- 最終check/full testと静的reviewを並行。最終approveは全検証終了、source/index不変と資源終了証跡の確認後に限定。現時点のreview verdictは未確定。
+
+- 固定候補check-final: 2026-10-29T13:28:57.113206+00:00〜2026-10-29T13:29:40.129484+00:00, exit 0、全check成功。raw SHA-256 `cd1ca0f430726da321d784d5c1d6f64846ac8da425672392b3cf9f2755b7e5e3`。親がbefore=after=R1全837、index前後不変、descendant/listener残存0を直接照合。full-test-finalは実装担当所有session30179で開始、結果未確定。
+
+- Freeze中の実装担当による追加確認: ALSA snd_pcm_set_paramsのsoft_resample=0と、文書のplughwによる16kHz変換案内の整合に疑義。一次ソースv1.2.15.3の仕様を独立R1へ確認依頼。製品は変更せずfull test/レビューを継続。現時点でレビュー指摘・判定としては未確定。
+
+- Node対象検証: `['mise', 'exec', '--', 'node', '--test', '--test-reporter=tap', 'tests/test_ui_private_sessions.mjs']`, 2026-10-29T13:35:58.569296+00:00〜2026-10-29T13:35:59.114825+00:00, exit0、個別68/68pass。raw SHA-256 `1e6a087d03e5b88ed16b3e4244db5725ab06edf98cdcf9db345326728450e290`、全837source/索引前後一致を親が照合。sandboxのfile-level1件表示を68件成功の根拠とはしない。
+
+### 固定候補 full test 終了（失敗）
+
+- `['timeout', '1000', 'mise', 'run', 'test']`, 2026-10-29T13:30:31.637847+00:00〜2026-10-29T13:38:04.475342+00:00, exit 1; `['Ran 1428 tests in 434.575s']`。Python1428件で5 errors、後続Skill/Nodeは未到達。raw SHA-256 `1cf006a6c11e669432107bc7b7df4652c58f20738fce049a979f72d7db604f4e`。全837source、index前後一致、known descendant/listener残存0を親が直接照合。writerはsession30179 exit回収済み。
+- 全5件のprovision回帰: device.env.exampleへの追加コメントが既存defaults parserのkey=value分解でValueError。R1へraw確認・正式指摘を依頼、製品はfreeze維持。全suite成功とは扱わない。
+
+### 独立レビュー R1 終了・修正へ（2026-10-29T13:44:21.887595+00:00）
+
+- 判定 request_changes、担当 `/root/voice04_review_r1`、最新29paths全体を確認。必須4件・任意0件。全837source/HEAD/index raw・logical・flags不変を親も再照合。レビュー/検証終了、自己資源0。確認済み回数を1へ更新。
+- report SHA-256 `8600369874481ce2a44ab06dd9baa0b5099fbf9c01caa1b10681b071908beba0`、result `054d2cdad487eda21c259d257fdbca2c94a86b4eb4048f5b03a02745c024af73`、closure `5835b16ca0bc9fb4336e083e86f74f787325f0a0f31e3a9eab11c2bc2e4e7e57`。
+
+| 指摘 | 重要度・場所 | 問題と必要対応 |
+| --- | --- | --- |
+| V04-R1-01 | P1 `packaging/systemd/device.env.example:6` | 音声設定例の追加で既存の再provision・uninstallが失敗する。defaultsのコメント処理と任意音声設定の互換性を修正する。旧5キーのconfig、disabled、alsaを保持する再provision/uninstallの回帰を確認し、mise run checkとfull mise run testを最後まで通す。 |
+| V04-R1-02 | P1 `services/device/src/brainoid_device/ui_bridge.py:539` | 停止前に開始したcreate_turnの遅延成功が音声を再有効化する。turn送信開始時の音声意図・generationを保存し、完了時も一致する場合にだけrunをbindする。stop/discard、選択変更、新録音・新run開始後の遅延成功が再生を復活させないroute-level回帰を加える。cloudに受理済みのrunを取消済みと偽らない。 |
+| V04-R1-03 | P2 `services/device/src/brainoid_device/ui_bridge.py:454` | SSE再接続のbacklogをlive speechとして再生してしまう。upstream SSE切断・再接続に音声用の失効またはlive境界を導入し、text履歴復元と音声再開を分離する。未受信backlogを自動再生しないこと、現在/未再生bufferの終了、同じrunの再接続やUI reloadで停止済み音声が復活しないことを検証する。 |
+| V04-R1-04 | P2 `services/device/src/brainoid_device/audio_native.py:80` | plughwの16kHz変換を禁止する設定と導入案内が矛盾する。明示plughwのレート変換を許可する等、採用backendの設定とPCM契約・文書を整合させる。16kHz非対応slaveを使った設定回帰を追加し、暗黙のdefault機器へfallbackしないことと出力16kHz形式を維持する。 |
+
+- レビュー担当の3再現は欠陥の確認に成功したもので受入合格ではない。停止競合raw `d4987046545feadca7af2875e3a14ef86ce1b8f2b9a880c62111b602e07a2099`、再接続raw `473dd7900fdb1893a601fab6e1ffd826afeae8993e4ebcc1a82452dc618ca5ec`、ALSA null rate実library再現raw `e4aa5ee80609ac17d15923ec389a4bddf5146bba904cf83a88b3b86978fe4fed`。親もraw/SHA/前後不変を確認。
+- 外部実機/providerおよびスマホ割当runの明示attach/UI結合は、共通方針とVOICE05境界に基づく公開前gateとして妥当との独立判断。今回の4件はローカルで修正・再検証する。
+
+### R1修正の初回対象検証
+
+- `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', '-v', 'test_device_audio', 'test_device_audio_native', 'test_device_provision']`, 2026-10-29T13:52:13.693042+00:00〜2026-10-29T13:52:24.076815+00:00, exit0、41/41 pass（音声・native・provision）。raw SHA-256 `76ba10d6fb99df78f42ae42c129c9a89dc4d50e615e8274b5a2b36ce82174c55`、source/index前後一致。この後の最終freeze/check/full testはまだ未実施。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/voice04_review_r2`（新規独立context）。base commit: `e884319d611fe2c00bc9016e5cf5b46558043117`。
+- 未追跡を含む最新全30files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/controller.ts` | `7aad80c1f340683fe6aafa48610d6f0562e63289b8354117be78a45a1efd0ee0` |
+| `docs/audio-inputs.md` | `64f0cbd81293aa9de25625157585cfeffd5331c7c6cdec61d457d5c116bd7dc3` |
+| `docs/device-audio.md` | `b16f9ea690f2a9994c0ad157dce45ffa95b7ae386469d0adc3e73c290c43d2f7` |
+| `docs/device-service.md` | `1833bbc492a9e765c0ea68372dc26b935ac400eb9d2d2e3aa4f55707293d00ff` |
+| `docs/speech-outputs.md` | `e8f5c3c2cadbfbb845ee07cfd5029116447526fd0acc5dffdf1ea630640f70d0` |
+| `docs/toolchain.md` | `807c0a506974831bfd4a388ecc9f81950697325915f756562c99b6b6efbdde9e` |
+| `packages/contracts/src/brainoid_contracts/device_snapshot.py` | `ba6bfd1cebeec88f8886022dd446d1c39d9a5db5956a2a198c6027d8ff4ac49c` |
+| `packaging/systemd/audio.conf.example` | `62447a9d18d887cdb1d2fec381ace2b9288f268b65816091f7055a92581ac7a6` |
+| `services/api/src/brainoid_api/device_snapshot.py` | `ab363ed48436399629a2fc2ad6d22f2dba0abd92ecd76a3f63cd0b8f0d27057a` |
+| `services/device/src/brainoid_device/app.py` | `6c32fdf75c2653b13c780746b951b05a2cb5dd0eb33ff8c6567e0ac616f2c70f` |
+| `services/device/src/brainoid_device/audio_backend.py` | `2a229e3a3241edbfcda6c9ffa79c5fd029cd9a59638ef7daa9d49739999811ed` |
+| `services/device/src/brainoid_device/audio_capture.py` | `93d040767295879057b9a40a02ed2412aeb1179bc1a3f9b832ba9af3a2fb874d` |
+| `services/device/src/brainoid_device/audio_cloud.py` | `7e0c783b146bd2755352c1c4dd6425e5a9c423cb63767036cf05a9d2afdf45b4` |
+| `services/device/src/brainoid_device/audio_native.py` | `68aedf6288c44a48309d776d377d77dd8896166e5599a4df5273f5cbe15dae57` |
+| `services/device/src/brainoid_device/audio_playback.py` | `da99a7ba170d5aca443b761e18dd277be17f7602532df8a10063cea9a0be8df8` |
+| `services/device/src/brainoid_device/audio_routes.py` | `e4f21437f7a4096d87b55ede011b08acd82cf3b3ba57d5dceae111379111b0ca` |
+| `services/device/src/brainoid_device/audio_service.py` | `10aa080b2b21ba0c876f0cac3e08463b8c7bc2e555ac2445ac72d8dc3ec89612` |
+| `services/device/src/brainoid_device/cloud_client.py` | `8e884274168acd78cc3bc6078433de2af49f8404bddfc53b4b55373978c14c7c` |
+| `services/device/src/brainoid_device/config.py` | `cc4e5c0326a3e2180790b0528adca4b7a1f9c91d46a3fea9997b29dfad2487ed` |
+| `services/device/src/brainoid_device/device_transport.py` | `353206bc4a502121ce782e2a2533d1bdd3059c05a557506621ce6ece223e132f` |
+| `services/device/src/brainoid_device/local_api.py` | `ddaa51a5e0e8afddf24b2f82f8306c86e52f1f3aa8f1b942b0ef467b13d63a7b` |
+| `services/device/src/brainoid_device/runtime.py` | `1c3555190132911c31a7ef92b7463a315d2973ebefa222e76c7a30619107784b` |
+| `services/device/src/brainoid_device/snapshot_models.py` | `109c883eebe4ccd1263da8b6af8d525b056811e83b684f4debbed8491aa9cad9` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `196f0ddacf4ca852b2ff4e3eb5a91aad949d1f1174fe59e8a642d138b2c5690a` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `f3c334eb90676260b23872a306cb5ce95f9815477ee6e0245b798275cbffa815` |
+| `tests/test_device_audio.py` | `a67a8758c34455aed3afe914b03896388707121d0bc5bc821eaaf41069aee29f` |
+| `tests/test_device_audio_native.py` | `18f9dad2c8326983bfaa9fa32a29ffb5eaef5fe133b5df2fb4338788ed28e512` |
+| `tests/test_device_provision.py` | `915d77bcbcfe9c30c56cb5b6ac6924bcad98c98ae1a8722ae66b0177bf1af198` |
+| `tests/test_device_snapshot.py` | `321d7af29d2717b41749df92f68c0936025467ddd2196b396dba615d0603b86e` |
+| `tests/test_ui_private_sessions.mjs` | `5abf3a859d6478025b7d6b3f0cd51ed55b0f08df6b9b3973555fe9fc8c95a3c6` |
+
+### R1修正候補固定・独立R2開始（2026-10-29T13:59:09.296285+00:00）
+
+- 新規担当 `/root/voice04_review_r2`（fork none）が最新30paths全体とV04-R1-01〜04を確認。設定例追加撤回、audio意図世代fence、SSE切断時の音声終了、明示plughw変換許可、route/native/provision回帰を含む。判定は未確定。
+- 全838sourceを `/tmp/ba-voice-04-parent-freeze-r2.json` とindex raw/logical/flagsへ固定。source aggregate SHA-256 `a55b7648838c273f399403a4ec40f91f4f23b5c49cf07ec317caf1b406a9afdc`。対象41/41とmypy485sourcesのbefore=after=親freeze一致、rawSHA・index不変・known資源0を親が照合。mypy raw SHA `f99d93d3ae154c0a4454f3891920c07784054437bae8dc035c626fe8cab40828`。
+- 最終check/full testと静的reviewを並行する。最終approveは最新sourceで両検証終了・closure後。
+
+- R1修正後固定候補check-final成功: 2026-10-29T13:57:46.276098+00:00〜2026-10-29T13:58:29.357703+00:00, exit0、全check成功。raw SHA-256 `3edaf34b56ebddbdba1588c413d87783aaffa9d117d252d4ebfa921326352c93`。親が全838source before=after=R2freeze、index前後一致、known資源0を直接照合。full-test-finalはwriter所有session21329で実行中。
+
+- R2独立検証9/9 pass: `/tmp/ba-voice-04-review-r2-probes.{py,json,log}`、2026-10-29T14:02:13.447166+00:00〜14:02:17.952895+00:00、raw SHA-256 `7170d91c97f7eae1909a5b2f0d96a3989ac9be2da6892a763c0416a5f2faf20b`。停止旧再現はfetch/open0、再接続旧再現は再接続分fetch/open0。5種の音声意図競合、EOF/reload、provision3設定、native短I/O/PCM/実48k null変換を確認。親もraw/SHA/前後snapshot一致を照合。最終判定は全test後。
+
+### R1修正後の全体test成功
+
+- timeout1000 mise run test: 2026-10-29T13:58:44.133380+00:00〜2026-10-29T14:06:36.007725+00:00, exit0。Python1435/Skill18/Node590の全件成功。raw SHA-256 `f4e1c289b5868943e69058135585290a97271477476507afd5e1faa66e63c173`。親が全838source before=after=R2freeze、index前後不変、known descendant/listener残存0を直接照合。writerのtool session exit回収と最終handoffを待つ。
+
+- 実装担当の最終closureを受領: session21329 exit0回収済、担当ターン終了、製品freeze維持。closure SHA-256 `ad158a0cc24be8854fc872d44662952721a27e58da99a6e86fe64b8f9d34fbbf`。全838map=R2freeze、所有資源0を親照合。TMPDIRはuv lock/Node compile cache等の検証生成物のみで、raw音声/transcriptなし。
+
+### 独立レビュー R2 終了（2026-10-29T14:10:24.043543+00:00）
+
+- 判定 **approve**、担当 `/root/voice04_review_r2`。最新30paths全体を確認、必須0・任意0、V04-R1-01〜04すべてresolved。レビュー/試験終了、自己所有資源0。親が実際の全838source/HEAD/index raw・logical・flagsの一致を再照合。確認済みレビュー回数は2。
+- report SHA `9d37590af861eb6051d2df3ecda5a618db757203e9a483d1c68e3cd0edbe24b9`、result `d7355442715f3fd5ad0c51d3ce58c942a41e00c319a1eb4b113cc2189c399346`、closure `b1c0c53aea982eccf9966adaa8e3d325e88bc185d378804d79f41acad153ac77` を親も照合。
+
+| 前回指摘 | 対応・再確認 |
+| --- | --- |
+| V04-R1-01 | 設定例追加を撤回、legacy/disabled/alsa再導入・uninstall・再導入維持を検証。全体suiteも成功 |
+| V04-R1-02 | turn開始時音声世代を完了時まで照合、stop/discard/select/start/new turn後の旧成功を拒否。独立旧再現でfetch/open0 |
+| V04-R1-03 | 初回SSE接続/音声世代に束縛、切断/EOF/reloadで音声を終了し文字復元のみ。独立旧再現で再接続fetch/open0 |
+| V04-R1-04 | 明示plughwのみresample許可、hwの正確な16k形式とno fallbackを維持。実48k固定null・短I/O・異常終了を検証 |
+
+### 完了結果（2026-10-29T14:11:15.929181+00:00）
+
+- 状態: done。実装コミット: `0d7801ff1110be13b3c9377273105977157feec0`。main上のレビュー済み30pathsを明示stageし、index/commit両方でmanifestのパス・blob SHAを照合。親metadataは実装コミットへ含めていない。
+- ALSA音声helperを既存guardian所有下で分離し、認証付きメモリIPC、入力/出力列挙・明示選択、上限付きPCM WAV録音、明示送信/破棄、run/session/generation付き64文queue、失効/停止/再接続での音声消去を実装。音声状態・安全なエラーをlocal APIへ返し、rawを永続化しない。speech snapshotを各DTO・API・画面で整合、設定例・公開前手順・回帰試験を追加。
+
+| 受入条件 | 最終根拠 | 結果 |
+| --- | --- | --- |
+| 停止後に入力を取らず送信/破棄を区別 | fake captureの上限/無音/mute/late open、finish/discard upload0、明示send、native所有停止 | ローカル成功 |
+| 古いsession/run音声を持ち越さない | current generation/期限/失効、late HTTP、5種turn競合、SSE error/EOF/reload旧音声拒否、R2独立旧再現 | 成功 |
+| 機器不調でdaemonを無限待機にしない | finite native IPC・owned childのTERM/KILL回収、短I/O/EAGAIN/drain/抜去fake、実library48k null変換 | ローカル成功 |
+| 認可・消去・導入回帰 | local session/CSRF、snapshot/credential/reset/shutdown、provision legacy/disabled/alsa、全suite | 成功 |
+| 全体検証・独立レビュー | check、Python1435/Skill18/Node590、対象41、R2独立9、全838source一致 | 成功・R2 approve、必須/任意0 |
+
+### 公開前に残る確認
+
+Pi5/8GB・物理マイク/スピーカーでの録音/可聴再生/抜去/停止時間、実provider・料金/保持条件の結合は未実施。ALSA null/IPCを実音響試験の代替とはしない。既定disabled、明示OS権限drop-inと公開前gateを維持。スマホ割当speech runの明示live attachと画面全体の状態はBA-VOICE-05で結合する。今回のdoneはローカルadapter実装であり、MVP音声全体や配備完了を意味しない。実環境変更、push、PR作成は行っていない。
+
+- 完了台帳更新後の親最終check: mise run check、2026-10-29T14:11:16.029445+00:00〜2026-10-29T14:11:58.956012+00:00、exit0。raw SHA-256 `84fcbdb2add417ea49fec13827bcac05bd6475919de54245b48c49d600fae9f7`。全838source before=after=R2freeze、index前後不変、known descendant/listener残存0を照合、親session28952 exit0回収済み。check:ticketsは73/96 done、blocked0で正常。

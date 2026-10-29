@@ -650,7 +650,13 @@
       "implementation_commit": "d51f9713cb488480f11fb0ed705cff48861d2e68"
     },
     "BA-VOICE-04": {
-      "status": "todo"
+      "status": "done",
+      "branch": "main",
+      "base_commit": "e884319d611fe2c00bc9016e5cf5b46558043117",
+      "updated_at": "2026-10-29T14:11:15.929181+00:00",
+      "log_anchor": "ba-voice-04-20261029t125916z",
+      "review_rounds": 2,
+      "implementation_commit": "0d7801ff1110be13b3c9377273105977157feec0"
     },
     "BA-VOICE-05": {
       "status": "todo"
