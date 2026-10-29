@@ -4,6 +4,7 @@ import asyncio
 import re
 import secrets
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from starlette.requests import Request
@@ -15,7 +16,7 @@ from brainoid_device.config import Settings
 COOKIE = "brainoid_local"
 SESSION_SECONDS = 1800
 MAX_SESSIONS = 32
-BODY_ROUTES = {"/local/cloud/pairing", "/local/cloud/operations"}
+BODY_ROUTES = {"/local/cloud/pairing", "/local/cloud/operations", "/local/audio"}
 MAX_BODY = 32768
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 SAFE_HEADERS = {
@@ -44,12 +45,25 @@ class Session:
 class Sessions:
     def __init__(self) -> None:
         self._sessions: dict[str, Session] = {}
+        self.cleanup: list[Callable[[str], None]] = []
+
+    def valid(self, token: str) -> bool:
+        session = self._sessions.get(token)
+        if session is not None and session.expires > time.monotonic():
+            return True
+        self.remove(token)
+        return False
+
+    def remove(self, token: str) -> None:
+        if self._sessions.pop(token, None) is not None:
+            for cleanup in self.cleanup:
+                cleanup(token)
 
     def find(self, request: Request) -> tuple[str, Session] | None:
         now = time.monotonic()
-        self._sessions = {
-            key: value for key, value in self._sessions.items() if value.expires > now
-        }
+        for key, value in tuple(self._sessions.items()):
+            if value.expires <= now:
+                self.remove(key)
         values = [
             part.strip().partition("=")[2]
             for part in request.headers.get("cookie", "").split(";")
@@ -92,13 +106,14 @@ class Sessions:
         current = self.authorize_mutation(request)
         if isinstance(current, Response):
             return current
-        del self._sessions[current[0]]
+        self.remove(current[0])
         response = Response(status_code=204)
         response.delete_cookie(COOKIE, httponly=True, samesite="strict")
         return response
 
     def clear(self) -> None:
-        self._sessions.clear()
+        for token in tuple(self._sessions):
+            self.remove(token)
 
 
 class LocalBoundary:
@@ -216,6 +231,8 @@ class LocalBoundary:
         elif b"transfer-encoding" in headers or headers.get(b"content-length", [b"0"]) != [b"0"]:
             return error("body_not_supported", 413)
         if scope["path"].startswith("/local/cloud/") and scope.get("query_string"):
+            return error("invalid_operation", 400)
+        if scope["path"].startswith("/local/audio") and scope.get("query_string"):
             return error("invalid_operation", 400)
         raw_path = scope.get("raw_path", b"")
         if len(raw_path) + len(scope.get("query_string", b"")) > 2048:

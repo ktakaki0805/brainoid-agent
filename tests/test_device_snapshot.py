@@ -76,6 +76,14 @@ class SnapshotFixture(CloudFixture):
 
 
 class SnapshotTests(SnapshotFixture):
+    async def test_speech_assignment_retains_mode_without_snapshot_autoplay(self) -> None:
+        run = self.assigned()
+        self.store.data[f"tenants/{self.tenant}/runs/{run}"]["output_mode"] = "speech"
+        await self.sync.sync()
+        assert self.sync.state is not None
+        self.assertEqual(self.sync.state.assigned_runs[0].output_mode, "speech")
+        self.assertFalse((await self.sync.public())["play_speech"])
+
     async def test_all_pages_loss_resume_process_restart_and_no_body_cache(self) -> None:
         runs = {self.assigned() for _ in range(23)}
         original = self.cloud.authorized

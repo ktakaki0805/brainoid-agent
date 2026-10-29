@@ -61,8 +61,13 @@ class Settings:
     credentials_dir: Path
     state_dir: Path
     cloud: CloudSettings | None = None
+    audio_backend: str = "disabled"
 
     def __post_init__(self) -> None:
+        if self.audio_backend not in {"disabled", "alsa"}:
+            raise ConfigurationError("DEVICE_AUDIO_BACKEND: requires disabled or alsa")
+        if self.audio_backend != "disabled" and self.cloud is None:
+            raise ConfigurationError("DEVICE_AUDIO_BACKEND: requires cloud configuration")
         if self.host not in {"127.0.0.1", "::1"}:
             raise ConfigurationError("DEVICE_HOST: requires 127.0.0.1 or ::1")
         if type(self.port) is not int or not 1024 <= self.port <= 65535:
@@ -124,5 +129,11 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     elif source.get("DEVICE_CLOUD_MODE"):
         raise ConfigurationError("DEVICE_CLOUD_API: required when cloud mode is set")
     return Settings(
-        source["DEVICE_HOST"], int(port_value), static_dir, credentials_dir, state_dir, cloud
+        source["DEVICE_HOST"],
+        int(port_value),
+        static_dir,
+        credentials_dir,
+        state_dir,
+        cloud,
+        source.get("DEVICE_AUDIO_BACKEND", "disabled"),
     )

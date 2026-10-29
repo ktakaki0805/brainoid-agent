@@ -357,6 +357,17 @@ test("T020 shared snapshot never reads private history or unassigned run", async
   assert.equal(f.controller.snapshot().session, undefined);
   f.controller.dispose();
 });
+
+test("Pi speech assignments restore text history without browser playback", async () => {
+  const f = display();
+  f.current().snapshot.assigned_runs[0].output_mode = "speech";
+  await f.controller.refresh();
+  await until(() => f.controller.snapshot().text);
+  assert.equal(f.controller.snapshot().text, "PRIVATE FINAL");
+  assert.ok(f.calls.some((call) => call.operation === "get_run"));
+  assert.equal(f.current().play_speech, false);
+  f.controller.dispose();
+});
 test("T035 complete snapshot selects only matching private assignment and typed operation session", async () => {
   const f = display();
   await f.controller.refresh();

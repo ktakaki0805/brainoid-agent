@@ -49,6 +49,7 @@ class CloudClient:
         self._runtime_generation = runtime.generation
         self.generation = 0
         self.output_generation = 0
+        self.output_cleanup: list[Callable[[], None]] = []
         self.recovery: SnapshotSync | None = None
         self.status = "unregistered"
         self.active = True
@@ -119,6 +120,7 @@ class CloudClient:
             raise CloudError("cloud_storage_unavailable", 503) from None
 
     def clear_private(self) -> None:
+        self.clear_output()
         self.active = False
         self.generation += 1
         self.status = "stopped"
@@ -134,6 +136,11 @@ class CloudClient:
         for task in tuple(self._tasks):
             if task is not current:
                 task.cancel()
+
+    def clear_output(self) -> None:
+        self.output_generation += 1
+        for cleanup in self.output_cleanup:
+            cleanup()
 
     def stop(self) -> None:
         if self.active:

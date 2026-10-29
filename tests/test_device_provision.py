@@ -26,6 +26,28 @@ class ProvisionTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
 
+    def test_optional_audio_configuration_survives_reprovision_and_uninstall(self) -> None:
+        for backend in (None, "disabled", "alsa"):
+            with self.subTest(backend=backend):
+                root = self.root / (backend or "legacy")
+                root.mkdir(mode=0o700)
+                provision.provision(root)
+                config = root / provision.CONFIG
+                original = config.read_bytes()
+                self.assertEqual(len(original.splitlines()), 5)
+                configured = original
+                if backend:
+                    configured += (
+                        "# optional audio setting\nDEVICE_AUDIO_BACKEND=" + backend + "\n"
+                    ).encode()
+                    config.write_bytes(configured)
+                provision.provision(root)
+                self.assertEqual(config.read_bytes(), configured)
+                provision.provision(root, uninstall=True)
+                self.assertEqual(config.read_bytes(), configured)
+                provision.provision(root)
+                self.assertEqual(config.read_bytes(), configured)
+
     def test_real_image_accounts_and_boot_enable_twice_preserve_private_data(self) -> None:
         if not shutil.which("systemd-sysusers") or not shutil.which("systemctl"):
             self.skipTest("Linux systemd image tools required")

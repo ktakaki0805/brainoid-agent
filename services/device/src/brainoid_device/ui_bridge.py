@@ -3,7 +3,7 @@
 import asyncio
 import hashlib
 from collections.abc import AsyncIterator, Callable
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -28,6 +28,9 @@ from brainoid_device.cloud_models import CloudError, Cursor, Pending, Record
 from brainoid_device.cloud_wire import SSEDecoder, decode, encode
 from brainoid_device.device_transport import backoff
 from brainoid_device.local_api import Sessions, error
+
+if TYPE_CHECKING:
+    from brainoid_device.audio_service import AudioService
 
 
 class PairingStart(Record):
@@ -141,8 +144,11 @@ class GuardedResponse(Response):
 
 
 class UIBridge:
-    def __init__(self, client: CloudClient, sessions: Sessions) -> None:
+    def __init__(
+        self, client: CloudClient, sessions: Sessions, audio: "AudioService | None" = None
+    ) -> None:
         self.client, self.sessions = client, sessions
+        self.audio = audio
         self._streams: set[tuple[str, str | None]] = set()
 
     def operation_publication(self, session: ResourceId | None) -> Callable[[], None]:
@@ -284,6 +290,8 @@ class UIBridge:
         run = await self.operation(
             GetRun(operation="get_run", run_id=run_id, private_session_id=session)
         )
+        if self.audio and run["status"] in {"failed", "cancelled"}:
+            self.audio.stop_run(run_id)
         cursor = None
         final = run.get("final_message_id")
         found = final is None
@@ -332,6 +340,7 @@ class UIBridge:
             ),
             None,
         )
+        fresh_stream = cursor is None
         if cursor is None:
             if len(client.journal.cursors) >= 32:
                 retired = next(
@@ -349,6 +358,14 @@ class UIBridge:
             client.journal.cursors.append(cursor)
             client.save()
         self._streams.add(key)
+        audio_generation = self.audio.generation if self.audio else None
+
+        def stop_audio() -> None:
+            nonlocal audio_generation
+            # This stream may never terminate or rearm a newer audio intention.
+            if self.audio and self.audio.generation == audio_generation:
+                self.audio.stop_run(run_id)
+            audio_generation = None
 
         async def publish(kind: str, value: dict[str, Any]) -> None:
             client.check(generation)
@@ -358,6 +375,8 @@ class UIBridge:
             client.check(generation)
 
         try:
+            if not fresh_stream:
+                stop_audio()  # Persisted cursor/reload is text recovery, never live audio.
             if cursor.seq:
                 history = await self.history(run_id, session)
                 await publish("history", history)
@@ -397,6 +416,7 @@ class UIBridge:
                         if response.headers.get("content-encoding", "identity") != "identity":
                             raise CloudError("invalid_cloud_response", 502)
                         if response.status_code in {401, 403, 404}:
+                            stop_audio()
                             if rejected is not None:
                                 if response.status_code == 401:
                                     client.stop()
@@ -406,6 +426,7 @@ class UIBridge:
                             rejected_version = version
                             continue
                         if response.status_code in {409, 410}:
+                            stop_audio()
                             history = await self.history(run_id, session)
                             client.check(generation)
                             cursor.seq = history["run"]["last_event_seq"]
@@ -442,6 +463,8 @@ class UIBridge:
                                     "run.cancelled",
                                 }
                                 client.save()  # never replay a committed speech/event after crash
+                                if self.audio and self.audio.generation == audio_generation:
+                                    self.audio.event(event, session)
                                 if event["type"] != "speech.ready":
                                     await publish("run", event)
                                 attempt, rejected = 0, None
@@ -453,6 +476,7 @@ class UIBridge:
                                     return
                     finally:
                         await response.aclose()
+                    stop_audio()  # EOF before a terminal event also ends the live connection.
                     history = await self.history(run_id, session)
                     if history["run"]["status"] in {"completed", "failed", "cancelled"}:
                         cursor.terminal = True
@@ -461,11 +485,16 @@ class UIBridge:
                         await publish("history", history)
                         return
                 except (httpx.HTTPError, OSError, TimeoutError):
-                    pass
+                    stop_audio()
                 client.check(generation)
                 await client.sleep(backoff(attempt))
                 attempt = min(attempt + 1, 5)
+        except CloudError:
+            stop_audio()
+            raise
         finally:
+            if not cursor.terminal:
+                stop_audio()  # UI disconnect/cancellation cannot leave live playback behind.
             self._streams.discard(key)
 
     def routes(self) -> list[Route]:
@@ -513,7 +542,26 @@ class UIBridge:
                 elif request.url.path == "/local/cloud/operations":
                     operation = Operation.validate_python(local_body(await request.body()))
                     check_publication = self.operation_publication(operation.private_session_id)
+                    audio_generation = None
+                    if self.audio and isinstance(operation, CreateTurn):
+                        # Establish intent at submission, including two concurrent turns.
+                        # A later stop, selection, capture or turn invalidates this receipt.
+                        check_publication()
+                        self.audio.clear()
+                        audio_generation = self.audio.generation
+                    if self.audio and isinstance(operation, CancelRun):
+                        self.audio.stop_run(operation.run_id)
                     value = await self.client.owned(self.operation(operation))
+                    check_publication()
+                    if (
+                        self.audio
+                        and self.audio.generation == audio_generation
+                        and isinstance(operation, CreateTurn)
+                        and operation.turn.output_mode == "speech"
+                    ):
+                        self.audio.begin_run(
+                            ResourceId(value["run_id"]), operation.private_session_id, current[0]
+                        )
                 else:
                     run_id = TypeAdapter(ResourceId).validate_python(request.path_params["run_id"])
                     session = (

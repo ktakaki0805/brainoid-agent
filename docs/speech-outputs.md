@@ -32,3 +32,5 @@ BA-VOICE-02 / FR-005・FR-012 は `output_mode=speech` の turn から確定文�
 切戻しは `TTS_PROVIDER=disabled` と旧artifactへ戻す。保存済みspeech参照は再生させず5分期限で拒否し、sweep/TTLとusage recoveryを維持する。schema変更は既存のspeech.ready/GET契約の実装と説明更新で、既存text clientは影響を受けない。
 
 スマホの順序付きqueue・native停止・遅い結果の拒否は [mobile audio](mobile-audio.md)を参照。
+
+Pi daemon の run/session/generation queue、live speech.ready、停止と失効は [Pi音声adapter](device-audio.md)を参照する。

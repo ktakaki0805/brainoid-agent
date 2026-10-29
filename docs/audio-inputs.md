@@ -32,3 +32,5 @@ transcript は受付時から15分。所有文脈、状態、`expires_at` と Fi
 4. `STT_PROVIDER=disabled`へ戻し、15分後の参照拒否とsweep/TTLによる消去、usage枠回収を確認する。artifact digest、時刻、設定識別子、合否・未実施を記録する。これが済むまで実provider受入完了やMVP音声全体の公開可とは扱わない。
 
 スマホ側の録音・変換・破棄と公開前の両OS検証は [mobile audio](mobile-audio.md)を参照。
+
+Pi daemon の上限付き録音、finish/send/discard、機器権限と公開前確認は [Pi音声adapter](device-audio.md)を参照する。

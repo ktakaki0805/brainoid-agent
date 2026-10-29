@@ -1,0 +1,11 @@
+# REVIEW TEMPLATE: replace C1/D0 with the tested card/device numbers.
+# Install as /etc/systemd/system/brainoid-agent.service.d/audio.conf only after
+# docs/device-audio.md gates pass. Never install this file unchanged.
+[Service]
+PrivateDevices=no
+DevicePolicy=closed
+DeviceAllow=
+DeviceAllow=/dev/snd/controlC1 rw
+DeviceAllow=/dev/snd/pcmC1D0c rw
+DeviceAllow=/dev/snd/pcmC1D0p rw
+SupplementaryGroups=audio

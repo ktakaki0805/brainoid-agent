@@ -122,6 +122,7 @@ class DeviceSnapshots:
         return RunAssignment(
             run_id=run,
             conversation_id=doc["conversation_id"],
+            output_mode=doc.get("output_mode", "text"),
             assignment_generation=1,
             last_event_seq=doc.get("last_event_seq", 0),
             private_session_id=output.private_session_id,

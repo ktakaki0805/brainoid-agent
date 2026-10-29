@@ -84,7 +84,7 @@ function snapshot(value: unknown): DeviceSnapshotState {
         !isId(run.run_id) ||
         !isId(run.conversation_id) ||
         !positive(run.assignment_generation) ||
-        run.output_mode !== "text" ||
+        !["text", "speech"].includes(run.output_mode) ||
         !Number.isSafeInteger(run.last_event_seq) ||
         run.last_event_seq < 0 ||
         (run.private_session_id !== undefined && !isId(run.private_session_id)),

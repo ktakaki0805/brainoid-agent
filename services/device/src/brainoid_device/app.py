@@ -14,6 +14,9 @@ from starlette.routing import Route
 from starlette.types import ASGIApp
 
 from brainoid_device.assets import load_assets
+from brainoid_device.audio_backend import AlsaBackend, AudioBackend
+from brainoid_device.audio_routes import audio_routes
+from brainoid_device.audio_service import AudioService
 from brainoid_device.cloud_client import CloudClient
 from brainoid_device.command_executor import CommandExecutor
 from brainoid_device.config import Settings
@@ -33,7 +36,11 @@ STARTUP_SECONDS = 5.0
 
 class DeviceApplication:
     def __init__(
-        self, settings: Settings, *, startup: Callable[[Runtime], Awaitable[None]] | None = None
+        self,
+        settings: Settings,
+        *,
+        startup: Callable[[Runtime], Awaitable[None]] | None = None,
+        audio_backend: AudioBackend | None = None,
     ) -> None:
         assets = load_assets(settings.static_dir)
         activation = os.environ.get("DEVICE_ACTIVATION_NONCE", "")
@@ -63,7 +70,12 @@ class DeviceApplication:
         )
         self.snapshot_sync = SnapshotSync(self.cloud) if self.cloud else None
         self.transport = DeviceTransport(self.cloud) if self.cloud else None
-        self.bridge = UIBridge(self.cloud, sessions) if self.cloud else None
+        self.audio = (
+            AudioService(self.cloud, sessions, audio_backend or AlsaBackend(self.runtime))
+            if self.cloud and settings.audio_backend == "alsa"
+            else None
+        )
+        self.bridge = UIBridge(self.cloud, sessions, self.audio) if self.cloud else None
         self.home_assistant = (
             HomeAssistant(self.runtime, self.storage, self.credentials, cloud=self.cloud)
             if not resumed_reset
@@ -82,6 +94,8 @@ class DeviceApplication:
             self.runtime.running = True
             try:
                 if self.cloud is not None and self.cloud.active:
+                    if self.audio is not None:
+                        self.runtime.start_task(self.audio.maintain())
                     self.cloud.start(self.cloud.maintain())
                     assert self.snapshot_sync is not None
                     self.cloud.start(self.snapshot_sync.expire())
@@ -207,6 +221,7 @@ class DeviceApplication:
                     Route("/local/reset/prepare", reset, methods=["POST"]),
                     Route("/local/reset", reset, methods=["POST"]),
                     *(self.bridge.routes() if self.bridge else []),
+                    *(audio_routes(self.audio) if self.audio else []),
                     Route("/{path:path}", static, methods=["GET"]),
                 ],
                 lifespan=lifespan,
@@ -217,6 +232,8 @@ class DeviceApplication:
 
     def request_stop(self) -> None:
         self._stop_requested.set()
+        if self.audio is not None:
+            self.audio.clear()
 
     def _check_startup_stop(self) -> None:
         if self._stop_requested.is_set():

@@ -42,7 +42,7 @@ class PrivateSession(Record):
 class RunAssignment(Record):
     run_id: ResourceId
     conversation_id: ResourceId
-    output_mode: Literal["text"] = "text"
+    output_mode: Literal["text", "speech"] = "text"
     assignment_generation: Version
     last_event_seq: Annotated[int, Field(strict=True, ge=0)]
     private_session_id: ResourceId | None = Field(

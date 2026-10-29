@@ -109,8 +109,12 @@ class Runtime:
 
     async def close(self) -> None:
         self.running = False
-        async with self._child_lock:
-            await self._close_owned()
+        try:
+            self.clear_private()
+        finally:
+            # A cleanup failure must not bypass the child/task drain barrier.
+            async with self._child_lock:
+                await self._close_owned()
 
     async def _close_owned(self) -> None:
         for task in self._tasks:

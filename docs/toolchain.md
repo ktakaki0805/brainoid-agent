@@ -221,3 +221,5 @@ Firebase推移依存とintegrityは `pnpm-lock.yaml` に固定する。Web bundl
 BA-UI-07はmobile実行依存に`@capacitor-firebase/messaging`8.5.2（Apache-2.0）を固定した。Capacitor >=8.0.0、Firebase ^12.6.0のpeerを既存構成で満たす。用途、実行権限、native依存のライセンス、OS/FCM/APNs設定と未実施の実機gateは[リマインダーUI](ui-reminders.md#依存と実機準備)に記録する。導入だけでnativeプロジェクトや資格情報を生成しない。
 
 BA-VOICE-01 は API に既存固定 HTTPX 0.28.1 と google-auth 2.62.0 の直接依存を追加した。外部distribution・版の追加はなく、REST v2 音声 transport と明示認証更新に使う。ライセンス・権限・無効時の挙動は[音声入力契約](audio-inputs.md)を参照する。
+
+BA-VOICE-04 は新しいPython/Node依存を追加せず、任意のOS依存libasound.so.2を標準ctypesから動的利用する。開発機の検証版、LGPL-2.1-or-later、PiのOS manifest固定、限定device権限と配布条件は [Pi音声adapter](device-audio.md#backend-と依存)を参照する。

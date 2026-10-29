@@ -264,6 +264,7 @@ class DeviceTransport:
                     # Frame payloads are hints. Only a fully authorized page set
                     # replaces state; old speech is never auto-played.
             finally:
+                client.clear_output()
                 if execution is not None:
                     execution.cancel()
                     await asyncio.gather(execution, return_exceptions=True)

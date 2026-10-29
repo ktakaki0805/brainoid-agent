@@ -86,7 +86,7 @@ class SnapshotSync:
         client.runtime.register_private_cleanup(self.clear)
 
     def clear(self, *, persist: bool = True) -> None:
-        self.client.output_generation += 1
+        self.client.clear_output()
         self.state = None
         self.notifications.clear()
         self.ready = False
