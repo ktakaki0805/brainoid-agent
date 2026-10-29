@@ -36,7 +36,6 @@ def validate_environment(environ: Mapping[str, str]) -> Settings:
     # Future external adapters must stay fake, even before their settings exist in the API.
     for name in (
         "SPEECH_PROVIDER",
-        "STT_PROVIDER",
         "TTS_PROVIDER",
         "TOOL_PROVIDER",
         "CALENDAR_PROVIDER",

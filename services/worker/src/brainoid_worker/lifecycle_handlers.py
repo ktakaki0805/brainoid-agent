@@ -42,6 +42,7 @@ PERSONAL = frozenset(
         "reminder_schedules",
         "exports",
         "caches",
+        "audio_inputs",
     }
 )
 # Closed inventory of local producers. Global discovery is available only to a

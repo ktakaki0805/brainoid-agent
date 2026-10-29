@@ -2011,7 +2011,7 @@ export type TranscribeAudioErrors = {
 export type TranscribeAudioError = TranscribeAudioErrors[keyof TranscribeAudioErrors];
 export type TranscribeAudioResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 現在認可を再確認した15分期限のtranscript参照
      */
     201: AudioInput;
 };

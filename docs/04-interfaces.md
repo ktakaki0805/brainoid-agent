@@ -181,7 +181,7 @@ run eventsの保持は初期24時間とし、期限後は410を返してrunと�
 
 ### 4.2 タップ音声の初期契約
 
-MVPは1発話ごとのuploadを使う。入力は16kHz・16bit・mono PCM WAV、上限60秒かつ5MiBとする設計案で、スマホ/Piのaudio adapterで変換する。APIはメモリ内で受けてSTTを行い、音声バイトを自システムのDB・ファイル・ログへ保存しない。返る `audio_input_id` はtenant/actor/sessionに束縛されたtranscript参照で、初期15分で失効する。providerの保持方針は別途運用文書で確認する。
+MVPは1発話ごとのuploadを使う。入力は16kHz・16bit・mono PCM WAV、上限60秒かつ5MiBとする。スマホ/Piのaudio adapterで変換する。APIはメモリ内で受けてSTTを行い、音声バイトを自システムのDB・ファイル・ログへ保存しない。返る `audio_input_id` はtenant/actor/sessionに束縛されたtranscript参照で、初期15分で失効する。providerの保持方針は別途運用文書で確認する。BA-VOICE-01 の実装・利用量・期限・再送・設定は[音声入力契約](audio-inputs.md)を参照。STT設定未指定は503で、暗黙のfakeや実providerへ切り替えない。
 
 `POST turns` は `text` と `audio_input_id` の一方だけを受け取る。TTSを希望する場合は `output_mode=speech` とし、出力Piを指定する場合は `output_device_id` も権限検査する。Piは許可されたrunのSSEを購読し、sentence単位の `speech.ready` にあるIDで音声を取得する。
 

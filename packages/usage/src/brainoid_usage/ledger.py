@@ -4,6 +4,7 @@ import re
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from hashlib import sha256
+from typing import Literal
 from uuid import UUID, uuid5
 
 from brainoid_contracts import FirebaseUid, ResourceId, normalize_utc
@@ -61,7 +62,11 @@ class UsageLedger:
         *,
         user: FirebaseUid | None,
         device: ResourceId | None,
+        purpose: Literal["run", "audio_input"] = "run",
+        voice_seconds: int = 0,
     ) -> Callable[[], None]:
+        if (purpose == "run" and voice_seconds != 0) or not 0 <= voice_seconds <= 60:
+            raise ValueError("invalid_admission_units")
         policy = self.policy(tx, tenant)
         now = normalize_utc(self.now())
         period = now.strftime("%Y-%m")
@@ -80,15 +85,23 @@ class UsageLedger:
             slot_path = f"tenants/{tenant}/usage_slots/{scope}"
             slots = tx.get(slot_path) or {"active": 0}
             if (
-                bucket["turns"] >= limit.turns
+                (purpose == "run" and bucket["turns"] >= limit.turns)
                 or slots["active"] >= limit.concurrent_runs
                 or bucket["tokens"] >= limit.tokens
                 or bucket["voice_seconds"] >= limit.voice_seconds
+                or bucket["voice_seconds"] + voice_seconds > limit.voice_seconds
             ):
                 raise QuotaExceeded()
             writes.extend(
                 [
-                    (path, {**bucket, "turns": bucket["turns"] + 1}),
+                    (
+                        path,
+                        {
+                            **bucket,
+                            "turns": bucket["turns"] + (purpose == "run"),
+                            "voice_seconds": bucket["voice_seconds"] + voice_seconds,
+                        },
+                    ),
                     (slot_path, {"active": slots["active"] + 1}),
                 ]
             )
@@ -98,14 +111,33 @@ class UsageLedger:
             "period": period,
             "scopes": scopes,
             "active": True,
-            "reservation_keys": [],
-            "expires_at": (now + timedelta(seconds=policy.run_seconds)).isoformat(),
+            "reservation_keys": ["speech"] if voice_seconds else [],
+            "purpose": purpose,
+            "expires_at": (
+                now + timedelta(seconds=60 if purpose == "audio_input" else policy.run_seconds)
+            ).isoformat(),
         }
 
         def write() -> None:
             for path, doc in writes:
                 tx.set(path, doc)
             tx.create(run_path(tenant, run), record)
+            if voice_seconds:
+                amounts = Amounts(voice_seconds=voice_seconds).model_dump()
+                tx.create(
+                    reservation_path(tenant, run, "speech"),
+                    {
+                        "tenant_id": tenant,
+                        "run_id": run,
+                        "period": period,
+                        "scopes": scopes,
+                        "reserved": amounts,
+                        "charged": amounts,
+                        "observed": Amounts().model_dump(),
+                        "known": {name: value == 0 for name, value in amounts.items()},
+                        "state": "started",
+                    },
+                )
 
         return write
 

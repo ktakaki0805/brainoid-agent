@@ -14,7 +14,7 @@ class AudioFormat(CoreValue):
 
 
 class SpeechRecognition(CoreValue):
-    audio: bytes
+    audio: bytes = Field(repr=False)
     format: AudioFormat
     locale: NonEmptyText
 
@@ -28,7 +28,7 @@ class SpeechSynthesis(CoreValue):
 
 class Transcript(CoreValue):
     type: Literal["transcript"] = "transcript"
-    text: str
+    text: str = Field(repr=False)
     is_final: bool
 
 

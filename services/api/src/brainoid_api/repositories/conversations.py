@@ -4,7 +4,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from brainoid_api.audio_inputs import AudioInputs
 
 from brainoid_contracts import DisplayPolicy, FirebaseUid, ResourceId, Scope, Visibility
 from brainoid_contracts.deletion import fenced_document, purge_epoch
@@ -97,8 +101,9 @@ class Conversations:
     ) -> None:
         self.store, self.tenants, self.cursors, self.jobs = store, tenants, cursors, jobs
         self.credentials, self.sessions, self.now = credentials, sessions, now
-        self.idempotency = Idempotency(store, now=now)
+        self.idempotency = Idempotency(GuardedTransactions(store), now=now)
         self.usage = UsageLedger(store, now=now)
+        self.audio_inputs: AudioInputs | None = None
 
     def current_read[T](self, work: Callable[[Transaction], T]) -> ReadResult[T]:
         """Read evidence is local to the successful attempt, including response delay."""
@@ -579,6 +584,12 @@ class Conversations:
             grant, _ = self.access(
                 tx, identity, tenant, conversation, session, action=Action.POST, output=output
             )
+            text = body.text
+            if body.audio_input_id is not None:
+                if self.audio_inputs is None:
+                    raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+                text = self.audio_inputs.resolve(tx, identity, tenant, session, body.audio_input_id)
+            assert text is not None
             parent = self.document(tx, tenant, conversation)
             prior = None
             old = None
@@ -647,7 +658,7 @@ class Conversations:
                     "tenant_id": tenant,
                     "events_version": 1,
                     "input_message_id": message_id,
-                    "input_text": body.text,
+                    "input_text": text,
                     "input_sequence": parent.get("next_sequence", 1),
                     "agent": definition.model_dump(mode="json"),
                     "history_revision": parent.get("history_revision", 0),
@@ -676,9 +687,7 @@ class Conversations:
                     ).model_dump(mode="json"),
                 }
             )
-            message = Message(
-                id=message_id, role="user", text=body.text, run_id=run_id, created_at=now
-            )
+            message = Message(id=message_id, role="user", text=text, run_id=run_id, created_at=now)
             reserve_usage = policy_call(
                 lambda: self.usage.prepare_admit(
                     tx,
@@ -733,9 +742,12 @@ class Conversations:
             # Preserve old receipts when the additive precondition was omitted.
             body=body.model_dump(
                 mode="json",
-                exclude={"expected_output_private_session_id"}
-                if body.expected_output_private_session_id is None
-                else set(),
+                exclude=(
+                    {"expected_output_private_session_id"}
+                    if body.expected_output_private_session_id is None
+                    else set()
+                )
+                | ({"audio_input_id"} if body.audio_input_id is None else {"text"}),
             ),
             authorize=authorize,
             mutate=mutate,

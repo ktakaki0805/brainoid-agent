@@ -46,3 +46,5 @@ next_cursor = reconciler.recover(tenant_id, pages, after=cursor, limit=100)
 新memberは既存固定版Pydanticとcontractsだけに依存し、framework/SDKの依存を持たない。既存distributionの更新はない。導入前は旧workerへの配送を止め、既存active runを完了または停止してから再開する。利用量予約がない旧active runを新workerが実行することは拒否する。過去利用量の遡及推定は行わない。切戻しでもledgerを保持し、旧workerへ未処理runを渡さず、unknownを削除して枠を戻さない。shared databaseで新旧workerを同時に動かすローリング移行は未対応。
 
 BA-UI-11 の[会員・招待・利用量の画面](ui-tenant-settings.md)は、上記APIの現在権限・版・固定要求の再送契約を利用する。
+
+BA-VOICE-01 の独立STTは同じ usage_runs/reservations/slots を `purpose=audio_input` で使う。音声秒は実PCM長の切上げを受付時に原子的に予約し、会話turn数は増やさない。通常turnへ投入した時に1回だけturnを加算する。STT実行期限60秒（provider待機上限45秒）後は既存 UsageReconciler でslotを回収し、遅い結果を拒否する。provider最終使用量がない失敗/取消はunknownとして予約額を保持する。実呼出し前の確定拒否だけ0秒に精算する。詳しくは[音声入力](audio-inputs.md)。

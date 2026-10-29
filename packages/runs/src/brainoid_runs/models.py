@@ -79,8 +79,11 @@ class MessagePage(Record):
 
 
 class TurnCreate(Record):
-    # Audio and speech are deliberately not admitted before their implementation.
-    text: Annotated[str, Field(strict=True, min_length=1, max_length=8000, repr=False)]
+    # Speech output remains unavailable until VOICE-02.
+    text: Annotated[str | None, Field(strict=True, min_length=1, max_length=8000, repr=False)] = (
+        None
+    )
+    audio_input_id: ResourceId | None = None
     output_mode: Literal["text"]
     output_device_id: ResourceId | None = None
     # A user-to-Pi output precondition, never a grant of session authority.
@@ -88,6 +91,11 @@ class TurnCreate(Record):
 
     @model_validator(mode="after")
     def nonnull_destination(self) -> Self:
+        if (self.text is None) == (self.audio_input_id is None) or any(
+            name in self.model_fields_set and getattr(self, name) is None
+            for name in ("text", "audio_input_id")
+        ):
+            raise ValueError("Exactly one text or audio reference is required")
         if "output_device_id" in self.model_fields_set and self.output_device_id is None:
             raise ValueError("Destination must be omitted or a resource ID")
         if "expected_output_private_session_id" in self.model_fields_set and (

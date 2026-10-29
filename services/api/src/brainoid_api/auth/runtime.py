@@ -1,5 +1,6 @@
 """App-owned SDK lifetimes and request dependencies; blocking I/O runs in worker threads."""
 
+import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -13,13 +14,17 @@ from brainoid_memory.deletion_ledger import DeletionLedger
 from brainoid_memory.vector_store import VectorSearch
 from brainoid_policy.control_ledger import ControlLedger, Objects
 from fastapi import Depends, Request
-from google.auth.credentials import AnonymousCredentials
+from google.auth.credentials import AnonymousCredentials, with_scopes_if_required
+from google.auth.transport.requests import Request as GoogleRequest
 from google.cloud import storage
 from google.cloud.firestore_v1 import Client
+from pydantic import SecretStr
 from starlette.concurrency import run_in_threadpool
 
 from brainoid_api.adapters.gcs_authz_ledger import GCSAuthzObjects
+from brainoid_api.adapters.google_speech import GoogleSpeech, SpeechSettings
 from brainoid_api.adapters.local_authz_ledger import LocalAuthzObjects
+from brainoid_api.audio_inputs import AudioInputs
 from brainoid_api.auth.context import AuthenticatedIdentity
 from brainoid_api.auth.device_tokens import DeviceIdentity, DeviceTokens
 from brainoid_api.auth.firebase_identity import (
@@ -79,6 +84,7 @@ class AuthServices:
     device_gateway: DeviceGateway | None = None
     device_snapshots: DeviceSnapshots | None = None
     home_assistant: HomeAssistantEntities | None = None
+    audio_inputs: AudioInputs | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]
@@ -107,6 +113,7 @@ async def authentication_lifespan(
     )
     client: Client | None = None
     storage_client = None
+    speech: GoogleSpeech | None = None
     try:
         credential = (
             AnonymousCredentials()  # type: ignore[no-untyped-call]
@@ -157,6 +164,37 @@ async def authentication_lifespan(
             credentials=devices,
             sessions=sessions,
         )
+        audio_inputs = None
+        if settings.stt_provider == "google-v2":
+            assert settings.stt_location and settings.stt_model and settings.stt_recognizer
+
+            speech_credential = with_scopes_if_required(  # type: ignore[no-untyped-call]
+                credential, ["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            token_lock = asyncio.Lock()
+
+            async def token() -> SecretStr:
+                def refresh() -> SecretStr:
+                    if not speech_credential.valid:
+                        speech_credential.refresh(GoogleRequest())
+                    if not speech_credential.token:
+                        raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
+                    return SecretStr(speech_credential.token)
+
+                async with token_lock:
+                    return await run_in_threadpool(refresh)
+
+            speech = GoogleSpeech(
+                SpeechSettings(
+                    project=settings.gcp_project_id,
+                    location=settings.stt_location,
+                    recognizer=settings.stt_recognizer,
+                    model=settings.stt_model,
+                ),
+                token,
+            )
+            audio_inputs = AudioInputs(conversations, speech)
+            conversations.audio_inputs = audio_inputs
         snapshots = DeviceSnapshots(conversations, memories, sessions)
         notifications = DeviceNotifications(snapshots)
         gateway = command_gateway(DeviceLeases(store, devices), client, DeviceCommands(memories))
@@ -201,9 +239,12 @@ async def authentication_lifespan(
             device_gateway=gateway,
             device_snapshots=snapshots,
             home_assistant=home_assistant,
+            audio_inputs=audio_inputs,
         )
     finally:
         try:
+            if speech is not None:
+                await speech.close()
             if storage_client is not None:
                 await run_in_threadpool(storage_client.close)
             if client is not None:

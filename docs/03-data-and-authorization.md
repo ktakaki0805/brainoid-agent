@@ -59,7 +59,7 @@ FirestoreのサーバーSDKはSecurity Rulesを経由しない。そのため、
 | `conversations/{id}` | agent、visibility、display_policy、タイトル | privateは所有者のみ。sharedはactive memberが参加可能 |
 | `conversations/{id}/messages/{id}` | role、text、source_refs、run_id | transcriptのみ。生音声は通常保存しない |
 | `runs/{id}` / `runs/{id}/events/{seq}` | 実行状態、checkpoint、出力端末とassignment generation、最終結果、再接続用イベント | events初期保持24時間。本文は会話権限を継承 |
-| `audio_inputs/{id}` | STT transcript、言語、所有文脈、expires_at | 初期15分。音声バイトを保存しない |
+| `audio_inputs/{id}` | STT transcript、所有文脈・認可binding、処理状態、expires_at/ttl_at | 受付から15分、期限境界で参照拒否。音声バイトを保存しない。[消去・利用契約](audio-inputs.md) |
 | `speech_outputs/{id}` | 合成対象の確定文参照、run_id、期限 | 初期5分。音声は認可付き取得時に合成 |
 | `entities/{id}` | 人・部屋・家電・活動などの型、ラベル、外部参照 | 同名だけで自動マージしない |
 | `facts/{id}` | 主語・関係・目的語／値、出典、時間、状態 | グラフ記憶の正本 |

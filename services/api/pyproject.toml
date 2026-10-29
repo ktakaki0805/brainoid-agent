@@ -24,6 +24,8 @@ dependencies = [
     "jsonschema==4.26.0",
     "websockets==17.3",
     "anyio==4.15.1",
+    "httpx==0.28.1",
+    "google-auth==2.62.0",
 ]
 classifiers = ["Private :: Do Not Upload"]
 

@@ -11,6 +11,7 @@ from brainoid_api.device_gateway import router as device_gateway_router
 from brainoid_api.errors import RequestContextMiddleware, install_error_handlers, logger
 from brainoid_api.health import ReadinessProbe, RuntimeState, router
 from brainoid_api.routes.agents import router as agents_router
+from brainoid_api.routes.audio_inputs import router as audio_inputs_router
 from brainoid_api.routes.calendar_authorization import router as calendar_router
 from brainoid_api.routes.calendar_events import router as calendar_events_router
 from brainoid_api.routes.calendar_proposals import router as calendar_proposals_router
@@ -103,6 +104,7 @@ def create_app(
     app.add_middleware(RequestContextMiddleware)
     install_error_handlers(app)
     app.include_router(router)
+    app.include_router(audio_inputs_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
     app.include_router(tenants_router, prefix="/v1")
     app.include_router(invitations_router, prefix="/v1")

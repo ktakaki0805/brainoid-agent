@@ -32,6 +32,10 @@ class Settings(BaseModel):
     gcp_project_id: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")]
     gcp_region: Identifier
     firestore_database_id: Identifier
+    stt_provider: Literal["disabled", "google-v2"] = "disabled"
+    stt_location: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{1,62}$")] | None = None
+    stt_model: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{0,127}$")] | None = None
+    stt_recognizer: Annotated[str, Field(pattern=r"^(?:_|[a-z][a-z0-9-]{0,62})$")] | None = None
     model_id: Identifier
     firestore_emulator_host: str | None = None
     firebase_auth_emulator_host: str | None = None
@@ -113,6 +117,14 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
+        stt = (self.stt_location, self.stt_model, self.stt_recognizer)
+        if self.stt_provider == "google-v2":
+            if self.app_env not in ("staging", "production") or not all(stt):
+                raise ValueError(
+                    "STT requires cloud environment and explicit location, model, recognizer"
+                )
+        elif any(value is not None for value in stt):
+            raise ValueError("Disabled STT cannot have provider settings")
         for origin in self.client_origins:
             parsed = urlsplit(origin)
             if parsed.scheme == "http" and not (

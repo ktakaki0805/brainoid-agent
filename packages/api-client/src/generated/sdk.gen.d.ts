@@ -238,7 +238,7 @@ export declare const listMessages: <ThrowOnError extends boolean = false>(option
 /**
  * 会話実行を永続化して受け付ける
  *
- * 現在認可後、user message・queued run・pending jobを同一transactionで保存する。現在はtext入力とtext出力のみ受け付け、audio_input_idとspeech出力は422。同じ冪等キーは同じrunを返す。会話ごとの実行を直列化し、別のturnが進行中なら409。202後は独立workerが処理し、run GETで結果を取得する。events_pathのSSEは後続実装。
+ * 現在認可後、user message・queued run・pending jobを同一transactionで保存する。入力はtextまたは同じtenant/actor/sessionの未失効audio_input_id。出力はtextのみでspeechは422。音声参照は初期15分で失効し、新しいturnには利用不可。同一冪等キーの既存run再送は現在認可後に同runを返し、音声の再利用・再課金はしない。同じ冪等キーは同じrunを返す。会話ごとの実行を直列化し、別のturnが進行中なら409。202後は独立workerが処理し、run GETで結果を取得する。events_pathのSSEは後続実装。
  */
 export declare const createTurn: <ThrowOnError extends boolean = false>(options: Options<CreateTurnData, ThrowOnError>) => RequestResult<CreateTurnResponses, CreateTurnErrors, ThrowOnError>;
 /**
@@ -262,7 +262,7 @@ export declare const cancelRun: <ThrowOnError extends boolean = false>(options: 
 /**
  * タップ音声を文字起こし
  *
- * タップ音声を文字起こし
+ * 明示STT設定時のみ利用可。audio/wavの実データを16kHz・16bit・mono PCM、60秒/5MiB以内で検証し、メモリ内でSTTへ送る。transcriptは同一tenant/actor/sessionに束縛し受付から15分。同一keyは再課金しない（処理中/失敗済み409、期限切れ410）。無音/不正形式422、超過413、制限429、provider失敗/未設定503。切断は取消として結果を破棄し、provider使用量が不明なら予約を保持する。
  */
 export declare const transcribeAudio: <ThrowOnError extends boolean = false>(options: Options<TranscribeAudioData, ThrowOnError>) => RequestResult<TranscribeAudioResponses, TranscribeAudioErrors, ThrowOnError>;
 /**
