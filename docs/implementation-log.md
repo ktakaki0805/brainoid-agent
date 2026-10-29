@@ -14495,3 +14495,89 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 
 - done後の親 `mise run check`: 2026-10-29T07:17:36.263348+00:00–2026-10-29T07:18:19.602720+00:00、runner/tool exit0、session20686回収済み。mypy465、型/3entrybuild/contracts/client/docs/workflow/tickets成功（69/96 done）。raw SHA-256 `c8add1e772b2563a16182d7f376bde08731228278b9bcfee51a51b5b8b4d3ab8`、全797sourceはR3承認版不変、検証中index不変、自己子process/listener残存なし。既知Biome3/schema timezone警告とmise cache書込不可警告は失敗と区別。
 - 台帳/logだけを完了記録commitに含める。公開前必須gateは残存し、リリース可否の承認ではない。
+
+## ba-voice-01-20261029t071940z
+
+- チケット: BA-VOICE-01 音声upload・STT・transcript参照
+- 状態: in_progress、開始 2026-10-29T07:19:40.093438+00:00。
+- branch main / base commit `93cf4c759abdc1ed4e7a4575f88d3aed4467bc16`。開始時worktreeとstagedは空。selectorで選択、依存RUN04/IAM02/RUN08のdoneと実装commitの祖先関係を確認。
+- 親は台帳/log/commit、独立実装担当は製品変更、新規独立reviewerは各回の最新全差分を確認する。
+
+### 範囲と検証予定
+
+- 16kHz/16bit/mono PCM WAVを実データから検査し、60秒/5MiB上限、不正/超過時provider未呼出を検証。tenant/actor/sessionの現在認可と利用量制限を使ってSTT adapterへ接続する。
+- 原音声をDB/通常log/一時永続fileへ残さず、初期15分のtranscript参照を発行。通常turnへの参照利用時にも本人actor/session・期限を検査。無音/不正形式/provider失敗/取消を共通errorへ変換する。端末録音/TTSは後続VOICE02/03/04の範囲。
+- T-006の正負例、実認可・期限・上限・失効/取消競合・使用量予約精算・情報非漏出をfake provider/必要なemulatorで検証。check/testと独立レビューを実施する。
+- OPEN-005の採用STT設定/region/開発用provider認証/課金上限は未確定。docs08共通完了条件『fake/emulatorで確認可能なPRは、それで独立してmergeできるようにする。実provider・実機の確認は外部前提と後続の結合確認へ分ける』とRUN02の同前提の先例に従い、実設定を推測せずlocal実装を進める。stagingの短い日本語1回照合は未実施の外部結合条件として手順と必要設定を記録し、成功扱いにしない。通常testで実有料providerを呼ばず、未設定なら機能を公開しない。ユーザーの個別例外を一律流用して決めるのではなく、適用される共通方針を根拠とする。
+
+### 初期設計の確認
+
+- 実装担当 `/root/voice01_implementation` はGoogle Speech v2 REST adapterを既存httpx/google-authで構成し、SDK依存の追加を避ける案。実region/model/recognizerは明示設定し、未設定では503とする。実provider呼出や採用設定の推測はしない。
+- STT要求は既存UsageLedgerの同時slot/voice予約を再利用し、通常turnを受け付ける時だけturn回数を加算する狭いpurpose拡張を検討。期限回収後の遅いprovider結果を公開しないこと、失敗/取消のslot解放とunknown保持を検証対象とする。
+- 保存audio_inputsのactor/session/current認可stamp/purge境界を結び、公開前とturn参照時に再検査する。既存同keyのrun再送と期限切れ参照を新しいturnへ使う操作を区別して文書化する。
+- 既存LifecycleHandlersのaccount/member選択は閉じたproducer一覧でaudio_inputsが未登録のため、保存transcriptのowner帰属と削除選択を本件の接続範囲として確認する。いずれも設計段階の記録であり、実装・検証済みの主張ではない。
+
+### 実装検証とレビュー開始
+
+- 実装担当 `/root/voice01_implementation` は全28製品pathsの編集を停止。803 sourceのSHA対応を親が全3最終runのbefore/afterと現物で照合した。source SHA-256 `8a62c13e2fa67a6c8ad56057dba084e990d0527e2120f499b6a3519815619c6d`。
+- `timeout 300 mise run check`: exit0、2026-10-29T07:41:00.164724+00:00–2026-10-29T07:41:05.490356+00:00、raw SHA-256 `bd51cb2df5c5214357734e88ba61653049829bc56fe5991b50a00e1891fa64e3`、全check成功。証跡 `/tmp/ba-voice-01-writer-check-final.json` / `.log`。
+- `timeout 600 mise run test`: exit0、2026-10-29T07:41:47.539422+00:00–2026-10-29T07:49:32.524104+00:00、raw SHA-256 `6899c58757cbfb444d0782b179f6bd331783073197165509ed88a3b85ffcc2b3`、Ran 1369 tests in 429.571s; Ran 18 tests in 0.075s; # tests 558; # pass 558; # fail 0。証跡 `/tmp/ba-voice-01-writer-test-final.json` / `.log`。
+- `timeout 480 mise exec -- /tmp/ba-voice-01-writer-emulator/launch.sh`: exit0、2026-10-29T07:41:18.320645+00:00–2026-10-29T07:43:04.440923+00:00、raw SHA-256 `a7b40604e12cf8d79c7a0819c2461a162026a761dcdc4de2ef4af97ed834509a`、Ran 27 tests in 99.125s。証跡 `/tmp/ba-voice-01-writer-emulator-final.json` / `.log`。
+- 初期sandbox AnyIO実行は自己PID/argv/親を確認して停止(exit137)、host再実行と最終full suiteは成功。初期lint/type指摘は修正済み。失敗を成功に置換しない。writer資源終了記録 `/tmp/ba-voice-01-writer-resources-final.json` は全session回収、自己PID不在、Emulator listener残存0。
+- raw音声はmemory限定、15分参照とactor/session/current authority、usage予約/unknown精算/期限回収、通常turnと個人削除の接続を実装。詳細受入証跡 `/tmp/ba-voice-01-writer-handoff.md`。独立レビューは最新全差分を対象とする。
+- 実provider/staging日本語音声照合はOPEN005未確定のため未実施。既定disabledと上限付き手順をdocs/audio-inputs.mdへ記載し、共通方針に従い公開前の外部結合条件として残す。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/voice01_review_r1`（新規独立context）。base commit: `93cf4c759abdc1ed4e7a4575f88d3aed4467bc16`。
+- 未追跡を含む最新全28files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `.env.emulator.example` | `93f62db347c5aea574f30182d1562469087bb7966ba80af7f7310cdfd4f8f029` |
+| `.env.example` | `7bf7f892834aafdca87b91eecf43f8ec7a53221b6124d067fd12a6865924d502` |
+| `docs/03-data-and-authorization.md` | `9a4d55450fc06a45491d38cc4d39ddc2d678cc9ebd822a3de5e988ab99c753f7` |
+| `docs/04-interfaces.md` | `323e1ccd00b2bfbe13db5e524e03ec7a55d4c194b96c4d07a84dbe9da52eb8b3` |
+| `docs/audio-inputs.md` | `672ad0195c4c42750dda7c64e21f66bf4b8eb2d8dd991b7b4e3441d035d296d0` |
+| `docs/toolchain.md` | `2382f30d04c20962789a8aa58d3598831834eb4bb218d67ff4218ab3b901d683` |
+| `docs/usage.md` | `3e106d8f8a55f5775cd87026ffb204ebb5f1e74ca307c226f70a8f59d98d96b7` |
+| `packages/agent_core/src/brainoid_agent_core/types/speech.py` | `e51e1d606af85f41135f784bd70d9398d18cbaa977b5c42a3dffc8b5f0afcd77` |
+| `packages/api-client/src/generated/sdk.gen.d.ts` | `defcccbc57b9bd08dc7b98b94549bd4bedb0a44393ee15c4c30a7ca7747a5871` |
+| `packages/api-client/src/generated/sdk.gen.js` | `cf464f35b16d978a096599face246b41949cd06bac19840878ee3a59a8d9919c` |
+| `packages/api-client/src/generated/types.gen.d.ts` | `778e468495db6b1c073a92d4b8828a4a6b9f090424590bf8574eff37446a6fad` |
+| `packages/runs/src/brainoid_runs/models.py` | `86de0a980cbe0bcc50e8eaf1ef59d6b20e24f8a02438b5c464bee3daee679f17` |
+| `packages/usage/src/brainoid_usage/ledger.py` | `c6c403ebee0fc73141e5a25f3df99717168b01ccf0afcd52d49f5c3ec9b4cad9` |
+| `scripts/demo_emulator.py` | `366ec420e18c6656bb6ba7d89bd9ec325eb6554535c454c03eedc3295e707bd9` |
+| `services/api/pyproject.toml` | `c0689aa5370dc42320f002c78fb04a2c84e7d75e227a989bb86dac693b261055` |
+| `services/api/src/brainoid_api/adapters/google_speech.py` | `309d9ef394623ad5a02a5b7b0551d7fc5d18f66d93bc15718762935a1a4d5f5b` |
+| `services/api/src/brainoid_api/app.py` | `a468f32c15ec6dc2fab1cc16303411d54191cedd97efa960b3f053dad28b52c6` |
+| `services/api/src/brainoid_api/audio_inputs.py` | `8047332ae2ecf8c2b6e870550d31d2c516a3f52c95b8872c8ea4a4f12596ab5e` |
+| `services/api/src/brainoid_api/auth/runtime.py` | `2da4ef87cfd0f8e6f73961869fd19eab913e22fc13d71d78093e4ca4863033dd` |
+| `services/api/src/brainoid_api/repositories/conversations.py` | `20be25a14497bccb15425bf1bd1d6a1bb6b9de5b47a28078631ef16fe7eaf1d0` |
+| `services/api/src/brainoid_api/routes/audio_inputs.py` | `e5d0400975b27562abeea14b2ec0e2261b91ea43c81449d25562a9f375eaa323` |
+| `services/api/src/brainoid_api/settings.py` | `8547ebef7a50a16832ba4d969d11df3a2b51446deaba506150c1251faa726523` |
+| `services/worker/src/brainoid_worker/lifecycle_handlers.py` | `359fb987fffac33b2fe8a3da8ae9c03a26457708e77f630c8b60067293fff814` |
+| `services/worker/src/brainoid_worker/usage_reconciler.py` | `0cbe2a61ed21fe65293f52cb23aa60838db0f24e5cb750445ff0d98d67df41ec` |
+| `specs/openapi.yaml` | `7ca458e699561710cb98155e0bbea928016c7627020d73f848c23d38856cdc30` |
+| `tests/emulator/test_audio_inputs_integration.py` | `a484ff0a9b0927abcbd41428349a0b002a95774abdeb12969b378cdcea21a138` |
+| `tests/test_audio_inputs.py` | `fa5fbea270d96ba38fa9c258a0d12ca5bb838e293709db1f6a3b095f6b94d0f8` |
+| `uv.lock` | `0d68af3f4d88d710174b121d595b75ea180e6303fb6329b6219acc178c7c7ce1` |
+
+### 独立レビュー ラウンド1 終了
+
+- `/root/voice01_review_r1` は最新全28pathsを直接レビューして **approve**。受入3条件充足、必須指摘0、任意提案1。親も全803source、main/base、index実bytes/stage/flags不変を再照合した。
+- `/tmp/ba-voice-01-review-r1-report.md` SHA-256 `889ea428732c57a402a1676b58d17d08bccedbcf99ac26d3560eccce7e2ef34a`。
+- `/tmp/ba-voice-01-review-r1-result.json` SHA-256 `7e633b979a9d3f6f1cfff1d11b6cf430900db9a16c3cbaecec5b174768b18b0a`。
+- `/tmp/ba-voice-01-review-r1-closure.json` SHA-256 `c2c81a13a0e39bb9bd1cc85a79c64112bd9e29ed896c1c0b5710e3d34b035c56`。
+- レビュー担当は提供3runのraw/exit/全803source一致を独立照合。full suite再実行はせず、独自probe6件（WAVchunk境界、REST異常応答、設定、会員版変更、期限release/page消去、呼出前取消/二重回収）を実行し全成功。初回/tmp probeのimport設定不足は収集前exit1、probeのみ修正してexit0。製品不具合と区別して失敗原本を保持。自己process/listener/session残存なし、編集検証停止済み。
+- 任意R1-O1: docs/audio-inputs.mdのsweep/TTLとusage回収を別文にすると明確。今回変更は見送り。docs/usage.mdと同文書の利用量節に独立回収要件が既にあり、既定disabled・配備変更なしのため承認阻害なし。OPS配備時はtranscript消去がsweep/TTLいずれでもUsageReconciler.recoverの周期実行が必須であることを本記録にも明記する。
+- 実provider/staging、OPEN005最終設定、実課金/IAM、OPSのTTL/周期実行配備は未実施の公開前gate。コードのローカル完了と配備完了を混同しない。
+
+### 完了と実装コミット
+
+- 2026-10-29T10:37:38.640507+00:00: BA-VOICE-01をdone（ローカル実装完了）へ更新。mainの実装コミット `aab4f7ac6b65a01c1c1b7f0e9c0de2a2f2310871`、全28承認paths/blob一致をcommit後照合。独立レビュー1回、未解決必須指摘0。
+- 実PCM検査・上限・memory限定upload、明示STTadapter、現在認可に束縛した15分transcript参照、通常turn入力、usage予約/精算/期限回収、個人削除への接続を実装。全check/fulltest/emulator27と独自probe6の成功証跡を保存。実providerとOPS配備条件は上記のまま未実施。
+- done後の親mise run checkと、台帳/logだけの記録commitを続ける。
+
+- done後の親 `mise run check`: 2026-10-29T10:37:46.458765+00:00–2026-10-29T10:37:52.718422+00:00、exit0、session99161回収済み。format/lint/types/contracts/client/互換性/docs/workflow/3entrybuild/台帳(70/96 done)成功。raw SHA-256 `3398bf7c2d169e2163f91e6d45aa13afc045c86920566da17b52e4c77f6da147`。全803sourceはR1承認版不変、index不変、自己子process/listener残存0。既知UI lint警告/schema timezone警告は失敗と区別。
+- 台帳と本ログのみを完了記録commitへ含める。実provider/OPS配備gateは未実施のまま維持。
