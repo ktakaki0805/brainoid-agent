@@ -104,6 +104,7 @@ class Conversations:
         self.idempotency = Idempotency(GuardedTransactions(store), now=now)
         self.usage = UsageLedger(store, now=now)
         self.audio_inputs: AudioInputs | None = None
+        self.speech_enabled = False
 
     def current_read[T](self, work: Callable[[Transaction], T]) -> ReadResult[T]:
         """Read evidence is local to the successful attempt, including response delay."""
@@ -563,6 +564,8 @@ class Conversations:
         key: str | None,
         session: ResourceId | None = None,
     ) -> RunAccepted:
+        if body.output_mode == "speech" and not self.speech_enabled:
+            raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
         run_id, message_id = ResourceId(str(uuid4())), ResourceId(str(uuid4()))
 
         def authorize(tx: Transaction, replay: MutationResult | None) -> AuthorizedScope:
@@ -656,6 +659,9 @@ class Conversations:
             record.update(
                 {
                     "tenant_id": tenant,
+                    "output_mode": body.output_mode,
+                    "speech_owner_user_id": grant.owner_user_id,
+                    "speech_scope": grant.scope.model_dump(mode="json"),
                     "events_version": 1,
                     "input_message_id": message_id,
                     "input_text": text,

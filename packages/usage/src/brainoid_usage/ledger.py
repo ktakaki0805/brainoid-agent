@@ -62,7 +62,7 @@ class UsageLedger:
         *,
         user: FirebaseUid | None,
         device: ResourceId | None,
-        purpose: Literal["run", "audio_input"] = "run",
+        purpose: Literal["run", "audio_input", "speech_output"] = "run",
         voice_seconds: int = 0,
     ) -> Callable[[], None]:
         if (purpose == "run" and voice_seconds != 0) or not 0 <= voice_seconds <= 60:
@@ -114,7 +114,7 @@ class UsageLedger:
             "reservation_keys": ["speech"] if voice_seconds else [],
             "purpose": purpose,
             "expires_at": (
-                now + timedelta(seconds=60 if purpose == "audio_input" else policy.run_seconds)
+                now + timedelta(seconds=policy.run_seconds if purpose == "run" else 60)
             ).isoformat(),
         }
 

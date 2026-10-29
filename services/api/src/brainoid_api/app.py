@@ -32,6 +32,7 @@ from brainoid_api.routes.private_sessions import router as private_sessions_rout
 from brainoid_api.routes.push_installations import router as push_installations_router
 from brainoid_api.routes.reminders import router as reminders_router
 from brainoid_api.routes.run_events import router as run_events_router
+from brainoid_api.routes.speech_outputs import router as speech_outputs_router
 from brainoid_api.routes.tasks import router as tasks_router
 from brainoid_api.routes.tenants import router as tenants_router
 from brainoid_api.routes.usage import router as usage_router
@@ -105,6 +106,7 @@ def create_app(
     install_error_handlers(app)
     app.include_router(router)
     app.include_router(audio_inputs_router, prefix="/v1")
+    app.include_router(speech_outputs_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
     app.include_router(tenants_router, prefix="/v1")
     app.include_router(invitations_router, prefix="/v1")

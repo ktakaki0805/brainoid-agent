@@ -44,6 +44,7 @@ class DemoSafetyTests(unittest.TestCase):
             {"AUTH_PROVIDER": "fake"},
             {"FIRESTORE_DATABASE_ID": "other-database"},
             {"SPEECH_PROVIDER": "real"},
+            {"TTS_PROVIDER": "google-v1", "TTS_LOCATION": "global", "TTS_VOICE": "ja-JP-Test-A"},
             {"HOME_ASSISTANT_PROVIDER": "real"},
             {"FIRESTORE_EMULATOR_HOST": "firestore.googleapis.com:443"},
             {"FIRESTORE_EMULATOR_HOST": "127.0.0.1:8081"},
@@ -79,6 +80,9 @@ class DemoSafetyTests(unittest.TestCase):
             connection.request.assert_called_once()
             connection.getresponse.return_value.read.assert_not_called()
             connection.close.assert_called_once()
+
+    def test_explicit_disabled_tts_needs_no_external_adapter(self) -> None:
+        DemoEmulator({**DEMO_ENV, "TTS_PROVIDER": "disabled"})
 
     def test_fixture_covers_two_tenants_roles_scopes_devices_and_fixed_times(self) -> None:
         fixture = load_fixture()

@@ -14,7 +14,7 @@ transcript は受付時から15分。所有文脈、状態、`expires_at` と Fi
 
 同一 upload key/body は24時間の既存冪等台帳に束縛される。bodyはsha256だけ記録し、原音声を記録しない。処理中/失敗済みは409、成功後は現在認可・15分期限を再検査して同じ結果を返す。期限後は410（sweepで消去後は404）。異なるbodyは409。自動再課金を行わず、再録音は新しいkeyを使う。
 
-`POST turns` は `text` または `audio_input_id` の一方のみ、現在は `output_mode=text`。新規turnのtransactionで未失効参照を解決し、既存のuser message/run/jobへ通常の入力文字として保存する。それ以後は通常の会話保存・削除規則となり、一時参照の期限で会話履歴は消さない。同じturn key/bodyの再送は、新規音声利用ではなく既に受付済みrunの参照であり、現在の会話/actor/session認可の後に同じrunを返す。15分後でもその再送は可能だが、新しいturn keyに同じ失効音声IDを使うことはできない。失効actor/sessionに既存runを返す例外はない。
+`POST turns` は `text` または `audio_input_id` の一方のみ、`output_mode=text|speech`（speechは[TTS設定](speech-outputs.md)が必要）。新規turnのtransactionで未失効参照を解決し、既存のuser message/run/jobへ通常の入力文字として保存する。それ以後は通常の会話保存・削除規則となり、一時参照の期限で会話履歴は消さない。同じturn key/bodyの再送は、新規音声利用ではなく既に受付済みrunの参照であり、現在の会話/actor/session認可の後に同じrunを返す。15分後でもその再送は可能だが、新しいturn keyに同じ失効音声IDを使うことはできない。失効actor/sessionに既存runを返す例外はない。
 
 設定は既定 `STT_PROVIDER=disabled`。実adapterを有効にする場合だけ staging/production で `STT_PROVIDER=google-v2`、`STT_LOCATION`、`STT_MODEL`、`STT_RECOGNIZER` と既存の明示 GCP project/認証を全て設定する。local環境では実providerを禁止し、テストは明示的な注入でfakeを使う。region/modelの既定や環境credentialからの暗黙採用はない。region別 endpoint、inline PCM、明示 LINEAR16/16kHz/mono/ja-JP、`configMask=*` で recognizer の隠れた既定を引き継がない。redirect/retry/proxy環境参照を無効化し、応答128KiB・本文8,000文字を上限にする。利用には `speech.recognizers.recognize` が必要だが、今回 IAM を変更していない。
 

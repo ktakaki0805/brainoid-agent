@@ -79,12 +79,11 @@ class MessagePage(Record):
 
 
 class TurnCreate(Record):
-    # Speech output remains unavailable until VOICE-02.
     text: Annotated[str | None, Field(strict=True, min_length=1, max_length=8000, repr=False)] = (
         None
     )
     audio_input_id: ResourceId | None = None
-    output_mode: Literal["text"]
+    output_mode: Literal["text", "speech"]
     output_device_id: ResourceId | None = None
     # A user-to-Pi output precondition, never a grant of session authority.
     expected_output_private_session_id: ResourceId | None = None

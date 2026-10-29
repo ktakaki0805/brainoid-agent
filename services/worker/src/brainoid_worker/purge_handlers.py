@@ -51,6 +51,7 @@ ROOTS = frozenset(
         "memory_effects",
         "run_proposals",
         "calendar_proposals",
+        "speech_outputs",
     }
 )
 VECTOR = re.compile(r"memory_vectors_[0-9a-f]{32}\Z")
@@ -548,7 +549,7 @@ class ForgetHandlers:
                 )
         if root == "memory_effects" and len(parts) == 4:
             return self._effect(tx, path, doc, intent)
-        if root in {"run_proposals", "calendar_proposals"} and len(parts) == 4:
+        if root in {"run_proposals", "calendar_proposals", "speech_outputs"} and len(parts) == 4:
             run = tx.get(f"tenants/{intent.tenant_id}/runs/{doc.get('run_id')}")
             selected = run is not None and self._run(tx, run, intent, cutoffs)
             return Decision(erase=selected, children=selected)

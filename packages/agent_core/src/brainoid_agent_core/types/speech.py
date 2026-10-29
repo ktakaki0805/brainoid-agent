@@ -20,7 +20,7 @@ class SpeechRecognition(CoreValue):
 
 
 class SpeechSynthesis(CoreValue):
-    text: NonEmptyText
+    text: NonEmptyText = Field(repr=False)
     format: AudioFormat
     locale: NonEmptyText
     voice: NonEmptyText
@@ -34,7 +34,7 @@ class Transcript(CoreValue):
 
 class AudioChunk(CoreValue):
     type: Literal["audio_chunk"] = "audio_chunk"
-    audio: bytes
+    audio: bytes = Field(repr=False)
     format: AudioFormat
 
 

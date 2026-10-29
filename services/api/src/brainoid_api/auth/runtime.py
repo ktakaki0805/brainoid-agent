@@ -23,6 +23,7 @@ from starlette.concurrency import run_in_threadpool
 
 from brainoid_api.adapters.gcs_authz_ledger import GCSAuthzObjects
 from brainoid_api.adapters.google_speech import GoogleSpeech, SpeechSettings
+from brainoid_api.adapters.google_tts import GoogleTTS, TTSSettings
 from brainoid_api.adapters.local_authz_ledger import LocalAuthzObjects
 from brainoid_api.audio_inputs import AudioInputs
 from brainoid_api.auth.context import AuthenticatedIdentity
@@ -59,6 +60,7 @@ from brainoid_api.services.deletion_requests import DeletionRequests
 from brainoid_api.services.export_requests import ExportRequests
 from brainoid_api.services.private_sessions import PrivateSessions
 from brainoid_api.settings import Settings
+from brainoid_api.speech_outputs import SpeechOutputs
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,7 @@ class AuthServices:
     device_snapshots: DeviceSnapshots | None = None
     home_assistant: HomeAssistantEntities | None = None
     audio_inputs: AudioInputs | None = None
+    speech_outputs: SpeechOutputs | None = None
 
 
 VectorSearchFactory = Callable[[Client], VectorSearch]
@@ -114,6 +117,7 @@ async def authentication_lifespan(
     client: Client | None = None
     storage_client = None
     speech: GoogleSpeech | None = None
+    tts: GoogleTTS | None = None
     try:
         credential = (
             AnonymousCredentials()  # type: ignore[no-untyped-call]
@@ -165,9 +169,8 @@ async def authentication_lifespan(
             sessions=sessions,
         )
         audio_inputs = None
-        if settings.stt_provider == "google-v2":
-            assert settings.stt_location and settings.stt_model and settings.stt_recognizer
-
+        speech_outputs = None
+        if settings.stt_provider == "google-v2" or settings.tts_provider == "google-v1":
             speech_credential = with_scopes_if_required(  # type: ignore[no-untyped-call]
                 credential, ["https://www.googleapis.com/auth/cloud-platform"]
             )
@@ -184,6 +187,8 @@ async def authentication_lifespan(
                 async with token_lock:
                     return await run_in_threadpool(refresh)
 
+        if settings.stt_provider == "google-v2":
+            assert settings.stt_location and settings.stt_model and settings.stt_recognizer
             speech = GoogleSpeech(
                 SpeechSettings(
                     project=settings.gcp_project_id,
@@ -195,6 +200,18 @@ async def authentication_lifespan(
             )
             audio_inputs = AudioInputs(conversations, speech)
             conversations.audio_inputs = audio_inputs
+        if settings.tts_provider == "google-v1":
+            assert settings.tts_location and settings.tts_voice
+            tts = GoogleTTS(
+                TTSSettings(
+                    project=settings.gcp_project_id,
+                    location=settings.tts_location,
+                    voice=settings.tts_voice,
+                ),
+                token,
+            )
+            speech_outputs = SpeechOutputs(conversations, tts)
+            conversations.speech_enabled = True
         snapshots = DeviceSnapshots(conversations, memories, sessions)
         notifications = DeviceNotifications(snapshots)
         gateway = command_gateway(DeviceLeases(store, devices), client, DeviceCommands(memories))
@@ -240,11 +257,14 @@ async def authentication_lifespan(
             device_snapshots=snapshots,
             home_assistant=home_assistant,
             audio_inputs=audio_inputs,
+            speech_outputs=speech_outputs,
         )
     finally:
         try:
             if speech is not None:
                 await speech.close()
+            if tts is not None:
+                await tts.close()
             if storage_client is not None:
                 await run_in_threadpool(storage_client.close)
             if client is not None:

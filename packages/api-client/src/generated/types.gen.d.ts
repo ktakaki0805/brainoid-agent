@@ -2040,7 +2040,7 @@ export type GetSpeechAudioErrors = {
 export type GetSpeechAudioError = GetSpeechAudioErrors[keyof GetSpeechAudioErrors];
 export type GetSpeechAudioResponses = {
     /**
-     * 成功（契約上の応答。実装は未提供）
+     * 認可された確定文のPCM WAV（16kHz・16bit・mono、最大60秒）
      */
     200: Blob | File;
 };

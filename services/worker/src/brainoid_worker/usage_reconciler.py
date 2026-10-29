@@ -42,9 +42,9 @@ class UsageReconciler:
             quota = tx.get(usage_path(tenant, run))
             if quota is None or not quota["active"]:
                 return
-            if quota.get("purpose") == "audio_input":
-                # STT has no conversation run/job and cannot be reexecuted: its raw
-                # bytes were memory-only. Expiry fences any late API publication.
+            if quota.get("purpose") in {"audio_input", "speech_output"}:
+                # Speech attempts have no execution job. Expiry fences late API
+                # release; recovery never reexecutes a possibly billable call.
                 if normalize_utc(self.jobs.now()) >= datetime.fromisoformat(quota["expires_at"]):
                     self.usage.prepare_release(tx, tenant, run, abandon=True)()
                 return

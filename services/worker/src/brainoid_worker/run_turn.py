@@ -854,7 +854,9 @@ class RunTurn:
             prefix = run.get("streamed_text", "")
             if not outcome.text.startswith(prefix):
                 raise PolicyDenied()
-            events.append_text(tx, updated, outcome.text[len(prefix) :], self.jobs.now())
+            events.append_text(
+                tx, updated, outcome.text[len(prefix) :], self.jobs.now(), final=True
+            )
             events.append(
                 tx,
                 updated,

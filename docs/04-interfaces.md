@@ -185,7 +185,7 @@ MVPは1発話ごとのuploadを使う。入力は16kHz・16bit・mono PCM WAV、
 
 `POST turns` は `text` と `audio_input_id` の一方だけを受け取る。TTSを希望する場合は `output_mode=speech` とし、出力Piを指定する場合は `output_device_id` も権限検査する。Piは許可されたrunのSSEを購読し、sentence単位の `speech.ready` にあるIDで音声を取得する。
 
-TTSは最初の確定文から順次生成する。`GET speech-outputs/{id}/audio` は現在のrun/session/表示方針を再検査し、その文を合成したaudio/wavを返す。合成バイトを永続化せず、参照は初期5分で失効する。切断中の古い読み上げを自動で再生しない。再取得は追加合成費用が発生し得るためrate limitを設ける。
+TTSは最初の確定文から順次生成する。`GET speech-outputs/{id}/audio` は現在のrun/session/表示方針を再検査し、その文を合成したaudio/wavを返す。合成バイトを永続化せず、参照は初期5分で失効する。切断中の古い読み上げを自動で再生しない。再取得は追加合成費用が発生し得るため、参照ごと最大2回・同時1回をtransactionで制限する。実装・認可・利用量・設定・公開前条件は[音声出力契約](speech-outputs.md)を参照。
 
 読み上げ停止はクライアントの音声キューを即時消去する。生成停止はrun cancelを呼ぶ。家電や予定の未実行操作の取消しは専用状態に従う。UIでこれらを同じ成功メッセージにまとめない。
 

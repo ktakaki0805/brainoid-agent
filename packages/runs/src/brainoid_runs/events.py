@@ -75,8 +75,20 @@ class Confirmation(Event):
     payload: ConfirmationPayload
 
 
+class SpeechPayload(Record):
+    speech_id: ResourceId
+    sentence_index: Annotated[int, Field(strict=True, ge=0)]
+    expires_at: UtcTimestamp
+
+
+class Speech(Event):
+    type: Literal["speech.ready"] = "speech.ready"
+    payload: SpeechPayload
+
+
 type RunEvent = Annotated[
-    Started | Text | Completed | Failed | Cancelled | Confirmation, Field(discriminator="type")
+    Started | Text | Completed | Failed | Cancelled | Confirmation | Speech,
+    Field(discriminator="type"),
 ]
 EVENT = TypeAdapter(RunEvent)
 
@@ -118,7 +130,9 @@ def chunks(text: str) -> list[str]:
     return result
 
 
-def append_text(tx: Transaction, run: Document, text: str, now: datetime) -> None:
+def append_text(
+    tx: Transaction, run: Document, text: str, now: datetime, *, final: bool = False
+) -> None:
     for part in chunks(text):
         append(
             tx,
@@ -131,6 +145,9 @@ def append_text(tx: Transaction, run: Document, text: str, now: datetime) -> Non
             ),
         )
     run["streamed_text"] = run.get("streamed_text", "") + text
+    from brainoid_runs.speech import append_sentences
+
+    append_sentences(tx, run, now, final=final)
 
 
 def save_projection(tx: Transaction, original: Document, updated: Document, now: datetime) -> None:

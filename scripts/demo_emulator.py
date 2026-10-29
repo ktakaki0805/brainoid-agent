@@ -33,10 +33,10 @@ def validate_environment(environ: Mapping[str, str]) -> Settings:
         or settings.firebase_auth_emulator_host != HOSTS["auth"]
     ):
         raise DemoError("Demo tasks require the dedicated .env.emulator.example configuration")
-    # Future external adapters must stay fake, even before their settings exist in the API.
+    # STT/TTS are typed Settings: local environments require disabled providers.
+    # Future external adapters must stay fake before they have API settings.
     for name in (
         "SPEECH_PROVIDER",
-        "TTS_PROVIDER",
         "TOOL_PROVIDER",
         "CALENDAR_PROVIDER",
         "HOME_ASSISTANT_PROVIDER",

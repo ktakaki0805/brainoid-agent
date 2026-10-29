@@ -36,6 +36,9 @@ class Settings(BaseModel):
     stt_location: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{1,62}$")] | None = None
     stt_model: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{0,127}$")] | None = None
     stt_recognizer: Annotated[str, Field(pattern=r"^(?:_|[a-z][a-z0-9-]{0,62})$")] | None = None
+    tts_provider: Literal["disabled", "google-v1"] = "disabled"
+    tts_location: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{1,62}$")] | None = None
+    tts_voice: Annotated[str, Field(pattern=r"^ja-JP-[A-Za-z0-9-]{1,100}$")] | None = None
     model_id: Identifier
     firestore_emulator_host: str | None = None
     firebase_auth_emulator_host: str | None = None
@@ -117,6 +120,12 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
+        tts = (self.tts_location, self.tts_voice)
+        if self.tts_provider == "google-v1":
+            if self.app_env not in ("staging", "production") or not all(tts):
+                raise ValueError("TTS requires cloud environment and explicit location and voice")
+        elif any(value is not None for value in tts):
+            raise ValueError("Disabled TTS cannot have provider settings")
         stt = (self.stt_location, self.stt_model, self.stt_recognizer)
         if self.stt_provider == "google-v2":
             if self.app_env not in ("staging", "production") or not all(stt):

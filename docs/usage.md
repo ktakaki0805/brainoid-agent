@@ -48,3 +48,5 @@ next_cursor = reconciler.recover(tenant_id, pages, after=cursor, limit=100)
 BA-UI-11 の[会員・招待・利用量の画面](ui-tenant-settings.md)は、上記APIの現在権限・版・固定要求の再送契約を利用する。
 
 BA-VOICE-01 の独立STTは同じ usage_runs/reservations/slots を `purpose=audio_input` で使う。音声秒は実PCM長の切上げを受付時に原子的に予約し、会話turn数は増やさない。通常turnへ投入した時に1回だけturnを加算する。STT実行期限60秒（provider待機上限45秒）後は既存 UsageReconciler でslotを回収し、遅い結果を拒否する。provider最終使用量がない失敗/取消はunknownとして予約額を保持する。実呼出し前の確定拒否だけ0秒に精算する。詳しくは[音声入力](audio-inputs.md)。
+
+BA-VOICE-02 の [文単位TTS](speech-outputs.md) は `purpose=speech_output` で1合成ごとの独立した60秒予約/同時枠を持つ。turn数は増やさず、成功音声の切上げ秒で精算し、結果不明は予約を保持する。speech参照は最大2attempt。親runが実行中は追加の同時枠が必要で、scopeの concurrent_runs=1 なら先行取得は429となる。参照の5分TTL/sweepと実行枠60秒後の UsageReconciler recovery は別に運用する。

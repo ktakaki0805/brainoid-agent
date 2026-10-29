@@ -1438,13 +1438,18 @@ paths:
     get:
       operationId: getSpeechAudio
       summary: 確定文のTTSを認可付きで取得
-      description: speech.readyのspeech_id。5分期限、run/current sessionを再検査。音声自体は保存しない。
+      description: speech.readyのspeech_id。現在のrun/保存済み出力先/session/display_policyと5分期限を再検査。参照ごと最大2回、同時1合成。音声を永続化せず、取消・失効後の遅い結果は返さない。
       security:
       - userBearer: []
       - deviceBearer: []
       responses:
         '200':
-          description: 成功（契約上の応答。実装は未提供）
+          description: 認可された確定文のPCM WAV（16kHz・16bit・mono、最大60秒）
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
           content:
             audio/wav:
               schema:

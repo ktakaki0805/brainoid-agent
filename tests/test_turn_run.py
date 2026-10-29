@@ -241,7 +241,7 @@ class TurnRunTests(TurnRunFixture):
                 {"$ref": f"#/components/schemas/{schema}", "components": spec["components"]}
             ).validate(response.json())
         for body in (
-            {"text": "PRIVATE_BODY", "output_mode": "speech"},
+            {"text": "PRIVATE_BODY", "output_mode": "unsupported"},
             {"text": "PRIVATE_BODY", "output_mode": "text", "history": ["PRIVATE_BODY"]},
             {"text": "PRIVATE_BODY", "output_mode": "text", "provider_state": "PRIVATE_SIGNATURE"},
             {"text": "x" * 8001, "output_mode": "text"},

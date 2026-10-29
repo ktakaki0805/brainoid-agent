@@ -15,6 +15,7 @@ from brainoid_memory.forget import DeleteConversation, operation_path
 from brainoid_policy.control_ledger import LedgerError
 from brainoid_policy.scopes import PolicyDenied
 from brainoid_runs.memory_sources import SavedMessages
+from brainoid_runs.models import TurnCreate
 from brainoid_worker.entry import Worker
 from brainoid_worker.local import LocalCaller, LocalQueue
 from brainoid_worker.purge_authority import KIND, PurgeJobs
@@ -77,8 +78,18 @@ class ConversationDeletionHTTPTests(TurnRunFixture):
 
     def test_real_producer_immediate_fence_exact_replay_and_full_children_purge(self) -> None:
         conversation = self.conversation(private=True)
-        run = ResourceId(self.turn(conversation).json()["run_id"])
+        self.conversations.speech_enabled = True
+        self.model.text = "削除確認用の合成文です。"
+        run = self.conversations.turn(
+            self.identity(),
+            self.tenant,
+            conversation,
+            TurnCreate(text="Synthetic question", output_mode="speech"),
+            "speech-purge-turn-key",
+        ).run_id
         self.execute(run)
+        speech_paths = [p for p in self.store.data if "/speech_outputs/" in p]
+        self.assertEqual(len(speech_paths), 1)
         base = f"tenants/{self.tenant}/conversations/{conversation}"
         original = copy.deepcopy(self.store.data[base])
         self.store.data[base + "/speech_refs/ghost/chunks/one"] = {
@@ -135,6 +146,7 @@ class ConversationDeletionHTTPTests(TurnRunFixture):
         run_path = f"tenants/{self.tenant}/runs/{run}"
         self.assertFalse(any(p.startswith(run_path + "/") for p in self.store.data))
         self.assertNotIn("completed_text", self.store.data[run_path])
+        self.assertTrue(all(path not in self.store.data for path in speech_paths))
         self.store.data[base] = original
         self.assertEqual(self.client.get(self.url + f"/{conversation}").status_code, 404)
         self.assertEqual(self.turn(conversation, key="restored-message-key").status_code, 404)

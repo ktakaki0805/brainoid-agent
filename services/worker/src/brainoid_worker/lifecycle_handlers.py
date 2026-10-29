@@ -43,6 +43,7 @@ PERSONAL = frozenset(
         "exports",
         "caches",
         "audio_inputs",
+        "speech_outputs",
     }
 )
 # Closed inventory of local producers. Global discovery is available only to a

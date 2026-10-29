@@ -681,7 +681,7 @@ export const transcribeAudio = (options) => (options.client ?? client).post({
 /**
  * 確定文のTTSを認可付きで取得
  *
- * speech.readyのspeech_id。5分期限、run/current sessionを再検査。音声自体は保存しない。
+ * speech.readyのspeech_id。現在のrun/保存済み出力先/session/display_policyと5分期限を再検査。参照ごと最大2回、同時1合成。音声を永続化せず、取消・失効後の遅い結果は返さない。
  */
 export const getSpeechAudio = (options) => (options.client ?? client).get({
     security: [{
