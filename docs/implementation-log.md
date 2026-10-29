@@ -14443,3 +14443,55 @@ FR-010/AC-010/T-015/T-016/T-037。UI08、参加者招待/系列一括は対象�
 
 - ユーザーが公開条件をリリース前必須として残しローカル完了後の続行を明示するか、設定確定・権限ある担当による公開結合の証跡が揃うこと。公開gateを満たしたと偽らず、決定内容をlogへ追記する。
 - 再開時は保存したR2全21paths/797sourceと現在の差分を照合。blocker記録コミットによる差分は親metadataだけであり、製品を作り直さない。必要な独立最終approveを得てから実装・done後check・完了記録を行う。製品不変なら既存の成功した全検証証跡を利用し、不必要な全suite再実行はしない。
+
+### 公開前提の扱いへの明示回答と再開
+
+- 2026-10-29T07:12:25.538454+00:00: ユーザーは「公開URL・認証ドメイン・説明ページ配置と公開環境の検証を、リリース前の必須項目として残し、残りへ進めてよいですか？」への回答として「進めてください。」と明示した。G001の判断待ちを解消し、ローカル実装完了後に後続チケットへ進む。公開前提を充足済みとは扱わず、必須release gateとして維持する。実公開/外部設定変更の依頼ではない。
+- 元base `d372f90ee9bc7beb0e19c391806274a57b82f69a` から再開base `9c94b079c07c4ee85b9da6a7c141ee0c9cddc12b` へ更新。間のblocker記録commitが台帳/logだけであること、全797source・全21製品pathsがR2凍結版と一致することを確認。製品の再実装・変更は不要。
+- R2の通常suite Python1345/Skill18/Node558、check、公式SDK+API+emulator browser9stage、mobile/display6flowsの成功証跡を同一sourceの証拠として利用。新規独立contextの最終review R3で最新全差分と決定内容を確認してからcommitする。既存証跡を上書きせず、公開前提について同じ確認を繰り返さない。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/ui13_review_r3`（新規独立context）。base commit: `9c94b079c07c4ee85b9da6a7c141ee0c9cddc12b`。
+- 未追跡を含む最新全21files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/web-data-controls/index.html` | `64a192e4e4e99e986bca1cd4dd4f3991a9a95eccfc636e063629a0bdfbdf406a` |
+| `apps/web-data-controls/package.json` | `4eaed411da08215741f659008f233c3dc7755a9e0d8cfb48e95f6028d7074893` |
+| `apps/web-data-controls/src/main.tsx` | `e9cd28ca94bb0a526ac75d3a68fad57b46293f1f760a896ac2d5c3a5f96e272d` |
+| `apps/web-data-controls/src/recovery.ts` | `04374afa9442e515c6d9d1c27fb9d53f879495fd2b33b16062fa8fd23b950080` |
+| `apps/web-data-controls/src/styles.css` | `adf1efa85e22b7f595e1d6210d9895be146f9f2db7754a97280c72d72a2deb52` |
+| `apps/web-data-controls/src/view.tsx` | `dab8ab87eb1c89d00689e683a8f238dab2d9a2c0c83b73122490f2f4a5ffae3f` |
+| `apps/web-data-controls/tsconfig.json` | `c8d38835623ac1e96f406f8c7b2230fa48674d2748ed51c0726ed592070252f7` |
+| `apps/web-data-controls/vite.config.ts` | `55919d9f80c32337ee77d4e3c4048da12ccc82090142f3b56835e70ed12426b9` |
+| `docs/public-web-contract.md` | `ff57cdaf8a6036510bf544bed3f0425ffc6ade4c2d065c01bbabc13e46bb8833` |
+| `docs/ui-authentication.md` | `d722d9f9cb4fa2994de01ce2427f1f75a9fc03b6daa7908126b6378ac01b8f12` |
+| `docs/ui-data-controls.md` | `8cf1084fd05ce12d9eaead8b453703ce49ddb79984b36e0bd4c2792f730e7aac` |
+| `mise.toml` | `62f82b1f1b7d4072b24c2ac601577794b0dc468bd8aae4416b721b358ab3ea37` |
+| `packages/ui/package.json` | `8ce86a379a098b05c9d507aa9f3cb4de2e6916a2836dad8cd79c92be1e94c79c` |
+| `packages/ui/src/data-controls/controller.ts` | `e03f40b9bec74a2673afb9b6bb4717218fe7feb48e7bf64fa483f0c14e86736a` |
+| `packages/ui/src/data-controls/view.tsx` | `da97fd2482f7b1ac6d039c4df4a3308c99ef413d699e537debca099f95a0078d` |
+| `packages/ui/src/session-view.tsx` | `31dd07b328656c2f9ff2cc9ab828ac1d26ea4163327eb689c047cc439bbb80c0` |
+| `packages/ui/src/session.ts` | `498f374a564854494e1b040cd1962874b427ad89186279cfd0fb3b5787df3346` |
+| `pnpm-lock.yaml` | `ed4502d9d878022430945e80e698ed8b40001c088d068f6c59172a3f4abdbc89` |
+| `tests/emulator/test_web_account_delete_integration.py` | `eb3d273792569a7b52d2fc24d1aaff4b4b41e2ff5e756a4c70baf210dc1fb984` |
+| `tests/test_web_account_delete.mjs` | `7a2e564f08dadefacf4178dce8fc1e4b61e56be8eb34784306ca3ec44a38d704` |
+| `tests/ui/web_account_delete_browser.mjs` | `55700ae7315649b46efb9aff69e500d1d08d67172eb76b02725d8a9118ced68d` |
+
+### 独立レビュー ラウンド3 終了
+
+- 担当 `/root/ui13_review_r3`、正式 **approve（ローカル実装完了）**。最新全21pathsと全797sourceを直接確認、必須指摘0・任意0・未検証local必須条件0。R1-F001/F002解消、G001判断待ちはユーザーの明示承認で解消し公開前必須gateを維持。レビュー回数3。
+- report SHA-256 `bc37805ec6c5a2adb3cf67b895ee2ed3f5ab12fd8baa61a899d85bf13ba517bf`、result SHA-256 `2b48ad3b4768e3c795e29d02af740a72163f1381ab8e31106acd267b31355705`、closure SHA-256 `0454347ec7d5089258cfc912eadbc4a7f9dfefa69e0f7ce0050ff6e7cc0f29f5`。原本 `/tmp/ba-ui-13-review-r3-report.md`、result.json、closure.json。
+- R3は全差分・仕様/実schema/認可経路・試験全文を読み、提供7runのraw SHA/exit0/全797before-after=現sourceを独立照合、画像も目視。sourceがR2と完全同一のため製品テスト再実行なし。実行した検証と提供証拠確認を区別する。
+- 親が現在の全797source・index保存実bytes・main/base一致を再確認。writer/reviewer自己継続processなし。公開設定・実project結合・GOV03配置を実施済みにしない。承認対象の実装コミットを続ける。
+
+### 完了と実装コミット
+
+- 2026-10-29T07:17:34.185255+00:00: BA-UI-13をdone（ローカル実装完了）へ更新。実装コミット `effa7d327c1be94438f6c79a7125f1c724451dd4`、main、全21承認paths/blobをcommit後に照合。独立レビュー3回、未解決コード指摘0。
+- アプリなしのWeb本人削除entry、必須再認証・明示確認、固定globalAPI、認証再取得後の進捗回復、202と物理完了の区別、失効・pagehide・別人切替時のprivate消去を実装。新Webを型/3entrybuild/通常testsへ組み込み、共通mobile/displayの動作を維持。
+- 本人再認証・locator負例・遅延/ABA/認証失敗・実SDK/API/emulator結合の証跡、R1の失敗と修正、R2全検証成功、R3最終approveを上記に保存。公開URL/domain/説明配置と公開結合はユーザー承認のとおり公開前必須として残す。実公開・実provider削除を完了したとの主張はない。
+- done後の親 `mise run check` と台帳/logだけの記録commitを続ける。
+
+- done後の親 `mise run check`: 2026-10-29T07:17:36.263348+00:00–2026-10-29T07:18:19.602720+00:00、runner/tool exit0、session20686回収済み。mypy465、型/3entrybuild/contracts/client/docs/workflow/tickets成功（69/96 done）。raw SHA-256 `c8add1e772b2563a16182d7f376bde08731228278b9bcfee51a51b5b8b4d3ab8`、全797sourceはR3承認版不変、検証中index不変、自己子process/listener残存なし。既知Biome3/schema timezone警告とmise cache書込不可警告は失敗と区別。
+- 台帳/logだけを完了記録commitに含める。公開前必須gateは残存し、リリース可否の承認ではない。

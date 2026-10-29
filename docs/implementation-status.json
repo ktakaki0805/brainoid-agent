@@ -614,13 +614,13 @@
       "implementation_commit": "336b05d48184465a55f2fee99053c3ebb11a683c"
     },
     "BA-UI-13": {
-      "status": "blocked",
+      "status": "done",
       "branch": "main",
-      "base_commit": "d372f90ee9bc7beb0e19c391806274a57b82f69a",
-      "updated_at": "2026-10-28T21:02:39.510312+00:00",
+      "base_commit": "9c94b079c07c4ee85b9da6a7c141ee0c9cddc12b",
+      "updated_at": "2026-10-29T07:17:34.185255+00:00",
       "log_anchor": "ba-ui-13-20261028t202302z",
-      "review_rounds": 2,
-      "blocker": "UI13-R2-G001: 公開HTTPS URL・Firebase許可domain/実project接続・GOV03説明ページ配置が未確定。ローカル実装・全検証・独立レビューのコード指摘は解消済み。公開前必須として残しローカル完了後に続行する明示判断の質問が未回答。設定/結合証跡を揃えるか、この扱いへの明示回答後に最終承認を確認して再開する。"
+      "review_rounds": 3,
+      "implementation_commit": "effa7d327c1be94438f6c79a7125f1c724451dd4"
     },
     "BA-VOICE-01": {
       "status": "todo"
