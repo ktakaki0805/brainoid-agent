@@ -232,7 +232,7 @@ export function SessionApp({
     </Frame>
   );
 }
-function Login({ controller, busy }: { controller: SessionController; busy: boolean }) {
+export function Login({ controller, busy }: { controller: SessionController; busy: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const submit = (event: FormEvent) => {

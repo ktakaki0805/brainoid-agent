@@ -18,6 +18,7 @@
     "./session": "./src/session.ts",
     "./session-view": "./src/session-view.tsx",
     "./session-fake": "./src/session-fake.tsx",
+    "./data-controls-controller": "./src/data-controls/controller.ts",
     "./data-controls": "./src/data-controls/view.tsx",
     "./calendar": "./src/calendar/contracts.ts",
     "./output-target": "./src/output-target/lifetime.ts",

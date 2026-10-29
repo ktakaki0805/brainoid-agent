@@ -55,7 +55,14 @@ export class SessionContext {
       baseUrl: options.baseUrl,
       auth: async () => {
         this.assertCurrent();
-        const token = await options.token(false);
+        let token: string;
+        try {
+          token = await options.token(false);
+        } catch (error) {
+          this.assertCurrent();
+          options.denied(401);
+          throw error;
+        }
         this.assertCurrent();
         return token;
       },
@@ -247,6 +254,7 @@ export class SessionController {
     transport?: typeof fetch;
     navigate?: (tenantId?: string, replace?: boolean) => void;
     requestedTenant?: () => string | undefined;
+    accountOnly?: boolean;
   };
   constructor(options: SessionController["options"]) {
     this.options = options;
@@ -286,6 +294,11 @@ export class SessionController {
     this.clear();
     if (!identity) {
       this.publish({ phase: "signed-out", tenants: [] });
+      return;
+    }
+    if (this.options.accountOnly) {
+      this.userContext = this.makeContext(identity.uid);
+      this.publish({ phase: "ready", uid: identity.uid, tenants: [] });
       return;
     }
     this.publish({ phase: "loading", uid: identity.uid, tenants: [] });
@@ -436,7 +449,7 @@ export class SessionController {
   }
   async loadTenants(more = false, revalidate = true): Promise<void> {
     const scope = this.userContext;
-    if (!scope || this.ending) return;
+    if (!scope || this.ending || this.options.accountOnly) return;
     const listing = ++this.listing;
     if (revalidate && !more && this.state.tenant)
       void this.selectTenant(this.state.tenant.id, false);
@@ -475,7 +488,7 @@ export class SessionController {
     }
   }
   async selectTenant(id: string | undefined, navigate = true): Promise<void> {
-    if (this.ending) return;
+    if (this.ending || this.options.accountOnly) return;
     this.selection++;
     this.selectedId = id;
     this.tenantContext?.dispose();
@@ -510,7 +523,7 @@ export class SessionController {
   }
   async createTenant(name: string, timezone: string): Promise<void> {
     const scope = this.userContext;
-    if (!scope || this.state.busy || this.ending) return;
+    if (!scope || this.state.busy || this.ending || this.options.accountOnly) return;
     const body = { name: name.trim(), timezone: timezone.trim() };
     if (
       !this.creation ||

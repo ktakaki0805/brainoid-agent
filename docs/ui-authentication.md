@@ -63,3 +63,5 @@ mise exec -- pnpm exec firebase emulators:exec --only auth,firestore \
 データ/schema移行はない。切戻しは以前の mobile bundle に戻し、新画面の利用を止める。CORS origin を外す場合は該当 client の接続も止まる。既に作成した tenant と冪等台帳は消さない。実 native build・OS安全保存・本番 provider・Pi実機・配布の検証はこのローカル結果に含めない。
 
 BA-UI-03 は選択された context に[会話画面と SSE 購読](ui-conversations.md)を接続する。会話切替で abort された要求の遅延拒否応答も検査し、別会話の現在セッションを解除しない。
+
+[公開Webの削除entry](public-web-contract.md)も同じmemory-only browser adapterを使う。再読込み後は同一本人の再ログインで、資格情報を含まない受付locatorから既存global operationを再認可して回復する。公開entryのaccount-only sessionはtenant一覧を取得せず、token取得自体の失敗も401と同様に私的状態を破棄する。古いcontextの失敗は新しい認証を終了しない。

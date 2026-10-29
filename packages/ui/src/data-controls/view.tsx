@@ -1,14 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Operation } from "@brainoid-internal/api-client";
 import type { SessionController } from "../session.ts";
-import { DataControlsController, type ExportDelivery } from "./controller.ts";
+import { DataControlsController, unavailableDelivery, type ExportDelivery } from "./controller.ts";
 
-export const unavailableDelivery: ExportDelivery = {
-  available: false,
-  save: async () => {
-    throw new Error("Export delivery unavailable");
-  },
-};
 export const browserExportDelivery: ExportDelivery = {
   available: true,
   async save(blob, signal) {
@@ -86,13 +80,19 @@ function MobileDataControls({
   delivery: ExportDelivery;
 }) {
   const [controller] = useState(() => new DataControlsController(session, delivery));
+  useEffect(() => () => controller.dispose(), [controller]);
+  return <DataControlsForm controller={controller} />;
+}
+/** The public entry supplies an account-only controller; confirmation/progress stay shared. */
+export function DataControlsForm({ controller }: { controller: DataControlsController }) {
+  const { session, delivery } = controller;
+  const accountOnly = controller.options.accountOnly === true;
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const current = useSyncExternalStore(session.subscribe, session.snapshot);
   const [name, setName] = useState("");
   const [scope, setScope] = useState<"my_data" | "visible_tenant_data">("my_data");
   const [derived, setDerived] = useState(true);
   const [, tick] = useState(0);
-  useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => {
     setName("");
     setDerived(current.context?.generation !== undefined);
@@ -101,34 +101,41 @@ function MobileDataControls({
     const timer = setInterval(() => tick((v) => v + 1), 1000);
     return () => clearInterval(timer);
   }, []);
-  const locked = state.busy || state.pending || !!state.operation;
+  const locked =
+    state.busy || state.pending || !!state.operation || !!state.recovery || !!state.review;
   return (
     <section className="card" aria-label="データの管理">
-      <h2>データの管理</h2>
-      <ul>
-        <li>
-          会話削除は会話の本文・応答の履歴・音声への参照を削除します。派生記憶の同時削除は既定で有効です。
-        </li>
-        <li>
-          記憶の忘却は記憶とその検索用データ・要約・一時保存を削除します。元出典は既定でモデル再利用を止め、出典削除は別途選択します。下の記憶一覧で対象と範囲を確認してください。
-        </li>
-        <li>
-          退出は現在のテナントの所属と本人だけに公開したデータを削除します。共有した寄稿は残る場合があります。
-        </li>
-        <li>
-          アカウント削除は本人のすべての所属・本人だけに公開したデータ・個人連携・通知経路が対象です。共有寄稿は自動的に全消去されません。
-        </li>
-        <li>
-          テナント削除は所有者（owner）が現在のテナント全体を削除します。他のテナントは対象になりません。
-        </li>
-      </ul>
+      <h2>{accountOnly ? "本人アカウントの削除申請" : "データの管理"}</h2>
+      {accountOnly ? (
+        <p>
+          アカウント削除は現在サインインしている本人のすべての所属・本人だけに公開したデータ・個人連携・通知経路が対象です。共有寄稿は自動的に全消去されません。テナント全体の削除とは異なります。
+        </p>
+      ) : (
+        <ul>
+          <li>
+            会話削除は会話の本文・応答の履歴・音声への参照を削除します。派生記憶の同時削除は既定で有効です。
+          </li>
+          <li>
+            記憶の忘却は記憶とその検索用データ・要約・一時保存を削除します。元出典は既定でモデル再利用を止め、出典削除は別途選択します。下の記憶一覧で対象と範囲を確認してください。
+          </li>
+          <li>
+            退出は現在のテナントの所属と本人だけに公開したデータを削除します。共有した寄稿は残る場合があります。
+          </li>
+          <li>
+            アカウント削除は本人のすべての所属・本人だけに公開したデータ・個人連携・通知経路が対象です。共有寄稿は自動的に全消去されません。
+          </li>
+          <li>
+            テナント削除は所有者（owner）が現在のテナント全体を削除します。他のテナントは対象になりません。
+          </li>
+        </ul>
+      )}
       <p>
         退出・アカウント削除・テナント削除には5分以内の本人認証が必要です。最後の所有者（owner）は会員設定で先に所有権を移譲するか、テナント削除を選んでください。
       </p>
       <p>
         削除要求の受付後は対象の利用を止め、実際のデータ消去を順次進めます。受付や認証終了だけでは消去完了を確認できません。
       </p>
-      {current.context && current.tenant && (
+      {!accountOnly && current.context && current.tenant && (
         <>
           <h3>現在の対象: {current.tenant.name}</h3>
           <label>
@@ -249,7 +256,7 @@ function MobileDataControls({
       >
         本人アカウントの削除を確認
       </button>
-      {state.review && (
+      {state.review && !state.reauthentication && (
         <section aria-label="データ操作の確認">
           <h3>{labels[state.review.body.kind]}</h3>
           <p>対象: {state.review.label}</p>
@@ -312,6 +319,16 @@ function MobileDataControls({
         ) : (
           <p>この認証方式ではアプリ内の再認証を利用できません。本人として再ログインが必要です。</p>
         ))}
+      {state.recovery && !state.operation && (
+        <button
+          className="button secondary"
+          type="button"
+          disabled={state.busy}
+          onClick={() => void controller.refresh()}
+        >
+          受付済みの進捗を再確認
+        </button>
+      )}
       {state.operation && (
         <>
           <OperationStatus operation={state.operation} />
@@ -401,3 +418,5 @@ function Reauthentication({
     </form>
   );
 }
+
+export { DataControlsController, unavailableDelivery } from "./controller.ts";

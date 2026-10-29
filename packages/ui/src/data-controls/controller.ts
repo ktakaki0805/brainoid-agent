@@ -22,6 +22,12 @@ export interface ExportDelivery {
   readonly available: boolean;
   save(blob: Blob, signal: AbortSignal): Promise<void>;
 }
+export const unavailableDelivery: ExportDelivery = {
+  available: false,
+  save: async () => {
+    throw new Error("Export delivery unavailable");
+  },
+};
 type Choice = "export" | "leave_tenant" | "delete_tenant" | "delete_account" | "conversation";
 type Request = {
   key: string;
@@ -40,6 +46,7 @@ export interface DataControlsState {
   reauthentication: boolean;
   notice?: string | undefined;
   rejected?: boolean | undefined;
+  recovery?: boolean | undefined;
 }
 const empty = (): DataControlsState => ({
   conversations: [],
@@ -71,12 +78,17 @@ function operation(value: unknown, kind: Operation["kind"], id?: string): Operat
     throw new Error("Invalid operation");
   return result;
 }
-/** Only an immutable receipt survives disposal of ordinary tenant caches. Never persisted. */
+export interface DataControlsOptions {
+  accountOnly?: boolean;
+  requireReauthentication?: boolean;
+}
+/** Only an immutable receipt survives disposal of ordinary tenant caches. */
 export class DataControlsController {
   private state = empty();
   private listeners = new Set<() => void>();
   private request: Request | undefined;
   private uncertain = false;
+  private recoveryId: string | undefined;
   private selected: string | undefined;
   private tenantContext: SessionContext | undefined;
   private abort = new AbortController();
@@ -87,7 +99,13 @@ export class DataControlsController {
   readonly scope: SessionContext;
   readonly session: SessionController;
   readonly delivery: ExportDelivery;
-  constructor(session: SessionController, delivery: ExportDelivery) {
+  readonly options: Readonly<DataControlsOptions>;
+  constructor(
+    session: SessionController,
+    delivery: ExportDelivery,
+    options: DataControlsOptions = {},
+  ) {
+    this.options = Object.freeze({ ...options });
     this.session = session;
     this.delivery = delivery;
     const scope = session.globalContext();
@@ -170,7 +188,7 @@ export class DataControlsController {
     return { context, tenant };
   }
   async loadConversations(more = false) {
-    if (this.closed || this.state.busy || this.request) return;
+    if (this.closed || this.state.busy || this.request || this.options.accountOnly) return;
     const epoch = this.epoch;
     this.publish({ ...this.state, busy: true, notice: undefined });
     try {
@@ -217,7 +235,14 @@ export class DataControlsController {
       derived?: boolean;
     } = {},
   ) {
-    if (this.closed || this.state.busy || this.request) return;
+    if (
+      this.closed ||
+      this.state.busy ||
+      this.request ||
+      this.recoveryId ||
+      (this.options.accountOnly && choice !== "delete_account")
+    )
+      return;
     const epoch = this.epoch;
     this.publish({
       ...this.state,
@@ -233,7 +258,7 @@ export class DataControlsController {
         label: string;
       if (choice === "delete_account") {
         body = { kind: "delete_account", confirm: true };
-        label = "現在サインインしている本人のアカウント（すべての所属）";
+        label = `現在サインインしている本人のアカウント（すべての所属）: ${this.scope.uid}`;
       } else {
         const { context, tenant } = this.context();
         tenantId = tenant.id;
@@ -277,7 +302,11 @@ export class DataControlsController {
           label += `：会話 ${result.data.title ?? result.data.id}`;
         }
       }
-      this.publish({ ...this.state, review: { key: crypto.randomUUID(), tenantId, body, label } });
+      this.publish({
+        ...this.state,
+        review: { key: crypto.randomUUID(), tenantId, body, label },
+        reauthentication: !!this.options.requireReauthentication,
+      });
     } catch {
       if (this.live(epoch))
         this.publish({
@@ -290,7 +319,8 @@ export class DataControlsController {
     }
   }
   cancel() {
-    if (!this.state.busy && !this.request) this.publish({ ...this.state, review: undefined });
+    if (!this.state.busy && !this.request)
+      this.publish({ ...this.state, review: undefined, reauthentication: false });
   }
   async resetRejected() {
     if (this.state.busy || !this.state.rejected || this.uncertain || this.state.operation) return;
@@ -314,13 +344,22 @@ export class DataControlsController {
     this.publish(empty());
   }
   async confirm() {
-    if (!this.state.review || this.state.busy || this.request) return;
+    if (!this.state.review || this.state.busy || this.request || this.state.reauthentication)
+      return;
     this.request = this.state.review;
     this.uncertain = false;
     await this.retry();
   }
   async retry() {
-    if (!this.request || this.closed || this.state.busy) return;
+    if (
+      !this.request ||
+      this.closed ||
+      this.state.busy ||
+      this.recoveryId ||
+      this.state.operation ||
+      (this.options.requireReauthentication && this.state.reauthentication)
+    )
+      return;
     const original = this.request,
       epoch = this.epoch;
     // After confirmation keep only non-content identifiers with the exact retry body.
@@ -395,7 +434,7 @@ export class DataControlsController {
     }
   }
   async reauthenticate(email: string, password: string) {
-    if (this.closed || this.state.busy || !this.request) return;
+    if (this.closed || this.state.busy || (!this.request && !this.state.review)) return;
     const epoch = this.epoch;
     this.publish({ ...this.state, busy: true });
     const ok = await this.session.reauthenticate(email, password);
@@ -405,24 +444,43 @@ export class DataControlsController {
         busy: false,
         reauthentication: !ok,
         notice: ok
-          ? "本人確認ができました。同じ要求を再送してください。"
+          ? this.request
+            ? "本人確認ができました。同じ要求を再送してください。"
+            : "本人確認ができました。対象と範囲を確認してください。"
           : "本人確認できませんでした。現在の本人として再試行してください。",
       });
   }
+  /** A locator is untrusted: fetch the exact global operation under current identity first. */
+  async recoverAccount(id: string) {
+    if (
+      !idPattern.test(id) ||
+      this.closed ||
+      this.state.busy ||
+      this.request ||
+      this.state.review ||
+      this.recoveryId
+    )
+      return;
+    this.recoveryId = id;
+    this.publish({ ...empty(), recovery: true });
+    await this.refresh();
+  }
   async refresh() {
     const request = this.request,
-      previous = this.state.operation;
-    if (!request || !previous || this.closed || this.state.busy) return;
+      previous = this.state.operation,
+      id = this.recoveryId ?? previous?.operation_id,
+      kind = this.recoveryId ? "delete_account" : request?.body.kind;
+    if (!id || !kind || this.closed || this.state.busy) return;
     const epoch = this.epoch;
     this.publish({ ...this.state, busy: true, notice: undefined });
     try {
       const result = await this.scope.run((client, signal) =>
-        request.body.kind === "delete_account"
-          ? getAccountOperation({ client, signal, path: { operation_id: previous.operation_id } })
+        kind === "delete_account"
+          ? getAccountOperation({ client, signal, path: { operation_id: id } })
           : getTenantOperation({
               client,
               signal,
-              path: { tenant_id: request.tenantId as string, operation_id: previous.operation_id },
+              path: { tenant_id: request?.tenantId as string, operation_id: id },
             }),
       );
       this.guard(epoch);
@@ -430,11 +488,11 @@ export class DataControlsController {
         throw new RequestFailure(result.response?.status ?? 0);
       this.publish({
         ...this.state,
-        operation: operation(result.data, request.body.kind, previous.operation_id),
+        operation: operation(result.data, kind, id),
       });
     } catch {
       if (this.live(epoch)) {
-        if (request.body.kind === "export") {
+        if (kind === "export") {
           this.request = undefined;
           this.session.invalidateTenant();
         } else

@@ -41,3 +41,5 @@ Fact原本が無いmemory_effectsは正規record/previousのtenant・ID・版・
 ## 検証
 
 [HTTP/worker試験](../tests/test_conversation_deletion.py)、[controller/native試験](../tests/test_ui_data_controls.mjs)、[実API応答→SDK/React試験](../tests/test_ui_data_controls_render.mjs)を通常suiteに含める。[ブラウザー試験](../tests/ui/data_controls_browser.mjs)はmobile/displayをbuildし、確認・再認証・受付/完了・失効・切替後の消去と狭い画面を確認する。Firestoreの実cloud、本番provider、実iOS/Android/Piは今回未実施である。
+
+BA-UI-13の[公開Web](public-web-contract.md)は同じ削除フォーム・進捗表示にaccount-only controllerを渡し、申請前の実再認証を毎回必須にする。mobileの通常導線は既存のサーバーrecent-auth判定と拒否後の再認証を維持する。公開entryだけが非credentialのlocatorを保存し、認可済みglobal GETで回復する。mobile/displayの受付情報は従来どおりstorageへ保存しない。

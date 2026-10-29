@@ -1,0 +1,19 @@
+{
+  "name": "@brainoid-internal/web-data-controls",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "build": "vite build",
+    "dev:emulator": "vite --mode emulator --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@brainoid-internal/ui": "workspace:*",
+    "firebase": "12.19.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

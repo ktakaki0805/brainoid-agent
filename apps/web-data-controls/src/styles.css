@@ -1,0 +1,20 @@
+.account-page {
+  max-width: 880px;
+  margin: auto;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.account-page > .card {
+  margin-bottom: 20px;
+}
+.account-page .auth-card {
+  max-width: none;
+}
+@media (max-width: 480px) {
+  .account-page {
+    padding: 12px;
+  }
+  .account-page h1 {
+    font-size: 1.5rem;
+  }
+}
