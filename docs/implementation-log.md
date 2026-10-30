@@ -15066,3 +15066,473 @@ Piサービスが所有する録音・再生adapterを実装する。音声backe
 Pi5/8GB・物理マイク/スピーカーでの録音/可聴再生/抜去/停止時間、実provider・料金/保持条件の結合は未実施。ALSA null/IPCを実音響試験の代替とはしない。既定disabled、明示OS権限drop-inと公開前gateを維持。スマホ割当speech runの明示live attachと画面全体の状態はBA-VOICE-05で結合する。今回のdoneはローカルadapter実装であり、MVP音声全体や配備完了を意味しない。実環境変更、push、PR作成は行っていない。
 
 - 完了台帳更新後の親最終check: mise run check、2026-10-29T14:11:16.029445+00:00〜2026-10-29T14:11:58.956012+00:00、exit0。raw SHA-256 `84fcbdb2add417ea49fec13827bcac05bd6475919de54245b48c49d600fae9f7`。全838source before=after=R2freeze、index前後不変、known descendant/listener残存0を照合、親session28952 exit0回収済み。check:ticketsは73/96 done、blocked0で正常。
+
+## ba-voice-05-20261029t141357z
+
+- チケット: BA-VOICE-05
+- 状態: in_progress
+- 開始: 2026-10-29T14:13:57.840699+00:00
+- ブランチ / base commit: main / `3b6611bccb13fad1f946cd38c3bb305acab43cc5`
+- 開始時の変更: staged / unstaged / untracked ともなし。依存5件のdoneと実装commitのHEAD祖先関係を確認。
+- 選択: IDなしticket_plan.py next、73/96 done、未完了依存なし。
+- 親担当: /root。実装は新規独立担当1名、レビューは別の新規担当。
+
+### 範囲と検証計画
+
+スマホ/Piで録音→STT→audio_input_id/output_mode=speechのturn→speech.ready再生を接続。Idle/Listening/Transcribing/Thinking/Confirming/Speaking/Errorと、独立したoffline/muted/private_session表示を扱う。録音停止後の送信/破棄、読み上げ停止、run取消、未実行操作取消を区別する。マイク拒否・無音・provider失敗・期限後の結果でも文字入力と復旧案内を操作可能にする。VOICE03/04 adapterとDEV10 transport、RUN07取消を利用する。
+
+| 受入条件 | 検証計画 | 状態 |
+| --- | --- | --- |
+| 読み上げ停止を家電取消と表示しない | T-007状態遷移/操作表示と既存run/tool取消の結果 | 未実施 |
+| 失効/停止generationの遅延応答で音声/private画面が復活しない | T-021 session/run/output/selection fence、mobile/Piのstop/reload/reconnectとlate結果 | 未実施 |
+| 音声不可でも文字入力・復旧案内を操作できる | T-006拒否/無音/provider失敗、offline/muteと基本操作 | 未実施 |
+| 両画面・既存境界・全体回帰 | meaningful controller/adapter/local route tests、mobile/display browser確認、mise check/test、最新全差分独立レビュー | 未実施 |
+
+### 外部前提と後続への接続
+
+実スマホ/Piの停止操作・native framework build・音響確認は環境未準備で未実施。docs08§1のfake/emulatorで独立merge可能とする共通方針に従い、ローカル実装/fake/browser確認と公開前の実機/provider結合を分ける。UI07/13の個別判断を他機能へ包括適用しない。VOICE04で残るスマホ割当runの明示live attachを今回のUI結合で扱い、履歴/再接続/遅延応答から停止済み音声を復活させない。実配備・有料provider呼出し・pushは禁止。
+
+- 実装担当: `/root/voice05_implementation`（fork none）。親台帳/log以外の唯一の製品書き手。最終scope/設計を正本と実entryから直接確認して進行。
+
+- 実装設計: スマホ→Piの通常音声導線へ短命の明示待機を設ける。完全snapshotの検証成功応答にserver時刻 `X-Brainoid-Observed-At` を結び付け、新規割当の判定基準とする小さい契約追加を同変更で検証。未対応server/不正headerは待機不可とし文字・手動future attachを維持。heartbeat ack案は因果ID不足のため未実装のまま撤回。
+
+### 初期型検査
+
+- mise run check:types `types1`: 2026-10-29T14:29:10.139806+00:00〜2026-10-29T14:29:21.152793+00:00, exit 1; raw SHA-256 `0894809bcfa0766a136c64cc0689ccf6ac86d4006f1cc7efc5ea38ba205ce71d`、source/index前後不変。
+- mise run check:types `types2`: 2026-10-29T14:30:26.822937+00:00〜2026-10-29T14:30:50.227227+00:00, exit 0; raw SHA-256 `c00d5153fc5fea44060c7e8ada19473a4cfd77c8a47fcc37691f482fc5456105`、source/index前後不変。
+- 初回はaudio_service preferencesとUIBridgeのOptional値に関するPython型エラー3件。修正後types2でPython485sourceと全TypeScript workspace成功。まだ編集中のため最終候補の検証ではない。
+
+### 初期対象検証（編集中）
+
+- `python1` `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', 'tests.test_device_audio', 'tests.test_device_snapshot']`: 2026-10-29T14:34:10.115107+00:00〜2026-10-29T14:34:33.645158+00:00, exit 0, counts `['Ran 56 tests in 22.182s']`; source前後不変 `True`、raw SHA-256 `dbdc7774357aed691b6683ae2e2266ac1b6e3522f35ff089d9d052d4a94aecb0`。
+- `node1` `['mise', 'exec', '--', 'node', '--test', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`: 2026-10-29T14:32:36.720598+00:00〜2026-10-29T14:32:37.761292+00:00, exit 1, counts `['# tests 4', '# pass 1', '# fail 3']`; source前後不変 `True`、raw SHA-256 `78c5222198ddc3f367d9658c765f063a32cb9500431322aecc0fc3493b83e4c1`。
+- `node2` `['mise', 'exec', '--', 'node', '--test', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`: 2026-10-29T14:32:51.310193+00:00〜2026-10-29T14:35:07.008896+00:00, exit 1, counts `[]`; source前後不変 `False`、raw SHA-256 `45d4b66fd8fcd0e92de7fd6859400473aec2d7f89c9e85a89d58e0fec533346a`。
+- Python音声/snapshot対象56件成功。node1はstrip-only非対応parameter propertyでfile-level3 failures。node2は途中中断、sourceも実行中に変わったため固定候補の受入証拠には使わない。タイマー/終了処理を含め実装担当で修正・再検証する。
+
+### 初期結果の訂正と再検証
+
+- python1の56件表示には同期TestCase下へ誤配置した新規async6件が含まれ、rawにcoroutine never awaited警告がある。初回56件全合格という読み方を訂正し、この6件は受入根拠に含めない。元rawは保持。正しいIsolatedAsyncioTestCase配下へ移してpython2で再実行。
+- node2は旧fixtureの遅延stream終了待ちで停止し、所有PID/birth照合のSIGTERMとtermination sidecarを記録。通常選択は旧streamを待たず、明示attachのみ終了待ちを最大2秒へ制限して修正。
+- `targeted3`: 2026-10-29T14:35:30.409797+00:00〜2026-10-29T14:35:31.977230+00:00, exit0、`['# tests 158', '# pass 158', '# fail 0']`、source/index前後一致。raw SHA-256 `5c09e668188c4ed910367d131d51a465b682761b92a00a9f08d98f8acb6108af`。
+- `python2`: 2026-10-29T14:35:50.402121+00:00〜2026-10-29T14:36:14.031865+00:00, exit0、`['Ran 56 tests in 22.260s']`、source/index前後一致。raw SHA-256 `27b6cd46ba60f22095624196d9c984a199bb7aed5f485ba214d9b05bbcca12a2`。
+- Node158/158、修正後Python56/56を確認。後者rawにnever awaited警告なし。製品はまだ編集・browser確認前のため最終固定候補の証拠とは分ける。
+
+### 初期browser確認の途中経過
+
+- browser1/2のmobile composer待機はexact label照合の問題で、明示aria-labelへ修正。browser3はmobile拒否/無音/provider失敗後の文字編集、録音/未送信/文字起こし/発話/停止、offline+mute、pagehide/reloadまで通過後、Pi入力機器のexact label待機でexit1。全browser成功とは扱わない。
+- 親がbrowser3 mobile録音停止後/発話中画像を目視し、390px幅でボタンが1文字ずつ折り返す問題を実装担当へ返した。最小幅またはgridで可読性を改善し、独立状態行の可視性も最終撮影で確認予定。正式独立レビューではなく実装中の目視。
+- 親目視 `/tmp/ba-voice-05-writer-browser3-artifacts/mobile-recorded-unsent.png` SHA-256 `beac11d0573f27b4048eb27bf646ac81912ee40e579f9dbdef8bca5598e59781`。
+- 親目視 `/tmp/ba-voice-05-writer-browser3-artifacts/mobile-speaking.png` SHA-256 `986ca8acb96cec550f501a203f052af2e04250a8ec67cf9328c7bcae69738bd7`。
+- preflight2のTS5042はmiseへの複数task名が後続引数として渡ったコマンド指定ミス。正しいargvで再実行予定。初回fixture型注釈エラーも修正中。
+
+### 最終候補へ向けた追加検証（freeze前）
+
+- `browser5`: 2026-10-29T14:52:25.068015+00:00〜2026-10-29T14:52:39.674088+00:00, `['mise', 'exec', '--', 'node', 'tests/ui/voice_browser.mjs']`, exit0、counts `[]`。source/index前後一致、raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057` を親が照合。
+- `targeted-final-candidate`: 2026-10-29T14:56:10.362739+00:00〜2026-10-29T14:56:11.932562+00:00, `['mise', 'exec', '--', 'node', '--test', '--test-timeout=45000', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`, exit0、counts `['# tests 160', '# pass 160', '# fail 0']`。source/index前後一致、raw SHA-256 `8a7742367959756c61258eca8864e9624ec0e9bc4e4c9be6ceceae7c1e21e8f6` を親が照合。
+- `python-final-candidate`: 2026-10-29T14:56:13.647262+00:00〜2026-10-29T14:56:37.568588+00:00, `['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', 'tests.test_device_audio', 'tests.test_device_snapshot']`, exit0、counts `['Ran 58 tests in 22.553s']`。source/index前後一致、raw SHA-256 `f6e169c682689090a3fea3333c8a58fe7655afef6b3888cd15cd28d5c344fa3c` を親が照合。
+- browser5は両画面smoke完走。その後Pi speech.readyのUI seq連続性、高速完了local turn、command_id保持/409後canonical結果の修正が入っているため、上記は最終freezeとの一致を示す証拠ではない。実装担当が認可・明示待機・bfcacheを補強し、最終browserを再実行中。review_roundsは0のまま。
+
+### 追加境界試験の初回結果
+
+- `browser-final`: 2026-10-29T15:04:39.952033+00:00〜2026-10-29T15:05:19.661957+00:00、`['env', 'UI_ARTIFACTS=/tmp/ba-voice-05-writer-browser-final-artifacts', 'UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', 'mise', 'exec', '--', 'node', 'tests/ui/voice_browser.mjs']`、exit1、counts `[]`。source/index不変、raw SHA-256 `8c2339c79b7f73aaa3f6c1378381dc2df74d933a757c8c9af29329c6239d80a2`。
+- `types-final-candidate`: 2026-10-29T15:04:40.841398+00:00〜2026-10-29T15:04:45.197954+00:00、`['mise', 'run', 'check:types']`、exit0、counts `[]`。source/index不変、raw SHA-256 `af6b9e530c3e2728b77cc811b2968dbd8843b7129b4e56778f685171fc5a676e`。
+- `python-routes`: 2026-10-29T15:04:41.016495+00:00〜2026-10-29T15:05:05.546849+00:00、`['mise', 'exec', '--', 'uv', 'run', '--all-packages', '--locked', '--offline', 'python', '-B', '-m', 'unittest', 'tests.test_device_audio', 'tests.test_device_snapshot']`、exit1、counts `['Ran 59 tests in 22.771s']`。source/index不変、raw SHA-256 `04f63bfb45813f3c9d298428f2c4263359a075b8bc941324d38f698754f1d8c5`。
+- types成功。browserはPi明示待機後Speakingの可視待機でtimeout。pythonは新規POST route認可負例でexpected403に対して413となり1failure（59件中）。両者とも未解決として原因確認・再実行する。
+
+### 独立レビュー ラウンド1 対象固定
+
+- 担当 `/root/voice05_review_r1`（新規独立context）。base commit: `3b6611bccb13fad1f946cd38c3bb305acab43cc5`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `8c305da53978fc143128841e7a06ff73f9f9230fc4819def1789d0d11b085be0` |
+| `apps/display/session/controller.ts` | `3518713dc20e3256f2ad62e19c40b6a2681ddd3973d9708fced311841d0d9598` |
+| `apps/display/session/view.tsx` | `746266a591541e16a971b775d4ff6a34175869f11a1318653682a878865b73b6` |
+| `apps/display/src/recovery/index.tsx` | `2feae313469f10a009ccdd5aa5f0a1c0d326accf276472f15628b05d9076c4cc` |
+| `apps/display/voice/controller.ts` | `5a8637ee0be4db942b3b1a170a2785940db08ab5ca95284265f389815be66515` |
+| `apps/mobile/calendar/preview.tsx` | `cfb5927fe969debde4ad526dd76d3371591665146748dc72ea70e1f58df834ea` |
+| `apps/mobile/platform/voice-fixture.ts` | `99b9734d39e8f065cdfd2158b71b3ed80e42fdde6f4639a361b143c0ea3d6d23` |
+| `apps/mobile/platform/voice.ts` | `c95c95338f9b7b2bbff8bf56a913c49394d47d193d0b6099ce14adfe0691d356` |
+| `apps/mobile/src/main.tsx` | `f9b1794d7d5ee3002215c01343329e43b09063f79d1c3f39f6baf1226167121f` |
+| `docs/04-interfaces.md` | `4139c621bf17885f799f98b6473095b237f5bf699fc139a41541416c36279ea8` |
+| `docs/device-audio.md` | `466b169aea8f8b5b0939764a15f973adbf2a725ff0d64b50f547e6729a5d02fe` |
+| `docs/mobile-audio.md` | `28374d6d1ebd71067f849c75f433c1c9a4e3bce54a998f19808baccf508df4a3` |
+| `docs/voice-ui.md` | `cee7010847fa232c06c89942db75e712130bb873b041c1d83fbd4d53cb042931` |
+| `mise.toml` | `153543510ff004ac7ceea50e47ae732e3e3c6b92c22d9695a2b5f5a8f77adc56` |
+| `packages/ui/package.json` | `0bc43867dca86ab31e524c8778b5bfeff33baa2e5fd871efe1b8652baa2e19c5` |
+| `packages/ui/src/chat/controller.ts` | `7772beee4c21b81ccb5336cdedfbb908b7638d8127d8c7563116244e34c517ad` |
+| `packages/ui/src/chat/events.ts` | `7b3df5096649c3ec6bf4aaa996c9b0cb5ce7ec7fde0c039b5d16fbb6b86df96b` |
+| `packages/ui/src/chat/fixture.ts` | `34e75204bca2dce83b248c80dfabec898aae857404b5091bd29d187b1a569b45` |
+| `packages/ui/src/chat/view.tsx` | `940317526da0d2355b5033a37e7a7ef0d57b977680408829151ee94a196dcc9e` |
+| `packages/ui/src/output-target/view.tsx` | `1a2540b514bd577a37cf6895af949e8942b55ffe857e7ea0540e306d83b3dd2f` |
+| `packages/ui/src/session-fake.tsx` | `e44940e5d2b977f724aeee92a8cf800cf11808f1f153090e1ae78eaf4f93df39` |
+| `packages/ui/src/session-view.tsx` | `640efab8c0486bd16c71a8c165d715e4c6dc4c48d058d2c733c2a84ccba9ae1b` |
+| `packages/ui/src/styles.css` | `909db79a14959c9c302987af8b37eb9ab393d3ac900a05e34ea85ee708370e4c` |
+| `packages/ui/src/voice/controller.ts` | `a0c12ca462d8d1fb339dbb3c0641e91fb90911b5ffcf743fabf777f6972bef44` |
+| `packages/ui/src/voice/view.tsx` | `18214d25ca754216028aef7730f332472c5ea1dd53be75191615cacf51c7b71f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `01f0f5656f3e617be41b062f7aaa844f89f3cb6b96cbffba44beed79d636b94e` |
+| `services/device/src/brainoid_device/audio_service.py` | `a37d512ff938e5697ca5c0c5013f79d49811b8c6ca1e4b4e7e74686b549e0b3a` |
+| `services/device/src/brainoid_device/cloud_client.py` | `45d6db238765f52ee2c3ad3b91d2161596af2396ba628aa07936ec1e34c77148` |
+| `services/device/src/brainoid_device/local_api.py` | `8e4a7e48a2ecbe9047249825f1b17020cbfbf319953fd42a1f0aaf5322bf5c8b` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `36f98aec77fb33956211d4586208b9446b8ad990f2689523ac7c7f08471b5844` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `94276332f36dd1e570f8b7e3fb82f1c4d1683b2a1744e6f4f1f092e32183d375` |
+| `specs/openapi.yaml` | `965d206df5f32fef827d454f98eeeef5571f5879a5cb129578bad993f612d73b` |
+| `tests/test_device_audio.py` | `9a167a3c723b93a740fc3e42b23b625ffaf0f6084f99777ea8050d4c3dd5920d` |
+| `tests/test_device_snapshot.py` | `0413a7e4397b5e7157f53897bcdc7a5459e15abfa4afede2edb187a56d126974` |
+| `tests/test_ui_voice.mjs` | `c03d91e17436259dae880f57937ffd2374b428ab685ca2c4515faea864669e40` |
+| `tests/ui/chat_browser.mjs` | `409ba5de3b81c2c6be7431b0892f65981c78a54303145ebf979b1f952041f94f` |
+| `tests/ui/private_sessions_browser.mjs` | `f71bdc877cbe09615d548cce061408e2a04365e33b45408726d8743ce406dcf7` |
+| `tests/ui/voice_browser.mjs` | `2d2919ee80770af60d3ff37c74b68a9ed892d080fb9554a96c480be5c2174ace` |
+
+### R1固定候補の検証と引継ぎ
+
+- `python-route-fix`: 2026-10-29T15:06:16.158441+00:00〜2026-10-29T15:06:16.591569+00:00、exit0、counts `['Ran 1 test in 0.025s']`。source/index前後一致、R1全source一致 `False`、raw SHA-256 `353239c6a391a5fe2e900b988e30c68aa3a27170e16d3a962ba3592c634b44fa`。
+- `browser6`: 2026-10-29T15:06:13.324573+00:00〜2026-10-29T15:06:31.464142+00:00、exit0、counts `[]`。source/index前後一致、R1全source一致 `False`、raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057`。
+- `pre-freeze-types`: 2026-10-29T15:07:31.317362+00:00〜2026-10-29T15:07:35.260167+00:00、exit0、counts `[]`。source/index前後一致、R1全source一致 `True`、raw SHA-256 `c00d5153fc5fea44060c7e8ada19473a4cfd77c8a47fcc37691f482fc5456105`。
+- `pre-freeze-python`: 2026-10-29T15:07:33.194160+00:00〜2026-10-29T15:07:58.706624+00:00、exit0、counts `['Ran 59 tests in 23.081s']`。source/index前後一致、R1全source一致 `True`、raw SHA-256 `51166566a033c827d772b539a6141183652a575cd9546a446bdbe09079fabcd4`。
+- `browser7`: 2026-10-29T15:07:36.442604+00:00〜2026-10-29T15:07:57.404025+00:00、exit0、counts `[]`。source/index前後一致、R1全source一致 `True`、raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057`。
+- `freeze-r1`: 2026-10-29T15:08:18.186399+00:00〜2026-10-29T15:08:18.205625+00:00、exit0、counts `[]`。source/index前後一致、R1全source一致 `True`、raw SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+- 前回POST route失敗はLocalBoundary JSON許可一覧への追加漏れ。正規run UUIDのeventsとaudio-waitだけに既存bodyサイズ/timeout/origin保護を適用して修正し、認可負例を再実行。browser-finalのtimeoutは待機試験以前の録音→再生部分で、fixtureのspeech_idを誤ってaudio_chunk_idとしたもの。厳密validatorの拒否を確認しfixtureを修正。
+- browser7は両画面7phaseの独立状態行DOM/bbox、実bfcache pageshow.persisted、明示待機→新規割当、取消、private消去を含む。画像の目視と正式reviewは別工程。親が全846sourceと38変更pathsを固定。source集約SHA-256 `7a86e96e9fb64c485f55eda449c2537694b0846b88213fabf94f64d11038ed1d`。writerは編集停止、check/fulltestを同一sourceで開始。
+
+- R1固定sourceの `mise run check` 成功: 2026-10-29T15:09:06.465485+00:00〜2026-10-29T15:09:11.977969+00:00、exit0、raw SHA-256 `ba9ea19557bdc46e049060068258a7543b473d6ad50f4ed8d443c00b8f70ecfd`。親が全846source before=after=freeze、index前後不変、known descendant/listener残存0を照合。全testはwriter所有session32431で実行中。
+
+- 親のbrowser7目視でConfirming画像の独立状態行が欠けるように見えたが、同じ元PNGをdetail=originalで再表示し、接続/mute/private/発話先すべてを確認。reviewerの独立目視・state JSON bboxとも一致。この疑いは製品不具合として扱わない。原PNG SHA-256 `4fe36d805f966b66356f5efcb221cb6ac6903f84f418fa9774bfe4c06f0fc98b`。待機notice残留と送信中会話選択の境界はR1で別途検証中。
+
+- R1途中の独立probe報告: DeviceVoice.wait後waiting=false/playback=playingでも旧待機notice残留、Pi create_turn保留→入力会話Bへ変更→旧receipt解放後にbusy=trueが残り文字送信/録音開始がdisabledのまま。Node probe exit0で再現、`/tmp/ba-voice-05-review-r1-probes.mjs/.log`。最終review終了前のため回数/判定はまだ更新せず、writerのsource freezeを維持。
+
+- R1追加独立probe: daemon待機受理後の応答喪失→wait失敗表示→次audio pollでwaiting=trueを再採用→新規snapshotに対してevents:waitingを自動送信する経路を再現。`/tmp/ba-voice-05-review-r1-wait-failure.mjs/.log`、Node exit0。全38paths静的確認は終了、最終判定/closureは全suite終了後。writerはsource freezeを維持。
+
+- R1固定sourceの `timeout 1200 mise run test` 成功: 2026-10-29T15:09:30.192855+00:00〜2026-10-29T15:17:28.065748+00:00、exit0、Python1445/Skill18/Node608全件成功。raw SHA-256 `2c48208ef95ee59a3a1a52b215900779de5bdaf4f6a5c7a6af1c99f90a2e2151`。親が全846source before=after=freeze、index前後不変、known descendant/listener残存0を照合。writerはsession32431 exit0回収済み、source freeze維持。R1の再現済み3件が残るため完了/承認とはしない。
+
+### 独立レビュー R1 終了（2026-10-29T15:21:44.611186+00:00）
+
+- 担当 `/root/voice05_review_r1`、判定 **request_changes**。全38paths・全846source・HEAD/index raw/logical/flags一致を親も確認。要修正P2が3件、任意0。独立probe2本で3件を再現、全体check/test成功は未解消指摘の代替にしない。レビュー/検証/成果物編集終了、所有資源0。確認済みreview_rounds=1。
+- `report.md` SHA-256 `97f3a8eafb1a116543d86df251290973ace4c4a61dc553c3fc7d51cd52e8cad3`。
+- `result.json` SHA-256 `9cc194ca2d6d173b819d165352ed0fea8926f9469fa1ec2f41f201913f1da9fb`。
+- `closure.json` SHA-256 `c71deff1797e3ff0b21fd2781e04669cd004eb50770c6d75902366050f0c366e`。
+
+| 指摘 | 場所・影響 | 必須対応 |
+| --- | --- | --- |
+| R1-01 P2 | `apps/display/session/controller.ts:663` 送信待ち中の会話切替で busy を新しい選択へ持ち越す | busy/turnを現在のselectionに所有させ、chooseConversation/selectなど送信所有者を失効する経路で旧busyを解除する。旧receiptが新会話へ結果をpublishしない保証は維持する。保留応答の成功・失敗両方と切替後の文字/録音操作可能性を回帰検証する。 |
+| R1-02 P2 | `apps/display/voice/controller.ts:91` 待機を消費して再生が始まっても待機開始の案内が残る | 待機準備・待機中・消費・失効の案内を実状態と意図に結び付け、待機消費時に削除または適切な案内へ置換する。停止未確認等の永続すべき案内を無差別に消さず、noticeの所有状態を分ける。待機→再生→Idleで待機案内が残らないことを検証する。 |
+| R1-03 P2 | `apps/display/voice/controller.ts:192` 待機開始失敗後の状態pollが未確認の待機を再有効化する | 待機開始失敗/timeoutで旧daemon意図をstop/generationで失効させる。stop未確認でも、現在の明示操作で成功確認できていない待機をGET状態だけで再採用して自動attachしない。受理後応答喪失、遅延baseline、stop失敗、新しい明示waitの成功を区別して回帰検証する。 |
+
+- 元の実装担当へ3件を戻し、成功/失敗遅延receipt、wait応答喪失/timeout/stop失敗/新明示wait、待機→再生→Idleの回帰を追加する。最新差分全体は別の新規R2 reviewerで再確認する。
+
+### R1修正方針（実装中・未検証）
+
+- 元writerはselection更新時（chooseConversation/select/offline）に旧busyを解除する。待機は現在の明示要求の成功ackだけで確定し、GET pollから新意図を作らない。ack前pollも世代照合で拒否し、失敗時stopは同じ要求の所有時だけ送る。stop未確認でもpollから待機を復活させない。準備/待機noticeは所有種別で消費時に解除し、停止未確認案内を保持する方針。応答順序競合と新wait成功の回帰を追加中。
+
+### 独立レビュー ラウンド2 対象固定
+
+- 担当 `/root/voice05_review_r2`（新規独立context）。base commit: `3b6611bccb13fad1f946cd38c3bb305acab43cc5`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `8c305da53978fc143128841e7a06ff73f9f9230fc4819def1789d0d11b085be0` |
+| `apps/display/session/controller.ts` | `62837bb826866f161800765b095c5c5a171a639522606ed3e1e8c2c1723d2d64` |
+| `apps/display/session/view.tsx` | `746266a591541e16a971b775d4ff6a34175869f11a1318653682a878865b73b6` |
+| `apps/display/src/recovery/index.tsx` | `2feae313469f10a009ccdd5aa5f0a1c0d326accf276472f15628b05d9076c4cc` |
+| `apps/display/voice/controller.ts` | `0bd04ee4b6d1815a84496166fc4647392299c5fb27f3f0f9dbc23fc3603d5c51` |
+| `apps/mobile/calendar/preview.tsx` | `cfb5927fe969debde4ad526dd76d3371591665146748dc72ea70e1f58df834ea` |
+| `apps/mobile/platform/voice-fixture.ts` | `99b9734d39e8f065cdfd2158b71b3ed80e42fdde6f4639a361b143c0ea3d6d23` |
+| `apps/mobile/platform/voice.ts` | `c95c95338f9b7b2bbff8bf56a913c49394d47d193d0b6099ce14adfe0691d356` |
+| `apps/mobile/src/main.tsx` | `f9b1794d7d5ee3002215c01343329e43b09063f79d1c3f39f6baf1226167121f` |
+| `docs/04-interfaces.md` | `4139c621bf17885f799f98b6473095b237f5bf699fc139a41541416c36279ea8` |
+| `docs/device-audio.md` | `466b169aea8f8b5b0939764a15f973adbf2a725ff0d64b50f547e6729a5d02fe` |
+| `docs/mobile-audio.md` | `28374d6d1ebd71067f849c75f433c1c9a4e3bce54a998f19808baccf508df4a3` |
+| `docs/voice-ui.md` | `abc7318425dac236b0954120a443ee118fba10bbdf51b6f16a09df2d66e578f6` |
+| `mise.toml` | `153543510ff004ac7ceea50e47ae732e3e3c6b92c22d9695a2b5f5a8f77adc56` |
+| `packages/ui/package.json` | `0bc43867dca86ab31e524c8778b5bfeff33baa2e5fd871efe1b8652baa2e19c5` |
+| `packages/ui/src/chat/controller.ts` | `7772beee4c21b81ccb5336cdedfbb908b7638d8127d8c7563116244e34c517ad` |
+| `packages/ui/src/chat/events.ts` | `7b3df5096649c3ec6bf4aaa996c9b0cb5ce7ec7fde0c039b5d16fbb6b86df96b` |
+| `packages/ui/src/chat/fixture.ts` | `34e75204bca2dce83b248c80dfabec898aae857404b5091bd29d187b1a569b45` |
+| `packages/ui/src/chat/view.tsx` | `940317526da0d2355b5033a37e7a7ef0d57b977680408829151ee94a196dcc9e` |
+| `packages/ui/src/output-target/view.tsx` | `1a2540b514bd577a37cf6895af949e8942b55ffe857e7ea0540e306d83b3dd2f` |
+| `packages/ui/src/session-fake.tsx` | `e44940e5d2b977f724aeee92a8cf800cf11808f1f153090e1ae78eaf4f93df39` |
+| `packages/ui/src/session-view.tsx` | `640efab8c0486bd16c71a8c165d715e4c6dc4c48d058d2c733c2a84ccba9ae1b` |
+| `packages/ui/src/styles.css` | `909db79a14959c9c302987af8b37eb9ab393d3ac900a05e34ea85ee708370e4c` |
+| `packages/ui/src/voice/controller.ts` | `a0c12ca462d8d1fb339dbb3c0641e91fb90911b5ffcf743fabf777f6972bef44` |
+| `packages/ui/src/voice/view.tsx` | `18214d25ca754216028aef7730f332472c5ea1dd53be75191615cacf51c7b71f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `01f0f5656f3e617be41b062f7aaa844f89f3cb6b96cbffba44beed79d636b94e` |
+| `services/device/src/brainoid_device/audio_service.py` | `a37d512ff938e5697ca5c0c5013f79d49811b8c6ca1e4b4e7e74686b549e0b3a` |
+| `services/device/src/brainoid_device/cloud_client.py` | `45d6db238765f52ee2c3ad3b91d2161596af2396ba628aa07936ec1e34c77148` |
+| `services/device/src/brainoid_device/local_api.py` | `8e4a7e48a2ecbe9047249825f1b17020cbfbf319953fd42a1f0aaf5322bf5c8b` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `36f98aec77fb33956211d4586208b9446b8ad990f2689523ac7c7f08471b5844` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `94276332f36dd1e570f8b7e3fb82f1c4d1683b2a1744e6f4f1f092e32183d375` |
+| `specs/openapi.yaml` | `965d206df5f32fef827d454f98eeeef5571f5879a5cb129578bad993f612d73b` |
+| `tests/test_device_audio.py` | `9a167a3c723b93a740fc3e42b23b625ffaf0f6084f99777ea8050d4c3dd5920d` |
+| `tests/test_device_snapshot.py` | `0413a7e4397b5e7157f53897bcdc7a5459e15abfa4afede2edb187a56d126974` |
+| `tests/test_ui_voice.mjs` | `c3b4e482f91a11414f8fd142bb64ed6689d6ccc6348bdf5b4ff10528ab1e8bf1` |
+| `tests/ui/chat_browser.mjs` | `409ba5de3b81c2c6be7431b0892f65981c78a54303145ebf979b1f952041f94f` |
+| `tests/ui/private_sessions_browser.mjs` | `f71bdc877cbe09615d548cce061408e2a04365e33b45408726d8743ce406dcf7` |
+| `tests/ui/voice_browser.mjs` | `416053ea4133c7de863ba073355f2e834f659a818e3ed371dfc6392d9a604a09` |
+
+### R1修正後・R2固定候補の検証
+
+- `r1fix-targeted1`: 2026-10-29T15:26:35.337365+00:00〜2026-10-29T15:26:36.907604+00:00、`['mise', 'exec', '--', 'node', '--test', '--test-timeout=45000', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`、exit0、counts `['# tests 171', '# pass 171', '# fail 0']`。raw SHA-256 `321a80d068c128e6a35e1fc341808fe11983d6c955ef0513f24d0f4c1ecca840`。全846source before=after=R2freeze、index不変、known資源0を親照合。
+- `r1fix-types1`: 2026-10-29T15:26:38.485744+00:00〜2026-10-29T15:26:41.896574+00:00、`['mise', 'run', 'check:types']`、exit0、counts `[]`。raw SHA-256 `a21e38c7e7e2167413efdd123d34ae286f63ab9bce4d01086238b3174a14623c`。全846source before=after=R2freeze、index不変、known資源0を親照合。
+- `r1fix-browser1`: 2026-10-29T15:26:41.047593+00:00〜2026-10-29T15:27:07.387967+00:00、`['env', 'UI_ARTIFACTS=/tmp/ba-voice-05-writer-r1fix-browser1-artifacts', 'UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', 'mise', 'exec', '--', 'node', 'tests/ui/voice_browser.mjs']`、exit0、counts `[]`。raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057`。全846source before=after=R2freeze、index不変、known資源0を親照合。
+- R1で再現した3件に対し11件の回帰を追加、Node171件成功。browserでは待機消費時の案内消去と待機失敗/stop未確認時の非復活を確認。新freeze集約SHA-256 `c64bb64458cd8616a96aa1133e95899fde5ccf7235a31966478f7560efc1a6d8`、38paths全体を新規独立 `/root/voice05_review_r2` に渡した。最終承認は同一sourceのcheck/fulltestと独立再検証の終了後。
+
+- R2固定sourceの `mise run check` 成功: 2026-10-29T15:27:50.652855+00:00〜2026-10-29T15:27:55.749427+00:00、exit0、raw SHA-256 `071b51d2746acdbfdc7b11e302132d8ce74aaa1acd4cb8d70d5d237c453edf49`。親が全846source before=after=R2freeze、index不変、known資源0を照合。全testはwriter所有session6516で開始。
+
+- R2途中: 前回3件の独立10ケースは成功。新たにselect(future)の事前read中stop→遅いread成功→events:future POSTを再現（`/tmp/ba-voice-05-review-r2-future-stop.mjs/.json/.log`）。UI側の明示future意図を音声停止generationへ結び付ける境界不足として正式判定を待つ。reviewerのturnがmodel capacity errorで中断したため、同じ未完了R2をfollowupで再開。回数は最終closureまで増やさず、writerとsource freezeを維持。
+
+- R2固定sourceの `timeout 1200 mise run test` 成功: 2026-10-29T15:28:51.277450+00:00〜2026-10-29T15:36:50.932103+00:00、exit0、Python1445/Skill18/Node619全件成功。raw SHA-256 `9754ef89f0704b319f0be3b58e5a057fa72d6719655d13c2c2f8795d83b28b46`。親が全846source before=after=R2freeze、index前後不変、known descendant/listener残存0を照合。writer session6516 exit0回収済み。新指摘R2-01が残るため完了とはしない。
+
+### 独立レビュー R2 終了（2026-10-29T15:40:15.107429+00:00）
+
+- 担当 `/root/voice05_review_r2`、判定 **request_changes**。全38paths・全846source・HEAD/index raw/logical/flags一致を親も確認。R1-01/02/03は独立10ケースで解消確認。新要修正P2が1件、任意文言提案1件。レビュー/検証/成果物編集終了、所有資源0。途中capacity error後は同じ未完了R2を再開したため、確認済み回数は2。
+- `report.md` SHA-256 `e489754bfaa32059d7b5874ceee55e6cb86bd733478912b1e13b2dc570adc4e2`。
+- `result.json` SHA-256 `86ece4f9d76580433ac80ecdb92711f0f1d52d973015a398fc73ef57a3366a9e`。
+- `closure.json` SHA-256 `06a9e5c2dfbc40e795329cf959704b9f865738a503794fc0b61a86427168663d`。
+
+- **R2-01 P2** `apps/display/session/controller.ts:498`: future attach の事前取得中に停止しても、遅い応答が再生要求を再送する。明示attachを開始時の音声generation/取消signalに結び付け、旧stream終了待ち・canonical read・local session準備を含む全待機点の後に停止/新intentを検査する。停止済みattachからPOSTを送らず、新しい音声操作を停止/上書きしない。停止後でも文字の復元は可能にする。遅いcanonical取得の成功/失敗、停止、新録音/新wait、local session準備中の停止を回帰検証する。
+- R2-N1（任意）: 停止未確認案内の内部用語「音声意図」を利用者向けの表現へ。親はこの提案を採用し、同じ修正セットへ含める。機器停止を確認したと誤表示しない。
+- 元writerへ修正を戻し、新規独立R3で最新全差分を再確認する。
+
+### R2修正方針と追加回帰（検証前）
+
+- 明示speech selectは開始時voice generation/AbortSignalを取り、旧stream待ち・canonical read・POSTまで共有する。LocalSessionClientはbootstrap前後でabortを確認し、abortを無視する遅いmock応答でも実POST前で拒否する。通常文字streamはvoice signalへ結び付けず復元を維持する。
+- get_conversation/get_run成功/失敗×stop/新録音/新wait、旧stream待ち、実LocalSessionClient bootstrap中stop→speech POST0→文字GET復元の14ケースを追加し、対象/型/browserの検証へ進む。停止未確認文言も任意提案を採用して変更。
+
+### 独立レビュー ラウンド3 対象固定
+
+- 担当 `/root/voice05_review_r3`（新規独立context）。base commit: `3b6611bccb13fad1f946cd38c3bb305acab43cc5`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `56254c6dc280e27d36cc607c628cf74e0feb6e2722815902218cadecf04cb97c` |
+| `apps/display/session/controller.ts` | `20274e398ce73a62aeeaa7b3a43fe2ce59b98d2d7a0d459aeec2fb6e532a288a` |
+| `apps/display/session/view.tsx` | `746266a591541e16a971b775d4ff6a34175869f11a1318653682a878865b73b6` |
+| `apps/display/src/recovery/index.tsx` | `2feae313469f10a009ccdd5aa5f0a1c0d326accf276472f15628b05d9076c4cc` |
+| `apps/display/voice/controller.ts` | `c45cae2ee4e95af19b1f3d948292ac4540edcb7ec8666550989ea23085beb5d4` |
+| `apps/mobile/calendar/preview.tsx` | `cfb5927fe969debde4ad526dd76d3371591665146748dc72ea70e1f58df834ea` |
+| `apps/mobile/platform/voice-fixture.ts` | `99b9734d39e8f065cdfd2158b71b3ed80e42fdde6f4639a361b143c0ea3d6d23` |
+| `apps/mobile/platform/voice.ts` | `c95c95338f9b7b2bbff8bf56a913c49394d47d193d0b6099ce14adfe0691d356` |
+| `apps/mobile/src/main.tsx` | `f9b1794d7d5ee3002215c01343329e43b09063f79d1c3f39f6baf1226167121f` |
+| `docs/04-interfaces.md` | `4139c621bf17885f799f98b6473095b237f5bf699fc139a41541416c36279ea8` |
+| `docs/device-audio.md` | `466b169aea8f8b5b0939764a15f973adbf2a725ff0d64b50f547e6729a5d02fe` |
+| `docs/mobile-audio.md` | `28374d6d1ebd71067f849c75f433c1c9a4e3bce54a998f19808baccf508df4a3` |
+| `docs/voice-ui.md` | `010d4fc05b393c18f4b7f5fb96dcda665a4d45dbd942b4b6ce7c2cd9a3d2b76c` |
+| `mise.toml` | `153543510ff004ac7ceea50e47ae732e3e3c6b92c22d9695a2b5f5a8f77adc56` |
+| `packages/ui/package.json` | `0bc43867dca86ab31e524c8778b5bfeff33baa2e5fd871efe1b8652baa2e19c5` |
+| `packages/ui/src/chat/controller.ts` | `7772beee4c21b81ccb5336cdedfbb908b7638d8127d8c7563116244e34c517ad` |
+| `packages/ui/src/chat/events.ts` | `7b3df5096649c3ec6bf4aaa996c9b0cb5ce7ec7fde0c039b5d16fbb6b86df96b` |
+| `packages/ui/src/chat/fixture.ts` | `34e75204bca2dce83b248c80dfabec898aae857404b5091bd29d187b1a569b45` |
+| `packages/ui/src/chat/view.tsx` | `940317526da0d2355b5033a37e7a7ef0d57b977680408829151ee94a196dcc9e` |
+| `packages/ui/src/output-target/view.tsx` | `1a2540b514bd577a37cf6895af949e8942b55ffe857e7ea0540e306d83b3dd2f` |
+| `packages/ui/src/session-fake.tsx` | `e44940e5d2b977f724aeee92a8cf800cf11808f1f153090e1ae78eaf4f93df39` |
+| `packages/ui/src/session-view.tsx` | `640efab8c0486bd16c71a8c165d715e4c6dc4c48d058d2c733c2a84ccba9ae1b` |
+| `packages/ui/src/styles.css` | `909db79a14959c9c302987af8b37eb9ab393d3ac900a05e34ea85ee708370e4c` |
+| `packages/ui/src/voice/controller.ts` | `a0c12ca462d8d1fb339dbb3c0641e91fb90911b5ffcf743fabf777f6972bef44` |
+| `packages/ui/src/voice/view.tsx` | `18214d25ca754216028aef7730f332472c5ea1dd53be75191615cacf51c7b71f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `01f0f5656f3e617be41b062f7aaa844f89f3cb6b96cbffba44beed79d636b94e` |
+| `services/device/src/brainoid_device/audio_service.py` | `a37d512ff938e5697ca5c0c5013f79d49811b8c6ca1e4b4e7e74686b549e0b3a` |
+| `services/device/src/brainoid_device/cloud_client.py` | `45d6db238765f52ee2c3ad3b91d2161596af2396ba628aa07936ec1e34c77148` |
+| `services/device/src/brainoid_device/local_api.py` | `8e4a7e48a2ecbe9047249825f1b17020cbfbf319953fd42a1f0aaf5322bf5c8b` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `36f98aec77fb33956211d4586208b9446b8ad990f2689523ac7c7f08471b5844` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `94276332f36dd1e570f8b7e3fb82f1c4d1683b2a1744e6f4f1f092e32183d375` |
+| `specs/openapi.yaml` | `965d206df5f32fef827d454f98eeeef5571f5879a5cb129578bad993f612d73b` |
+| `tests/test_device_audio.py` | `9a167a3c723b93a740fc3e42b23b625ffaf0f6084f99777ea8050d4c3dd5920d` |
+| `tests/test_device_snapshot.py` | `0413a7e4397b5e7157f53897bcdc7a5459e15abfa4afede2edb187a56d126974` |
+| `tests/test_ui_voice.mjs` | `43ab18e485d308c6e6109936d076961fec7f88c3ef5714c1bccf44e06207611e` |
+| `tests/ui/chat_browser.mjs` | `409ba5de3b81c2c6be7431b0892f65981c78a54303145ebf979b1f952041f94f` |
+| `tests/ui/private_sessions_browser.mjs` | `f71bdc877cbe09615d548cce061408e2a04365e33b45408726d8743ce406dcf7` |
+| `tests/ui/voice_browser.mjs` | `d24397b032d86c59f65022db91f537b1ce746dc450fd1ed956378f476a39fd79` |
+
+### R2修正後・R3固定候補の検証
+
+- `r2fix-targeted1`: 2026-10-29T15:44:12.180164+00:00〜2026-10-29T15:44:13.870355+00:00、`['mise', 'exec', '--', 'node', '--test', '--test-timeout=45000', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`、exit0、counts `['# tests 185', '# pass 185', '# fail 0']`。raw SHA-256 `a271d66edbaaf95b780b6bf2d73cca2b8d4e4ea159c063166967fc45797074f1`。全846source before=after=R3freeze、index不変、known資源0を親照合。
+- `r2fix-types1`: 2026-10-29T15:44:07.266898+00:00〜2026-10-29T15:44:11.311697+00:00、`['mise', 'run', 'check:types']`、exit0、counts `[]`。raw SHA-256 `e120ec148c1588540476e1188901e14856dbaa873cc2a7abe81a43cb32893f84`。全846source before=after=R3freeze、index不変、known資源0を親照合。
+- `r2fix-browser1`: 2026-10-29T15:44:07.750994+00:00〜2026-10-29T15:44:34.891284+00:00、`['env', 'UI_ARTIFACTS=/tmp/ba-voice-05-writer-r2fix-browser1-artifacts', 'UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', 'mise', 'exec', '--', 'node', 'tests/ui/voice_browser.mjs']`、exit0、counts `[]`。raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057`。全846source before=after=R3freeze、index不変、known資源0を親照合。
+- 新規14ケースを含むNode185件、types/browser成功。新freeze集約SHA-256 `6f9033b2bdcccb10f65e26ce4b5ae0268ca8dc2a5c8e3681eadc5d49a8b8899c`。最新38paths全体を新規独立 `/root/voice05_review_r3` へ渡した。writer編集停止、同一source check/fullsuiteと並行。
+
+- R3固定sourceの `mise run check` 成功: 2026-10-29T15:45:53.216454+00:00〜2026-10-29T15:45:58.551415+00:00、exit0、raw SHA-256 `b574591c4f0f8033b198471add16e2726379692a9b69948e72eb337fe6ab0942`。親が全846source before=after=R3freeze、index不変、known資源0を照合。全testはwriter所有session86798で開始。
+
+- R3途中の独立検証: intent-probes29ケース（canonical取得の両段階×成功失敗×stop/new start/new wait/selection/offline/suspend、旧stream待ち、新futureと旧finally、実client bootstrap）とprior-probes10ケースが成功。最終approveではなく、全差分/全suite/closureを継続確認。
+- 独立 `intent-probes`: 2026-10-29T15:49:20.483479+00:00〜2026-10-29T15:49:20.748499+00:00、exit0、raw SHA-256 `d17534ceac429e31c5767add31db69abc30866e4a1683285e6429f72dc9f664b`、PID回収済み・listenerなし。
+- 独立 `prior-probes`: 2026-10-29T15:49:28.900019+00:00〜2026-10-29T15:49:29.064915+00:00、exit0、raw SHA-256 `827da98710acd13a3f1d1b67da05f11f886467ddb416866d010a0502461925ee`、PID回収済み・listenerなし。
+
+- R3追加独立probe: 同一snapshotの新候補に境界以前の遅延runと適格fresh runが並ぶと、先頭oldだけを試行し、state.runsへ全件を採用したことでfreshが次pollから既知扱いになり待機中のまま見落とされる。3pollでold1件のみ、fresh直接selectは同waitで成功する対照を確認。`/tmp/ba-voice-05-review-r3-mixed-assignments.mjs/.json/.log`、raw SHA-256 `79c9f357f798cc5b6c1b844163447eca6dca59f05fc5401a5b4d7e7b7801cad9`。最終判定前、source freeze維持。
+
+- R3固定sourceの `timeout 1200 mise run test` 成功: 2026-10-29T15:46:39.079532+00:00〜2026-10-29T15:54:32.550664+00:00、exit0、counts `['Ran 1445 tests in 435.714s', 'Ran 18 tests in 0.061s', '# tests 633', '# pass 633', '# fail 0']`。raw SHA-256 `ff5ce311e21dc2a9ffd430bb6ae94a22e593df8b17babc56b3f5643ad24a0288`。親が全846source before=after=R3freeze、index不変、known資源0を照合。混在割当候補の未解消指摘があるため完了とはしない。writer tool session exit回収を待つ。
+
+### 独立レビュー R3 終了（2026-10-29T16:01:19.008948+00:00）
+
+- 担当 `/root/voice05_review_r3`、判定 **request_changes**。全38paths・全846source・HEAD/index raw/logical/flags一致を親も確認。R1-01/02/03とR2-01は独立39ケースで解消確認、R2-N1文言提案も対応済み。新要修正P2が1件、任意0。レビュー/検証/成果物編集終了、所有資源0。確認済みreview_rounds=3。
+- `report.md` SHA-256 `3be94fb72fa5e7aa46ed87e3a0f68effda10528b4db76c47f4e3d147d290fcf8`。
+- `result.json` SHA-256 `d238ef6453926d4a6c9c3394a05ee764146cc8ca30ef8530e73d9a11968b06a8`。
+- `closure.json` SHA-256 `b048b6180e28e2f4e0fe880c7b574889925dfdbcdb158ceccb241249f7844437`。
+
+- **R3-01 P2** `apps/display/session/controller.ts:269`: 同じsnapshotの古い候補が拒否されると適格な新規runも待機対象から失われる。現在の成功確認済みwaitに候補の試行状態を結び付け、古い/不適格候補を拒否しても同一snapshot内の未試行の適格runへ進めるようにする。snapshotへ列挙された事実だけで候補を消費済みにしない。baseline/server時刻/認可条件を緩めず、単発消費、stop/session/selection/disconnect/期限による候補消去と旧応答が新waitへ影響しない保証を保つ。混在候補、複数適格候補の単発、先頭拒否中のstop/新waitを回帰検証する。
+- 実daemon対照: sandbox初回はCredentialStore所有者不一致によりfixture準備exit1（raw `ed19510c7d76e37527f5c600ba0dc490996ac75a1a0afca73276f184b1c95892`）、host再実行は旧候補拒否→同wait保持→fresh受理/単発消費を確認exit0（raw `8e672b32f83b10057166afcd67715c77c742fa77c9c59679b85a69ba14fda378`）。両者を分離保存・PID回収済み。
+- 元writerへ修正を戻し、新規独立R4で最新全差分を再確認する。
+
+### R3修正方針（実装中・未検証）
+
+- 確認済みwait generationに既知ID・未試行queue・試行回数・処理中候補を束縛し、各試行後にdaemon待機状態を再確認する。消費確認後は後続候補を破棄する。POST前の一時失敗は次候補を優先して上限付き再試行、POST後の不確定失敗は自動再送せず案内を残す方針。現在の割当だけを追加し、停止/session/selection/期限/新waitで旧候補を破棄。server境界・認可を緩めず、対象競合を回帰検証する。
+
+### 独立レビュー ラウンド4 対象固定
+
+- 担当 `/root/voice05_review_r4`（新規独立context）。base commit: `3b6611bccb13fad1f946cd38c3bb305acab43cc5`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `56254c6dc280e27d36cc607c628cf74e0feb6e2722815902218cadecf04cb97c` |
+| `apps/display/session/controller.ts` | `4a2b7acc4e1cc5da6e835e34558dbb5f288d117e98bc0d3c40e6005311f6dc7f` |
+| `apps/display/session/view.tsx` | `746266a591541e16a971b775d4ff6a34175869f11a1318653682a878865b73b6` |
+| `apps/display/src/recovery/index.tsx` | `2feae313469f10a009ccdd5aa5f0a1c0d326accf276472f15628b05d9076c4cc` |
+| `apps/display/voice/controller.ts` | `0ad8a3b8d12d1da4680ab5d0364fb8ae6dd868d1083f472d24bc066bb083fc7e` |
+| `apps/mobile/calendar/preview.tsx` | `cfb5927fe969debde4ad526dd76d3371591665146748dc72ea70e1f58df834ea` |
+| `apps/mobile/platform/voice-fixture.ts` | `99b9734d39e8f065cdfd2158b71b3ed80e42fdde6f4639a361b143c0ea3d6d23` |
+| `apps/mobile/platform/voice.ts` | `c95c95338f9b7b2bbff8bf56a913c49394d47d193d0b6099ce14adfe0691d356` |
+| `apps/mobile/src/main.tsx` | `f9b1794d7d5ee3002215c01343329e43b09063f79d1c3f39f6baf1226167121f` |
+| `docs/04-interfaces.md` | `4139c621bf17885f799f98b6473095b237f5bf699fc139a41541416c36279ea8` |
+| `docs/device-audio.md` | `466b169aea8f8b5b0939764a15f973adbf2a725ff0d64b50f547e6729a5d02fe` |
+| `docs/mobile-audio.md` | `28374d6d1ebd71067f849c75f433c1c9a4e3bce54a998f19808baccf508df4a3` |
+| `docs/voice-ui.md` | `7f03404af8e5c27270577fe3a689fe655f0e34cb6d6bd5506240fc7384f5cb2d` |
+| `mise.toml` | `153543510ff004ac7ceea50e47ae732e3e3c6b92c22d9695a2b5f5a8f77adc56` |
+| `packages/ui/package.json` | `0bc43867dca86ab31e524c8778b5bfeff33baa2e5fd871efe1b8652baa2e19c5` |
+| `packages/ui/src/chat/controller.ts` | `7772beee4c21b81ccb5336cdedfbb908b7638d8127d8c7563116244e34c517ad` |
+| `packages/ui/src/chat/events.ts` | `7b3df5096649c3ec6bf4aaa996c9b0cb5ce7ec7fde0c039b5d16fbb6b86df96b` |
+| `packages/ui/src/chat/fixture.ts` | `34e75204bca2dce83b248c80dfabec898aae857404b5091bd29d187b1a569b45` |
+| `packages/ui/src/chat/view.tsx` | `940317526da0d2355b5033a37e7a7ef0d57b977680408829151ee94a196dcc9e` |
+| `packages/ui/src/output-target/view.tsx` | `1a2540b514bd577a37cf6895af949e8942b55ffe857e7ea0540e306d83b3dd2f` |
+| `packages/ui/src/session-fake.tsx` | `e44940e5d2b977f724aeee92a8cf800cf11808f1f153090e1ae78eaf4f93df39` |
+| `packages/ui/src/session-view.tsx` | `640efab8c0486bd16c71a8c165d715e4c6dc4c48d058d2c733c2a84ccba9ae1b` |
+| `packages/ui/src/styles.css` | `909db79a14959c9c302987af8b37eb9ab393d3ac900a05e34ea85ee708370e4c` |
+| `packages/ui/src/voice/controller.ts` | `a0c12ca462d8d1fb339dbb3c0641e91fb90911b5ffcf743fabf777f6972bef44` |
+| `packages/ui/src/voice/view.tsx` | `18214d25ca754216028aef7730f332472c5ea1dd53be75191615cacf51c7b71f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `01f0f5656f3e617be41b062f7aaa844f89f3cb6b96cbffba44beed79d636b94e` |
+| `services/device/src/brainoid_device/audio_service.py` | `a37d512ff938e5697ca5c0c5013f79d49811b8c6ca1e4b4e7e74686b549e0b3a` |
+| `services/device/src/brainoid_device/cloud_client.py` | `45d6db238765f52ee2c3ad3b91d2161596af2396ba628aa07936ec1e34c77148` |
+| `services/device/src/brainoid_device/local_api.py` | `8e4a7e48a2ecbe9047249825f1b17020cbfbf319953fd42a1f0aaf5322bf5c8b` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `36f98aec77fb33956211d4586208b9446b8ad990f2689523ac7c7f08471b5844` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `94276332f36dd1e570f8b7e3fb82f1c4d1683b2a1744e6f4f1f092e32183d375` |
+| `specs/openapi.yaml` | `965d206df5f32fef827d454f98eeeef5571f5879a5cb129578bad993f612d73b` |
+| `tests/test_device_audio.py` | `9a167a3c723b93a740fc3e42b23b625ffaf0f6084f99777ea8050d4c3dd5920d` |
+| `tests/test_device_snapshot.py` | `0413a7e4397b5e7157f53897bcdc7a5459e15abfa4afede2edb187a56d126974` |
+| `tests/test_ui_voice.mjs` | `cb1066d472ffea1f16eaf3a2b6e3d8be24d582ea75c249b19685ba5e87c32ea1` |
+| `tests/ui/chat_browser.mjs` | `409ba5de3b81c2c6be7431b0892f65981c78a54303145ebf979b1f952041f94f` |
+| `tests/ui/private_sessions_browser.mjs` | `f71bdc877cbe09615d548cce061408e2a04365e33b45408726d8743ce406dcf7` |
+| `tests/ui/voice_browser.mjs` | `29e6d2c3c1ea02661bcf990bd3ed053a4ca19f5a931dc9140ff77a0c2fd83c18` |
+
+### R3修正後・R4固定候補の保存証跡から再開
+
+- 2026-10-30の継続指示後、保存済みhandoff/closureと実sourceを照合。writerは前日16:10:25Zにfreezeし全検証を完了済みだったため再実装・全suite重複実行は行わず、R4独立レビューへ進む。
+- `r3fix-targeted1`: 2026-10-29T16:09:17.258503+00:00〜2026-10-29T16:09:19.048228+00:00、`['mise', 'exec', '--', 'node', '--test', '--test-timeout=45000', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`、exit0、counts `['# tests 198', '# pass 198', '# fail 0']`。raw SHA-256 `c209d1382e8c19bf41226f8866ca92967d6b35b372ae065420c3a6fc3c1f5f34`。全846source before=after=R4freeze、index不変、known資源0を親照合。
+- `r3fix-types1`: 2026-10-29T16:09:18.912355+00:00〜2026-10-29T16:09:22.456463+00:00、`['mise', 'run', 'check:types']`、exit0、counts `[]`。raw SHA-256 `b4f6def6e296e61549255531831eff86522e042c5bb34941e04d093c4c1574c4`。全846source before=after=R4freeze、index不変、known資源0を親照合。
+- `r3fix-browser1`: 2026-10-29T16:09:15.037283+00:00〜2026-10-29T16:09:41.273988+00:00、`['env', 'UI_ARTIFACTS=/tmp/ba-voice-05-writer-r3fix-browser1-artifacts', 'UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', 'mise', 'exec', '--', 'node', 'tests/ui/voice_browser.mjs']`、exit0、counts `[]`。raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057`。全846source before=after=R4freeze、index不変、known資源0を親照合。
+- `r3fix-final-check`: 2026-10-29T16:10:40.665448+00:00〜2026-10-29T16:10:45.527090+00:00、`['mise', 'run', 'check']`、exit0、counts `[]`。raw SHA-256 `9c3c8dc43a098cd4de93cfc00b73165502c6cc5223e614f3534943edda4be337`。全846source before=after=R4freeze、index不変、known資源0を親照合。
+- `r3fix-final-test`: 2026-10-29T16:11:37.427117+00:00〜2026-10-29T16:19:22.192561+00:00、`['timeout', '1200', 'mise', 'run', 'test']`、exit0、counts `['Ran 1445 tests in 428.116s', 'Ran 18 tests in 0.060s', '# tests 646', '# pass 646', '# fail 0']`。raw SHA-256 `af35f122b7b3c45e985a98831ae823284533a56e8567fa6f8986b7645bed400f`。全846source before=after=R4freeze、index不変、known資源0を親照合。
+- writer host closure:430 PID/birth残存0、source846=freeze、sessions21396/2614終了。closure SHA-256 `11c763e78551ba6de8e34b0ea95f3762e9bb9bc6f96c7bda0d82216f85829a13`。
+- R4集約 `5ed7bc4ff34fc58d7f19ea1285b66071cac6517daea1ae991c74500a8750914c`、38paths全体を新規 `/root/voice05_review_r4` へ。音声status取得の一時失敗後のwait/候補queue再採用は未検証の懸念として同reviewで独立確認する。
+
+- 再開時writer監査（2026-10-30T06:38:35Z）: 製品編集なし、846source/HEAD/index=R4freeze、全5検証raw/source/index再照合。host同namespaceで対象検証の既知428 PID/birth生存0/listener0、既存sessions62235/77975/97863/21396/2614回収済み、未回収なし。`/tmp/ba-voice-05-writer-r3fix-resume-verification-20261030.json` SHA-256 `7b3e28c3f355d08230a48b12d16852fff16a4591e913e8a8e4963278084b2c64`。writerターン終了、freeze維持。
+
+- R4途中の独立queue probe: 通常mixedを含む14受入ケース成功。一方、audio status GET一時失敗でwaiting=false→候補queue消去→成功GETでwaitingGenerationからtrueへ戻ると、既知state.runsへ再基準化され未試行freshを取りこぼす2ケースを再現。同じwaitのfresh直接selectは成功。`/tmp/ba-voice-05-review-r4-queue-probes.mjs/.json/.log`、raw SHA-256 `84d70f5822ec4bba31ec12fc04e4db8ca5a25b0b5f18c0aba64f6208f15feee8`。最終判定/全scope/closure待ち、writer freeze維持。
+
+### 独立レビュー R4 終了（2026-10-30T06:47:22.265322+00:00）
+
+- 担当 `/root/voice05_review_r4`、判定 **request_changes**。全38paths・全846source・HEAD/index raw/logical/flags一致を親も確認。以前の停止/取消/通常mixedは独立受入53ケースで解消確認。新要修正P2が1件（独立2順序で再現）、任意0。レビュー/検証/成果物編集終了、所有資源0。確認済みreview_rounds=4。
+- `report.md` SHA-256 `3eca23a1968d145fee2d114dc0c6f866e58e21a192954adab3842f2747af56c7`。
+- `result.json` SHA-256 `e2538ee8b99c6885ee1cff6d5dcf1e670bd7d8db34f5555042e093d2bb15fd25`。
+- `closure.json` SHA-256 `fda1700d631d7b648412ddeb152138522bdb0d7884a3c38170ed94a59e84568c`。
+
+- **R4-01 P2** `apps/display/session/controller.ts:167`: 一時的なaudio status取得失敗で未試行候補を失い、成功pollで待機だけが復帰する。成功確認済みwaitと候補queue/known/attempt状態の寿命を一貫させる。status不明を一時停止として扱うならqueueを保持し、同じ有効waitの再確認後に未試行候補だけを再開する。取得失敗を意図失効として扱うならwaitingGeneration/daemon待機も失効させ、明示再待機が必要な状態と案内を保持する。現在のrunsを新たなbaselineへ黙って置き換えない。失敗前後・active候補中・新wait/stop競合で、単発消費、POST後の不確定な要求の非再送、旧wait/候補の非復活を回帰検証する。
+- 元writerへ修正を戻し、初回候補前/処理中/処理後のstatus失敗・成功とstop/newwaitを含めて再検証する。新規独立R5で最新全差分を確認する。
+
+### R4修正方針（実装中・未検証）
+
+- writerはstatus取得不明となった成功確認済みwaitを、所有generation付きstopで明示失効し、再待機を必要とする方針を選択。status DTOに同じdaemon waitを再確認するIDがなく、既存の切断時失効と整合するため。waitingGeneration/候補queueを同時に失効、GET成功だけで再採用せず、文字入力・接続確認・再待機の案内を保持する。
+- 初回候補収集前/active中/拒否後/消費後と、旧poll/旧stop/newwaitの競合を検証する。親は旧stopがlocal-session bootstrap待ち後に新waitへ遅い実POSTを送らない境界も確認対象へ明示した。
+
+- R4修正先行検証（freeze前） `voice-pre1`: 2026-10-30T06:54:15.842292+00:00〜2026-10-30T06:54:23.931979+00:00、`['mise', 'exec', '--', 'node', '--test', '--test-timeout=45000', '--test-reporter=tap', 'tests/test_ui_voice.mjs']`、exit0、counts `['# tests 82', '# pass 82', '# fail 0']`。source/index前後一致、raw SHA-256 `9d2474c26dc3aadfd9e6a4ee59928fe582872cca6438f55beb0b1b0a6ae69528`。既存56＋新26の82ケース成功。status取得失敗各段階・stop成功/失敗・旧poll・各失効・文字送信、実LocalSessionClient保留bootstrapと5秒期限の旧stopが新wait後POSTしないことを含む。browser等は編集中のため最終固定候補の受入証拠とは分ける。
+
+### 独立レビュー ラウンド5 対象固定
+
+- 担当 `/root/voice05_review_r5`（新規独立context）。base commit: `3b6611bccb13fad1f946cd38c3bb305acab43cc5`。
+- 未追跡を含む最新全38files、親台帳/logのみ除外。
+
+| ファイル | SHA-256（削除時はDELETED） |
+| --- | --- |
+| `apps/display/session/client.ts` | `56254c6dc280e27d36cc607c628cf74e0feb6e2722815902218cadecf04cb97c` |
+| `apps/display/session/controller.ts` | `4a2b7acc4e1cc5da6e835e34558dbb5f288d117e98bc0d3c40e6005311f6dc7f` |
+| `apps/display/session/view.tsx` | `746266a591541e16a971b775d4ff6a34175869f11a1318653682a878865b73b6` |
+| `apps/display/src/recovery/index.tsx` | `2feae313469f10a009ccdd5aa5f0a1c0d326accf276472f15628b05d9076c4cc` |
+| `apps/display/voice/controller.ts` | `c8c27ef663ed7d64350fc79e5d378d5a4d075bfb0286aaf0880cb6236dd8f4e0` |
+| `apps/mobile/calendar/preview.tsx` | `cfb5927fe969debde4ad526dd76d3371591665146748dc72ea70e1f58df834ea` |
+| `apps/mobile/platform/voice-fixture.ts` | `99b9734d39e8f065cdfd2158b71b3ed80e42fdde6f4639a361b143c0ea3d6d23` |
+| `apps/mobile/platform/voice.ts` | `c95c95338f9b7b2bbff8bf56a913c49394d47d193d0b6099ce14adfe0691d356` |
+| `apps/mobile/src/main.tsx` | `f9b1794d7d5ee3002215c01343329e43b09063f79d1c3f39f6baf1226167121f` |
+| `docs/04-interfaces.md` | `4139c621bf17885f799f98b6473095b237f5bf699fc139a41541416c36279ea8` |
+| `docs/device-audio.md` | `466b169aea8f8b5b0939764a15f973adbf2a725ff0d64b50f547e6729a5d02fe` |
+| `docs/mobile-audio.md` | `28374d6d1ebd71067f849c75f433c1c9a4e3bce54a998f19808baccf508df4a3` |
+| `docs/voice-ui.md` | `52206bd930ca158cd9998541d4dcb79446b30295b99b03e66344928de025c0cf` |
+| `mise.toml` | `153543510ff004ac7ceea50e47ae732e3e3c6b92c22d9695a2b5f5a8f77adc56` |
+| `packages/ui/package.json` | `0bc43867dca86ab31e524c8778b5bfeff33baa2e5fd871efe1b8652baa2e19c5` |
+| `packages/ui/src/chat/controller.ts` | `7772beee4c21b81ccb5336cdedfbb908b7638d8127d8c7563116244e34c517ad` |
+| `packages/ui/src/chat/events.ts` | `7b3df5096649c3ec6bf4aaa996c9b0cb5ce7ec7fde0c039b5d16fbb6b86df96b` |
+| `packages/ui/src/chat/fixture.ts` | `34e75204bca2dce83b248c80dfabec898aae857404b5091bd29d187b1a569b45` |
+| `packages/ui/src/chat/view.tsx` | `940317526da0d2355b5033a37e7a7ef0d57b977680408829151ee94a196dcc9e` |
+| `packages/ui/src/output-target/view.tsx` | `1a2540b514bd577a37cf6895af949e8942b55ffe857e7ea0540e306d83b3dd2f` |
+| `packages/ui/src/session-fake.tsx` | `e44940e5d2b977f724aeee92a8cf800cf11808f1f153090e1ae78eaf4f93df39` |
+| `packages/ui/src/session-view.tsx` | `640efab8c0486bd16c71a8c165d715e4c6dc4c48d058d2c733c2a84ccba9ae1b` |
+| `packages/ui/src/styles.css` | `909db79a14959c9c302987af8b37eb9ab393d3ac900a05e34ea85ee708370e4c` |
+| `packages/ui/src/voice/controller.ts` | `a0c12ca462d8d1fb339dbb3c0641e91fb90911b5ffcf743fabf777f6972bef44` |
+| `packages/ui/src/voice/view.tsx` | `18214d25ca754216028aef7730f332472c5ea1dd53be75191615cacf51c7b71f` |
+| `services/api/src/brainoid_api/routes/devices.py` | `01f0f5656f3e617be41b062f7aaa844f89f3cb6b96cbffba44beed79d636b94e` |
+| `services/device/src/brainoid_device/audio_service.py` | `a37d512ff938e5697ca5c0c5013f79d49811b8c6ca1e4b4e7e74686b549e0b3a` |
+| `services/device/src/brainoid_device/cloud_client.py` | `45d6db238765f52ee2c3ad3b91d2161596af2396ba628aa07936ec1e34c77148` |
+| `services/device/src/brainoid_device/local_api.py` | `8e4a7e48a2ecbe9047249825f1b17020cbfbf319953fd42a1f0aaf5322bf5c8b` |
+| `services/device/src/brainoid_device/snapshot_sync.py` | `36f98aec77fb33956211d4586208b9446b8ad990f2689523ac7c7f08471b5844` |
+| `services/device/src/brainoid_device/ui_bridge.py` | `94276332f36dd1e570f8b7e3fb82f1c4d1683b2a1744e6f4f1f092e32183d375` |
+| `specs/openapi.yaml` | `965d206df5f32fef827d454f98eeeef5571f5879a5cb129578bad993f612d73b` |
+| `tests/test_device_audio.py` | `9a167a3c723b93a740fc3e42b23b625ffaf0f6084f99777ea8050d4c3dd5920d` |
+| `tests/test_device_snapshot.py` | `0413a7e4397b5e7157f53897bcdc7a5459e15abfa4afede2edb187a56d126974` |
+| `tests/test_ui_voice.mjs` | `a0485f234bf9a665f2381e0e7e30d637bbfa0293f63f95b9ac4168c421861a65` |
+| `tests/ui/chat_browser.mjs` | `409ba5de3b81c2c6be7431b0892f65981c78a54303145ebf979b1f952041f94f` |
+| `tests/ui/private_sessions_browser.mjs` | `f71bdc877cbe09615d548cce061408e2a04365e33b45408726d8743ce406dcf7` |
+| `tests/ui/voice_browser.mjs` | `225b8753ed0367961a92d801e9333225877d139f92c9fef3ee1cc7556162975a` |
+
+### R4修正後・R5固定候補の検証
+
+- `r4fix-targeted1`: 2026-10-30T06:56:15.005777+00:00〜2026-10-30T06:56:22.777903+00:00、`['mise', 'exec', '--', 'node', '--test', '--test-timeout=45000', '--test-reporter=tap', 'tests/test_ui_voice.mjs', 'tests/test_ui_chat.mjs', 'tests/test_ui_private_sessions.mjs', 'tests/test_mobile_audio.mjs']`、exit0、counts `['# tests 224', '# pass 224', '# fail 0']`。raw SHA-256 `b0c806ce7866f19415871afb5c4bb280d7eba1f54afc6f0bcfda767b7d1d0499`。全846source before=after=R5freeze、index不変、known資源0を親照合。
+- `r4fix-types1`: 2026-10-30T06:56:18.091379+00:00〜2026-10-30T06:56:25.598494+00:00、`['mise', 'run', 'check:types']`、exit0、counts `[]`。raw SHA-256 `c00d5153fc5fea44060c7e8ada19473a4cfd77c8a47fcc37691f482fc5456105`。全846source before=after=R5freeze、index不変、known資源0を親照合。
+- `r4fix-browser1`: 2026-10-30T06:56:19.063887+00:00〜2026-10-30T06:57:02.835907+00:00、`['env', 'UI_ARTIFACTS=/tmp/ba-voice-05-writer-r4fix-browser1-artifacts', 'UI_CHROMIUM=/home/takaki/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome', 'mise', 'exec', '--', 'node', 'tests/ui/voice_browser.mjs']`、exit0、counts `[]`。raw SHA-256 `9cf4522aad488f0dbd05eab66503236480b3efe8a22b8da902367a63afd65057`。全846source before=after=R5freeze、index不変、known資源0を親照合。
+- 新26ケースを含むNode224件、types/browser成功。初回候補前/active/拒否後/消費前後のstatus失敗、明示wait失効、stop成功/未確認、新wait、local bootstrapの旧stop待ち/5秒期限を確認。新freeze集約 `87a0f6d71c2fa7bdba5a420b78f283a3ee6352f0f14566e2557db696676c1fac`、38paths全体を新規 `/root/voice05_review_r5` へ。writer編集停止、check/fullsuiteは同sourceで並行。
+
+- R5固定sourceの `mise run check` 成功: 2026-10-30T06:58:11.038989+00:00〜2026-10-30T06:58:17.307942+00:00、exit0、raw SHA-256 `1c7e73b4f39d4f03ba34bb345e22e9aa1d9bc343eb2ec3e8af984a42dd5dc46e`。親が全846source before=after=R5freeze、index不変、known資源0を照合。全testはwriter所有session89004で開始。親も新status-failed-wait-retired原PNGの復旧案内を目視。
+
+- R5途中の独立検証: 前回受入53＋新規status/stop競合13の計66ケース成功、現時点の要修正指摘なし。最終判定は全体suite/証跡/closure後。
+- 独立 `queue-probes`: 2026-10-30T07:01:27.430675+00:00〜2026-10-30T07:01:28.535239+00:00、exit0、raw SHA-256 `f08d7387b4718feac894c716d423c9f445d65187b2a7f6da2942837d647010c6`、PID回収済み・listenerなし。
+- 独立 `intent-probes`: 2026-10-30T07:01:27.481570+00:00〜2026-10-30T07:01:27.959489+00:00、exit0、raw SHA-256 `d17534ceac429e31c5767add31db69abc30866e4a1683285e6429f72dc9f664b`、PID回収済み・listenerなし。
+- 独立 `prior-probes`: 2026-10-30T07:01:27.518692+00:00〜2026-10-30T07:01:27.846048+00:00、exit0、raw SHA-256 `827da98710acd13a3f1d1b67da05f11f886467ddb416866d010a0502461925ee`、PID回収済み・listenerなし。
+- 独立 `status-probes`: 2026-10-30T07:01:20.585596+00:00〜2026-10-30T07:01:21.469607+00:00、exit0、raw SHA-256 `95e789f9d1afe9a36cca3aadd7739a96c11c03c1b5a1b5f442c419b6d76ca2fd`、PID回収済み・listenerなし。
+
+- R5固定sourceの `timeout 1200 mise run test` 成功: 2026-10-30T06:59:14.320883+00:00〜2026-10-30T07:14:25.006286+00:00、exit0、Python1445/Skill18/Node672全件成功、Node取消/skip0。raw SHA-256 `b082a8f6b7a267b61da5057c4a6208ed28eaa20b2d6431862d4bfcd29cd21c1d`。親が全846source before=after=R5freeze、index不変、known資源0を照合。writer session89004 exit0回収済み、製品freeze維持。writer最終closure SHA-256 `eed172be4d770d80ea7a8a4c59bd14904bc0f82bffb3620e195ecf02dd5553f1`。
+
+### R5独立レビュー完了
+
+- 新規担当 `/root/voice05_review_r5`、2026-10-30T07:18:07.618590+00:00、全38パスを確認し `approve`。要修正0・任意提案0。R1-01/02/03、R2-01、R3-01、R4-01は解消、R2-N1は採用。独立66ケース成功。全846source・HEAD・indexの一致、writer/reviewer所有資源の残留0を確認。
+- `/tmp/ba-voice-05-review-r5-report.md` SHA-256 `e78b9b09e6e6d744df39f748b2d690f0cdcde23415766c55e7d950f4f6afc066`。
+- `/tmp/ba-voice-05-review-r5-result.json` SHA-256 `d52ad4564f22e232a41aeda692a71e772b6b7fb2148f3fab5e640051a7ea922b`。
+- `/tmp/ba-voice-05-review-r5-closure.json` SHA-256 `31f29d926811b8cd039d008b1b9d4da022cc868b97afb297874a42053a396f5c`。
+- ローカル実装・fake/native bridge・実entry browserの範囲で承認。実SDK・実機・実provider・公開配備は未実施の公開前必須条件として維持。
+
+### BA-VOICE-05完了
+
+- スマホ/Piの実entryへ録音・明示送信・STT・speech turn・再生を接続。7状態、接続/mute/private/発話先、読み上げ停止とrun/command取消、文字fallbackを分離して表示。
+- Piの手動future attachと60秒・次の1件の明示待機を実装。canonical認可・完全snapshot・server時刻境界で割当を検証し、世代ごとの候補列挙と単発消費を管理。status取得失敗では待機を失効し、停止試行の終了または中止後に明示再待機を可能にする。
+- 最終検証: check/types、対象Node224、実entry browser、全体Python1445/Skill18/Node672成功。独立レビュー5回、最終approve、未解決要修正0。
+- mobile明示gateとPi既定disabledを維持。実SDK build・実マイク/スピーカー・実機停止時間・実provider/課金/日本語品質・配備は公開前必須条件として未実施。実環境変更/push/PR作成なし。
+- 実装コミット `45a57142af32db4c8153b39878b8d9f8be1706bc`。承認済み38パスとcommit内容一致。台帳・ログ更新後の親checkを次に実行する。
+
+- 完了台帳更新後の親 `mise run check` 成功（2026-10-30T07:27:11.020101+00:00〜2026-10-30T07:27:18.276242+00:00、exit0）。raw SHA-256 `8f88cc6219087f001936d1c60be188fd531624f3a96aa53a6b3ec439b3b19dd3`。全846sourceはR5freezeと一致、index不変、所有process/listener残留0、session76050回収済み。
