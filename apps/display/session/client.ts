@@ -29,7 +29,9 @@ export class LocalSessionClient {
     await this.bootstrap;
   }
   private async request(path: string, signal: AbortSignal, body?: object, stop = false) {
+    signal.throwIfAborted();
     await this.session(signal);
+    signal.throwIfAborted();
     const response = await this.transport(path, {
       method: body || stop ? "POST" : "GET",
       credentials: "same-origin",
@@ -58,20 +60,49 @@ export class LocalSessionClient {
   stop(id: string, signal: AbortSignal) {
     return this.request(`/local/cloud/private-sessions/${id}/stop`, signal, undefined, true);
   }
+  audio(signal: AbortSignal, body?: object) {
+    return this.request("/local/audio", signal, body, body !== undefined);
+  }
+  diagnostics(signal: AbortSignal) {
+    return this.request("/local/diagnostics", signal);
+  }
+  audioDevices(signal: AbortSignal) {
+    return this.request("/local/audio/devices", signal);
+  }
+  waitForSpeech(session: string | undefined, signal: AbortSignal) {
+    return this.request(
+      "/local/cloud/audio-wait",
+      signal,
+      session ? { private_session_id: session } : {},
+    );
+  }
   async events(
     id: string,
     session: string | undefined,
     signal: AbortSignal,
     consume: (kind: string, value: unknown) => void | Promise<void>,
+    speech?: "future" | "waiting",
   ) {
+    signal.throwIfAborted();
     await this.session(signal);
+    signal.throwIfAborted();
     const response = await this.transport(`/local/cloud/runs/${id}/events`, {
+      method: speech ? "POST" : "GET",
       credentials: "same-origin",
       cache: "no-store",
       redirect: "error",
       signal,
+      ...(speech
+        ? {
+            body: JSON.stringify({
+              mode: speech,
+              ...(session ? { private_session_id: session } : {}),
+            }),
+          }
+        : {}),
       headers: {
         Accept: "text/event-stream",
+        ...(speech ? { "Content-Type": "application/json", "X-CSRF-Token": this.csrf } : {}),
         ...(session ? { "X-Private-Session": session } : {}),
       },
     });

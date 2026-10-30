@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 from collections.abc import AsyncIterator, Callable
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import urlencode
 
@@ -17,7 +18,7 @@ from brainoid_runs.models import (
     RunAccepted,
     TurnCreate,
 )
-from pydantic import Field, TypeAdapter, ValidationError
+from pydantic import ConfigDict, Field, TypeAdapter, ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
@@ -70,6 +71,35 @@ class GetRun(Context):
     run_id: ResourceId
 
 
+class CommandStatus(Record):
+    """A public status projection; never forward unvalidated cloud response fields."""
+
+    model_config = ConfigDict(extra="ignore", strict=True)
+    id: ResourceId
+    tenant_id: ResourceId
+    status: Literal[
+        "queued",
+        "delivered",
+        "accepted",
+        "running",
+        "succeeded",
+        "failed",
+        "expired",
+        "cancelled",
+        "outcome_unknown",
+    ]
+
+
+class CommandOperation(Context):
+    operation: Literal["get_command", "cancel_command"]
+    command_id: ResourceId
+    operation_id: ResourceId | None = None
+
+
+class SpeechListen(Context):
+    mode: Literal["future", "waiting"]
+
+
 class CancelRun(Context):
     operation: Literal["cancel_run"]
     operation_id: ResourceId
@@ -78,7 +108,13 @@ class CancelRun(Context):
 
 Operation = TypeAdapter(
     Annotated[
-        ListConversations | GetConversation | CreateConversation | CreateTurn | GetRun | CancelRun,
+        ListConversations
+        | GetConversation
+        | CreateConversation
+        | CreateTurn
+        | GetRun
+        | CancelRun
+        | CommandOperation,
         Field(discriminator="operation"),
     ]
 )
@@ -191,6 +227,12 @@ class UIBridge:
         elif isinstance(operation, CreateConversation):
             path, model, expected = root + "/conversations", Conversation, 201
             body = operation.conversation.model_dump(mode="json")
+        elif isinstance(operation, CommandOperation):
+            path, model = root + f"/commands/{operation.command_id}", CommandStatus
+            if operation.operation == "cancel_command":
+                if operation.operation_id is None:
+                    raise CloudError("invalid_operation", 400)
+                path, body, kind = path + ":cancel", {}, "cancel"
         elif isinstance(operation, CreateTurn):
             path, model, kind, expected = (
                 root + f"/conversations/{operation.conversation_id}/turns",
@@ -273,6 +315,8 @@ class UIBridge:
             # Ignore remote navigation paths, construct only canonical local/API paths.
             result.pop("events_path", None)
             result.pop("status_path", None)
+        if isinstance(operation, CommandOperation) and result["id"] != operation.command_id:
+            raise CloudError("invalid_cloud_response", 502)
         client.check()
         return result
 
@@ -322,8 +366,116 @@ class UIBridge:
             "play_speech": False,
         }
 
+    async def wait_for_speech(self, owner: str, session: ResourceId | None) -> dict[str, Any]:
+        audio, recovery = self.audio, self.client.recovery
+        if audio is None or recovery is None or audio.output_device is None:
+            raise CloudError("audio_device_required", 409)
+        audio.clear()
+        intent = audio.generation
+        check = self.operation_publication(session)
+        value, publication = await recovery.publication()
+        publication()
+        if not value["ready"] or not value["snapshot"]:
+            raise CloudError("snapshot_unavailable", 503)
+        baseline = frozenset(item["run_id"] for item in value["snapshot"]["assigned_runs"])
+        # This timestamp belongs to this complete snapshot validation response.
+        # Never compare cloud creation timestamps to an unsynchronised Pi clock.
+        check()
+        publication()
+        observed = recovery.observed_at
+        if audio.generation != intent or observed is None:
+            raise CloudError("audio_wait_unavailable", 409)
+        audio.bind(owner, session, 60)
+        audio.waiting = (baseline, observed)
+        return {"waiting": True}
+
+    async def attach_speech(
+        self, run_id: ResourceId, session: ResourceId | None, owner: str, intent: int, mode: str
+    ) -> None:
+        audio, recovery = self.audio, self.client.recovery
+        if audio is None or recovery is None or audio.output_device is None:
+            raise CloudError("audio_device_required", 409)
+        check = self.operation_publication(session)
+        value, publication = await recovery.publication()
+        publication()
+        state = value.get("snapshot")
+        assignment = (
+            next((item for item in state["assigned_runs"] if item["run_id"] == run_id), None)
+            if state
+            else None
+        )
+        if (
+            not value["ready"]
+            or assignment is None
+            or assignment["output_mode"] != "speech"
+            or assignment.get("private_session_id") != session
+        ):
+            raise CloudError("audio_assignment_required", 403)
+        run = await self.operation(
+            GetRun(operation="get_run", run_id=run_id, private_session_id=session)
+        )
+        conversation = await self.operation(
+            GetConversation(
+                operation="get_conversation",
+                conversation_id=ResourceId(assignment["conversation_id"]),
+                private_session_id=session,
+            )
+        )
+        check()
+        publication()
+        if audio.generation != intent or not self.sessions.valid(owner):
+            raise CloudError("audio_context_changed", 409)
+        assert state is not None
+        private = state.get("active_private_session")
+        if (
+            run["conversation_id"] != assignment["conversation_id"]
+            or conversation["tenant_id"] != state["tenant_id"]
+            or (
+                conversation["visibility"] == "private"
+                and (
+                    not private
+                    or private["id"] != session
+                    or conversation.get("owner_user_id") != private["user_id"]
+                    or conversation["display_policy"] != "authenticated_session"
+                )
+            )
+            or (
+                conversation["visibility"] == "shared"
+                and conversation["display_policy"] != "shared_display"
+            )
+        ):
+            raise CloudError("audio_assignment_required", 403)
+        if mode == "waiting":
+            binding, waiting = audio.binding, audio.waiting
+            if (
+                binding is None
+                or binding.owner != owner
+                or binding.session != session
+                or waiting is None
+            ):
+                raise CloudError("audio_context_changed", 409)
+            audio.check(binding)
+            if (
+                run_id in waiting[0]
+                or datetime.fromisoformat(run["created_at"]).timestamp() <= waiting[1]
+            ):
+                raise CloudError("audio_old_assignment", 409)
+            if run["status"] in {"failed", "cancelled"}:
+                raise CloudError("audio_run_ended", 409)
+            audio.begin_run(run_id, session, owner)
+        else:
+            if run["status"] not in {"queued", "running", "waiting_confirmation"}:
+                raise CloudError("audio_run_ended", 409)
+            audio.begin_run(
+                run_id, session, owner, after_seq=run["last_event_seq"], first_sentence=True
+            )
+
     async def events(
-        self, run_id: ResourceId, session: ResourceId | None, queue: asyncio.Queue[bytes | None]
+        self,
+        run_id: ResourceId,
+        session: ResourceId | None,
+        queue: asyncio.Queue[bytes | None],
+        speech: tuple[str, int, str] | None = None,
     ) -> None:
         client = self.client
         generation = client.generation
@@ -341,6 +493,8 @@ class UIBridge:
             None,
         )
         fresh_stream = cursor is None
+        if speech is not None and speech[2] == "waiting" and not fresh_stream:
+            raise CloudError("audio_old_stream", 409)
         if cursor is None:
             if len(client.journal.cursors) >= 32:
                 retired = next(
@@ -375,7 +529,10 @@ class UIBridge:
             client.check(generation)
 
         try:
-            if not fresh_stream:
+            if speech is not None:
+                await self.attach_speech(run_id, session, *speech)
+                audio_generation = self.audio.generation if self.audio else None
+            if not fresh_stream and speech is None:
                 stop_audio()  # Persisted cursor/reload is text recovery, never live audio.
             if cursor.seq:
                 history = await self.history(run_id, session)
@@ -465,8 +622,9 @@ class UIBridge:
                                 client.save()  # never replay a committed speech/event after crash
                                 if self.audio and self.audio.generation == audio_generation:
                                     self.audio.event(event, session)
-                                if event["type"] != "speech.ready":
-                                    await publish("run", event)
+                                # Speech metadata preserves the contiguous UI cursor.
+                                # Only the daemon consumes it for playback; no PCM is exposed.
+                                await publish("run", event)
                                 attempt, rejected = 0, None
                                 if event["type"] in {
                                     "run.completed",
@@ -539,6 +697,12 @@ class UIBridge:
                     )
                     await self.client.owned(self.client.recovery.displayed(identity))
                     value = {"status": "displayed"}
+                elif request.url.path == "/local/cloud/audio-wait":
+                    context = Context.model_validate(local_body(await request.body()))
+                    check_publication = self.operation_publication(context.private_session_id)
+                    value = await self.client.owned(
+                        self.wait_for_speech(current[0], context.private_session_id)
+                    )
                 elif request.url.path == "/local/cloud/operations":
                     operation = Operation.validate_python(local_body(await request.body()))
                     check_publication = self.operation_publication(operation.private_session_id)
@@ -571,6 +735,14 @@ class UIBridge:
                         if "x-private-session" in request.headers
                         else None
                     )
+                    speech = None
+                    if request.method == "POST":
+                        listen = SpeechListen.model_validate(local_body(await request.body()))
+                        if listen.private_session_id != session or self.audio is None:
+                            raise CloudError("audio_context_changed", 409)
+                        if listen.mode == "future":
+                            self.audio.clear()
+                        speech = (current[0], self.audio.generation, listen.mode)
                     queue: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=8)
 
                     async def pump() -> None:
@@ -589,7 +761,7 @@ class UIBridge:
 
                         watcher = asyncio.create_task(watch_session())
                         try:
-                            await self.events(run_id, session, queue)
+                            await self.events(run_id, session, queue, speech)
                         except CloudError:
                             while not queue.empty():
                                 queue.get_nowait()
@@ -637,6 +809,7 @@ class UIBridge:
 
         return [
             Route("/local/cloud/status", dispatch, methods=["GET"]),
+            Route("/local/cloud/audio-wait", dispatch, methods=["POST"]),
             Route("/local/cloud/snapshot", dispatch, methods=["GET"]),
             Route(
                 "/local/cloud/private-sessions/{private_session_id}/stop",
@@ -648,5 +821,5 @@ class UIBridge:
             ),
             Route("/local/cloud/pairing", dispatch, methods=["POST", "GET"]),
             Route("/local/cloud/operations", dispatch, methods=["POST"]),
-            Route("/local/cloud/runs/{run_id}/events", dispatch, methods=["GET"]),
+            Route("/local/cloud/runs/{run_id}/events", dispatch, methods=["GET", "POST"]),
         ]

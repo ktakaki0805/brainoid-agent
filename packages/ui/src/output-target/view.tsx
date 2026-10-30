@@ -36,7 +36,7 @@ export function OutputTarget({ controller }: { controller: OutputTargetControlle
       </p>
       <p>最大5分・無操作60秒。状態の確認や再接続では延長しません。</p>
       <p>
-        発話先: 音声は未接続です。文字の出力先:{" "}
+        次の会話の出力先:{" "}
         {state.destination === "pi" ? `確認したPi ${state.session?.device_id}` : "このスマホ"}
       </p>
       {state.notice && <p role="status">{state.notice}</p>}
@@ -53,7 +53,7 @@ export function OutputTarget({ controller }: { controller: OutputTargetControlle
             <dd>{state.session.idle_expires_at}</dd>
           </dl>
           <label>
-            次の会話の文字出力先
+            次の会話の出力先
             <select
               value={state.destination}
               disabled={state.pending}
@@ -61,7 +61,7 @@ export function OutputTarget({ controller }: { controller: OutputTargetControlle
             >
               <option value="phone">このスマホ</option>
               <option value="pi" disabled={!state.session.allowed_scopes.includes("conversation")}>
-                確認したPiにも表示する
+                確認したPiへ出力する
               </option>
             </select>
           </label>

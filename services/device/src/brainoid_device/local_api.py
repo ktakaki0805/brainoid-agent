@@ -16,7 +16,12 @@ from brainoid_device.config import Settings
 COOKIE = "brainoid_local"
 SESSION_SECONDS = 1800
 MAX_SESSIONS = 32
-BODY_ROUTES = {"/local/cloud/pairing", "/local/cloud/operations", "/local/audio"}
+BODY_ROUTES = {
+    "/local/cloud/pairing",
+    "/local/cloud/operations",
+    "/local/cloud/audio-wait",
+    "/local/audio",
+}
 MAX_BODY = 32768
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 SAFE_HEADERS = {
@@ -30,6 +35,16 @@ SAFE_HEADERS = {
         "form-action 'self'"
     ),
 }
+
+
+def body_route(path: str) -> bool:
+    return (
+        path in BODY_ROUTES
+        or re.fullmatch(
+            r"/local/cloud/runs/[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}/events", path
+        )
+        is not None
+    )
 
 
 def error(code: str, status: int) -> JSONResponse:
@@ -130,7 +145,7 @@ class LocalBoundary:
             await response(scope, receive, send)
             return
 
-        if scope["path"] in BODY_ROUTES and scope["method"] == "POST":
+        if body_route(scope["path"]) and scope["method"] == "POST":
             # Narrow typed JSON admission only. Buffer before dispatch so a lying
             # Content-Length or slow upload cannot reach a side-effecting handler.
             body = bytearray()
@@ -219,7 +234,7 @@ class LocalBoundary:
             return error("origin_required", 403)
         if b"authorization" in headers:
             return error("authorization_not_supported", 400)
-        if scope["path"] in BODY_ROUTES and scope["method"] == "POST":
+        if body_route(scope["path"]) and scope["method"] == "POST":
             length = headers.get(b"content-length", [b""])[0]
             if (
                 b"transfer-encoding" in headers

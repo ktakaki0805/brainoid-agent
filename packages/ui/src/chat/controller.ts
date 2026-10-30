@@ -7,6 +7,8 @@ import {
   type Run,
   RunEventsFailure,
   cancelRun,
+  cancelDeviceCommand,
+  getDeviceCommand,
   createConversation,
   createTurn,
   getConversation,
@@ -17,11 +19,19 @@ import {
   streamRunEvents,
   updateConversation,
 } from "@brainoid-internal/api-client";
+import {
+  initialVoice,
+  VoiceController,
+  type VoiceFactory,
+  type VoiceState,
+} from "../voice/controller.ts";
 import { OutputTargetController } from "../output-target/controller.ts";
 import { RequestFailure, type SessionContext, StaleContext } from "../session.ts";
 import { type EventState, initialEvents, isId, reduceEvent, validateRunEvent } from "./events.ts";
 
 export interface ChatState {
+  voice: VoiceState;
+  commandResults: Record<string, string>;
   agents: readonly Agent[];
   conversations: readonly Conversation[];
   conversation?: Conversation | undefined;
@@ -38,6 +48,8 @@ export interface ChatState {
   historyUnavailable?: "expired" | "cancelled" | undefined;
 }
 const empty = (): ChatState => ({
+  voice: initialVoice(),
+  commandResults: {},
   agents: [],
   conversations: [],
   messages: [],
@@ -66,6 +78,8 @@ export class ChatController {
   private turn:
     | {
         text: string;
+        audio?: string | undefined;
+        voiceGeneration?: number | undefined;
         key: string;
         device?: string | undefined;
         binding?: string | undefined;
@@ -73,6 +87,7 @@ export class ChatController {
       }
     | undefined;
   private policy: { id: string; version: number; key: string; uncertain: boolean } | undefined;
+  readonly voice: VoiceController;
   readonly outputTarget: OutputTargetController;
   private outputStop: () => void;
   private outputBinding = "";
@@ -82,11 +97,15 @@ export class ChatController {
   private readonly tenantId: string;
   readonly context: SessionContext;
   readonly surface: "mobile" | "display";
-  constructor(context: SessionContext, surface: "mobile" | "display") {
+  constructor(context: SessionContext, surface: "mobile" | "display", voice?: VoiceFactory) {
     this.context = context;
     this.surface = surface;
     if (!context.tenantId) throw new Error("Tenant required");
     this.tenantId = context.tenantId;
+    this.voice = new VoiceController(context, voice, (value) =>
+      this.publish({ ...this.state, voice: value }),
+    );
+    this.state = { ...this.state, voice: this.voice.state };
     this.outputTarget = new OutputTargetController(context);
     this.outputStop = this.outputTarget.subscribe(() => {
       const state = this.outputTarget.snapshot();
@@ -117,6 +136,7 @@ export class ChatController {
       throw new StaleContext();
   }
   private resetSelection() {
+    this.voice.stop();
     this.selection++;
     this.refreshing++;
     this.streamAbort?.abort();
@@ -129,6 +149,7 @@ export class ChatController {
     this.resetSelection();
     this.publish({
       ...empty(),
+      voice: this.voice.state,
       agents: this.state.agents,
       conversations: this.state.conversations,
     });
@@ -336,6 +357,7 @@ export class ChatController {
     const epoch = this.selection;
     this.publish({
       ...empty(),
+      voice: this.voice.state,
       agents: this.state.agents,
       conversations: this.state.conversations,
       busy: true,
@@ -477,7 +499,28 @@ export class ChatController {
       }
     }
   }
-  async send() {
+  async record() {
+    this.outputTarget.tick();
+    if (
+      !this.state.conversation ||
+      this.state.busy ||
+      (this.state.run && !terminal(this.state.run))
+    )
+      return;
+    const session = this.outputTarget.snapshot().session;
+    await this.voice.start(
+      Math.min(
+        Date.now() + 300_000,
+        session ? Date.parse(session.expires_at) : Infinity,
+        session ? Date.parse(session.idle_expires_at) : Infinity,
+      ),
+    );
+  }
+  async sendRecording() {
+    const input = await this.voice.upload();
+    if (input) await this.send(input);
+  }
+  async send(input?: { id: string; generation: number }) {
     this.outputTarget.tick();
     const { conversation, draft } = this.state;
     if (
@@ -490,7 +533,8 @@ export class ChatController {
         !this.state.events.terminal &&
         this.state.connection !== "idle") ||
       (this.state.run?.status === "completed" && !this.state.finalVerified) ||
-      !draft.trim() ||
+      (!input && !draft.trim()) ||
+      (input && !this.voice.current(input.generation)) ||
       [...draft].length > 8000
     )
       return;
@@ -507,15 +551,19 @@ export class ChatController {
       return;
     }
     const epoch = this.selection;
+    if (!input) this.voice.stop();
     this.streamAbort?.abort();
     this.refreshing++;
     if (
       this.turn?.text !== draft ||
+      this.turn?.audio !== input?.id ||
       this.turn?.device !== target?.device ||
       this.turn?.binding !== target?.binding
     )
       this.turn = {
         text: draft,
+        audio: input?.id,
+        voiceGeneration: input?.generation,
         key: crypto.randomUUID(),
         device: target?.device,
         binding: target?.binding,
@@ -533,8 +581,8 @@ export class ChatController {
               signal,
               path: { tenant_id: tenant, conversation_id: conversation.id },
               body: {
-                text: pending.text,
-                output_mode: "text",
+                ...(pending.audio ? { audio_input_id: pending.audio } : { text: pending.text }),
+                output_mode: pending.audio ? "speech" : "text",
                 ...(pending.device
                   ? {
                       output_device_id: pending.device,
@@ -549,6 +597,8 @@ export class ChatController {
       if (!isId(accepted.run_id) || accepted.status !== "queued")
         throw new Error("Invalid accepted run");
       this.assert(epoch);
+      if (pending.voiceGeneration !== undefined && !pending.device)
+        this.voice.bindRun(accepted.run_id, pending.voiceGeneration);
       this.turn = undefined;
       this.cancelKey = undefined;
       this.publish({
@@ -562,17 +612,18 @@ export class ChatController {
         finalVerified: false,
         historyUnavailable: undefined,
       });
-      await this.refresh();
+      await this.refresh(undefined, true);
       this.assert(epoch);
       if (this.state.run) await this.connect();
     } catch (error) {
       this.failure(error, epoch);
     }
   }
-  async refresh(expectedMessageId?: string) {
+  async refresh(expectedMessageId?: string, preserveVoice = false) {
     const events = this.state.events,
       conversation = this.state.conversation;
     if (!events || !conversation || this.closed) return;
+    if (!preserveVoice) this.voice.stop();
     const refreshing = ++this.refreshing;
     this.streamAbort?.abort();
     const epoch = this.selection;
@@ -594,6 +645,7 @@ export class ChatController {
       if (refreshing !== this.refreshing || this.state.events?.runId !== events.runId) return;
       // Run termination is authoritative even if the final message read fails.
       // It suppresses provisional output without pretending its event history was read.
+      if (["cancelled", "failed"].includes(run.status)) this.voice.stop();
       if (terminal(run)) {
         this.publish({
           ...this.state,
@@ -674,6 +726,7 @@ export class ChatController {
     this.streamAbort?.abort();
     const abort = new AbortController();
     this.streamAbort = abort;
+    const voiceGeneration = this.voice.stream(events.runId);
     const epoch = this.selection;
     const signal = AbortSignal.any([abort.signal, this.selectedAbort.signal, this.context.signal]);
     const guard = () => {
@@ -700,6 +753,15 @@ export class ChatController {
             const current = this.state.events;
             if (!current || current.runId !== events.runId) throw new StaleContext();
             const reduced = reduceEvent(current, event);
+            if (event.type === "speech.ready" && event.seq > current.seq)
+              this.voice.sentence(
+                events.runId,
+                voiceGeneration,
+                String(event.payload.speech_id),
+                Number(event.payload.sentence_index),
+                Date.parse(String(event.payload.expires_at)),
+              );
+            if (event.type === "run.failed" || event.type === "run.cancelled") this.voice.stop();
             // Historical replay recovers tool facts, never an old answer or animation.
             const next: EventState =
               this.state.run && terminal(this.state.run)
@@ -742,9 +804,11 @@ export class ChatController {
     } finally {
       clearTimeout(timeout);
       abort.abort();
+      if (!this.state.events?.terminal && voiceGeneration === this.voice.generation)
+        this.voice.stop("接続が終了したため音声を停止しました。再接続では文字だけを復元します。");
     }
     if (!this.closed && epoch === this.selection && !this.context.signal.aborted) {
-      await this.refresh(terminalMessage);
+      await this.refresh(terminalMessage, true);
       if (this.closed || epoch !== this.selection || this.context.signal.aborted) return;
       // At most one extra connection when the worker finished during a disconnect.
       // The second connection starts with wasTerminal=true, so cannot loop here.
@@ -761,9 +825,61 @@ export class ChatController {
         await this.connect();
     }
   }
+  async cancelCommand(id: string) {
+    const epoch = this.selection;
+    if (!this.state.events?.tools.some((tool) => tool.commandId === id)) return;
+    try {
+      const command = await this.request(async (client, signal, tenant) =>
+        data(
+          await getDeviceCommand({ client, signal, path: { tenant_id: tenant, command_id: id } }),
+        ),
+      );
+      if (command.id !== id) throw new Error("Wrong command");
+      if (["queued", "delivered", "accepted"].includes(command.status)) {
+        try {
+          await this.request(async (client, signal, tenant) =>
+            data(
+              await cancelDeviceCommand({
+                client,
+                signal,
+                path: { tenant_id: tenant, command_id: id },
+                headers: { "Idempotency-Key": crypto.randomUUID() },
+              }),
+            ),
+          );
+        } catch {
+          /* Cancellation may race the execution claim; read its actual state. */
+        }
+      }
+      const result = await this.request(async (client, signal, tenant) =>
+        data(
+          await getDeviceCommand({ client, signal, path: { tenant_id: tenant, command_id: id } }),
+        ),
+      );
+      if (result.id !== id || result.tenant_id !== this.tenantId) throw new Error("Wrong command");
+      this.publishIfCurrent(epoch, {
+        ...this.state,
+        commandResults: {
+          ...this.state.commandResults,
+          [id]: `操作の現在状態: ${result.status}。実行済みの効果は元に戻りません。`,
+        },
+      });
+    } catch {
+      this.publishIfCurrent(epoch, {
+        ...this.state,
+        commandResults: {
+          ...this.state.commandResults,
+          [id]: "取消結果は未確認です。操作の現在状態を再確認してください。",
+        },
+      });
+    }
+  }
   async cancel() {
     if (!this.state.events || !this.state.run || terminal(this.state.run) || this.state.busy)
       return;
+    this.voice.stop(
+      "読み上げを停止し、生成の取消結果を確認しています。実行済みの操作は元に戻りません。",
+    );
     this.streamAbort?.abort();
     const epoch = this.selection,
       runId = this.state.events.runId;

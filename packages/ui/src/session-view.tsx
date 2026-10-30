@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
+import type { VoiceFactory } from "./voice/controller.ts";
 import { Chat } from "./chat/view.tsx";
 import { Calendar } from "./calendar/view.tsx";
 import type { CalendarOAuth } from "./calendar/contracts.ts";
@@ -34,6 +35,7 @@ export function SessionApp({
   children,
   calendarOAuth,
   exportDelivery,
+  voice,
 }: {
   controller: SessionController;
   surface: "mobile" | "display";
@@ -41,6 +43,7 @@ export function SessionApp({
   children?: (context: SessionContext) => React.ReactNode;
   calendarOAuth?: CalendarOAuth | undefined;
   exportDelivery?: ExportDelivery | undefined;
+  voice?: VoiceFactory | undefined;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   useEffect(() => {
@@ -96,7 +99,12 @@ export function SessionApp({
         />
       )}
       {state.context && (
-        <Chat key={state.context.generation} context={state.context} surface={surface} />
+        <Chat
+          key={state.context.generation}
+          context={state.context}
+          surface={surface}
+          voice={voice}
+        />
       )}
       {state.context && (
         <Calendar

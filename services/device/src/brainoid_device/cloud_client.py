@@ -5,6 +5,7 @@ import logging
 import secrets
 import time
 from collections.abc import Awaitable, Callable, Coroutine
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
@@ -49,6 +50,7 @@ class CloudClient:
         self._runtime_generation = runtime.generation
         self.generation = 0
         self.output_generation = 0
+        self.snapshot_observed_at: float | None = None
         self.output_cleanup: list[Callable[[], None]] = []
         self.recovery: SnapshotSync | None = None
         self.status = "unregistered"
@@ -245,7 +247,18 @@ class CloudClient:
                         return response.status_code, {}
                     if response.headers.get("content-type", "").split(";")[0] != "application/json":
                         raise CloudError("invalid_cloud_response", 502)
-                    return response.status_code, decode(bytes(data))
+                    value = decode(bytes(data))
+                    if path.endswith("/snapshot:validate"):
+                        self.snapshot_observed_at = None
+                        raw_time = response.headers.get("X-Brainoid-Observed-At")
+                        if raw_time:
+                            try:
+                                observed = datetime.fromisoformat(raw_time)
+                                if observed.tzinfo is not None:
+                                    self.snapshot_observed_at = observed.timestamp()
+                            except ValueError:
+                                pass
+                    return response.status_code, value
                 finally:
                     await response.aclose()
         except (httpx.HTTPError, TimeoutError, OSError):

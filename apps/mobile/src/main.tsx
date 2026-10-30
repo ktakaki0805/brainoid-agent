@@ -5,6 +5,7 @@ import { browserNavigation, SessionApp } from "@brainoid-internal/ui/session-vie
 import { Capacitor } from "@capacitor/core";
 import { createRoot } from "react-dom/client";
 import { browserExportDelivery, unavailableDelivery } from "@brainoid-internal/ui/data-controls";
+import { nativeVoice } from "../platform/voice.ts";
 import { authenticationConfiguration } from "./auth-config.ts";
 import "@brainoid-internal/ui/styles.css";
 
@@ -92,6 +93,7 @@ if (import.meta.env.MODE === "fake") {
             surface="mobile"
             calendarOAuth={calendarOAuth}
             exportDelivery={exportDelivery}
+            voice={nativeVoice(import.meta.env.VITE_VOICE_ENABLED)}
           />
           {exportNotice}
           {push}

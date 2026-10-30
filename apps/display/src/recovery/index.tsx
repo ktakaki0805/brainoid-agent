@@ -159,14 +159,13 @@ export function Recovery({ children }: { children?: React.ReactNode }) {
               </dd>
               <dt>音量・マイク</dt>
               <dd>
-                音声機能は未接続です。録音・再生していません。保存設定：音量{" "}
-                {status.volume_pct ?? "未確認"} / マイク{" "}
+                保存設定：音量 {status.volume_pct ?? "未確認"} / マイク{" "}
                 {status.microphone_muted === null
                   ? "未確認"
                   : status.microphone_muted
                     ? "消音"
                     : "消音なし"}
-                （実機の状態ではありません）
+                （録音・再生の現在状態は上の音声欄で確認してください）
               </dd>
             </dl>
           ) : (

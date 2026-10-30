@@ -22,7 +22,9 @@
     "./data-controls": "./src/data-controls/view.tsx",
     "./calendar": "./src/calendar/contracts.ts",
     "./output-target": "./src/output-target/lifetime.ts",
-    "./chat-events": "./src/chat/events.ts"
+    "./chat-events": "./src/chat/events.ts",
+    "./voice": "./src/voice/controller.ts",
+    "./voice-controls": "./src/voice/view.tsx"
   },
   "devDependencies": {
     "react": "19.3.1",

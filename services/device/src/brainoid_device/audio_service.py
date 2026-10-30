@@ -39,6 +39,9 @@ class AudioService:
         self.generation = 0
         self.binding: Binding | None = None
         self.run_id: ResourceId | None = None
+        self.after_seq = 0
+        self.first_sentence = False
+        self.waiting: tuple[frozenset[str], float] | None = None
         self.capture_state = "idle"
         self.playback_state = "idle"
         self.notice: str | None = None
@@ -64,6 +67,9 @@ class AudioService:
         self.generation += 1
         self.binding = None
         self.run_id = None
+        self.waiting = None
+        self.after_seq = 0
+        self.first_sentence = False
         self.capture_state = self.playback_state = "idle"
         self.notice = None
         self.queue.clear()
@@ -154,6 +160,7 @@ class AudioService:
             await asyncio.sleep(0.05)
 
     def state(self, owner: str) -> dict[str, Any]:
+        preferences = self.client.storage.snapshot().preferences
         if self.binding:
             try:
                 self.check(self.binding)
@@ -169,6 +176,8 @@ class AudioService:
             "input_device": self.input_device,
             "output_device": self.output_device,
             "queued": len(self.queue.pending),
+            "muted": bool(preferences is None or preferences.microphone_muted),
+            "waiting": self.waiting is not None,
         }
 
     async def select(self, input_device: str, output_device: str, owner: str) -> None:
@@ -276,11 +285,21 @@ class AudioService:
             raise CloudError("audio_cloud_unavailable", 503)
         return results[0]
 
-    def begin_run(self, run_id: ResourceId, session: ResourceId | None, owner: str) -> None:
+    def begin_run(
+        self,
+        run_id: ResourceId,
+        session: ResourceId | None,
+        owner: str,
+        *,
+        after_seq: int = 0,
+        first_sentence: bool = False,
+    ) -> None:
         if self.output_device is None:
             return
         binding = self.bind(owner, session, 300)
         self.run_id = run_id
+        self.after_seq = after_seq
+        self.first_sentence = first_sentence
         self.owned(self.play(binding, self.output_device), binding)
 
     def event(self, event: dict[str, Any], session: ResourceId | None) -> None:
@@ -291,8 +310,11 @@ class AudioService:
             self.check(binding)
             if event["type"] in {"run.cancelled", "run.failed"}:
                 self.clear()
-            elif event["type"] == "speech.ready":
+            elif event["type"] == "speech.ready" and event["seq"] > self.after_seq:
                 payload = event["payload"]
+                if self.first_sentence:
+                    self.queue.next_index = payload["sentence_index"]
+                    self.first_sentence = False
                 self.queue.add(
                     Sentence(
                         ResourceId(payload["speech_id"]),

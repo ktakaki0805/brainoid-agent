@@ -144,9 +144,20 @@ async def device_snapshot(
     "/devices/{device_id}/snapshot:validate",
     response_model=DeviceSnapshotState,
     operation_id="validateDeviceSnapshot",
-    responses={"default": {"model": ErrorResponse}},
+    responses={
+        "default": {"model": ErrorResponse},
+        200: {
+            "headers": {
+                "X-Brainoid-Observed-At": {
+                    "description": "Validation completion time on the run server clock",
+                    "schema": {"type": "string", "format": "date-time"},
+                }
+            }
+        },
+    },
 )
 async def validate_device_snapshot(
+    response: Response,
     device_id: ResourceId,
     body: SnapshotSelection,
     identity: Annotated[DeviceIdentity, Depends(authenticated_device)],
@@ -157,4 +168,8 @@ async def validate_device_snapshot(
     if services.device_snapshots is None:
         raise APIError(ErrorCode.TEMPORARILY_UNAVAILABLE)
     result = await run_in_threadpool(services.device_snapshots.validate, identity, body)
-    return result.release()
+    state = result.release()
+    response.headers["X-Brainoid-Observed-At"] = (
+        services.device_snapshots.conversations.now().isoformat()
+    )
+    return state

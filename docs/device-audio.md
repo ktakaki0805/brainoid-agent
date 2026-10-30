@@ -1,6 +1,6 @@
 # Pi の録音と再生
 
-BA-VOICE-04 / FR-005。Pi daemon が ALSA の入力・出力を所有する。既定は `DEVICE_AUDIO_BACKEND=disabled` で、音声 local route も登録しない。明示的な `alsa` と cloud 設定がそろうと adapter を構成する。画面全体の音声状態機械は BA-VOICE-05、対応機器 matrix は BA-GOV-04。今回の実装は実機公開の承認を意味しない。
+BA-VOICE-04 / FR-005。Pi daemon が ALSA の入力・出力を所有する。既定は `DEVICE_AUDIO_BACKEND=disabled` で、音声 local route も登録しない。明示的な `alsa` と cloud 設定がそろうと adapter を構成する。画面全体の音声状態機械は [BA-VOICE-05](voice-ui.md)、対応機器 matrix は BA-GOV-04。今回の実装は実機公開の承認を意味しない。
 
 ## Local control
 
@@ -18,7 +18,7 @@ BA-VOICE-04 / FR-005。Pi daemon が ALSA の入力・出力を所有する。�
 
 個人録音の finish/send は開始時と同じ `private_session_id` が必要。send の `audio_input_id` は通常の `create_turn` に渡せる。`output_mode=speech` の成功した local create_turn が、その run/session に再生を束縛する。UIBridge の認可済み live `speech.ready` だけを daemon queue へ渡す。run cursor は渡す前に既存の metadata 台帳へ保存する。重複文は再取得せず、history、snapshot、daemon 再起動は音声を再生しない。snapshot 内の speech assignment は文字履歴の復元対象として受け付ける。
 
-停止は run/tool 取消と別操作。既存 `cancel_run` はまず local 発話を止め、その後 server の取消結果を取得する。操作済み tool を取消済みと推測しない。UI reload では daemon 所有の録音は残り、同じ local session の GET で制御を再開できる。run SSE の切断・EOF・UI接続終了では現在の再生と待機queueを消去し、そのrunは文字だけを復元する。同runの再接続やreloadで読み上げを復活させず、未受信backlogを再生しない。新しいturnで再び音声を選んだ場合だけ新たな再生意図になる。turn送信時に音声世代を固定し、待機中のstop/discard、機器変更、新録音/turnで失効した遅延成功応答は音声をbindしない。serverで受理済みのrun receipt自体は返し、取消済みとは表示しない。
+停止は run/tool 取消と別操作。既存 `cancel_run` はまず local 発話を止め、その後 server の取消結果を取得する。操作済み tool を取消済みと推測しない。daemon自体はUIから独立して録音を所有するが、BA-VOICE-05の実画面は初期化/reload/pagehide時にstopを送り、録音・待機を自動再開しない。run SSE の切断・EOF・UI接続終了では現在の再生と待機queueを消去し、そのrunは文字だけを復元する。同runの再接続やreloadで読み上げを復活させず、未受信backlogを再生しない。新しいturn、またはBA-VOICE-05の認可済み明示attach/新規待機だけが新たな再生意図になる。turn送信時に音声世代を固定し、待機中のstop/discard、機器変更、新録音/turnで失効した遅延成功応答は音声をbindしない。serverで受理済みのrun receipt自体は返し、取消済みとは表示しない。
 
 ## 上限と失効
 
@@ -54,6 +54,6 @@ ALSA Project保守のalsa-libはLGPL-2.1-or-later（[提供元COPYING](https://g
 
 ローカル受入は [device audio試験](../tests/test_device_audio.py)。T-006の無音/拒否/失敗、T-007の停止と取消分離、T-021の失効と遅い結果拒否、順序/重複/容量/期限、local boundary、real owned helper/不正peer/強制停止を確認する。native loader/IPC試験は実音響機器の検証を代替しない。
 
-VOICE-04の再生開始はPiのlocal create_turnに限定する。スマホからPiへ割り当てたspeech runのsnapshotは文字履歴だけを復元し、再生を自動開始しない。VOICE-05で出力先UIとdaemon adapterの明示的なlive attachを結合する際は、停止済みrunの再接続・同一sessionのreloadから発話を復活させない契約と検証を追加する。この結合が済むまでスマホ→Piの可聴出力を公開済みとは扱わない。
+BA-VOICE-05の[音声UI契約](voice-ui.md)は、local create_turnに加えて認可済みfuture attachと短命の新規割当待機を接続する。snapshot/history/reconnect自体は読み上げ意図を作らず、明示待機のserver時刻境界より新しいrunだけが初回streamへ進む。
 
 ALSA設定の一次確認は [pcm.c の set_params](https://raw.githubusercontent.com/alsa-project/alsa-lib/v1.2.15.3/src/pcm/pcm.c) と [plug の rate変換](https://raw.githubusercontent.com/alsa-project/alsa-lib/v1.2.15.3/src/pcm/pcm_plug.c)（2026-10-29）。[native transfer試験](../tests/test_device_audio_native.py)は短いread/write、EAGAIN、分割sample、drain失敗、実libasoundの48kHz null変換を扱う。

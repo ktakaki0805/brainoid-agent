@@ -98,8 +98,8 @@ try {
   await consent.screenshot({ path: join(artifacts, "mobile-explicit-consent.png") });
   await consent.getByRole("button", { name: "確認したPiで開始" }).click();
   await consent.getByText("個人セッション中", { exact: true }).waitFor();
-  assert.equal(await consent.getByLabel("次の会話の文字出力先").inputValue(), "phone");
-  await consent.getByLabel("次の会話の文字出力先").selectOption("pi");
+  assert.equal(await consent.getByLabel("次の会話の出力先").inputValue(), "phone");
+  await consent.getByLabel("次の会話の出力先").selectOption("pi");
   await page.getByText("認証・切替の確認", { exact: true }).click();
   await page.getByRole("combobox", { name: /会話イベント/ }).selectOption("policy_lost");
   await selectChat("個人 個人の会話");
@@ -120,12 +120,12 @@ try {
   await page
     .getByRole("region", { name: "表示設定の再確認", exact: true })
     .waitFor({ state: "detached" });
-  await consent.getByLabel("次の会話の文字出力先").selectOption("phone");
+  await consent.getByLabel("次の会話の出力先").selectOption("phone");
   await selectChat("共有 みんなの会話");
   await page.getByLabel("メッセージ", { exact: true }).fill("UI10 POLICY RECOVERY SEND");
   await page.getByRole("button", { name: "送信", exact: true }).click();
   await page.getByText("UI10 POLICY RECOVERY SEND", { exact: true }).waitFor();
-  await consent.getByLabel("次の会話の文字出力先").selectOption("pi");
+  await consent.getByLabel("次の会話の出力先").selectOption("pi");
   await consent.screenshot({ path: join(artifacts, "mobile-active-explicit-output.png") });
   await consent.getByRole("button", { name: "個人セッションを終了", exact: true }).click();
   await consent.getByText("クラウドで個人セッションを終了しました。", { exact: true }).waitFor();

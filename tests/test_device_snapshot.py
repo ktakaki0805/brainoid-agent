@@ -76,6 +76,28 @@ class SnapshotFixture(CloudFixture):
 
 
 class SnapshotTests(SnapshotFixture):
+    async def test_voice_wait_missing_or_invalid_header_has_no_server_boundary(self) -> None:
+        original = self.cloud.http.send
+        for header in (None, "invalid", "2026-10-29"):
+
+            async def send(request: Any, header: str | None = header, **kwargs: Any) -> Any:
+                response = await original(request, **kwargs)
+                if request.url.path.endswith("/snapshot:validate"):
+                    response.headers.pop("X-Brainoid-Observed-At", None)
+                    if header is not None:
+                        response.headers["X-Brainoid-Observed-At"] = header
+                return response
+
+            with patch.object(self.cloud.http, "send", side_effect=send):
+                await self.sync.sync()
+            self.assertIsNone(self.sync.observed_at)
+
+    async def test_voice_wait_boundary_is_current_validation_server_time(self) -> None:
+        self.assigned()
+        await self.sync.sync()
+        self.assertEqual(self.sync.observed_at, self.clock.now().timestamp())
+        self.assertEqual(self.cloud.snapshot_observed_at, self.clock.now().timestamp())
+
     async def test_speech_assignment_retains_mode_without_snapshot_autoplay(self) -> None:
         run = self.assigned()
         self.store.data[f"tenants/{self.tenant}/runs/{run}"]["output_mode"] = "speech"

@@ -934,3 +934,29 @@ textarea:focus-visible {
   width: auto;
   overflow-wrap: normal;
 }
+
+.voice-controls {
+  padding: 1rem;
+  margin-block: 1rem;
+  border: 2px solid var(--border, #d5dcd6);
+  border-radius: 1rem;
+  background: var(--surface, #fff);
+  overflow-wrap: anywhere;
+}
+.voice-controls .button-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.voice-controls .button-row .button {
+  min-width: 0;
+  min-height: 48px;
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: normal;
+}
+@media (min-width: 640px) {
+  .voice-controls .button-row {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}

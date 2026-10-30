@@ -1,6 +1,6 @@
 # スマホ録音・PCM 変換・文単位再生
 
-BA-VOICE-03 / FR-005 は [共通 adapter](../apps/mobile/platform/audio.ts)、[認証付き transport](../apps/mobile/platform/audio-transport.ts)、[app-local Capacitor plugin](../apps/mobile/native-audio-config/README.md)を提供する。画面全体の録音・思考・発話表示とボタン接続は BA-VOICE-05、生成 native project / 署名 / 配布は BA-OPS-09/10。現在の mobile / display entry には録音ボタンや plugin の自動起動を追加しておらず、未確認の native 機能を公開しない。
+BA-VOICE-03 / FR-005 は [共通 adapter](../apps/mobile/platform/audio.ts)、[認証付き transport](../apps/mobile/platform/audio-transport.ts)、[app-local Capacitor plugin](../apps/mobile/native-audio-config/README.md)を提供する。画面全体の録音・思考・発話表示とボタン接続は BA-VOICE-05、生成 native project / 署名 / 配布は BA-OPS-09/10。BA-VOICE-05の[音声UI](voice-ui.md)が実entryへ接続する。既定無効の `VITE_VOICE_ENABLED` とnative登録の両方を必要とし、未検証の実機機能を公開しない。
 
 `createNativeAudio()` は native platform と `BrainoidAudio` の登録を要求する。browser ではマイク取得へ fallback しない。1 app の adapter で1 active lease を持ち、新しい `open` は古い lease を閉じる。UI は現在の tenant / actor / session / run / 出力先を一意に表す `key`、`SessionContext.signal` と run/session取消 signal の合成、実期限 `expiresAt`、現在の出力 binding を検査する `isCurrent` を渡す。`SessionContext.dispose()` の abort は即座に native stop と fetch abort へ伝わる。既存 pagehide→suspend も同じ所有境界を使う。出力 binding の変更、run取消、session終了では `close()` する。run完了後の未再生文は現在の session と文参照の期限内だけ継続可能。
 
@@ -26,7 +26,7 @@ raw 音声は native 配列 / Data / JS typed array / bridge base64 / HTTP body 
 
 [Node fake bridge / HTTP / WAV tests](../tests/test_mobile_audio.mjs) は T-006/T-007 の拒否、文字継続状態、破棄upload0、停止後の遅い音声、世代交換、背景・割込み、期限、順序、重複、session abort、無音・API失敗とサイズ境界を検査する。Java 21 の実compilerで [Android PCM fixture](../tests/mobile/audio-fixtures/PcmWavFixture.java)を実行し、ヘッダー・signed LE sample・最大長を検査する。Android bridge全体は [javac構文parser](../tests/mobile/audio-fixtures/ParseJava.java)でparseするが、Android SDKのsymbol/type確認ではない。[iOS変換fixture](../tests/mobile/audio-fixtures/PcmCaptureFixture.swift)は48k stereo / 44.1k / 16k / 8k、137frame分割、60秒境界、正常PCM蓄積後の不正rate/channel・途中形式変更・finish拒否を用意した。同じfixtureで製品のFoundation observerに通知と非同期配送を注入し、active通知でのPCM無効化・遅延停止、無関係engine無視、旧engine/旧世代の遅延通知無視、observer解除を検査する。Nodeのfake bridgeは中断/エラーとfinish応答の競合でready/uploadへ進まないことを実行確認する。これは実Swift/AVAudioEngineの実行証明ではない。
 
-このLinux環境には Android SDK / Gradle native project / Swift compiler / Apple SDK / Xcode がなく、iOS fixture実行、両OS framework build、実マイク・スピーカーの可聴試験は未実施。利用者のiPhoneはあるがMacはなく、この作業で実機確認済みとは扱わない。docs08 §1の共通条件に従い、fakeで独立確認できる境界と公開前の結合を分ける。実機検証結果がそろうまで音声機能を配布対象へ接続しない。
+このLinux環境には Android SDK / Gradle native project / Swift compiler / Apple SDK / Xcode がなく、iOS fixture実行、両OS framework build、実マイク・スピーカーの可聴試験は未実施。利用者のiPhoneはあるがMacはなく、この作業で実機確認済みとは扱わない。docs08 §1の共通条件に従い、fakeで独立確認できる境界と公開前の結合を分ける。実機検証結果がそろうまで配布対象の音声gateを有効にしない。
 
 公開担当は両OSについて次を同じ候補artifactで記録する。音声・会話本文・bearerを証跡へ残さず、合成信号または個人情報を含まない短音声だけを使用する。
 

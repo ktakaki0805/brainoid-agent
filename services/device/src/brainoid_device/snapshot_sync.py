@@ -81,6 +81,7 @@ class SnapshotSync:
         self.notification_read: NotificationRead | None = None
         self.display_generation = 0
         self.ready = False
+        self.observed_at: float | None = None
         self.output_stops: OutputStops | None = None
         client.recovery = self
         client.runtime.register_private_cleanup(self.clear)
@@ -382,6 +383,7 @@ class SnapshotSync:
                     self.clear()
                     output_generation = client.output_generation
                 self.state = state
+                self.observed_at = client.snapshot_observed_at
                 recovery.progress = None
                 self.save()
                 await self.refresh_notifications(generation, output_generation)

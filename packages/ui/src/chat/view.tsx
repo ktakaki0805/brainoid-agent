@@ -1,3 +1,5 @@
+import { VoiceControls } from "../voice/view.tsx";
+import type { VoiceFactory } from "../voice/controller.ts";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { SessionContext } from "../session.ts";
 import { WaitingProposal } from "../calendar/view.tsx";
@@ -9,7 +11,7 @@ const states: Record<CharacterState, { label: string; face: string }> = {
   idle: { label: "待機中", face: "◡" },
   thinking: { label: "考えています", face: "·" },
   confirmation: { label: "確認待ち", face: "?" },
-  speaking: { label: "応答を表示中", face: "○" },
+  speaking: { label: "読み上げ中", face: "○" },
   error: { label: "応答の生成に失敗しました", face: "!" },
 };
 const toolLabels: Record<ToolStatus, string> = {
@@ -37,11 +39,13 @@ export function Character({ state }: { state: CharacterState }) {
 export function Chat({
   context,
   surface,
+  voice,
 }: {
   context: SessionContext;
   surface: "mobile" | "display";
+  voice?: VoiceFactory | undefined;
 }) {
-  const [controller] = useState(() => new ChatController(context, surface));
+  const [controller] = useState(() => new ChatController(context, surface, voice));
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const [agentId, setAgentId] = useState("");
   const [visibility, setVisibility] = useState<"private" | "shared">(
@@ -49,7 +53,20 @@ export function Chat({
   );
   useEffect(() => {
     void controller.load();
-    return () => controller.dispose();
+    const offline = () => controller.voice.network(!navigator.onLine);
+    const hide = () => {
+      if (document.visibilityState === "hidden") controller.voice.stop();
+    };
+    offline();
+    window.addEventListener("online", offline);
+    window.addEventListener("offline", offline);
+    document.addEventListener("visibilitychange", hide);
+    return () => {
+      window.removeEventListener("online", offline);
+      window.removeEventListener("offline", offline);
+      document.removeEventListener("visibilitychange", hide);
+      controller.dispose();
+    };
   }, [controller]);
   const active = state.run && !["completed", "failed", "cancelled"].includes(state.run.status);
   const knownTerminal =
@@ -141,7 +158,35 @@ export function Chat({
         </details>
       </aside>
       <div className="card chat-content">
-        <Character state={state.events?.character ?? "idle"} />
+        <Character
+          state={state.voice.phase === "playing" ? "speaking" : (state.events?.character ?? "idle")}
+        />
+        <VoiceControls
+          state={state.voice}
+          run={state.run?.status}
+          busy={state.busy}
+          privateSession={Boolean(controller.outputTarget.snapshot().session)}
+          destination={
+            controller.outputTarget.snapshot().destination === "pi"
+              ? "確認したPi（Piで新規音声の待機を選択）"
+              : "このスマホ"
+          }
+          canRecord={Boolean(state.conversation) && !active && !state.busy}
+          start={() => void controller.record()}
+          finish={() => void controller.voice.finish()}
+          send={() => void controller.sendRecording()}
+          discard={() =>
+            controller.voice.stop(
+              "録音を破棄しました。送信開始後の処理は取り消したとは限りません。",
+            )
+          }
+          stop={() =>
+            controller.voice.stop(
+              "読み上げを停止しました。生成と家電・予定の操作は継続する場合があります。",
+            )
+          }
+          mute={() => controller.voice.mute()}
+        />
         {state.notice && <p role="alert">{state.notice}</p>}
         {state.busy && <p role="status">状態を確認しています。</p>}
         {controller.pendingDisplayPolicy && (
@@ -183,11 +228,11 @@ export function Chat({
                     : "表示しない"}
               </p>
               <p className="output-label">
-                応答先:{" "}
+                今回の出力指定:{" "}
                 {state.output === "current"
                   ? state.outputDevice
-                    ? `確認したPi ${state.outputDevice} にも文字表示`
-                    : "この画面で文字表示（他端末への出力指定なし）"
+                    ? `確認したPi ${state.outputDevice}`
+                    : "この画面（他端末への出力指定なし）"
                   : "履歴の応答先は不明"}
               </p>
               {surface === "mobile" &&
@@ -255,6 +300,20 @@ export function Chat({
                         <p>機器の状態を確認できませんでした。成功したかは不明です。</p>
                       )}
                       {tool.status === "pending" && <p>受付は完了を意味しません。</p>}
+                      {tool.commandId && (
+                        <>
+                          <button
+                            className="button secondary"
+                            type="button"
+                            onClick={() => {
+                              if (tool.commandId) void controller.cancelCommand(tool.commandId);
+                            }}
+                          >
+                            未実行操作の取消・結果を確認
+                          </button>
+                          <p role="status">{state.commandResults[tool.commandId]}</p>
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -345,11 +404,11 @@ export function Chat({
               <label>
                 メッセージ
                 <textarea
+                  aria-label="メッセージ"
                   value={state.draft}
                   onChange={(event) => controller.draft(event.target.value)}
                   rows={3}
                   maxLength={8000}
-                  disabled={state.busy || Boolean(active)}
                 />
               </label>
               <p className="hint">
@@ -357,7 +416,7 @@ export function Chat({
                 {controller.outputTarget.snapshot().destination === "pi"
                   ? `確認したPi ${controller.outputTarget.snapshot().session?.device_id} にも文字表示`
                   : "この画面で文字表示"}
-                。音声は再生しません。
+                。文字送信では音声を再生しません。
               </p>
               <button
                 className="button primary"

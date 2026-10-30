@@ -103,7 +103,7 @@ export interface ToolCard {
   id: string;
   name: string;
   status: ToolStatus;
-  commandId?: string;
+  commandId?: string | undefined;
 }
 export interface EventState {
   runId: string;
@@ -135,7 +135,7 @@ export function reduceEvent(state: EventState, event: RunEvent): EventState {
       case "text.delta":
         next.text += String(p.text);
         if ([...next.text].length > 8000) throw new Error("Run text exceeds limit");
-        next.character = "speaking";
+        next.character = "thinking";
         break;
       // Speech availability is not playback; no audio is fetched or played here.
       case "speech.ready":
@@ -144,11 +144,15 @@ export function reduceEvent(state: EventState, event: RunEvent): EventState {
         next.character = "confirmation";
         break;
       case "tool.status": {
+        const previous = state.tools.find((tool) => tool.id === p.tool_call_id);
+        if (previous?.commandId && p.command_id && previous.commandId !== p.command_id)
+          throw new Error("Changed command identity");
+        const commandId = p.command_id ? String(p.command_id) : previous?.commandId;
         const card: ToolCard = {
           id: String(p.tool_call_id),
           name: String(p.tool_name),
           status: p.status as ToolStatus,
-          ...(p.command_id ? { commandId: String(p.command_id) } : {}),
+          ...(commandId ? { commandId } : {}),
         };
         next.tools = [...state.tools.filter((tool) => tool.id !== card.id), card];
         break;

@@ -187,6 +187,8 @@ MVPは1発話ごとのuploadを使う。入力は16kHz・16bit・mono PCM WAV、
 
 TTSは最初の確定文から順次生成する。`GET speech-outputs/{id}/audio` は現在のrun/session/表示方針を再検査し、その文を合成したaudio/wavを返す。合成バイトを永続化せず、参照は初期5分で失効する。切断中の古い読み上げを自動で再生しない。再取得は追加合成費用が発生し得るため、参照ごと最大2回・同時1回をtransactionで制限する。実装・認可・利用量・設定・公開前条件は[音声出力契約](speech-outputs.md)を参照。
 
+[音声UIの結合](voice-ui.md)は明示録音、初回live streamとPiの短命待機/未来文attachを接続する。snapshot:validate成功応答の `X-Brainoid-Observed-At` を新規待機のserver時刻境界に用いる。
+
 読み上げ停止はクライアントの音声キューを即時消去する。生成停止はrun cancelを呼ぶ。家電や予定の未実行操作の取消しは専用状態に従う。UIでこれらを同じ成功メッセージにまとめない。
 
 ## 5. Pi WebSocketと端末コマンド

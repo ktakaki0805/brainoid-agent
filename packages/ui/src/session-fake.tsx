@@ -1,3 +1,4 @@
+import type { VoiceFactory } from "./voice/controller.ts";
 import { useState } from "react";
 import { browserExportDelivery } from "./data-controls/view.tsx";
 import type { CalendarOAuth } from "./calendar/contracts.ts";
@@ -16,9 +17,11 @@ export function SessionPreview({
   surface,
   extra,
   calendarOAuth,
+  voice,
 }: {
   surface: "mobile" | "display";
   calendarOAuth?: CalendarOAuth | undefined;
+  voice?: VoiceFactory | undefined;
   extra?: (
     controller: SessionController,
     fixture: ReturnType<typeof createSessionFixture>,
@@ -41,6 +44,7 @@ export function SessionPreview({
         surface={surface}
         preview
         calendarOAuth={calendarOAuth}
+        voice={voice}
         exportDelivery={browserExportDelivery}
       >
         {(context) => <ContextProbe context={context} />}

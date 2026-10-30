@@ -1043,6 +1043,12 @@ paths:
       responses:
         '200':
           description: 現在認可された候補のみ
+          headers:
+            X-Brainoid-Observed-At:
+              description: 完全snapshot検証後のserver時刻。明示的な新規音声待機の境界に使用する。
+              schema:
+                type: string
+                format: date-time
           content:
             application/json:
               schema:

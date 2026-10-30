@@ -30,6 +30,7 @@ export function createChatFixture(
 ) {
   const controls = {
     scenario: "normal" as ChatScenario,
+    commandId: undefined as string | undefined,
     delay: 600,
     requests: [] as { path: string; cursor: string | null; authorization: boolean }[],
   };
@@ -181,6 +182,12 @@ export function createChatFixture(
           });
         event("run.started", {});
         event("text.delta", { text: "お手伝いします。" });
+        if (body.output_mode === "speech")
+          event("speech.ready", {
+            speech_id: crypto.randomUUID(),
+            sentence_index: 0,
+            expires_at: new Date(Date.now() + 120_000).toISOString(),
+          });
         const scenario = controls.scenario;
         if (
           ["tools", "unknown", "fast_tools", "fast_unknown", "disconnect_tools"].includes(scenario)
@@ -189,6 +196,7 @@ export function createChatFixture(
             tool_call_id: toolId,
             tool_name: "home_assistant.set_state",
             status: "pending",
+            ...(controls.commandId ? { command_id: controls.commandId } : {}),
           });
           event("tool.status", {
             tool_call_id: toolId,
@@ -232,7 +240,7 @@ export function createChatFixture(
         const user: Message = {
           id: crypto.randomUUID(),
           role: "user",
-          text: body.text,
+          text: body.text ?? "合成の音声入力",
           run_id: runId,
           created_at: timestamp,
           source_refs: [],

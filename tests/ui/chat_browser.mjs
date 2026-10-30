@@ -151,9 +151,9 @@ try {
           path: join(artifacts, `${surface}-thinking.png`),
           fullPage: false,
         });
-        await page.getByRole("status", { name: "アシスタント: 応答を表示中" }).waitFor();
+        await page.getByLabel("生成途中の応答").waitFor();
         await page.screenshot({
-          path: join(artifacts, `${surface}-speaking.png`),
+          path: join(artifacts, `${surface}-text-delta.png`),
           fullPage: false,
         });
       }

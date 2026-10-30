@@ -12,7 +12,8 @@ import unittest
 from collections.abc import AsyncIterator, Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -540,7 +541,7 @@ class AudioTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(task, return_exceptions=True)
         self.assertEqual(self.cloud.journal.cursors[0].seq, 1)
         self.assertEqual(len(self.calls), 1)
-        self.assertTrue(queue.empty())
+        self.assertIn(b'"type":"speech.ready"', queue.get_nowait() or b"")
         with patch.object(
             bridge,
             "history",
@@ -773,6 +774,290 @@ class AudioTests(unittest.IsolatedAsyncioTestCase):
         self.cloud.stop()
         self.assertTrue(stream.closed)
         self.assertEqual(self.audio.pcm, b"")
+
+    def voice_bridge(
+        self, *, created: float | None = None, seq: int = 10
+    ) -> tuple[UIBridge, dict[str, Any], dict[str, Any]]:
+        conversation_id = identity()
+        state = {
+            "ready": True,
+            "snapshot": {
+                "tenant_id": self.tenant,
+                "device_id": self.device,
+                "active_private_session": None,
+                "assigned_runs": [
+                    {
+                        "run_id": self.run_id,
+                        "conversation_id": conversation_id,
+                        "output_mode": "speech",
+                        "assignment_generation": 1,
+                    }
+                ],
+            },
+        }
+        run = {
+            "run_id": self.run_id,
+            "conversation_id": conversation_id,
+            "status": "running",
+            "created_at": self.iso(created if created is not None else self.clock + 1),
+            "last_event_seq": seq,
+        }
+        conversation = {
+            "id": conversation_id,
+            "tenant_id": self.tenant,
+            "visibility": "shared",
+            "display_policy": "shared_display",
+        }
+
+        async def operation(value: Any) -> dict[str, Any]:
+            return run if value.operation == "get_run" else conversation
+
+        bridge = UIBridge(self.cloud, self.sessions, self.audio)
+        patcher = patch.object(bridge, "operation", operation)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.cloud.recovery = cast(
+            Any,
+            SimpleNamespace(
+                publication=AsyncMock(return_value=(state, lambda: None)),
+                observed_at=self.clock,
+                check=lambda *_args: None,
+            ),
+        )
+        return bridge, state, run
+
+    async def test_ui_voice_post_routes_enforce_csrf_context_and_explicit_intent(self) -> None:
+        bridge, state, _ = self.voice_bridge()
+        state["snapshot"]["assigned_runs"] = []
+        settings = Settings(
+            "127.0.0.1", 18778, self.root / "static", self.root / "credentials", self.root / "state"
+        )
+        app = LocalBoundary(Starlette(routes=bridge.routes()), settings)
+        headers = {
+            "Origin": settings.origin,
+            "Cookie": f"{COOKIE}={self.owner}",
+            "X-CSRF-Token": self.csrf,
+        }
+        path = f"/local/cloud/runs/{self.run_id}/events"
+        calls: list[Any] = []
+
+        async def events(run_id: Any, session: Any, queue: Any, speech: Any) -> None:
+            calls.append((run_id, session, speech))
+            queue.put_nowait(b'event: run\ndata: {"type":"speech.ready","seq":1}\n\n')
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url=settings.origin
+        ) as browser:
+            for route, body in (("/local/cloud/audio-wait", {}), (path, {"mode": "future"})):
+                rejected = await browser.post(
+                    route, headers={**headers, "X-CSRF-Token": "wrong"}, json=body
+                )
+                self.assertEqual(rejected.status_code, 403)
+                self.assertIsNone(self.audio.waiting)
+            accepted = await browser.post("/local/cloud/audio-wait", headers=headers, json={})
+            self.assertEqual(accepted.status_code, 200)
+            self.assertTrue(self.audio.state(self.owner)["waiting"])
+            with patch.object(bridge, "events", events):
+                mismatch = await browser.post(
+                    path, headers=headers, json={"mode": "future", "private_session_id": identity()}
+                )
+                self.assertEqual(mismatch.status_code, 409)
+                self.assertEqual(calls, [])
+                generation = self.audio.generation
+                attached = await browser.post(path, headers=headers, json={"mode": "future"})
+                self.assertEqual(attached.status_code, 200)
+                self.assertIn("speech.ready", attached.text)
+                self.assertEqual(
+                    calls, [(self.run_id, None, (self.owner, generation + 1, "future"))]
+                )
+                self.assertIsNone(self.audio.waiting)
+
+    async def test_ui_wait_expiry_and_wrong_local_owner_cannot_consume_intent(self) -> None:
+        bridge, state, run = self.voice_bridge()
+        state["snapshot"]["assigned_runs"] = []
+        await bridge.wait_for_speech(self.owner, None)
+        state["snapshot"]["assigned_runs"] = [
+            {
+                "run_id": self.run_id,
+                "conversation_id": run["conversation_id"],
+                "output_mode": "speech",
+            }
+        ]
+        with self.assertRaises(CloudError):
+            await bridge.attach_speech(
+                self.run_id, None, "wrong-owner", self.audio.generation, "waiting"
+            )
+        self.clock += 61
+        with self.assertRaises(CloudError):
+            await bridge.attach_speech(
+                self.run_id, None, self.owner, self.audio.generation, "waiting"
+            )
+        self.assertIsNone(self.audio.run_id)
+
+    async def test_ui_future_attach_skips_past_seq_and_starts_at_next_sentence_index(self) -> None:
+        bridge, _, _ = self.voice_bridge()
+        await bridge.attach_speech(self.run_id, None, self.owner, self.audio.generation, "future")
+        old = self.event(4)
+        old["seq"] = 10
+        self.audio.event(old, None)
+        await asyncio.sleep(0.02)
+        self.assertFalse(self.calls)
+        new = self.event(5)
+        new["seq"] = 11
+        self.audio.event(new, None)
+        await until(lambda: bool(self.backend.streams) and self.backend.streams[-1].finished)
+        self.audio.event(new, None)
+        await asyncio.sleep(0.02)
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.audio.queue.next_index, 6)
+        self.audio.clear()
+        self.audio.event(self.event(6), None)
+        self.assertIsNone(self.audio.run_id)
+
+    async def test_ui_attach_rejects_wrong_assignment_output_and_canonical_conversation(
+        self,
+    ) -> None:
+        for variant in ("mode", "session", "conversation", "terminal"):
+            with self.subTest(variant=variant):
+                bridge, state, run = self.voice_bridge()
+                assignment = state["snapshot"]["assigned_runs"][0]
+                if variant == "mode":
+                    assignment["output_mode"] = "text"
+                if variant == "session":
+                    assignment["private_session_id"] = identity()
+                if variant == "conversation":
+                    run["conversation_id"] = identity()
+                if variant == "terminal":
+                    run["status"] = "completed"
+                with self.assertRaises(CloudError):
+                    await bridge.attach_speech(
+                        self.run_id, None, self.owner, self.audio.generation, "future"
+                    )
+                self.assertIsNone(self.audio.run_id)
+
+    async def test_ui_wait_uses_complete_server_boundary_not_pi_clock_or_old_assignments(
+        self,
+    ) -> None:
+        bridge, state, run = self.voice_bridge()
+        # Baseline must exclude the future run. Device time is deliberately unrelated.
+        state["snapshot"]["assigned_runs"] = []
+        cast(Any, self.cloud.recovery).observed_at = self.clock + 500
+        await bridge.wait_for_speech(self.owner, None)
+        self.assertTrue(self.audio.state(self.owner)["waiting"])
+        state["snapshot"]["assigned_runs"] = [
+            {
+                "run_id": self.run_id,
+                "conversation_id": run["conversation_id"],
+                "output_mode": "speech",
+            }
+        ]
+        for created in (self.clock, self.clock + 500):
+            run["created_at"] = self.iso(created)
+            with self.assertRaises(CloudError):
+                await bridge.attach_speech(
+                    self.run_id, None, self.owner, self.audio.generation, "waiting"
+                )
+        run["created_at"] = self.iso(self.clock + 501)
+        await bridge.attach_speech(self.run_id, None, self.owner, self.audio.generation, "waiting")
+        self.assertEqual(self.audio.run_id, self.run_id)
+        self.assertIsNone(self.audio.waiting)
+        self.assertEqual(self.audio.after_seq, 0)
+        self.audio.clear()
+        cast(Any, self.cloud.recovery).observed_at = None
+        with self.assertRaises(CloudError):
+            await bridge.wait_for_speech(self.owner, None)
+        self.assertIsNone(self.audio.waiting)
+
+    async def test_ui_wait_baseline_existing_run_is_never_a_new_assignment(self) -> None:
+        bridge, _, _ = self.voice_bridge(created=self.clock + 100)
+        await bridge.wait_for_speech(self.owner, None)
+        with self.assertRaises(CloudError):
+            await bridge.attach_speech(
+                self.run_id, None, self.owner, self.audio.generation, "waiting"
+            )
+        self.audio.clear()
+
+    async def test_ui_late_wait_and_attach_cannot_survive_stop_or_new_intent(self) -> None:
+        for kind in ("wait", "attach"):
+            with self.subTest(kind=kind):
+                bridge, state, _ = self.voice_bridge()
+                entered, release = asyncio.Event(), asyncio.Event()
+
+                async def publication(
+                    entered: asyncio.Event = entered,
+                    release: asyncio.Event = release,
+                    state: dict[str, Any] = state,
+                ) -> Any:
+                    entered.set()
+                    await release.wait()
+                    return state, lambda: None
+
+                cast(Any, self.cloud.recovery).publication = publication
+                task = asyncio.create_task(
+                    bridge.wait_for_speech(self.owner, None)
+                    if kind == "wait"
+                    else bridge.attach_speech(
+                        self.run_id, None, self.owner, self.audio.generation, "future"
+                    )
+                )
+                await entered.wait()
+                self.audio.clear()
+                release.set()
+                with self.assertRaises(CloudError):
+                    await task
+                self.assertIsNone(self.audio.run_id)
+                self.assertIsNone(self.audio.waiting)
+
+    async def test_ui_explicit_attach_is_consumed_once_and_reconnect_cannot_play_backlog(
+        self,
+    ) -> None:
+        bridge, _, _ = self.voice_bridge(seq=1)
+        from brainoid_device.cloud_models import Cursor
+
+        self.cloud.journal.cursors.append(Cursor(run_id=self.run_id, seq=1))
+        entered = asyncio.Event()
+        event = self.event(3)
+        event["seq"] = 2
+        wire = b"id: 2\nevent: speech.ready\ndata: " + json.dumps(event).encode() + b"\n\n"
+
+        class Live(httpx.AsyncByteStream):
+            async def __aiter__(self) -> AsyncIterator[bytes]:
+                yield wire
+                entered.set()
+                await asyncio.Event().wait()
+
+        async def respond(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/events"):
+                return httpx.Response(
+                    200, stream=Live(), headers={"Content-Type": "text/event-stream"}
+                )
+            return await self.respond(request)
+
+        history = {"run": {"status": "running", "last_event_seq": 1}, "play_speech": False}
+        queue: asyncio.Queue[bytes | None] = asyncio.Queue(8)
+        with (
+            patch.object(bridge, "history", AsyncMock(return_value=history)),
+            patch.object(self.cloud.http, "_transport", httpx.MockTransport(respond)),
+        ):
+            task = asyncio.create_task(
+                bridge.events(
+                    self.run_id, None, queue, (self.owner, self.audio.generation, "future")
+                )
+            )
+            await entered.wait()
+            await until(lambda: bool(self.backend.streams) and self.backend.streams[0].finished)
+            with self.assertRaises(CloudError):
+                await bridge.events(self.run_id, None, queue)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            self.assertIsNone(self.audio.run_id)
+            before = len(self.calls)
+            second = asyncio.create_task(bridge.events(self.run_id, None, queue))
+            await asyncio.sleep(0.03)
+            second.cancel()
+            await asyncio.gather(second, return_exceptions=True)
+            self.assertEqual(len(self.calls), before)
+        self.assertEqual(self.audio.queue.pending, {})
 
 
 class QueueAndWavTests(unittest.TestCase):
